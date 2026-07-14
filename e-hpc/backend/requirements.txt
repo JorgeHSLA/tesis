@@ -1,0 +1,6 @@
+# Manifiesto backend — pins congelados (architecture.md §10.4)
+fastapi[standard]>=0.139,<0.140
+pydantic>=2.12,<3
+pydantic-settings>=2.6,<3
+docker>=7.2,<8
+aiosqlite>=0.20,<1

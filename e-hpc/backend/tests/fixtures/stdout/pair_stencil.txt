@@ -1,0 +1,4 @@
+paralelo == serial? True
+tiempo paralelo: 0.912 s
+tiempo serial  : 0.989 s
+temperatura cerca del borde caliente: 92.0421

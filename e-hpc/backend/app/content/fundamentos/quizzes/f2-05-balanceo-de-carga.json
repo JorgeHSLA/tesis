@@ -1,0 +1,71 @@
+{
+  "lesson_id": "f2-05-balanceo-de-carga",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "f2-q1",
+      "order": 1,
+      "text": "Un programa tarda 40 segundos con 1 hilo y 8 segundos con 5 hilos. ¿Cuál es el speedup?",
+      "options": [
+        {"key": "a", "text": "5x"},
+        {"key": "b", "text": "8x"},
+        {"key": "c", "text": "40x"},
+        {"key": "d", "text": "0.2x"}
+      ],
+      "correct_key": "a",
+      "explanation": "El speedup es el tiempo con 1 hilo dividido por el tiempo con N hilos: S = 40 / 8 = 5x. Como se usaron 5 hilos y el speedup es 5x, la eficiencia (S/N) es del 100%: un caso ideal, raro en la práctica."
+    },
+    {
+      "id": "f2-q2",
+      "order": 2,
+      "text": "Un programa es 80% paralelizable y 20% forzosamente serial. Según la ley de Amdahl, ¿cuál es el speedup MÁXIMO posible aunque uses infinitos núcleos?",
+      "options": [
+        {"key": "a", "text": "80x"},
+        {"key": "b", "text": "Ilimitado, con suficientes núcleos"},
+        {"key": "c", "text": "5x"},
+        {"key": "d", "text": "1.25x"}
+      ],
+      "correct_key": "c",
+      "explanation": "Con infinitos núcleos la parte paralela tiende a cero, pero la serial no se puede acelerar. El techo es 1 dividido por la fracción serial: 1 / 0.2 = 5x. Por eso optimizar la parte serial a veces rinde más que añadir hilos."
+    },
+    {
+      "id": "f2-q3",
+      "order": 3,
+      "text": "En un centro de reparto, 8 empleados corrigen paquetes: cada uno etiqueta un lote de cajas idénticas con la misma operación. ¿Qué tipo de descomposición es?",
+      "options": [
+        {"key": "a", "text": "Paralelismo de tareas: cada empleado hace una operación distinta"},
+        {"key": "b", "text": "Paralelismo de datos: la misma operación aplicada a distintos trozos de los datos"},
+        {"key": "c", "text": "Concurrencia sin paralelismo"},
+        {"key": "d", "text": "No es paralelizable"}
+      ],
+      "correct_key": "b",
+      "explanation": "Paralelismo de DATOS es la misma operación sobre distintas porciones de los datos (cada empleado etiqueta su lote con la misma acción). El de TAREAS sería que cada uno hiciera una operación diferente (uno etiqueta, otro pesa, otro sube al sistema). El de datos es el pan de cada día del cómputo científico."
+    },
+    {
+      "id": "f2-q4",
+      "order": 4,
+      "text": "Paralelizas un bucle pequeño (100 iteraciones muy rápidas) con 8 hilos y descubres que corre MÁS LENTO que en serial. ¿Cuál es la causa más probable?",
+      "options": [
+        {"key": "a", "text": "El overhead: crear los hilos, repartir y sincronizar cuesta más que el trabajo útil, que es minúsculo"},
+        {"key": "b", "text": "El programa tiene un bug de lógica"},
+        {"key": "c", "text": "8 hilos es demasiado para cualquier programa"},
+        {"key": "d", "text": "La ley de Amdahl prohíbe paralelizar bucles"}
+      ],
+      "correct_key": "a",
+      "explanation": "Los hilos tienen un costo fijo: crearlos, despertarlos, repartir el trabajo y sincronizarlos al final. Si el trabajo por hilo es minúsculo, ese overhead de coordinación supera la ganancia y el resultado es más lento. La regla: el trabajo por hilo debe ser mucho mayor que el costo de coordinarse."
+    },
+    {
+      "id": "f2-q5",
+      "order": 5,
+      "text": "Cuatro hilos procesan una imagen: tres terminan su zona en 2 segundos, pero el cuarto tiene una zona mucho más costosa y tarda 6. ¿Cuánto dura el cálculo y qué problema es?",
+      "options": [
+        {"key": "a", "text": "2 segundos; no hay ningún problema"},
+        {"key": "b", "text": "3.5 segundos (el promedio); es overhead"},
+        {"key": "c", "text": "6 segundos; es desbalance de carga: el tiempo lo marca el hilo más lento"},
+        {"key": "d", "text": "6 segundos; es una race condition"}
+      ],
+      "correct_key": "c",
+      "explanation": "En un cálculo paralelo el tiempo total lo determina el hilo MÁS LENTO: los otros tres terminan en 2s pero esperan al cuarto hasta los 6s. Eso es desbalance de carga (carga desigual = hilos ociosos = speedup perdido), típico de imágenes como Mandelbrot donde unas zonas cuestan mucho más que otras."
+    }
+  ]
+}

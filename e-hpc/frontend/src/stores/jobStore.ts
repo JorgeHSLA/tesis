@@ -1,0 +1,131 @@
+// stores/jobStore.ts — estado del job activo (frontend-spec §3.1).
+// `phase` usa el VOCABULARIO EXACTO de api-contract §7.7 (8 fases) más 3
+// estados locales del cliente: idle | connecting | lost.
+// Caps: logs 1000 líneas (slice(-1000) en cada flush) · métricas 900 (~15 min).
+// Las escrituras llegan desde JobSocket (fuera de React); los logs vienen ya
+// batcheados por rAF desde el socket (§4.1).
+//
+// DECISIÓN (documentada): el store NO se resetea al desmontar el live —
+// §6.4 exige que `jobStore.metrics` siga en memoria al navegar del live a
+// Resultados (LiveMetricsChart). El reset ocurre en `begin()` al conectar
+// con un job (nuevo o reconexión: el backlog re-puebla los logs).
+import { create } from 'zustand'
+import type { JobPhase, StatusDetailDto } from '../ws/messages'
+
+/** Fases del contrato (8) + estados locales del cliente. */
+export type UiPhase = 'idle' | 'connecting' | 'lost' | JobPhase
+
+/** Modelo UI derivado 1:1 del mensaje WS `log` (una entrada por línea). */
+export interface LogLine {
+  seq: number
+  ts: string
+  stream: 'stdout' | 'stderr'
+  text: string
+}
+
+/** Modelo UI derivado 1:1 del mensaje WS `metrics`. */
+export interface MetricSample {
+  ts: string
+  cpu_percent: number
+  online_cpus: number
+  mem_used_bytes: number
+  mem_limit_bytes: number
+  pids: number
+}
+
+export const LOG_CAP = 1000
+export const METRICS_CAP = 900
+
+const TERMINAL_PHASES: ReadonlySet<UiPhase> = new Set(['completed', 'failed', 'timeout', 'cancelled'])
+
+export function isTerminalPhase(phase: UiPhase): boolean {
+  return TERMINAL_PHASES.has(phase)
+}
+
+export interface JobState {
+  jobId: string | null
+  phase: UiPhase
+  /** De status.detail.exit_code (fase terminal). */
+  exitCode: number | null
+  /** De status.detail.error_detail. */
+  errorDetail: string | null
+  /** Epoch ms local al recibir phase 'running'. */
+  startedAt: number | null
+  /** De status.detail.wall_time_ms (congela el contador al terminar). */
+  wallTimeMs: number | null
+  logs: LogLine[]
+  /** Cap local descartó líneas O eof.truncated / error OUTPUT_TRUNCATED. */
+  logsTruncated: boolean
+  metrics: MetricSample[]
+  wsError: string | null
+  /** El servidor emitió `eof` (cierre 1000 posterior = normal). */
+  sawEof: boolean
+  // Acciones llamadas por JobSocket (fuera de React):
+  begin(jobId: string): void
+  appendLogs(lines: LogLine[]): void
+  appendMetric(m: MetricSample): void
+  setPhase(p: UiPhase, detail?: StatusDetailDto | null): void
+  markLogsTruncated(): void
+  setWsError(msg: string | null): void
+  markEof(truncated: boolean): void
+  reset(): void
+}
+
+const INITIAL = {
+  jobId: null as string | null,
+  phase: 'idle' as UiPhase,
+  exitCode: null as number | null,
+  errorDetail: null as string | null,
+  startedAt: null as number | null,
+  wallTimeMs: null as number | null,
+  logs: [] as LogLine[],
+  logsTruncated: false,
+  metrics: [] as MetricSample[],
+  wsError: null as string | null,
+  sawEof: false,
+}
+
+export const useJobStore = create<JobState>()((set) => ({
+  ...INITIAL,
+
+  begin: (jobId) => set({ ...INITIAL, jobId, phase: 'connecting' }),
+
+  appendLogs: (lines) =>
+    set((s) => {
+      if (lines.length === 0) return s
+      const merged = s.logs.length === 0 ? lines : [...s.logs, ...lines]
+      const trimmed = merged.length > LOG_CAP
+      return {
+        logs: trimmed ? merged.slice(-LOG_CAP) : merged,
+        logsTruncated: s.logsTruncated || trimmed,
+      }
+    }),
+
+  appendMetric: (m) =>
+    set((s) => {
+      const merged = [...s.metrics, m]
+      return { metrics: merged.length > METRICS_CAP ? merged.slice(-METRICS_CAP) : merged }
+    }),
+
+  setPhase: (p, detail) =>
+    set((s) => ({
+      phase: p,
+      startedAt: p === 'running' && s.startedAt == null ? Date.now() : s.startedAt,
+      ...(detail != null
+        ? {
+            exitCode: detail.exit_code,
+            errorDetail: detail.error_detail,
+            wallTimeMs: detail.wall_time_ms,
+            logsTruncated: s.logsTruncated || detail.output_truncated,
+          }
+        : null),
+    })),
+
+  markLogsTruncated: () => set({ logsTruncated: true }),
+
+  setWsError: (msg) => set({ wsError: msg }),
+
+  markEof: (truncated) => set((s) => ({ sawEof: true, logsTruncated: s.logsTruncated || truncated })),
+
+  reset: () => set({ ...INITIAL }),
+}))

@@ -1,0 +1,106 @@
+{
+  "lesson_id": "primerEjemplo",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "primerEjemplo-q1",
+      "order": 1,
+      "text": "¿Qué hace el decorador @njit en PyOMP?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Ejecuta la función en un intérprete Python más rápido"
+        },
+        {
+          "key": "b",
+          "text": "Compila la función a código máquina nativo antes de correrla"
+        },
+        {
+          "key": "c",
+          "text": "Crea automáticamente los hilos de OpenMP"
+        },
+        {
+          "key": "d",
+          "text": "Convierte la función a C y la guarda en disco"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Según el info: \"no ejecutes esta función como Python normal, compílala a código máquina nativo\"; por eso sirve para medir rendimiento real."
+    },
+    {
+      "id": "primerEjemplo-q2",
+      "order": 2,
+      "text": "Sin OMP_NUM_THREADS definido, ¿cuántos hilos ejecutan la región parallel?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Siempre 4"
+        },
+        {
+          "key": "b",
+          "text": "Uno solo, hasta que se pida más"
+        },
+        {
+          "key": "c",
+          "text": "Tantos como procesadores lógicos vea el sistema (lo que muestra nproc)"
+        },
+        {
+          "key": "d",
+          "text": "El doble de los núcleos físicos, siempre"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "El info lo dice explícitamente y muestra nproc = 8 → 8 líneas de output."
+    },
+    {
+      "id": "primerEjemplo-q3",
+      "order": 3,
+      "text": "En el output real del ejemplo, los mensajes \"Hello from thread N\" aparecen…",
+      "options": [
+        {
+          "key": "a",
+          "text": "Siempre en orden 0,1,2,…,7"
+        },
+        {
+          "key": "b",
+          "text": "En orden impredecible (0,3,6,2,1,4,7,5 en la corrida del info)"
+        },
+        {
+          "key": "c",
+          "text": "Solo el hilo 0 imprime"
+        },
+        {
+          "key": "d",
+          "text": "En orden inverso 7,6,5,…"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Los hilos corren concurrentemente y no hay sincronización de orden."
+    },
+    {
+      "id": "primerEjemplo-q4",
+      "order": 4,
+      "text": "¿Qué delimita la región paralela en PyOMP?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Llaves { } como en C"
+        },
+        {
+          "key": "b",
+          "text": "La indentación de la función completa"
+        },
+        {
+          "key": "c",
+          "text": "El bloque with openmp(\"parallel\"):"
+        },
+        {
+          "key": "d",
+          "text": "El decorador @njit"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "El info: \"El bloque with marca el inicio y el fin de una región paralela\"."
+    }
+  ]
+}

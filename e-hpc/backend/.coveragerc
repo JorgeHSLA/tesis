@@ -1,0 +1,11 @@
+# Cobertura del backend E-HPC (WP9).
+# app/content/**/main.py son PAYLOADS del runner (fixtures literales de WP4),
+# no código del backend: se excluyen de la medición.
+[run]
+omit =
+    app/content/*
+    tests/*
+    tests_local_wp*/*
+
+[report]
+precision = 1

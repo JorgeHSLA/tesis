@@ -1,0 +1,128 @@
+"""``create_app`` REAL (main.py): lifespan completo con docker inyectado,
+reaper de arranque, degradación sin daemon (liveness ≠ readiness) y CORS.
+"""
+
+from __future__ import annotations
+
+import asyncio
+
+import pytest
+from fastapi.testclient import TestClient
+
+import app.main as app_main
+from app.db import apply_schema, open_db
+from app.main import create_app
+from app.repositories.jobs import JobRepository
+
+from conftest import make_job_record, wait_terminal
+from fakes.fake_docker import FakeDockerService, FakeExecution
+
+
+def test_lifespan_completo_y_estado(settings, fake_docker):
+    application = create_app(settings=settings, docker_service=fake_docker)
+    with TestClient(application) as client:
+        state = application.state
+        assert state.settings is settings
+        assert state.docker is fake_docker
+        assert state.docker_service is fake_docker
+        assert state.jobs == {}
+        assert state.content.exists_lesson("spmd")
+        assert fake_docker.reap_calls == 1  # reaper en el arranque
+
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json()["checks"] == {
+            "db": True, "docker": True, "runner_image": True
+        }
+        assert settings.db_path_expanded.exists()  # DB física creada
+
+
+def test_job_end_to_end_contra_app_real(settings, fake_docker):
+    """El flujo §3 completo por la app REAL (con runner fake): POST → WS
+    implícito por fases → GET con resultados."""
+    fake_docker.queue_execution(FakeExecution(stdout=[b"hola e2e\n"]))
+    application = create_app(settings=settings, docker_service=fake_docker)
+    with TestClient(application) as client:
+        response = client.post("/api/v1/jobs", json={"code": "print('e2e')\n"})
+        assert response.status_code == 202
+        detail = wait_terminal(client, response.json()["data"]["job_id"])
+        assert detail["status"] == "completed"
+        assert detail["stdout"] == "hola e2e\n"
+
+
+def test_reaper_marca_huerfanos_en_db(settings, fake_docker):
+    """Jobs no terminales de una sesión anterior → failed/orphaned_on_restart."""
+
+    async def seed() -> None:
+        settings.db_path_expanded.parent.mkdir(parents=True, exist_ok=True)
+        conn = await open_db(str(settings.db_path_expanded))
+        await apply_schema(conn)
+        await JobRepository(conn).create(
+            make_job_record("huerfano", status="running")
+        )
+        await conn.close()
+
+    asyncio.run(seed())
+    fake_docker.reap_result = (1, 2)
+    application = create_app(settings=settings, docker_service=fake_docker)
+    with TestClient(application) as client:
+        data = client.get("/api/v1/jobs/huerfano").json()["data"]
+        assert data["status"] == "failed"
+        assert data["error_detail"] == "orphaned_on_restart"
+
+
+def test_reaper_que_falla_no_impide_el_arranque(settings, fake_docker):
+    fake_docker.reap_error = RuntimeError("daemon raro")
+    application = create_app(settings=settings, docker_service=fake_docker)
+    with TestClient(application) as client:
+        assert client.get("/health").status_code == 200
+
+
+def test_sin_docker_service_liveness_pero_system_503(settings, monkeypatch):
+    """Si el docker service no se puede construir, la app arranca igual:
+    /health 200 (checks informativos) y /system 503 DOCKER_UNAVAILABLE."""
+
+    def broken_builder(cfg):
+        raise RuntimeError("sin daemon")
+
+    monkeypatch.setattr(app_main, "_build_docker_service", broken_builder)
+    application = create_app(settings=settings)
+    with TestClient(application) as client:
+        health = client.get("/health")
+        assert health.status_code == 200  # liveness ≠ readiness
+        assert health.json()["checks"]["docker"] is False
+        assert health.json()["checks"]["runner_image"] is False
+
+        system = client.get("/api/v1/system")
+        assert system.status_code == 503
+        assert system.json()["error"]["code"] == "DOCKER_UNAVAILABLE"
+
+        jobs = client.post("/api/v1/jobs", json={"code": "print(1)\n"})
+        assert jobs.status_code == 503
+        assert jobs.json()["error"]["code"] == "DOCKER_UNAVAILABLE"
+
+
+def test_cors_origins_congelados(settings, fake_docker):
+    application = create_app(settings=settings, docker_service=fake_docker)
+    with TestClient(application) as client:
+        for origin in ("http://localhost:5173", "http://localhost:8080", "null"):
+            response = client.get("/health", headers={"origin": origin})
+            assert response.headers.get("access-control-allow-origin") == origin
+        response = client.get("/health", headers={"origin": "http://evil.example"})
+        assert "access-control-allow-origin" not in response.headers
+
+
+def test_internal_error_envelope_generico(settings, fake_docker):
+    """Una excepción no controlada responde INTERNAL_ERROR sin detalle."""
+    application = create_app(settings=settings, docker_service=fake_docker)
+
+    @application.get("/api/v1/_boom")
+    async def _boom():
+        raise RuntimeError("secreto interno: /ruta/privada")
+
+    with TestClient(application, raise_server_exceptions=False) as client:
+        response = client.get("/api/v1/_boom")
+        assert response.status_code == 500
+        body = response.json()
+        assert body["error"]["code"] == "INTERNAL_ERROR"
+        assert "secreto" not in response.text  # detalle SOLO en logs

@@ -1,0 +1,815 @@
+/* components.css — shell + componentes base. Port PIXEL-PERFECT de
+   styles.css/v2.css/screens.css del handoff (handoff-design.md §2, §3, §5.6,
+   §5.8) con los 4 fixes de bugs CSS (frontend-spec §5.2 / handoff §14):
+     1. `.home .hero` grid 1.15fr 1fr (la regla que el comentario `//` mataba).
+     2. `.hero-stats` / `.tutorial-panel` / `.tut-visual`: NO se portan.
+     3. `.v2 .app` → `[data-variant="v2"] .app` (rail v2 de 52px SÍ aplica).
+     4. `var(--ink)` → `var(--text)` y `var(--success)` (token nuevo).
+   Todos los selectores `.v2 .x` del prototipo se reescriben como
+   `[data-variant="v2"] .x` (theming unificado en <html data-variant>). */
+
+/* ═══════════════════════ App shell (handoff §3.1) ══════════════════════ */
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w, 220px) 1fr;
+  height: 100vh;
+  overflow: hidden;
+  transition: grid-template-columns .22s var(--ease);
+}
+.app:has(.sidebar.collapsed) { --sidebar-w: 60px; }
+.app:has(.sidebar.expanded)  { --sidebar-w: 220px; }
+
+.main {
+  overflow: auto;
+  position: relative;
+}
+
+/* ── Sidebar (handoff §3.2) ─────────────────────────────────────────────── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 10px;
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.sidebar.collapsed { padding: 20px 8px; }
+
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .sidebar-brand-textwrap,
+.sidebar.collapsed .nav-section-label,
+.sidebar.collapsed .sidebar-footer-text {
+  display: none;
+}
+.sidebar.collapsed .sidebar-brand { justify-content: center; padding: 6px 0 14px; }
+.sidebar.collapsed .nav-item { justify-content: center; padding: 10px 0; }
+.sidebar.collapsed .sidebar-toggle { justify-content: center; padding: 6px 0; }
+.sidebar.collapsed .sidebar-footer { justify-content: center; padding: 12px 0; }
+
+/* Tooltip en colapsado (::after con attr(data-tip)) */
+.sidebar.collapsed .nav-item { position: relative; }
+.sidebar.collapsed .nav-item::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  background: var(--ink-800, #2a2a2a);
+  color: white;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s var(--ease), transform .15s var(--ease);
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+.sidebar.collapsed .nav-item:hover::after,
+.sidebar.collapsed .nav-item:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  margin: 2px 0 10px;
+  border-radius: var(--r-md);
+  font-size: 12px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background .15s var(--ease), color .15s var(--ease);
+}
+.sidebar-toggle:hover { background: var(--surface-2); color: var(--text); }
+.sidebar-toggle svg { flex-shrink: 0; }
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 18px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.sidebar-brand-mark {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--orange-500);
+  display: grid; place-items: center;
+  color: white;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: -.02em;
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,.15);
+}
+.sidebar-brand-text {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -.02em;
+}
+.sidebar-brand-sub {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-top: -2px;
+}
+
+.nav-section-label {
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--text-muted);
+  padding: 10px 10px 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  width: 100%;
+  text-decoration: none; /* .nav-item es <a> (NavLink) en producción */
+  transition: background .15s var(--ease);
+}
+.nav-item:hover { background: var(--surface-2); }
+.nav-item.active {
+  background: var(--orange-50);
+  color: var(--orange-700);
+  font-weight: 600;
+}
+.nav-item .nav-icon {
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  color: var(--text-muted);
+}
+.nav-item.active .nav-icon { color: var(--orange-600); }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 12px 10px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.sidebar-footer-text > div:first-child { color: var(--text); font-weight: 500; }
+
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green-400);
+  box-shadow: 0 0 0 3px rgba(107,168,80,.2);
+  animation: pulse 2s var(--ease) infinite;
+  flex-shrink: 0;
+}
+@keyframes pulse { 50% { transform: scale(1.2); } }
+
+/* Estados del dot del RuntimeFooter (frontend-spec §6.7): rojo/ámbar ESTÁTICOS */
+.status-dot--red {
+  background: var(--red-500);
+  box-shadow: 0 0 0 3px rgba(201,74,43,.2);
+  animation: none;
+}
+.status-dot--amber {
+  background: var(--amber-500);
+  box-shadow: 0 0 0 3px rgba(232,163,23,.2);
+  animation: none;
+}
+
+/* now-dot (lección actual, handoff §8.2-d) — compartido con WP7 */
+.now-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--orange-500);
+  box-shadow: 0 0 0 3px rgba(245,115,36,.2);
+  animation: pulse 2s var(--ease) infinite;
+  flex-shrink: 0;
+}
+
+/* ── Topbar (handoff §3.3) ──────────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky; top: 0; z-index: 10;
+}
+.topbar-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 18px;
+  letter-spacing: -.01em;
+}
+.topbar-crumb {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.topbar-spacer { flex: 1; }
+.topbar-divider {
+  width: 1px; height: 22px;
+  background: var(--border);
+  margin: 0 4px;
+}
+.topbar-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--orange-200);
+  color: var(--orange-700);
+  font-size: 12px;
+  font-weight: 600;
+  display: grid; place-items: center;
+}
+.topbar-user { font-size: 13px; }
+
+/* ── Contenedor de pantalla (handoff §3.4) ─────────────────────────────── */
+.screen { padding: 28px; max-width: 1280px; }
+.screen-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.section-head { margin: 28px 0 16px; }
+
+/* FIX handoff §14.1 — el grid intencional del hero de Home que el comentario
+   `//` inválido descartaba. (El resto del CSS de Home vive en screens/home.css
+   de WP7; esta regla es uno de los 4 fixes asignados a WP5.) */
+.home .hero {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 48px;
+  padding: 40px 8px 48px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 36px;
+}
+.home .display-xl { font-size: 56px; }
+[data-variant="v2"] .home .hero {
+  grid-template-columns: 1fr;
+  gap: 20px;
+  padding: 8px 0 20px;
+  margin-bottom: 20px;
+}
+[data-variant="v2"] .hero-right { display: none; }
+[data-variant="v2"] .home .display-xl {
+  font-family: var(--font-sans);
+  font-size: 38px;
+  font-weight: 600;
+}
+
+/* ═══════════════════════ Botones (handoff §2.2) ════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 14px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  transition: all .15s var(--ease);
+}
+.btn:hover { background: var(--cream-200); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn-primary {
+  background: var(--orange-500);
+  color: white;
+  box-shadow: 0 1px 0 rgba(255,255,255,.3) inset, 0 -2px 0 rgba(0,0,0,.12) inset, 0 1px 2px rgba(214,90,18,.3);
+}
+.btn-primary:hover { background: var(--orange-600); }
+.btn-ghost { background: transparent; }
+.btn-ghost:hover { background: var(--surface-2); }
+.btn-outline {
+  background: var(--surface);
+  border-color: var(--border-strong);
+}
+.btn-outline:hover { background: var(--surface-2); }
+.btn-sm { padding: 6px 10px; font-size: 13px; }
+.btn-lg { padding: 12px 20px; font-size: 15px; }
+.btn-xl {
+  padding: 14px 22px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+}
+
+/* ═══════════════════════ Cards (handoff §2.3) ══════════════════════════ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+.card-pad { padding: 20px; }
+.card-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.card-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 17px;
+  letter-spacing: -.01em;
+}
+.card-sub { font-size: 12.5px; color: var(--text-muted); }
+
+/* ═══════════════════════ Chips (handoff §2.4) ══════════════════════════ */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .02em;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.chip .status-dot { width: 8px; height: 8px; box-shadow: none; }
+.chip-green { background: rgba(107,168,80,.12); color: var(--green-600); border-color: rgba(107,168,80,.3); }
+.chip-orange { background: var(--orange-50); color: var(--orange-700); border-color: var(--orange-200); }
+.chip-red { background: rgba(201,74,43,.1); color: var(--red-500); border-color: rgba(201,74,43,.3); }
+.chip-amber { background: rgba(232,163,23,.12); color: #8A5E0E; border-color: rgba(232,163,23,.3); }
+.chip-blue { background: rgba(46,110,168,.1); color: var(--blue-500); border-color: rgba(46,110,168,.25); }
+
+/* ═══════════════════════ Inputs (handoff §2.5) ═════════════════════════ */
+.field-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.field-hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.field-hint.error { color: var(--red-500); }
+.field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.input, .select, .textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+  transition: border .15s var(--ease), box-shadow .15s var(--ease);
+}
+.input:focus, .select:focus, .textarea:focus {
+  outline: none;
+  border-color: var(--orange-400);
+  box-shadow: 0 0 0 3px rgba(245,115,36,.15);
+}
+.textarea { font-family: var(--font-mono); font-size: 13px; resize: vertical; }
+input[type="range"] { width: 100%; accent-color: var(--orange-500); }
+input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ═══════════════════════ Terminal (handoff §2.6, §1.6) ═════════════════
+   Siempre oscuro EN AMBAS VARIANTES: correcto no tokenizarlo. */
+.terminal {
+  background: #14100C;
+  color: #F9EFD9;
+  border-radius: var(--r-lg);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  overflow: hidden;
+  border: 1px solid #3A2E22;
+}
+.terminal-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  background: #1F1913;
+  border-bottom: 1px solid #3A2E22;
+  font-size: 11.5px;
+  color: #A08B6E;
+  letter-spacing: .05em;
+}
+.terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+.terminal-body { padding: 14px 16px; max-height: 380px; overflow: auto; }
+.term-line { white-space: pre-wrap; }
+.term-dim { color: #7A6549; }
+.term-green { color: #6BA850; }
+.term-orange { color: #FF914D; }
+.term-red { color: #E85A3A; }
+.term-blue { color: #5FA8D4; }
+.term-amber { color: #E8A317; }
+
+/* ═══════════════════ Variant switcher (handoff §2.8) ═══════════════════ */
+.variant-switch {
+  display: inline-flex;
+  padding: 2px;
+  background: var(--surface-2);
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  gap: 2px;
+  margin-right: 8px;
+}
+.vs-btn {
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+.vs-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ═══════════════ MetricCard / MiniBar (handoff §5.6, §5.8) ═════════════ */
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.metric-card {
+  display: flex; gap: 12px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+.metric-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--orange-50);
+  color: var(--orange-600);
+  display: grid; place-items: center;
+  flex-shrink: 0;
+}
+.metric-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+}
+.metric-value {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -.015em;
+  margin-top: 2px;
+}
+.metric-progress {
+  height: 4px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.metric-progress > div {
+  height: 100%;
+  background: linear-gradient(90deg, var(--orange-400), var(--orange-500));
+  transition: width .6s var(--ease);
+}
+
+.mini-bar {
+  position: relative;
+  height: 18px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.mini-bar-fill {
+  height: 100%;
+  transition: width .6s var(--ease);
+  border-radius: 4px;
+}
+.mini-bar-label {
+  position: absolute;
+  right: 6px; top: 50%; transform: translateY(-50%);
+  color: var(--ink-800);
+  font-size: 10.5px;
+}
+
+/* ═══════ Estados vacío / error / carga (nuevos, frontend-spec §6) ══════
+   Única forma permitida de estados vacío/error/carga en toda la app. */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 24px;
+  text-align: center;
+}
+.empty-state-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  display: grid; place-items: center;
+}
+.empty-state-title { font-size: 14px; font-weight: 500; }
+.empty-state-body {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 400px;
+  margin: 0;
+}
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  background: rgba(201,74,43,.05);
+  border: 1px solid rgba(201,74,43,.3);
+  border-radius: var(--r-lg);
+}
+.error-state-head {
+  display: flex; align-items: center; gap: 10px;
+  color: var(--red-500);
+  font-size: 14px;
+  font-weight: 600;
+}
+.error-state-msg { font-size: 13.5px; margin: 0; }
+.error-state details {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.error-state summary { cursor: pointer; }
+.error-state details pre {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.error-state-actions { display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+
+.skeleton {
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  animation: skeleton-pulse 1.4s var(--ease) infinite;
+}
+@keyframes skeleton-pulse { 50% { opacity: .55; } }
+.screen-skeleton {
+  padding: 28px;
+  max-width: 1280px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.screen-skeleton .skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* ═══════════════ Markdown (subset de lib/markdown.ts) ══════════════════ */
+.markdown { font-size: 14px; line-height: 1.6; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -.01em;
+  margin: 18px 0 8px;
+}
+.markdown h1 { font-size: 24px; }
+.markdown h2 { font-size: 20px; }
+.markdown h3 { font-size: 17px; }
+.markdown h4 { font-size: 15px; }
+.markdown p { margin: 0 0 10px; }
+.markdown ul, .markdown ol { margin: 0 0 10px; padding-left: 22px; }
+.markdown li { margin: 2px 0; }
+.markdown code {
+  font-family: var(--font-mono);
+  font-size: .9em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.markdown pre {
+  background: #14100C;
+  color: #F9EFD9;
+  border: 1px solid #3A2E22;
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0 0 12px;
+}
+.markdown pre code { background: transparent; border: none; padding: 0; color: inherit; }
+.markdown a { color: var(--orange-600); }
+.markdown .md-table { overflow-x: auto; margin: 0 0 12px; }
+.markdown table { border-collapse: collapse; font-size: 13px; }
+.markdown th, .markdown td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+.markdown th { background: var(--surface-2); font-weight: 600; }
+[data-variant="v2"] .markdown h1,
+[data-variant="v2"] .markdown h2,
+[data-variant="v2"] .markdown h3,
+[data-variant="v2"] .markdown h4 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+}
+
+/* ═══════════════════════ Overrides v2 (v2.css literal) ═════════════════
+   FIX handoff §14.3: en el prototipo `.v2 .app` nunca aplicaba (el nodo era
+   `.app.v2`). Con el theming unificado, `[data-variant="v2"] .app` SÍ aplica
+   → rail v2 de 52 px (intención de diseño). */
+[data-variant="v2"] .app {
+  grid-template-columns: 52px 1fr;
+  background: var(--bg);
+}
+
+[data-variant="v2"] .sidebar {
+  padding: 12px 8px;
+  gap: 2px;
+  border-right: 1px solid var(--border);
+  background: var(--surface-2);
+  align-items: center;
+}
+[data-variant="v2"] .sidebar-brand {
+  padding: 4px 0 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+  justify-content: center;
+}
+[data-variant="v2"] .sidebar-brand-mark {
+  width: 32px; height: 32px;
+  border-radius: 7px;
+  background: var(--text);
+  color: white;
+  box-shadow: none;
+}
+[data-variant="v2"] .sidebar-brand-text,
+[data-variant="v2"] .sidebar-brand-sub,
+[data-variant="v2"] .sidebar-brand-textwrap { display: none; }
+
+[data-variant="v2"] .nav-section-label { display: none; }
+/* Rail fijo, sin expandir (handoff §3.2 "Sidebar v2"): el toggle se oculta. */
+[data-variant="v2"] .sidebar-toggle { display: none; }
+
+[data-variant="v2"] .nav-item {
+  width: 36px; height: 36px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 7px;
+  position: relative;
+}
+[data-variant="v2"] .nav-label { display: none; }
+[data-variant="v2"] .nav-item.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+[data-variant="v2"] .nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -8px; top: 6px; bottom: 6px;
+  width: 2px; border-radius: 2px;
+  background: var(--accent);
+}
+[data-variant="v2"] .nav-item.active .nav-icon { color: var(--text); }
+
+/* Tooltip siempre visible al hover (no solo colapsado) */
+[data-variant="v2"] .nav-item::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%; transform: translateY(-50%);
+  background: var(--text); color: var(--surface);
+  padding: 4px 8px; border-radius: 4px;
+  font-size: 11.5px; white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  transition: opacity .15s;
+  z-index: 100;
+}
+[data-variant="v2"] .nav-item:hover::after,
+[data-variant="v2"] .nav-item:focus-visible::after { opacity: 1; }
+
+[data-variant="v2"] .sidebar-footer {
+  flex-direction: column; gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  align-items: center;
+}
+[data-variant="v2"] .sidebar-footer > div { display: none; }
+
+[data-variant="v2"] .topbar {
+  padding: 9px 20px;
+  font-size: 13px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+[data-variant="v2"] .topbar-title {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+[data-variant="v2"] .topbar-crumb {
+  font-family: var(--font-sans);
+  font-size: 12px;
+}
+
+[data-variant="v2"] .screen { padding: 20px 24px; }
+[data-variant="v2"] .screen-head {
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+}
+
+[data-variant="v2"] .card {
+  border-radius: var(--r-lg);
+  box-shadow: none;
+}
+[data-variant="v2"] .card-head {
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+[data-variant="v2"] .card-title {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+}
+[data-variant="v2"] .card-pad { padding: 14px; }
+
+[data-variant="v2"] .btn { padding: 6px 11px; font-size: 13px; border-radius: var(--r-md); }
+[data-variant="v2"] .btn-lg { padding: 8px 14px; font-size: 13.5px; }
+[data-variant="v2"] .btn-primary {
+  background: var(--text); color: var(--surface);
+  box-shadow: none;
+}
+[data-variant="v2"] .btn-primary:hover { background: #000; }
+[data-variant="v2"] .btn-accent { background: var(--accent); color: white; }
+[data-variant="v2"] .btn-accent:hover { background: var(--accent-hover); }
+[data-variant="v2"] .btn-outline { background: var(--surface); }
+[data-variant="v2"] .btn-xl { padding: 10px 16px; font-size: 14px; }
+
+[data-variant="v2"] .chip {
+  padding: 2px 7px;
+  font-size: 10.5px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+[data-variant="v2"] .metric-card { padding: 12px; gap: 10px; border-radius: var(--r-lg); }
+[data-variant="v2"] .metric-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--surface-2); color: var(--text);
+}
+[data-variant="v2"] .metric-label { font-size: 10px; }
+[data-variant="v2"] .metric-value {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+[data-variant="v2"] .mini-bar { height: 14px; }
+[data-variant="v2"] .terminal { border-radius: var(--r-md); }
+[data-variant="v2"] .terminal-body { font-size: 11.5px; max-height: 320px; }

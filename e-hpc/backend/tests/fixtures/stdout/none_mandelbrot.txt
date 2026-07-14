@@ -1,0 +1,9 @@
+area real aproximada ~ 1.506
+con data race (3 corridas, mira como VARIA):
+  area = 1.4383341
+  area = 1.5127665
+  area = 1.4891220
+con reduction (3 corridas, siempre igual):
+  area = 1.510363125
+  area = 1.510363125
+  area = 1.510363125

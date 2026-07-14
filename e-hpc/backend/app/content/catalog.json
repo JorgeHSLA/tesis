@@ -1,0 +1,771 @@
+{
+  "modules": [
+    {
+      "id": "m1",
+      "order": 1,
+      "title": "Fundamentos",
+      "description": "Región paralela, identidad de hilo, @njit/JIT, primer worksharing con reduction.",
+      "level": "Básico",
+      "lessons": [
+        "primerEjemplo",
+        "for"
+      ]
+    },
+    {
+      "id": "m2",
+      "order": 2,
+      "title": "Patrón SPMD y false sharing",
+      "description": "Reparto manual con omp_get_thread_num; false sharing y su arreglo (privado + critical).",
+      "level": "Intermedio",
+      "lessons": [
+        "spmd",
+        "spmdCritical"
+      ]
+    },
+    {
+      "id": "m3",
+      "order": 3,
+      "title": "Entorno de datos y sincronización",
+      "description": "private vs firstprivate vs shared; critical, barrier y single (el 90% de los bugs paralelos son variables mal declaradas).",
+      "level": "Intermedio",
+      "lessons": [
+        "entornoDatos"
+      ]
+    },
+    {
+      "id": "m4",
+      "order": 4,
+      "title": "Worksharing sobre arrays",
+      "description": "schedule(static, chunk); bucles anidados (qué paralelizar y qué privatizar); validar contra NumPy/BLAS.",
+      "level": "Básico",
+      "lessons": [
+        "sumaVectores",
+        "matrices"
+      ]
+    },
+    {
+      "id": "m5",
+      "order": 5,
+      "title": "Data races y RNG paralelo",
+      "description": "Race visible (bug a propósito) vs reduction; estado de RNG por hilo (sustituto de threadprivate).",
+      "level": "Intermedio-alto",
+      "lessons": [
+        "mandelbrot",
+        "monteCarloPi"
+      ]
+    },
+    {
+      "id": "m6",
+      "order": 6,
+      "title": "Tareas (divide y vencerás)",
+      "description": "task/taskwait; combo parallel+single; umbral de corte; árboles irregulares y work stealing.",
+      "level": "Avanzado",
+      "lessons": [
+        "tareas",
+        "fibonacciTareas"
+      ]
+    },
+    {
+      "id": "m7",
+      "order": 7,
+      "title": "Simulaciones reales: ¿qué escala?",
+      "description": "Memory-bound (~1.1x) vs compute-bound (8x) — pareja pedagógica; el simulador Monte Carlo combina todo.",
+      "level": "Avanzado",
+      "lessons": [
+        "stencilCalor",
+        "transporteParticulas"
+      ]
+    },
+    {
+      "id": "m8",
+      "order": 8,
+      "title": "GPU (opcional)",
+      "description": "target teams distribute parallel for + map; costo de mover datos por PCIe. Solo con GPU NVIDIA + gcc.",
+      "level": "Avanzado",
+      "lessons": [
+        "sumaVectoresGPU"
+      ]
+    }
+  ],
+  "examples": {
+    "primerEjemplo": {
+      "filename": "helloOpenMP.py",
+      "title": "Hola mundo paralelo",
+      "difficulty": 1,
+      "threads_configurable": true,
+      "fixed_threads": null,
+      "fixed_threads_note": null,
+      "sweeps_threads": false,
+      "self_measures": false,
+      "parser_id": "none",
+      "default_timeout_s": 30,
+      "est_run_seconds": 5,
+      "enabled": true,
+      "requires_gpu": false,
+      "directives": [
+        "parallel"
+      ],
+      "teaches": "Hola mundo paralelo; identidad del hilo; @njit; OMP_NUM_THREADS",
+      "expected_output_note": "N líneas 'Hello from thread <int>' (orden no determinista)",
+      "takeaways": [
+        "@njit compila la función a código máquina nativo: lo que corre ya no lo corre Python",
+        "El bloque with openmp(\"parallel\") marca el inicio y el fin de la región paralela",
+        "Se crean tantos hilos como procesadores lógicos (nproc) o los que fije OMP_NUM_THREADS",
+        "El orden de los mensajes es no determinista: los hilos corren concurrentemente"
+      ]
+    },
+    "for": {
+      "filename": "forOpenMP.py",
+      "title": "Tu primer parallel for",
+      "difficulty": 1,
+      "threads_configurable": true,
+      "fixed_threads": null,
+      "fixed_threads_note": null,
+      "sweeps_threads": false,
+      "self_measures": false,
+      "parser_id": "none",
+      "default_timeout_s": 30,
+      "est_run_seconds": 5,
+      "enabled": true,
+      "requires_gpu": false,
+      "directives": [
+        "parallel for",
+        "reduction",
+        "schedule"
+      ],
+      "teaches": "Worksharing con reducción (π por integración numérica, 1M pasos)",
+      "expected_output_note": "1 línea: pi = <float> (p.ej. pi = 3.1415926535897523)",
+      "takeaways": [
+        "parallel for crea los hilos, reparte el bucle y combina resultados en una sola directiva",
+        "reduction(+:red_sum) da a cada hilo una copia privada y las suma al final (sin data race)",
+        "La variable del bucle es privada automáticamente",
+        "Es el patrón loop-level, el primero de los 3 patrones del paper de PyOMP"
+      ]
+    },
+    "spmd": {
+      "filename": "piSpmd.py",
+      "title": "π con patrón SPMD (false sharing)",
+      "difficulty": 3,
+      "threads_configurable": false,
+      "fixed_threads": null,
+      "fixed_threads_note": "Barre 1/2/4/8 hilos internamente con omp_set_num_threads; el slider se deshabilita",
+      "sweeps_threads": true,
+      "self_measures": true,
+      "parser_id": "sweep_pi",
+      "default_timeout_s": 60,
+      "est_run_seconds": 8,
+      "enabled": true,
+      "requires_gpu": false,
+      "directives": [
+        "parallel",
+        "private",
+        "shared"
+      ],
+      "teaches": "Reparto cíclico manual; demuestra false sharing (no hay speedup)",
+      "expected_output_note": "4 líneas: hilos = <n> | pi = <float> | tiempo = <float> s",
+      "takeaways": [
+        "El patrón SPMD reparte trabajo a mano con range(tid, n, nths)",
+        "false sharing: casillas contiguas de partial comparten línea de caché",
+        "Por qué NO hay speedup aunque haya 8 hilos"
+      ]
+    },
+    "spmdCritical": {
+      "filename": "piSpmdCritical.py",
+      "title": "SPMD arreglado: privado + critical",
+      "difficulty": 3,
+      "threads_configurable": false,
+      "fixed_threads": null,
+      "fixed_threads_note": "Barre 1/2/4/8 hilos internamente con omp_set_num_threads; el slider se deshabilita",
+      "sweeps_threads": true,
+      "self_measures": true,
+      "parser_id": "sweep_pi",
+      "default_timeout_s": 60,
+      "est_run_seconds": 8,
+      "enabled": true,
+      "requires_gpu": false,
+      "directives": [
+        "parallel",
+        "private",
+        "shared",
+        "critical"
+      ],
+      "teaches": "Solución al false sharing: acumulador privado + critical una vez por hilo",
+      "expected_output_note": "4 líneas, mismo formato que piSpmd: hilos = <n> | pi = <float> | tiempo = <float> s",
+      "takeaways": [
+        "Acumular en una variable local privada elimina el false sharing",
+        "critical garantiza exclusión mutua: solo un hilo a la vez dentro del bloque",
+        "El critical se paga UNA vez por hilo, no una por iteración",
+        "atomic no existe en pyomp 0.5.x: la alternativa es critical (o reduction)"
+      ]
+    },
+    "entornoDatos": {
+      "filename": "entornoDatos.py",
+      "title": "Entorno de datos: private, firstprivate y shared",
+      "difficulty": 2,
+      "threads_configurable": false,
+      "fixed_threads": 4,
+      "fixed_threads_note": "num_threads(4) en la directiva",
+      "sweeps_threads": false,
+      "self_measures": false,
+      "parser_id": "none",
+      "default_timeout_s": 30,
+      "est_run_seconds": 4,
+      "enabled": true,
+      "requires_gpu": false,
+      "directives": [
+        "parallel",
+        "private",
+        "firstprivate",
+        "shared",
+        "num_threads",
+        "critical",
+        "barrier",
+        "single"
+      ],
+      "teaches": "Entorno de datos completo: private vs firstprivate vs shared + 3 primitivas de sincronización",
+      "expected_output_note": "1 línea [single] + 4 líneas 'hilo <t> -> x privada … | zfp firstprivate …' (orden no determinista) + 1 línea final: despues de la region: x = 100 | zfp = 10 | zsh = 4",
+      "takeaways": [
+        "private crea copia por hilo sin valor inicial garantizado; la variable original no cambia",
+        "firstprivate inicializa la copia de cada hilo con el valor previo a la región",
+        "shared es una sola variable para todos: las escrituras se protegen con critical",
+        "barrier y single: punto de encuentro de todos los hilos y ejecución por un solo hilo"
+      ]
+    },
+    "sumaVectores": {
+      "filename": "sumaVectores.py",
+      "title": "Suma de vectores con schedule(static, chunk)",
+      "difficulty": 2,
+      "threads_configurable": true,
+      "fixed_threads": null,
+      "fixed_threads_note": null,
+      "sweeps_threads": false,
+      "self_measures": true,
+      "parser_id": "pair_openmp_numpy",
+      "default_timeout_s": 60,
+      "est_run_seconds": 8,
+      "enabled": true,
+      "requires_gpu": false,
+      "directives": [
+        "parallel for",
+        "schedule"
+      ],
+      "teaches": "Worksharing sobre arrays NumPy; cláusula schedule(static, chunk); validación con np.allclose; comparación vs NumPy",
+      "expected_output_note": "3 líneas: correcto? True · tiempo openmp: <float> s · tiempo numpy : <float> s",
+      "takeaways": [
+        "schedule(static, 1000) reparte el bucle en bloques fijos de 1000 en round-robin",
+        "Regla de oro: validar SIEMPRE el resultado paralelo contra una versión confiable (np.allclose)",
+        "Le gana a NumPy porque a + b usa un solo núcleo y además crea el array resultado",
+        "En pyomp 0.5.x solo funciona schedule(static) con chunk constante"
+      ]
+    },
+    "matrices": {
+      "filename": "multiplicacionMatrices.py",
+      "title": "Multiplicación de matrices: bucles anidados",
+      "difficulty": 3,
+      "threads_configurable": true,
+      "fixed_threads": null,
+      "fixed_threads_note": null,
+      "sweeps_threads": false,
+      "self_measures": true,
+      "parser_id": "pair_openmp_blas",
+      "default_timeout_s": 60,
+      "est_run_seconds": 8,
+      "enabled": true,
+      "requires_gpu": false,
+      "directives": [
+        "parallel for",
+        "private",
+        "schedule"
+      ],
+      "teaches": "Bucles anidados: paralelizar el externo, privatizar j/k/tmp; comparación vs BLAS (A @ B)",
+      "expected_output_note": "3 líneas: correcto? True · tiempo openmp : <float> s · tiempo np.dot : <float> s (BLAS optimizado, la referencia a batir)",
+      "takeaways": [
+        "En bucles anidados se paraleliza el externo (las filas) y se privatizan j, k y tmp",
+        "Olvidar una variable en private hace que un hilo pise el contador del otro: resultado basura",
+        "Acumular en un escalar privado y escribir C[i,j] al final reduce el tráfico de memoria",
+        "Si existe una librería optimizada (BLAS), úsala; OpenMP es para el código sin librería"
+      ]
+    },
+    "mandelbrot": {
+      "filename": "areaMandelbrot.py",
+      "title": "Data races: el área de Mandelbrot",
+      "difficulty": 4,
+      "threads_configurable": true,
+      "fixed_threads": null,
+      "fixed_threads_note": null,
+      "sweeps_threads": false,
+      "self_measures": false,
+      "parser_id": "none",
+      "default_timeout_s": 90,
+      "est_run_seconds": 20,
+      "enabled": true,
+      "requires_gpu": false,
+      "directives": [
+        "parallel for",
+        "private",
+        "reduction"
+      ],
+      "teaches": "DATA RACES: versión rota (resultado variable) vs versión correcta con reduction",
+      "expected_output_note": "8 líneas: área real aprox. + 3 corridas con data race (valores NO reproducibles) + 3 corridas con reduction (idénticas: 1.510363125); las líneas 'area =' llevan 2 espacios iniciales",
+      "takeaways": [
+        "El += sobre una variable compartida NO es atómico (leer-sumar-escribir): es un data race",
+        "Un race no crashea: el programa solo miente (resultado distinto e inflado en cada corrida)",
+        "reduction es la corrección correcta y rápida; atomic no existe en pyomp 0.5.x",
+        "No se puede hacer break del bucle paralelizado, solo de los bucles internos"
+      ]
+    },
+    "monteCarloPi": {
+      "filename": "piMonteCarlo.py",
+      "title": "π por Monte Carlo: RNG por hilo",
+      "difficulty": 4,
+      "threads_configurable": false,
+      "fixed_threads": 4,
+      "fixed_threads_note": "Fija 4 hilos con omp_set_num_threads",
+      "sweeps_threads": false,
+      "self_measures": false,
+      "parser_id": "none",
+      "default_timeout_s": 60,
+      "est_run_seconds": 6,
+      "enabled": true,
+      "requires_gpu": false,
+      "directives": [
+        "parallel",
+        "private",
+        "shared",
+        "for",
+        "reduction"
+      ],
+      "teaches": "RNG en paralelo: LCG a mano con semilla por hilo (sustituto de threadprivate)",
+      "expected_output_note": "3 líneas: dardos = <n> | pi ~ <float> para n = 100000, 1000000, 10000000",
+      "takeaways": [
+        "Un RNG tiene estado: compartirlo entre hilos es un data race",
+        "Sustituto de threadprivate: array de semillas indexado por omp_get_thread_num()",
+        "parallel y for van separados: cada hilo inicializa su RNG antes del worksharing",
+        "Monte Carlo converge como 1/√N: por eso necesita paralelismo"
+      ]
+    },
+    "tareas": {
+      "filename": "piTask.py",
+      "title": "π con tareas (divide y vencerás)",
+      "difficulty": 4,
+      "threads_configurable": true,
+      "fixed_threads": null,
+      "fixed_threads_note": null,
+      "sweeps_threads": false,
+      "self_measures": false,
+      "parser_id": "none",
+      "default_timeout_s": 30,
+      "est_run_seconds": 5,
+      "enabled": true,
+      "requires_gpu": false,
+      "directives": [
+        "task",
+        "shared",
+        "firstprivate",
+        "taskwait",
+        "parallel",
+        "single"
+      ],
+      "teaches": "Divide y vencerás con tareas (π recursivo); umbral MIN_BLK; combo parallel+single",
+      "expected_output_note": "1 línea: pi = <float> (real: pi = 3.141592653589794)",
+      "takeaways": [
+        "Las tasks paralelizan lo que no es un bucle regular: recursión, árboles, trabajo dinámico",
+        "SIEMPRE pon umbral (MIN_BLK) en paralelismo recursivo: crear una task cuesta",
+        "taskwait espera a las tareas hijas directas antes de combinar resultados",
+        "El combo parallel + single: un hilo siembra el árbol y los demás roban tareas"
+      ]
+    },
+    "fibonacciTareas": {
+      "filename": "fibonacciTareas.py",
+      "title": "Fibonacci con tareas: árbol irregular",
+      "difficulty": 4,
+      "threads_configurable": true,
+      "fixed_threads": null,
+      "fixed_threads_note": null,
+      "sweeps_threads": false,
+      "self_measures": false,
+      "parser_id": "none",
+      "default_timeout_s": 60,
+      "est_run_seconds": 6,
+      "enabled": true,
+      "requires_gpu": false,
+      "directives": [
+        "task",
+        "shared",
+        "firstprivate",
+        "taskwait",
+        "parallel",
+        "single"
+      ],
+      "teaches": "Árbol de tareas irregular; umbral de corte (UMBRAL=20); work stealing",
+      "expected_output_note": "4 líneas: fib( <n> ) = <int> para n = 10, 20, 30, 35 (con espacios dentro del paréntesis)",
+      "takeaways": [
+        "Cada fib(n) crea dos tareas: el árbol de llamadas se convierte en árbol de tareas",
+        "Sin umbral de corte, el overhead de las tasks supera el cálculo y el programa es más lento",
+        "taskwait espera solo a las hijas directas, no a los nietos",
+        "Los árboles irregulares se balancean solos por work stealing"
+      ]
+    },
+    "stencilCalor": {
+      "filename": "calorStencil.py",
+      "title": "Difusión de calor 2D: memory-bound",
+      "difficulty": 4,
+      "threads_configurable": true,
+      "fixed_threads": null,
+      "fixed_threads_note": null,
+      "sweeps_threads": false,
+      "self_measures": true,
+      "parser_id": "pair_parallel_serial",
+      "default_timeout_s": 90,
+      "est_run_seconds": 12,
+      "enabled": true,
+      "requires_gpu": false,
+      "directives": [
+        "parallel",
+        "private",
+        "for"
+      ],
+      "teaches": "Simulación física iterativa (difusión calor 2D, Jacobi); doble buffer; MEMORY-BOUND (speedup ~1.1x)",
+      "expected_output_note": "4 líneas: paralelo == serial? True · tiempo paralelo: <float> s · tiempo serial  : <float> s · temperatura cerca del borde caliente: <float>",
+      "takeaways": [
+        "Doble buffer (u y u_new): leer y escribir la misma malla rompería la física",
+        "Las barreras implícitas de cada for sincronizan los pasos de tiempo",
+        "Una sola región parallel; los for huérfanos reparten el trabajo de cada paso",
+        "Memory-bound: apenas ~1.1x con 8 núcleos porque manda el ancho de banda de memoria"
+      ]
+    },
+    "transporteParticulas": {
+      "filename": "transporteMonteCarlo.py",
+      "title": "Transporte de partículas Monte Carlo (slab 1D)",
+      "difficulty": 5,
+      "threads_configurable": false,
+      "fixed_threads": null,
+      "fixed_threads_note": "Barre 1/2/4/8 hilos internamente con omp_set_num_threads; el slider se deshabilita",
+      "sweeps_threads": true,
+      "self_measures": true,
+      "parser_id": "sweep_transporte",
+      "default_timeout_s": 90,
+      "est_run_seconds": 8,
+      "enabled": true,
+      "requires_gpu": false,
+      "directives": [
+        "parallel",
+        "private",
+        "shared",
+        "for",
+        "reduction"
+      ],
+      "teaches": "Simulador Monte Carlo real (slab 1D); COMPUTE-BOUND, escala 8x; combina todo lo anterior",
+      "expected_output_note": "4 líneas: hilos = <n> | tiempo = <float> s | transmitidas: <float> % | reflejadas: <float> % | absorbidas: <float> % para n = 1, 2, 4, 8",
+      "takeaways": [
+        "Un simulador Monte Carlo real (slab 1D): el patrón que MCDC-TNT usa en producción",
+        "reduction admite varios contadores a la vez (transmitidas, reflejadas, absorbidas)",
+        "Compute-bound: escala 8x con 8 hilos, al revés que el stencil memory-bound",
+        "La carga irregular del while viva se promedia con millones de partículas por hilo"
+      ]
+    },
+    "sumaVectoresGPU": {
+      "filename": "sumaVectoresGPU.py",
+      "title": "Suma de vectores en GPU (target)",
+      "difficulty": 4,
+      "threads_configurable": false,
+      "fixed_threads": null,
+      "fixed_threads_note": null,
+      "sweeps_threads": false,
+      "self_measures": false,
+      "parser_id": "none",
+      "default_timeout_s": 90,
+      "est_run_seconds": 10,
+      "enabled": false,
+      "requires_gpu": true,
+      "directives": [
+        "target",
+        "teams",
+        "distribute",
+        "parallel for",
+        "map"
+      ],
+      "teaches": "Offloading a GPU; map(to/tofrom)",
+      "expected_output_note": "Si funciona: 1 línea correcto? True. Sin GPU NVIDIA + gcc: traceback con excepción y exit code ≠ 0",
+      "takeaways": [
+        "target ejecuta el bloque en la GPU; teams distribute reparte entre bloques CUDA",
+        "map(to) y map(tofrom) controlan las copias host↔device",
+        "El mapeo de datos es el concepto central: mover por PCIe suele costar más que el cálculo",
+        "Requiere GPU NVIDIA + Linux/WSL2 + gcc; sin eso el proceso aborta (no hay fallback a CPU)"
+      ]
+    }
+  },
+  "lessons": {
+    "primerEjemplo": {
+      "module_id": "m1",
+      "order": 1,
+      "title": "Hola mundo paralelo",
+      "estimated_minutes": 15,
+      "content_file": "lessons/primerEjemplo.md",
+      "recommended": [
+        {
+          "lesson_id": "for",
+          "label": "Tu primer parallel for",
+          "tag": "Fundamentos"
+        },
+        {
+          "lesson_id": "spmd",
+          "label": "Qué hace parallel for por debajo",
+          "tag": "Siguiente paso"
+        }
+      ]
+    },
+    "for": {
+      "module_id": "m1",
+      "order": 2,
+      "title": "Tu primer parallel for",
+      "estimated_minutes": 15,
+      "content_file": "lessons/for.md",
+      "recommended": [
+        {
+          "lesson_id": "spmd",
+          "label": "El reparto manual: patrón SPMD",
+          "tag": "Fundamentos"
+        },
+        {
+          "lesson_id": "sumaVectores",
+          "label": "Worksharing sobre arrays",
+          "tag": "Práctica"
+        },
+        {
+          "lesson_id": "tareas",
+          "label": "El tercer patrón: tareas",
+          "tag": "Avanzado"
+        }
+      ]
+    },
+    "spmd": {
+      "module_id": "m2",
+      "order": 3,
+      "title": "π con patrón SPMD (false sharing)",
+      "estimated_minutes": 20,
+      "content_file": "lessons/spmd.md",
+      "recommended": [
+        {
+          "lesson_id": "mandelbrot",
+          "label": "Data races clásicos",
+          "tag": "Avanzado"
+        },
+        {
+          "lesson_id": "spmdCritical",
+          "label": "El arreglo: critical",
+          "tag": "Práctica"
+        }
+      ]
+    },
+    "spmdCritical": {
+      "module_id": "m2",
+      "order": 4,
+      "title": "SPMD arreglado: privado + critical",
+      "estimated_minutes": 20,
+      "content_file": "lessons/spmdCritical.md",
+      "recommended": [
+        {
+          "lesson_id": "spmd",
+          "label": "El problema: false sharing",
+          "tag": "Repaso"
+        },
+        {
+          "lesson_id": "entornoDatos",
+          "label": "private, firstprivate y shared",
+          "tag": "Fundamentos"
+        }
+      ]
+    },
+    "entornoDatos": {
+      "module_id": "m3",
+      "order": 5,
+      "title": "Entorno de datos: private, firstprivate y shared",
+      "estimated_minutes": 20,
+      "content_file": "lessons/entornoDatos.md",
+      "recommended": [
+        {
+          "lesson_id": "spmdCritical",
+          "label": "critical en acción",
+          "tag": "Repaso"
+        },
+        {
+          "lesson_id": "monteCarloPi",
+          "label": "Estado privado por hilo: RNG",
+          "tag": "Práctica"
+        }
+      ]
+    },
+    "sumaVectores": {
+      "module_id": "m4",
+      "order": 6,
+      "title": "Suma de vectores con schedule(static, chunk)",
+      "estimated_minutes": 15,
+      "content_file": "lessons/sumaVectores.md",
+      "recommended": [
+        {
+          "lesson_id": "matrices",
+          "label": "Bucles anidados",
+          "tag": "Siguiente paso"
+        },
+        {
+          "lesson_id": "for",
+          "label": "Tu primer parallel for",
+          "tag": "Repaso"
+        }
+      ]
+    },
+    "matrices": {
+      "module_id": "m4",
+      "order": 7,
+      "title": "Multiplicación de matrices: bucles anidados",
+      "estimated_minutes": 20,
+      "content_file": "lessons/matrices.md",
+      "recommended": [
+        {
+          "lesson_id": "sumaVectores",
+          "label": "schedule(static, chunk)",
+          "tag": "Repaso"
+        },
+        {
+          "lesson_id": "stencilCalor",
+          "label": "Tu primera simulación física",
+          "tag": "Avanzado"
+        }
+      ]
+    },
+    "mandelbrot": {
+      "module_id": "m5",
+      "order": 8,
+      "title": "Data races: el área de Mandelbrot",
+      "estimated_minutes": 25,
+      "content_file": "lessons/mandelbrot.md",
+      "recommended": [
+        {
+          "lesson_id": "monteCarloPi",
+          "label": "RNG en paralelo",
+          "tag": "Siguiente paso"
+        },
+        {
+          "lesson_id": "spmdCritical",
+          "label": "critical vs reduction",
+          "tag": "Repaso"
+        }
+      ]
+    },
+    "monteCarloPi": {
+      "module_id": "m5",
+      "order": 9,
+      "title": "π por Monte Carlo: RNG por hilo",
+      "estimated_minutes": 25,
+      "content_file": "lessons/monteCarloPi.md",
+      "recommended": [
+        {
+          "lesson_id": "transporteParticulas",
+          "label": "Monte Carlo de verdad",
+          "tag": "Avanzado"
+        },
+        {
+          "lesson_id": "mandelbrot",
+          "label": "Data races clásicos",
+          "tag": "Repaso"
+        }
+      ]
+    },
+    "tareas": {
+      "module_id": "m6",
+      "order": 10,
+      "title": "π con tareas (divide y vencerás)",
+      "estimated_minutes": 25,
+      "content_file": "lessons/tareas.md",
+      "recommended": [
+        {
+          "lesson_id": "fibonacciTareas",
+          "label": "El ejemplo canónico de tasking",
+          "tag": "Práctica"
+        },
+        {
+          "lesson_id": "for",
+          "label": "El patrón loop-level",
+          "tag": "Repaso"
+        }
+      ]
+    },
+    "fibonacciTareas": {
+      "module_id": "m6",
+      "order": 11,
+      "title": "Fibonacci con tareas: árbol irregular",
+      "estimated_minutes": 20,
+      "content_file": "lessons/fibonacciTareas.md",
+      "recommended": [
+        {
+          "lesson_id": "tareas",
+          "label": "Divide y vencerás con π",
+          "tag": "Repaso"
+        },
+        {
+          "lesson_id": "stencilCalor",
+          "label": "Simulaciones reales",
+          "tag": "Siguiente paso"
+        }
+      ]
+    },
+    "stencilCalor": {
+      "module_id": "m7",
+      "order": 12,
+      "title": "Difusión de calor 2D: memory-bound",
+      "estimated_minutes": 25,
+      "content_file": "lessons/stencilCalor.md",
+      "recommended": [
+        {
+          "lesson_id": "transporteParticulas",
+          "label": "Compute-bound: sí escala",
+          "tag": "Pareja pedagógica"
+        },
+        {
+          "lesson_id": "matrices",
+          "label": "Worksharing sobre arrays 2D",
+          "tag": "Repaso"
+        }
+      ]
+    },
+    "transporteParticulas": {
+      "module_id": "m7",
+      "order": 13,
+      "title": "Transporte de partículas Monte Carlo (slab 1D)",
+      "estimated_minutes": 30,
+      "content_file": "lessons/transporteParticulas.md",
+      "recommended": [
+        {
+          "lesson_id": "stencilCalor",
+          "label": "Memory-bound: casi no escala",
+          "tag": "Pareja pedagógica"
+        },
+        {
+          "lesson_id": "monteCarloPi",
+          "label": "El truco del RNG por hilo",
+          "tag": "Repaso"
+        }
+      ]
+    },
+    "sumaVectoresGPU": {
+      "module_id": "m8",
+      "order": 14,
+      "title": "Suma de vectores en GPU (target)",
+      "estimated_minutes": 20,
+      "content_file": "lessons/sumaVectoresGPU.md",
+      "recommended": [
+        {
+          "lesson_id": "sumaVectores",
+          "label": "La versión CPU",
+          "tag": "Repaso"
+        },
+        {
+          "lesson_id": "transporteParticulas",
+          "label": "El simulador que combina todo",
+          "tag": "Repaso"
+        }
+      ]
+    }
+  }
+}

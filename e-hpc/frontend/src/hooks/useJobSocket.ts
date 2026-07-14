@@ -1,0 +1,82 @@
+// hooks/useJobSocket.ts — ciclo de vida del JobSocket (frontend-spec §4.3).
+// Crea el socket al montar con jobId definido; close() al desmontar o cambiar
+// de job. Idempotente ante StrictMode: cada setup crea su instancia y su
+// cleanup la cierra (el backend hace fan-out, la conexión duplicada breve es
+// inocua — api-contract §8.1). El store NO se resetea al desmontar (decisión
+// en jobStore.ts: §6.4 necesita metrics en memoria al navegar a resultados).
+// Replay de job terminal (F5/historial) → redirect a /resultados/{jobId}.
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { isTerminalPhase, useJobStore, type LogLine, type MetricSample, type UiPhase } from '../stores/jobStore'
+import { JobSocket } from '../ws/jobSocket'
+
+export interface JobSocketState {
+  phase: UiPhase
+  exitCode: number | null
+  errorDetail: string | null
+  logs: LogLine[]
+  logsTruncated: boolean
+  metrics: MetricSample[]
+  /** Derivado de startedAt con un tick propio de 1 s (congelado al terminar). */
+  elapsedSec: number
+  /** wsError local ('JOB_NOT_FOUND' en close 4404, STREAM_ERROR…). */
+  wsError: string | null
+  cancel: () => void
+  /** Reintento manual desde el banner de conexión perdida. */
+  retry: () => void
+}
+
+export function useJobSocket(jobId: string | undefined): JobSocketState {
+  const navigate = useNavigate()
+  const location = useLocation()
+  // ws_url relativa del 202 (pasada por navigate state desde el idle).
+  const wsUrl = (location.state as { wsUrl?: string } | null)?.wsUrl ?? null
+  const socketRef = useRef<JobSocket | null>(null)
+
+  const phase = useJobStore((s) => s.phase)
+  const exitCode = useJobStore((s) => s.exitCode)
+  const errorDetail = useJobStore((s) => s.errorDetail)
+  const logs = useJobStore((s) => s.logs)
+  const logsTruncated = useJobStore((s) => s.logsTruncated)
+  const metrics = useJobStore((s) => s.metrics)
+  const wsError = useJobStore((s) => s.wsError)
+  const startedAt = useJobStore((s) => s.startedAt)
+  const wallTimeMs = useJobStore((s) => s.wallTimeMs)
+
+  useEffect(() => {
+    if (jobId == null || jobId === '') return
+    const socket = new JobSocket(jobId, {
+      wsUrl,
+      onReplayTerminal: (id) => navigate(`/resultados/${id}`, { replace: true }),
+    })
+    socketRef.current = socket
+    socket.connect()
+    return () => {
+      if (socketRef.current === socket) socketRef.current = null
+      socket.close()
+    }
+    // wsUrl solo cambia junto con jobId (nueva navegación) — no re-conectar por él.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId, navigate])
+
+  // Tick de 1 s propio mientras el job corre (frontend-spec §4.3).
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  const running = startedAt != null && !isTerminalPhase(phase)
+  useEffect(() => {
+    if (!running) return
+    const id = setInterval(() => setNowMs(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [running])
+
+  const elapsedSec =
+    isTerminalPhase(phase) && wallTimeMs != null
+      ? wallTimeMs / 1000
+      : startedAt != null
+        ? Math.max(0, (nowMs - startedAt) / 1000)
+        : 0
+
+  const cancel = useCallback(() => socketRef.current?.cancel(), [])
+  const retry = useCallback(() => socketRef.current?.retry(), [])
+
+  return { phase, exitCode, errorDetail, logs, logsTruncated, metrics, elapsedSec, wsError, cancel, retry }
+}

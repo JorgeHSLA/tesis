@@ -1,0 +1,131 @@
+{
+  "lesson_id": "spmdCritical",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "spmdCritical-q1",
+      "order": 1,
+      "text": "¿Cómo elimina este ejemplo el false sharing de spmd/?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Usando schedule(dynamic) para repartir mejor"
+        },
+        {
+          "key": "b",
+          "text": "Cada hilo acumula en una variable local privada (local_sum) en su propio stack, en vez de escribir en un array compartido"
+        },
+        {
+          "key": "c",
+          "text": "Aumentando el número de pasos"
+        },
+        {
+          "key": "d",
+          "text": "Alineando el array a 64 bytes"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Cero tráfico de caché entre hilos: el acumulador privado vive en el stack de cada hilo."
+    },
+    {
+      "id": "spmdCritical-q2",
+      "order": 2,
+      "text": "¿Qué garantiza with openmp(\"critical\")?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Que el bloque se ejecute primero en el hilo 0"
+        },
+        {
+          "key": "b",
+          "text": "Que el bloque se ejecute exactamente una vez en total"
+        },
+        {
+          "key": "c",
+          "text": "Que solo UN hilo a la vez esté dentro del bloque; los demás esperan"
+        },
+        {
+          "key": "d",
+          "text": "Que el bloque corra en la GPU"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "Exclusión mutua: según el info, \"los demás esperan en la puerta\"."
+    },
+    {
+      "id": "spmdCritical-q3",
+      "order": 3,
+      "text": "¿Por qué el costo del critical aquí es despreciable?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Porque pyomp lo compila a una instrucción atómica"
+        },
+        {
+          "key": "b",
+          "text": "Porque se ejecuta UNA vez por hilo (al final), no una vez por iteración"
+        },
+        {
+          "key": "c",
+          "text": "Porque solo hay 2 hilos"
+        },
+        {
+          "key": "d",
+          "text": "Porque el bucle es corto"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "El info: \"Se hace UNA vez por hilo (no una por iteracion!!)\"."
+    },
+    {
+      "id": "spmdCritical-q4",
+      "order": 4,
+      "text": "En pyomp 0.5.x, ¿cuál es la alternativa REAL a #pragma omp atomic de C?",
+      "options": [
+        {
+          "key": "a",
+          "text": "atomic funciona igual en pyomp"
+        },
+        {
+          "key": "b",
+          "text": "flush seguido de barrier"
+        },
+        {
+          "key": "c",
+          "text": "critical (o reduction cuando aplica): atomic NO existe en pyomp 0.5.x"
+        },
+        {
+          "key": "d",
+          "text": "ordered"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "Nota explícita del info: atomic no está implementado en pyomp 0.5.x."
+    },
+    {
+      "id": "spmdCritical-q5",
+      "order": 5,
+      "text": "¿Qué pasaría si el critical estuviera dentro del bucle de integración?",
+      "options": [
+        {
+          "key": "a",
+          "text": "El resultado sería incorrecto"
+        },
+        {
+          "key": "b",
+          "text": "El resultado seguiría correcto pero el programa sería lentísimo (serializa todo)"
+        },
+        {
+          "key": "c",
+          "text": "pyomp lanzaría un error de compilación"
+        },
+        {
+          "key": "d",
+          "text": "Se produciría un deadlock"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "El info: \"correctisimo pero lentisimo\"."
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+hilos = 1 | tiempo = 0.726 s | transmitidas: 2.35 % | reflejadas: 20.85 % | absorbidas: 76.8 %
+hilos = 2 | tiempo = 0.256 s | transmitidas: 2.36 % | reflejadas: 20.9 % | absorbidas: 76.74 %
+hilos = 4 | tiempo = 0.173 s | transmitidas: 2.3 % | reflejadas: 20.81 % | absorbidas: 76.89 %
+hilos = 8 | tiempo = 0.091 s | transmitidas: 2.33 % | reflejadas: 20.87 % | absorbidas: 76.8 %

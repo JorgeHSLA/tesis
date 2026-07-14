@@ -1,0 +1,106 @@
+{
+  "lesson_id": "fibonacciTareas",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "fibonacciTareas-q1",
+      "order": 1,
+      "text": "¿Qué pasaría si se baja el UMBRAL de 20 a 2?",
+      "options": [
+        {
+          "key": "a",
+          "text": "El resultado de fib sería incorrecto"
+        },
+        {
+          "key": "b",
+          "text": "El programa sería MÁS LENTO que el secuencial: el overhead de crear/encolar/robar tasks diminutas supera el cálculo"
+        },
+        {
+          "key": "c",
+          "text": "Se agotaría la memoria"
+        },
+        {
+          "key": "d",
+          "text": "No cambiaría nada"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "El info invita a probarlo."
+    },
+    {
+      "id": "fibonacciTareas-q2",
+      "order": 2,
+      "text": "¿A quién espera exactamente taskwait?",
+      "options": [
+        {
+          "key": "a",
+          "text": "A todas las tareas del programa"
+        },
+        {
+          "key": "b",
+          "text": "Solo a las tareas hijas DIRECTAS, no a los nietos — cada nivel del árbol espera al suyo"
+        },
+        {
+          "key": "c",
+          "text": "A todos los hilos del equipo (como barrier)"
+        },
+        {
+          "key": "d",
+          "text": "Al hilo 0"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Matiz explícito del info (\"Ojo\")."
+    },
+    {
+      "id": "fibonacciTareas-q3",
+      "order": 3,
+      "text": "¿Por qué un parallel for no sirve para este problema?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Porque fib usa enteros"
+        },
+        {
+          "key": "b",
+          "text": "Porque el árbol de llamadas es irregular y NO hay bucle que repartir; las tasks se balancean solas por work stealing"
+        },
+        {
+          "key": "c",
+          "text": "Porque numba no compila for con recursión"
+        },
+        {
+          "key": "d",
+          "text": "Porque el for no admite reduction de enteros"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "La \"gracia pedagógica\" del info."
+    },
+    {
+      "id": "fibonacciTareas-q4",
+      "order": 4,
+      "text": "¿De dónde proviene este ejemplo según el info?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Del tutorial de LLNL"
+        },
+        {
+          "key": "b",
+          "text": "Del paper de PyOMP"
+        },
+        {
+          "key": "c",
+          "text": "Del documento oficial \"OpenMP Application Programming Interface Examples\", capítulo tasking"
+        },
+        {
+          "key": "d",
+          "text": "Del libro de Tim Mattson, ejercicio 3"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "Es EL ejemplo canónico de tasking."
+    }
+  ]
+}

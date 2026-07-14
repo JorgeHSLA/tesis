@@ -1,0 +1,87 @@
+// LessonAdminRow — fila de una lección en el dashboard admin. Badges de estado
+// (habilitada, quiz·nº preguntas) y acciones de edición: [Lección] [Quiz]
+// [Ejemplo] [borrar]. El borrado pide confirmación y refresca el dashboard.
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ApiError } from '../../../api/client'
+import { deleteLesson } from '../../../api/admin'
+import type { ModuleLessonDto } from '../../../api/types'
+import { Button } from '../../../components/ui/Button'
+import { Chip } from '../../../components/ui/Chip'
+import { ConfirmDialog } from '../../../components/admin/ConfirmDialog'
+
+export interface LessonAdminRowProps {
+  lesson: ModuleLessonDto
+  onReload: () => void
+  onToast: (message: string, tone?: 'default' | 'error') => void
+}
+
+export function LessonAdminRow({ lesson, onReload, onToast }: LessonAdminRowProps) {
+  const navigate = useNavigate()
+  const [confirming, setConfirming] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const remove = async () => {
+    setDeleting(true)
+    try {
+      await deleteLesson(lesson.id)
+      onToast(`Lección "${lesson.title}" eliminada.`)
+      setConfirming(false)
+      onReload()
+    } catch (err) {
+      onToast(err instanceof ApiError ? err.message : 'No se pudo borrar la lección.', 'error')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="admin-lesson-row">
+      <div className="admin-lesson-main">
+        <span className="admin-lesson-order mono-small">#{lesson.order}</span>
+        <span className="admin-lesson-title">{lesson.title}</span>
+      </div>
+
+      <div className="admin-lesson-badges">
+        {lesson.enabled ? (
+          <Chip tone="green" dot dotPulse={false}>
+            habilitada
+          </Chip>
+        ) : (
+          <Chip tone="neutral">deshabilitada</Chip>
+        )}
+        {lesson.has_quiz ? (
+          <Chip tone="blue">quiz · {lesson.quiz_question_count}</Chip>
+        ) : (
+          <Chip tone="neutral">sin quiz</Chip>
+        )}
+      </div>
+
+      <div className="admin-lesson-actions">
+        <Button variant="outline" size="sm" onClick={() => navigate(`/admin/lecciones/${lesson.id}`)}>
+          Lección
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => navigate(`/admin/quiz/${lesson.id}`)}>
+          Quiz
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => navigate(`/admin/ejemplos/${lesson.example_id}`)}>
+          Ejemplo
+        </Button>
+        <Button variant="ghost" size="sm" className="admin-btn-danger-ghost" onClick={() => setConfirming(true)}>
+          Borrar
+        </Button>
+      </div>
+
+      <ConfirmDialog
+        open={confirming}
+        tone="danger"
+        title="Borrar lección"
+        body={`Se eliminará "${lesson.title}" junto con su ejemplo y su quiz. Esta acción no se puede deshacer.`}
+        confirmLabel="Borrar lección"
+        busy={deleting}
+        onConfirm={remove}
+        onCancel={() => setConfirming(false)}
+      />
+    </div>
+  )
+}

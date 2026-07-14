@@ -1,0 +1,131 @@
+{
+  "lesson_id": "sumaVectoresGPU",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "sumaVectoresGPU-q1",
+      "order": 1,
+      "text": "¿Qué hace la cláusula map(tofrom: c)?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Copia c a la GPU solo al entrar"
+        },
+        {
+          "key": "b",
+          "text": "Copia c al host solo al salir"
+        },
+        {
+          "key": "c",
+          "text": "Copia c del host a la GPU al entrar Y de vuelta al host al salir — ahí viene el resultado"
+        },
+        {
+          "key": "d",
+          "text": "Crea un alias de c en memoria unificada"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "Explicación literal del info."
+    },
+    {
+      "id": "sumaVectoresGPU-q2",
+      "order": 2,
+      "text": "¿Por qué en GPU se necesita teams distribute además de parallel for?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Es redundante: teams es un alias de parallel"
+        },
+        {
+          "key": "b",
+          "text": "En GPU no hay UN equipo de hilos como en CPU sino muchos equipos (bloques CUDA); teams los crea y distribute reparte el bucle entre equipos; parallel for paraleliza dentro de cada equipo"
+        },
+        {
+          "key": "c",
+          "text": "Para poder usar map"
+        },
+        {
+          "key": "d",
+          "text": "Para activar la memoria compartida de la GPU"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Jerarquía de dos niveles explicada en el info."
+    },
+    {
+      "id": "sumaVectoresGPU-q3",
+      "order": 3,
+      "text": "Según el info, ¿cuál es EL concepto central de la programación GPU?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Lanzar tantos hilos como sea posible"
+        },
+        {
+          "key": "b",
+          "text": "El mapeo de datos: la GPU tiene su propia memoria y mover datos por el PCIe suele costar más que el cálculo mismo"
+        },
+        {
+          "key": "c",
+          "text": "Usar floats de 16 bits"
+        },
+        {
+          "key": "d",
+          "text": "Evitar los condicionales en los kernels"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Cita casi literal del info."
+    },
+    {
+      "id": "sumaVectoresGPU-q4",
+      "order": 4,
+      "text": "¿Qué requisitos tiene este ejemplo en pyomp 0.5.x?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Solo tener CUDA Toolkit instalado"
+        },
+        {
+          "key": "b",
+          "text": "Cualquier GPU (NVIDIA o AMD) en cualquier SO"
+        },
+        {
+          "key": "c",
+          "text": "GPU NVIDIA + Linux (incluye WSL2 con driver NVIDIA en Windows) + gcc instalado en el sistema"
+        },
+        {
+          "key": "d",
+          "text": "Ninguno: sin GPU cae automáticamente a CPU"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "AMD es \"work in progress\" y macOS no tiene soporte GPU."
+    },
+    {
+      "id": "sumaVectoresGPU-q5",
+      "order": 5,
+      "text": "¿Qué pasó al ejecutarlo en la máquina del repo (GPU GTX 1660 presente, driver OK)?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Corrió pero 10x más lento que la CPU"
+        },
+        {
+          "key": "b",
+          "text": "Falló con FileNotFoundError: 'x86_64-linux-gnu-gcc' porque pyomp necesita un compilador C del sistema para generar el código de offload"
+        },
+        {
+          "key": "c",
+          "text": "Corrió correctamente e imprimió \"correcto? True\""
+        },
+        {
+          "key": "d",
+          "text": "Se colgó en el map de datos"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "El ejemplo quedó marcado \"NO PROBADO\"."
+    }
+  ]
+}

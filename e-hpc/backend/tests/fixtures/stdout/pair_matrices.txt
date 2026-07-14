@@ -1,0 +1,3 @@
+correcto? True
+tiempo openmp : 0.412 s
+tiempo np.dot : 0.031 s (BLAS optimizado, la referencia a batir)

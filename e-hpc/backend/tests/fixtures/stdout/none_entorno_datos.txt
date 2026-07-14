@@ -1,0 +1,6 @@
+[single] ya llegaron todos, zsh = 4
+hilo 2 -> x privada = 2 | zfp firstprivate = 12
+hilo 0 -> x privada = 0 | zfp firstprivate = 10
+hilo 3 -> x privada = 3 | zfp firstprivate = 13
+hilo 1 -> x privada = 1 | zfp firstprivate = 11
+despues de la region: x = 100 | zfp = 10 | zsh = 4

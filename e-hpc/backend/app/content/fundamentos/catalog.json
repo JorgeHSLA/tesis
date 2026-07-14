@@ -1,0 +1,372 @@
+{
+  "modules": [
+    {
+      "id": "f1",
+      "order": 1,
+      "title": "El porqué del paralelismo",
+      "description": "Multicore, proceso, hilo, concurrencia vs paralelismo — el vocabulario base antes de tocar código.",
+      "level": "Básico",
+      "lessons": [
+        "f1-01-por-que-no-va-mas-rapido",
+        "f1-02-que-es-el-paralelismo",
+        "f1-03-programa-proceso-y-so",
+        "f1-04-que-es-un-hilo",
+        "f1-05-concurrencia-vs-paralelismo"
+      ]
+    },
+    {
+      "id": "f2",
+      "order": 2,
+      "title": "Pensar en paralelo",
+      "description": "Cómo se divide el trabajo (datos vs tareas) y cómo se mide si valió la pena: speedup, eficiencia, Amdahl, overhead y balanceo.",
+      "level": "Básico",
+      "lessons": [
+        "f2-01-datos-vs-tareas",
+        "f2-02-speedup-y-eficiencia",
+        "f2-03-ley-de-amdahl",
+        "f2-04-overhead",
+        "f2-05-balanceo-de-carga"
+      ]
+    },
+    {
+      "id": "f3",
+      "order": 3,
+      "title": "Memoria compartida y sus peligros",
+      "description": "Shared vs private, race conditions, critical, reduction, barreras, false sharing y deadlock — los bugs propios del paralelismo.",
+      "level": "Intermedio",
+      "lessons": [
+        "f3-01-memoria-compartida",
+        "f3-02-privadas-vs-compartidas",
+        "f3-03-race-conditions",
+        "f3-04-exclusion-mutua-critical",
+        "f3-05-reduction",
+        "f3-06-barreras-y-single",
+        "f3-07-false-sharing-y-deadlock"
+      ]
+    },
+    {
+      "id": "f4",
+      "order": 4,
+      "title": "OpenMP y PyOMP: tu caja de herramientas",
+      "description": "Qué es OpenMP, el modelo fork-join, las directivas esenciales, por qué PyOMP/Numba, y cómo leer el simulador de E-HPC.",
+      "level": "Intermedio",
+      "lessons": [
+        "f4-01-que-es-openmp",
+        "f4-02-fork-join",
+        "f4-03-directivas-esenciales",
+        "f4-04-pyomp-openmp-en-python",
+        "f4-05-primer-programa-pyomp",
+        "f4-06-como-leer-el-simulador"
+      ]
+    }
+  ],
+  "lessons": {
+    "f1-01-por-que-no-va-mas-rapido": {
+      "module_id": "f1",
+      "order": 1,
+      "title": "¿Por qué tu programa no va más rápido?",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 4,
+      "content_file": "lessons/f1-01-por-que-no-va-mas-rapido.md",
+      "recommended": []
+    },
+    "f1-02-que-es-el-paralelismo": {
+      "module_id": "f1",
+      "order": 2,
+      "title": "¿Qué es el paralelismo?",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 4,
+      "content_file": "lessons/f1-02-que-es-el-paralelismo.md",
+      "recommended": []
+    },
+    "f1-03-programa-proceso-y-so": {
+      "module_id": "f1",
+      "order": 3,
+      "title": "Programa, proceso y sistema operativo",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 4,
+      "content_file": "lessons/f1-03-programa-proceso-y-so.md",
+      "recommended": []
+    },
+    "f1-04-que-es-un-hilo": {
+      "module_id": "f1",
+      "order": 4,
+      "title": "¿Qué es un hilo?",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 5,
+      "content_file": "lessons/f1-04-que-es-un-hilo.md",
+      "recommended": []
+    },
+    "f1-05-concurrencia-vs-paralelismo": {
+      "module_id": "f1",
+      "order": 5,
+      "title": "Concurrencia no es paralelismo",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 5,
+      "content_file": "lessons/f1-05-concurrencia-vs-paralelismo.md",
+      "recommended": []
+    },
+    "f2-01-datos-vs-tareas": {
+      "module_id": "f2",
+      "order": 6,
+      "title": "Dividir el trabajo: datos vs tareas",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 5,
+      "content_file": "lessons/f2-01-datos-vs-tareas.md",
+      "recommended": [
+        {
+          "lesson_id": "tareas",
+          "label": "El patrón divide y vencerás en código real",
+          "tag": "Práctica"
+        }
+      ]
+    },
+    "f2-02-speedup-y-eficiencia": {
+      "module_id": "f2",
+      "order": 7,
+      "title": "Speedup y eficiencia: ¿valió la pena?",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 4,
+      "content_file": "lessons/f2-02-speedup-y-eficiencia.md",
+      "recommended": [
+        {
+          "lesson_id": "transporteParticulas",
+          "label": "Un código que escala 8x de verdad",
+          "tag": "Práctica"
+        }
+      ]
+    },
+    "f2-03-ley-de-amdahl": {
+      "module_id": "f2",
+      "order": 8,
+      "title": "La ley de Amdahl: el techo de cristal",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 5,
+      "content_file": "lessons/f2-03-ley-de-amdahl.md",
+      "recommended": []
+    },
+    "f2-04-overhead": {
+      "module_id": "f2",
+      "order": 9,
+      "title": "Overhead: el costo oculto de los hilos",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 4,
+      "content_file": "lessons/f2-04-overhead.md",
+      "recommended": [
+        {
+          "lesson_id": "stencilCalor",
+          "label": "Cuando añadir hilos no acelera nada",
+          "tag": "Práctica"
+        }
+      ]
+    },
+    "f2-05-balanceo-de-carga": {
+      "module_id": "f2",
+      "order": 10,
+      "title": "Balanceo de carga: nadie parado",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 4,
+      "content_file": "lessons/f2-05-balanceo-de-carga.md",
+      "recommended": [
+        {
+          "lesson_id": "mandelbrot",
+          "label": "Carga desigual en una imagen real",
+          "tag": "Práctica"
+        }
+      ]
+    },
+    "f3-01-memoria-compartida": {
+      "module_id": "f3",
+      "order": 11,
+      "title": "Memoria compartida: bendición y maldición",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 4,
+      "content_file": "lessons/f3-01-memoria-compartida.md",
+      "recommended": []
+    },
+    "f3-02-privadas-vs-compartidas": {
+      "module_id": "f3",
+      "order": 12,
+      "title": "Variables privadas vs compartidas",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 5,
+      "content_file": "lessons/f3-02-privadas-vs-compartidas.md",
+      "recommended": [
+        {
+          "lesson_id": "entornoDatos",
+          "label": "private, firstprivate y shared ejecutándose",
+          "tag": "Práctica"
+        }
+      ]
+    },
+    "f3-03-race-conditions": {
+      "module_id": "f3",
+      "order": 13,
+      "title": "Race conditions: el bug más traicionero",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 5,
+      "content_file": "lessons/f3-03-race-conditions.md",
+      "recommended": [
+        {
+          "lesson_id": "mandelbrot",
+          "label": "Corre tú mismo la race (versión rota a propósito)",
+          "tag": "Práctica"
+        }
+      ]
+    },
+    "f3-04-exclusion-mutua-critical": {
+      "module_id": "f3",
+      "order": 14,
+      "title": "Exclusión mutua: critical",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 4,
+      "content_file": "lessons/f3-04-exclusion-mutua-critical.md",
+      "recommended": [
+        {
+          "lesson_id": "spmdCritical",
+          "label": "critical bien usado en código real",
+          "tag": "Práctica"
+        }
+      ]
+    },
+    "f3-05-reduction": {
+      "module_id": "f3",
+      "order": 15,
+      "title": "Reduction: la forma elegante de acumular",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 4,
+      "content_file": "lessons/f3-05-reduction.md",
+      "recommended": [
+        {
+          "lesson_id": "for",
+          "label": "π con parallel for reduction",
+          "tag": "Práctica"
+        }
+      ]
+    },
+    "f3-06-barreras-y-single": {
+      "module_id": "f3",
+      "order": 16,
+      "title": "Barreras, single y el ritmo del equipo",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 4,
+      "content_file": "lessons/f3-06-barreras-y-single.md",
+      "recommended": [
+        {
+          "lesson_id": "entornoDatos",
+          "label": "barrier y single ejecutándose",
+          "tag": "Práctica"
+        }
+      ]
+    },
+    "f3-07-false-sharing-y-deadlock": {
+      "module_id": "f3",
+      "order": 17,
+      "title": "False sharing y deadlock: los enemigos invisibles",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 5,
+      "content_file": "lessons/f3-07-false-sharing-y-deadlock.md",
+      "recommended": [
+        {
+          "lesson_id": "spmd",
+          "label": "El false sharing medido en vivo",
+          "tag": "Práctica"
+        },
+        {
+          "lesson_id": "spmdCritical",
+          "label": "Y su arreglo",
+          "tag": "Práctica"
+        }
+      ]
+    },
+    "f4-01-que-es-openmp": {
+      "module_id": "f4",
+      "order": 18,
+      "title": "¿Qué es OpenMP?",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 5,
+      "content_file": "lessons/f4-01-que-es-openmp.md",
+      "recommended": []
+    },
+    "f4-02-fork-join": {
+      "module_id": "f4",
+      "order": 19,
+      "title": "El modelo fork-join",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 4,
+      "content_file": "lessons/f4-02-fork-join.md",
+      "recommended": []
+    },
+    "f4-03-directivas-esenciales": {
+      "module_id": "f4",
+      "order": 20,
+      "title": "Tour por las directivas esenciales",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 5,
+      "content_file": "lessons/f4-03-directivas-esenciales.md",
+      "recommended": []
+    },
+    "f4-04-pyomp-openmp-en-python": {
+      "module_id": "f4",
+      "order": 21,
+      "title": "PyOMP: OpenMP en Python",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 5,
+      "content_file": "lessons/f4-04-pyomp-openmp-en-python.md",
+      "recommended": []
+    },
+    "f4-05-primer-programa-pyomp": {
+      "module_id": "f4",
+      "order": 22,
+      "title": "Anatomía de tu primer programa PyOMP",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 5,
+      "content_file": "lessons/f4-05-primer-programa-pyomp.md",
+      "recommended": [
+        {
+          "lesson_id": "primerEjemplo",
+          "label": "Córrelo tú mismo en el simulador",
+          "tag": "Práctica"
+        }
+      ]
+    },
+    "f4-06-como-leer-el-simulador": {
+      "module_id": "f4",
+      "order": 23,
+      "title": "Cómo leer el simulador de E-HPC",
+      "kind": "video",
+      "video_url": null,
+      "estimated_minutes": 4,
+      "content_file": "lessons/f4-06-como-leer-el-simulador.md",
+      "recommended": [
+        {
+          "lesson_id": "for",
+          "label": "Tu primer job guiado: π en paralelo",
+          "tag": "Práctica"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,136 @@
+/* base.css — reset, tipografía base, scrollbar y utilidades.
+   Port literal de styles.css del handoff (handoff-design.md §1.1, §1.7, §2.1,
+   §2.7) + requisitos nuevos de frontend-spec: focus visible y
+   prefers-reduced-motion global. */
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button { font-family: inherit; color: inherit; }
+code, pre, .mono { font-family: var(--font-mono); }
+a { color: inherit; }
+
+/* Accesibilidad: focus visible en TODOS los interactivos (requisito WP5;
+   el prototipo no lo contemplaba). */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── §1.7 Scrollbar global ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-500); }
+
+/* ── §2.7 Utilidades ────────────────────────────────────────────────────── */
+.row { display: flex; gap: 12px; align-items: center; }
+.col { display: flex; flex-direction: column; gap: 12px; }
+.grid { display: grid; gap: 16px; }
+.muted { color: var(--text-muted); }
+.mono-small {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  letter-spacing: .02em;
+}
+
+/* ── §2.1 Escalas display / eyebrow ─────────────────────────────────────── */
+.display-xl {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 44px;
+  letter-spacing: -.025em;
+  line-height: 1.05;
+  margin: 0;
+}
+.display-lg {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 30px;
+  letter-spacing: -.02em;
+  line-height: 1.15;
+  margin: 0;
+}
+.display-md {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 22px;
+  letter-spacing: -.01em;
+  margin: 0;
+}
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--orange-600);
+  font-weight: 500;
+}
+
+/* v2: display headings en Instrument Sans 600 (handoff §2.1 col. v2) */
+[data-variant="v2"] .display-xl {
+  font-family: var(--font-sans);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -.015em;
+}
+[data-variant="v2"] .display-lg {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+[data-variant="v2"] .display-md {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+}
+[data-variant="v2"] .eyebrow {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ── kbd (handoff §2.7) ─────────────────────────────────────────────────── */
+kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* ── prefers-reduced-motion: TODA animación decorativa se suprime ───────
+   (frontend-spec §5.3 — requisito nuevo, el handoff no lo contemplaba). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .status-dot,
+  .now-dot,
+  .skeleton {
+    animation: none !important;
+  }
+}

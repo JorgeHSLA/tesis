@@ -1,0 +1,131 @@
+{
+  "lesson_id": "stencilCalor",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "stencilCalor-q1",
+      "order": 1,
+      "text": "¿Por qué se usan DOS mallas (u y u_new)?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Para ahorrar memoria caché"
+        },
+        {
+          "key": "b",
+          "text": "Doble buffer: se lee de u y se escribe en u_new; con una sola malla se leerían valores ya actualizados del mismo paso → física incorrecta"
+        },
+        {
+          "key": "c",
+          "text": "Porque numba no permite escribir el array que se lee"
+        },
+        {
+          "key": "d",
+          "text": "Para poder usar reduction sobre la malla"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Explicación literal del info."
+    },
+    {
+      "id": "stencilCalor-q2",
+      "order": 2,
+      "text": "¿Qué sincroniza a los hilos entre pasos de tiempo?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Un barrier explícito después de cada paso"
+        },
+        {
+          "key": "b",
+          "text": "taskwait al final del bucle"
+        },
+        {
+          "key": "c",
+          "text": "La BARRERA IMPLÍCITA al final de cada with openmp(\"for\"): nadie sigue hasta que u_new está completa"
+        },
+        {
+          "key": "d",
+          "text": "Un critical alrededor del bucle de tiempo"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "Clave del ejemplo; nowait (que la quitaría) no es confiable en pyomp 0.5.x."
+    },
+    {
+      "id": "stencilCalor-q3",
+      "order": 3,
+      "text": "¿Cómo se organiza la región paralela respecto al bucle de tiempo?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Se abre una región parallel nueva en cada paso"
+        },
+        {
+          "key": "b",
+          "text": "UNA sola región parallel para toda la simulación: el bucle de tiempo lo ejecutan TODOS los hilos replicado, y los for huérfanos reparten el trabajo de cada paso"
+        },
+        {
+          "key": "c",
+          "text": "El bucle de tiempo se paraleliza con parallel for"
+        },
+        {
+          "key": "d",
+          "text": "Solo el hilo 0 ejecuta el bucle de tiempo (single)"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Patrón del info."
+    },
+    {
+      "id": "stencilCalor-q4",
+      "order": 4,
+      "text": "Speedup de ~1.1x con 8 núcleos. ¿Por qué?",
+      "options": [
+        {
+          "key": "a",
+          "text": "El JIT no optimizó el bucle interno"
+        },
+        {
+          "key": "b",
+          "text": "Falta schedule(dynamic) para balancear"
+        },
+        {
+          "key": "c",
+          "text": "El stencil es memory-bound: solo 4 sumas y 1 multiplicación por celda pero lee 4 vecinas de RAM; los 8 núcleos compiten por el mismo bus de memoria"
+        },
+        {
+          "key": "d",
+          "text": "Las barreras consumen el 90% del tiempo"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "\"La leccion mas valiosa del ejemplo: no todo escala\"."
+    },
+    {
+      "id": "stencilCalor-q5",
+      "order": 5,
+      "text": "¿Con qué se valida la versión paralela?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Con la fórmula analítica de difusión"
+        },
+        {
+          "key": "b",
+          "text": "Con np.allclose contra la versión serial idéntica (difusion_calor_serial)"
+        },
+        {
+          "key": "c",
+          "text": "Con la temperatura promedio de la placa"
+        },
+        {
+          "key": "d",
+          "text": "Comparando contra scipy"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Misma física sin OpenMP; imprime \"paralelo == serial? True\"."
+    }
+  ]
+}

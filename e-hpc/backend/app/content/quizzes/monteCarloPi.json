@@ -1,0 +1,131 @@
+{
+  "lesson_id": "monteCarloPi",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "monteCarloPi-q1",
+      "order": 1,
+      "text": "¿Por qué cada hilo necesita su propio generador de números aleatorios?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Para que los números sean más aleatorios"
+        },
+        {
+          "key": "b",
+          "text": "Porque el RNG tiene estado (la semilla se actualiza en cada llamada); compartirlo entre hilos es un data race"
+        },
+        {
+          "key": "c",
+          "text": "Porque numba prohíbe compartir arrays"
+        },
+        {
+          "key": "d",
+          "text": "Para poder usar np.random.seed en paralelo"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Es el problema central que plantea el info."
+    },
+    {
+      "id": "monteCarloPi-q2",
+      "order": 2,
+      "text": "En C esto se resuelve con threadprivate. ¿Cuál es la adaptación en pyomp 0.5.x?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Usar critical alrededor de cada número generado"
+        },
+        {
+          "key": "b",
+          "text": "Un array de semillas indexado por omp_get_thread_num(); cada hilo carga la suya en una variable privada"
+        },
+        {
+          "key": "c",
+          "text": "Usar firstprivate(np.random)"
+        },
+        {
+          "key": "d",
+          "text": "Generar todos los números antes de la región paralela"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "\"Misma idea, otra herramienta\": threadprivate no está soportado."
+    },
+    {
+      "id": "monteCarloPi-q3",
+      "order": 3,
+      "text": "¿Por qué parallel y for van en directivas SEPARADAS en este ejemplo?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Porque parallel for no existe en pyomp"
+        },
+        {
+          "key": "b",
+          "text": "Para que cada hilo inicialice su RNG (s = seeds[tid]) dentro de la región antes del worksharing del bucle"
+        },
+        {
+          "key": "c",
+          "text": "Para poder usar dos schedules distintos"
+        },
+        {
+          "key": "d",
+          "text": "Por claridad: es equivalente escribir parallel for"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Mismo patrón de la figura 1 del paper de PyOMP."
+    },
+    {
+      "id": "monteCarloPi-q4",
+      "order": 4,
+      "text": "¿A qué ritmo converge Monte Carlo según el info?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Error ~ 1/N"
+        },
+        {
+          "key": "b",
+          "text": "Error ~ log(N)/N"
+        },
+        {
+          "key": "c",
+          "text": "Error ~ 1/√N: con 10 millones de dardos apenas 3 decimales de π"
+        },
+        {
+          "key": "d",
+          "text": "Converge en un número fijo de iteraciones"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "Por eso estos métodos necesitan paralelismo (más dardos = más precisión)."
+    },
+    {
+      "id": "monteCarloPi-q5",
+      "order": 5,
+      "text": "¿Qué advertencia hace el info sobre las semillas por hilo?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Deben ser números primos"
+        },
+        {
+          "key": "b",
+          "text": "Semillas distintas no garantizan matemáticamente que las secuencias no se solapen; para eso existe leapfrog, y en producción generadores con streams (Philox, PCG)"
+        },
+        {
+          "key": "c",
+          "text": "Deben regenerarse en cada iteración"
+        },
+        {
+          "key": "d",
+          "text": "La semilla 0 rompe el LCG"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "\"Para aprender basta; para un paper de verdad\" usar streams independientes."
+    }
+  ]
+}

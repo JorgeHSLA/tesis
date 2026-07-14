@@ -1,0 +1,131 @@
+{
+  "lesson_id": "entornoDatos",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "entornoDatos-q1",
+      "order": 1,
+      "text": "Después de la región paralela, ¿cuánto valen x (private, era 100) y zfp (firstprivate, era 10)?",
+      "options": [
+        {
+          "key": "a",
+          "text": "x = 3000 y zfp = 13 (los del último hilo)"
+        },
+        {
+          "key": "b",
+          "text": "x = 100 y zfp = 10: recuperan sus valores originales porque los hilos trabajaron sobre COPIAS"
+        },
+        {
+          "key": "c",
+          "text": "Ambas quedan en 0"
+        },
+        {
+          "key": "d",
+          "text": "Quedan indefinidas y el programa falla"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Última línea del output real: \"despues de la region: x = 100 | zfp = 10 | zsh = 4\"."
+    },
+    {
+      "id": "entornoDatos-q2",
+      "order": 2,
+      "text": "¿Cuál es la diferencia entre private y firstprivate?",
+      "options": [
+        {
+          "key": "a",
+          "text": "private es para enteros y firstprivate para flotantes"
+        },
+        {
+          "key": "b",
+          "text": "Ambas crean copia por hilo, pero firstprivate la inicializa con el valor que la variable tenía antes de la región; private NO garantiza valor inicial"
+        },
+        {
+          "key": "c",
+          "text": "firstprivate solo aplica al hilo 0"
+        },
+        {
+          "key": "d",
+          "text": "private copia el valor de vuelta al salir"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Por eso cada hilo imprime zfp = 10 + tid."
+    },
+    {
+      "id": "entornoDatos-q3",
+      "order": 3,
+      "text": "¿Por qué zsh += 1 está dentro de un critical?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Para que se ejecute una sola vez en total"
+        },
+        {
+          "key": "b",
+          "text": "Porque zsh es shared (una sola variable para todos) y sumar sin protección sería un data race"
+        },
+        {
+          "key": "c",
+          "text": "Porque += no existe en numba"
+        },
+        {
+          "key": "d",
+          "text": "Para acelerar la suma"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "El info lo dice: \"hay que proteger la suma\"."
+    },
+    {
+      "id": "entornoDatos-q4",
+      "order": 4,
+      "text": "¿Qué garantiza el barrier en este ejemplo?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Que solo un hilo imprima"
+        },
+        {
+          "key": "b",
+          "text": "Que los hilos se ejecuten en orden 0,1,2,3"
+        },
+        {
+          "key": "c",
+          "text": "Que los 4 hilos ya sumaron a zsh antes de que el single la imprima (zsh = 4)"
+        },
+        {
+          "key": "d",
+          "text": "Que zfp se sincronice entre hilos"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "\"Punto de encuentro: ningun hilo pasa hasta que TODOS hayan llegado\"."
+    },
+    {
+      "id": "entornoDatos-q5",
+      "order": 5,
+      "text": "En pyomp 0.5.x, ¿qué usar en lugar de master?",
+      "options": [
+        {
+          "key": "a",
+          "text": "critical"
+        },
+        {
+          "key": "b",
+          "text": "barrier"
+        },
+        {
+          "key": "c",
+          "text": "single"
+        },
+        {
+          "key": "d",
+          "text": "if(omp_get_thread_num()==0) es la única forma"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "Nota del info: \"master NO esta implementado (usa single)\"; single lo ejecuta un solo hilo (cualquiera, el primero que llegue)."
+    }
+  ]
+}

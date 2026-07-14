@@ -1,0 +1,106 @@
+{
+  "lesson_id": "sumaVectores",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "sumaVectores-q1",
+      "order": 1,
+      "text": "¿Qué significa schedule(static, 1000)?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Ejecutar como máximo 1000 iteraciones en paralelo"
+        },
+        {
+          "key": "b",
+          "text": "Repartir las iteraciones en bloques fijos de 1000 entre los hilos, en round-robin"
+        },
+        {
+          "key": "c",
+          "text": "Crear 1000 hilos"
+        },
+        {
+          "key": "d",
+          "text": "Repartir dinámicamente trozos de tamaño ≤1000"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Info: \"hilo 0 toma 0-999, hilo 1 toma 1000-1999... y vuelta a empezar\"."
+    },
+    {
+      "id": "sumaVectores-q2",
+      "order": 2,
+      "text": "¿Por qué la versión OpenMP le gana a a + b de NumPy (0.11 s vs 0.29 s)?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Porque numba genera SIMD y NumPy no"
+        },
+        {
+          "key": "b",
+          "text": "Porque a + b de NumPy usa un solo núcleo y además crea el array resultado; el bucle OpenMP usa los 8 núcleos"
+        },
+        {
+          "key": "c",
+          "text": "Porque NumPy valida los datos antes de sumar"
+        },
+        {
+          "key": "d",
+          "text": "Es falso: NumPy siempre gana"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Explicación literal del info."
+    },
+    {
+      "id": "sumaVectores-q3",
+      "order": 3,
+      "text": "¿Cuál de estas variantes de schedule SÍ funciona en pyomp 0.5.x?",
+      "options": [
+        {
+          "key": "a",
+          "text": "schedule(dynamic)"
+        },
+        {
+          "key": "b",
+          "text": "schedule(guided, 100)"
+        },
+        {
+          "key": "c",
+          "text": "schedule(static, 1000) con chunk constante"
+        },
+        {
+          "key": "d",
+          "text": "schedule(static, n) donde n es un parámetro de la función"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "dynamic/guided están \"Unimplemented\" y el chunk de static no puede ser variable."
+    },
+    {
+      "id": "sumaVectores-q4",
+      "order": 4,
+      "text": "¿Cuál es la \"regla de oro del paralelismo\" que aplica este ejemplo?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Medir siempre con omp_get_wtime"
+        },
+        {
+          "key": "b",
+          "text": "Usar siempre 8 hilos"
+        },
+        {
+          "key": "c",
+          "text": "Validar SIEMPRE el resultado paralelo contra una versión confiable (aquí np.allclose(c, a+b))"
+        },
+        {
+          "key": "d",
+          "text": "Nunca escribir en arrays compartidos"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "Así lo llama el info."
+    }
+  ]
+}

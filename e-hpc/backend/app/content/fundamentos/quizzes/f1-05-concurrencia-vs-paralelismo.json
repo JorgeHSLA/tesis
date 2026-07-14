@@ -1,0 +1,71 @@
+{
+  "lesson_id": "f1-05-concurrencia-vs-paralelismo",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "f1-q1",
+      "order": 1,
+      "text": "¿Por qué los procesadores modernos tienen varios núcleos en vez de un solo núcleo cada vez más rápido?",
+      "options": [
+        {"key": "a", "text": "Porque varios núcleos consumen menos memoria RAM que uno grande"},
+        {"key": "b", "text": "Porque subir la frecuencia chocó con un límite físico de calor y consumo, así que la industria optó por poner más núcleos"},
+        {"key": "c", "text": "Porque los programas seriales corren más rápido en varios núcleos automáticamente"},
+        {"key": "d", "text": "Porque el sistema operativo lo exige desde 2005"}
+      ],
+      "correct_key": "b",
+      "explanation": "Hasta ~2005 cada procesador nuevo subía de frecuencia y el software se aceleraba gratis. El calor y el consumo pusieron un muro físico a esa carrera, y la industria respondió con más núcleos en el mismo chip en lugar de núcleos más rápidos."
+    },
+    {
+      "id": "f1-q2",
+      "order": 2,
+      "text": "¿Cuál es la diferencia fundamental entre un proceso y un hilo?",
+      "options": [
+        {"key": "a", "text": "No hay diferencia: son dos nombres para lo mismo"},
+        {"key": "b", "text": "Un proceso siempre es más rápido que un hilo"},
+        {"key": "c", "text": "Cada proceso tiene su memoria privada; los hilos de un mismo proceso comparten la memoria"},
+        {"key": "d", "text": "Los hilos solo existen en Python y los procesos solo en C"}
+      ],
+      "correct_key": "c",
+      "explanation": "Cada proceso tiene su propia memoria privada, por eso dos procesos no se ven las variables y comunicarse entre ellos es caro. Los hilos viven dentro de un proceso y comparten su memoria (la nevera común), lo que hace su comunicación gratuita pero también peligrosa."
+    },
+    {
+      "id": "f1-q3",
+      "order": 3,
+      "text": "Un solo cajero en un banco atiende a varios clientes alternando entre ellos (pausa uno para gestionar un trámite de otro). Nunca atiende a dos en el mismo instante. ¿Qué describe mejor esta situación?",
+      "options": [
+        {"key": "a", "text": "Paralelismo, porque hay varios clientes"},
+        {"key": "b", "text": "Concurrencia sin paralelismo: las tareas se solapan alternándose, pero no se ejecutan en el mismo instante"},
+        {"key": "c", "text": "Ni concurrencia ni paralelismo"},
+        {"key": "d", "text": "Paralelismo sin concurrencia"}
+      ],
+      "correct_key": "b",
+      "explanation": "Concurrencia es estructurar varias tareas para que se solapen alternándose; puede ocurrir con un solo trabajador (un núcleo). Paralelismo es ejecutarlas físicamente al mismo tiempo, lo que exige varios trabajadores. Un solo cajero alternando es concurrencia sin paralelismo."
+    },
+    {
+      "id": "f1-q4",
+      "order": 4,
+      "text": "¿Qué comparten entre sí los hilos de un mismo proceso?",
+      "options": [
+        {"key": "a", "text": "La memoria del proceso: ven las mismas variables y datos"},
+        {"key": "b", "text": "Nada: cada hilo está totalmente aislado de los demás"},
+        {"key": "c", "text": "Solo comparten el nombre del programa"},
+        {"key": "d", "text": "Comparten su stack privado, donde guardan sus temporales"}
+      ],
+      "correct_key": "a",
+      "explanation": "Los hilos de un proceso comparten la memoria (la 'nevera' común): las mismas variables y datos. Cada hilo sí tiene un espacio privado, su stack, para sus temporales; pero eso es lo que NO comparten. Compartir la memoria es lo que los hace potentes y a la vez propensos a bugs."
+    },
+    {
+      "id": "f1-q5",
+      "order": 5,
+      "text": "En Python, ¿por qué crear muchos hilos con el intérprete clásico no da paralelismo real de cómputo, y cómo lo resuelve PyOMP?",
+      "options": [
+        {"key": "a", "text": "Python no permite crear hilos; PyOMP los inventa"},
+        {"key": "b", "text": "El GIL deja ejecutar código Python a un solo hilo a la vez; PyOMP compila con Numba a código máquina y crea los hilos fuera del intérprete, esquivando el GIL"},
+        {"key": "c", "text": "El GIL hace que Python sea más rápido que C; PyOMP simplemente lo desactiva con una opción"},
+        {"key": "d", "text": "Python solo usa un núcleo por hardware; PyOMP añade núcleos virtuales"}
+      ],
+      "correct_key": "b",
+      "explanation": "El GIL (Global Interpreter Lock) permite que solo un hilo ejecute bytecode de Python a la vez, impidiendo el paralelismo real de hilos en Python puro. PyOMP se apoya en Numba para compilar la función a código máquina; una vez fuera del intérprete, el GIL no aplica y los hilos corren de verdad en paralelo."
+    }
+  ]
+}

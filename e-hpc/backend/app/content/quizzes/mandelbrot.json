@@ -1,0 +1,131 @@
+{
+  "lesson_id": "mandelbrot",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "mandelbrot-q1",
+      "order": 1,
+      "text": "¿Por qué num_outside += 1 sin protección es un data race?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Porque += no existe dentro de regiones paralelas"
+        },
+        {
+          "key": "b",
+          "text": "Porque += es leer-sumar-escribir: si dos hilos leen a la vez el mismo valor, una suma se pierde"
+        },
+        {
+          "key": "c",
+          "text": "Porque num_outside es un entero de 32 bits"
+        },
+        {
+          "key": "d",
+          "text": "Porque el break interrumpe la suma"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Explicación literal del info."
+    },
+    {
+      "id": "mandelbrot-q2",
+      "order": 2,
+      "text": "Según el output real, ¿cómo se manifiesta el data race?",
+      "options": [
+        {
+          "key": "a",
+          "text": "El programa crashea con segfault"
+        },
+        {
+          "key": "b",
+          "text": "pyomp lanza una excepción de race detectado"
+        },
+        {
+          "key": "c",
+          "text": "El área da un valor DISTINTO en cada corrida (1.955, 1.789, 2.273…) y siempre inflado — \"el programa NO crashea, solo miente\""
+        },
+        {
+          "key": "d",
+          "text": "El programa se cuelga en un deadlock"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "Se pierden incrementos de num_outside."
+    },
+    {
+      "id": "mandelbrot-q3",
+      "order": 3,
+      "text": "¿Cuál es la corrección recomendada del race en pyomp 0.5.x?",
+      "options": [
+        {
+          "key": "a",
+          "text": "#pragma omp atomic, igual que en C"
+        },
+        {
+          "key": "b",
+          "text": "reduction(+:num_outside): copia privada por hilo combinada al final (cero races, cero espera)"
+        },
+        {
+          "key": "c",
+          "text": "Poner num_outside en firstprivate"
+        },
+        {
+          "key": "d",
+          "text": "Usar ordered en el bucle"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "atomic NO existe en pyomp; critical dentro del bucle sería correcto pero lento."
+    },
+    {
+      "id": "mandelbrot-q4",
+      "order": 4,
+      "text": "¿Qué regla sobre break ilustra el ejemplo?",
+      "options": [
+        {
+          "key": "a",
+          "text": "break está prohibido en cualquier código OpenMP"
+        },
+        {
+          "key": "b",
+          "text": "No se puede hacer break del bucle paralelizado, pero sí de los bucles internos (aquí el de iteraciones it)"
+        },
+        {
+          "key": "c",
+          "text": "break solo funciona con schedule(static)"
+        },
+        {
+          "key": "d",
+          "text": "break provoca data races"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Nota del info."
+    },
+    {
+      "id": "mandelbrot-q5",
+      "order": 5,
+      "text": "¿Cuál era \"el otro bug clásico\" del ejercicio original?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Usar float en vez de double"
+        },
+        {
+          "key": "b",
+          "text": "Olvidar UNA sola variable de trabajo en la lista private (también sería un race)"
+        },
+        {
+          "key": "c",
+          "text": "Iterar maxiter+1 veces"
+        },
+        {
+          "key": "d",
+          "text": "No usar warmup del JIT"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "El info: todas las variables del punto (cr, ci, zr, zi, zr2, zi2, it, j) son privadas."
+    }
+  ]
+}

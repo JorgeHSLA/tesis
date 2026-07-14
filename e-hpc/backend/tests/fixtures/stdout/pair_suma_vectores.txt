@@ -1,0 +1,3 @@
+correcto? True
+tiempo openmp: 0.0189 s
+tiempo numpy : 0.0242 s

@@ -1,0 +1,175 @@
+/* screens/results.css — Resultados: detalle + historial (frontend-spec §6.4;
+   layouts del handoff §6). Gráficas SVG a mano con colores §1.6. */
+
+/* Header (duplicado defensivo con simulator.css: los chunks son lazy y
+   cualquiera de las dos pantallas puede cargarse primero). */
+.results-screen .screen-actions,
+.screen-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.results-screen .live-head-row,
+.live-head-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 980px) {
+  .two-col { grid-template-columns: 1fr; }
+}
+
+/* Leyenda de gráficas (handoff §6.3) */
+.legend-row {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.lg-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+
+/* ComparisonBars (layout del WorkDistributionChart, handoff §6.3) */
+.bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bar-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+.bar-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text);
+}
+.bar-track {
+  display: flex;
+  height: 26px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #fff;
+  white-space: nowrap;
+  min-width: 24px;
+  transition: width .4s var(--ease);
+}
+
+/* Observaciones (handoff §6.3) */
+.observations {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.obs {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--cream-50);
+}
+.obs b { font-size: 13.5px; }
+.obs p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+  white-space: pre-line;
+}
+.obs-warn {
+  background: rgba(232, 163, 23, .07);
+  border-color: rgba(232, 163, 23, .3);
+}
+.obs-ok {
+  background: rgba(107, 168, 80, .07);
+  border-color: rgba(107, 168, 80, .3);
+}
+.obs-icon { flex-shrink: 0; margin-top: 1px; }
+.obs-icon-warn { color: var(--amber-500); }
+.obs-icon-ok { color: var(--green-600); }
+.obs-icon-info { color: var(--orange-600, #D95B12); }
+
+/* Degradación §6.4 (sin parsed_timings ni serie del live) */
+.degraded-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+/* Output */
+.truncated-banner {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: rgba(232, 163, 23, .1);
+  border: 1px solid rgba(232, 163, 23, .35);
+  border-radius: var(--r-md);
+  font-size: 12.5px;
+  color: var(--text);
+}
+.output-terminal-body {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+/* Historial (/resultados) */
+.results-table { padding-bottom: 8px; }
+.results-table-head,
+.results-table-row {
+  display: grid;
+  grid-template-columns: 1.4fr 140px 60px 90px 110px 70px;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 20px;
+}
+.results-table-head {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.results-table-row { border-bottom: 1px solid var(--border); }
+.results-table-row:last-child { border-bottom: none; }
+.results-filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 900px) {
+  .results-table-head, .results-table-row {
+    grid-template-columns: 1fr 120px 70px;
+  }
+  .results-table-head span:nth-child(3),
+  .results-table-head span:nth-child(4),
+  .results-table-head span:nth-child(5),
+  .results-table-row span:nth-child(3),
+  .results-table-row span:nth-child(4),
+  .results-table-row span:nth-child(5) { display: none; }
+}

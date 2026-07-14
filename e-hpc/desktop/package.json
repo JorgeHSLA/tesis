@@ -1,0 +1,26 @@
+{
+  "name": "ehpc-desktop",
+  "productName": "E-HPC",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Shell de escritorio de E-HPC (Electron)",
+  "author": "Jorge Sierra <jorgesierralaiton@gmail.com>",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "check:contract": "node scripts/check-contract.mjs",
+    "dev": "concurrently -k -n web,esb,app \"npm --prefix ../frontend run dev\" \"node scripts/build.mjs --watch\" \"wait-on http://localhost:5173 dist-electron/main.cjs && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:win": "npm run build && electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.25.0",
+    "concurrently": "^9",
+    "wait-on": "^8",
+    "cross-env": "^7",
+    "typescript": "~5.6"
+  }
+}

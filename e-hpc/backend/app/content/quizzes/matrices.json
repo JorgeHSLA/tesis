@@ -1,0 +1,106 @@
+{
+  "lesson_id": "matrices",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "matrices-q1",
+      "order": 1,
+      "text": "¿Por qué j, k y tmp deben ir en private(...)?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Para que numba pueda inferir sus tipos"
+        },
+        {
+          "key": "b",
+          "text": "Porque cada hilo los usa para su propia fila; si fueran compartidos un hilo pisaría el contador del otro → resultado basura"
+        },
+        {
+          "key": "c",
+          "text": "Porque las variables de bucle no pueden ser shared en numba"
+        },
+        {
+          "key": "d",
+          "text": "Solo por estilo: funcionaría igual sin ello"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Advertencia central del info."
+    },
+    {
+      "id": "matrices-q2",
+      "order": 2,
+      "text": "¿Qué bucle se paraleliza y por qué?",
+      "options": [
+        {
+          "key": "a",
+          "text": "El de k, porque es el más interno"
+        },
+        {
+          "key": "b",
+          "text": "Los tres a la vez con collapse(3)"
+        },
+        {
+          "key": "c",
+          "text": "El externo (i, las filas): cada hilo procesa un bloque de filas completo"
+        },
+        {
+          "key": "d",
+          "text": "El de j, para equilibrar la carga"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "Y collapse en CPU NO es confiable en pyomp 0.5.x."
+    },
+    {
+      "id": "matrices-q3",
+      "order": 3,
+      "text": "Nuestro triple bucle paralelo pierde contra np.dot (BLAS). ¿Cuál es la lección según el info?",
+      "options": [
+        {
+          "key": "a",
+          "text": "OpenMP en Python nunca vale la pena"
+        },
+        {
+          "key": "b",
+          "text": "Hay que reescribirlo en C"
+        },
+        {
+          "key": "c",
+          "text": "Si existe una librería optimizada para tu problema, úsala; OpenMP es para el código que NO tiene librería (tus simuladores, tus kernels custom)"
+        },
+        {
+          "key": "d",
+          "text": "BLAS usa GPU por debajo"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "Lección 2 literal del info."
+    },
+    {
+      "id": "matrices-q4",
+      "order": 4,
+      "text": "¿Por qué se acumula en tmp y se escribe C[i, j] una sola vez al final?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Porque numba no permite escribir dos veces la misma celda"
+        },
+        {
+          "key": "b",
+          "text": "Menos tráfico de memoria: acumular en un escalar privado es más rápido que escribir C[i,j] en cada vuelta de k"
+        },
+        {
+          "key": "c",
+          "text": "Para evitar un data race sobre C"
+        },
+        {
+          "key": "d",
+          "text": "Para que el JIT pueda vectorizar j"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Explicación del info."
+    }
+  ]
+}

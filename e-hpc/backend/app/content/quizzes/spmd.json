@@ -1,0 +1,131 @@
+{
+  "lesson_id": "spmd",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "spmd-q1",
+      "order": 1,
+      "text": "¿Cómo reparte el trabajo el hilo tid en el patrón SPMD de este ejemplo?",
+      "options": [
+        {
+          "key": "a",
+          "text": "OpenMP reparte el bucle automáticamente"
+        },
+        {
+          "key": "b",
+          "text": "Manualmente con range(tid, num_steps, nths): reparto cíclico (el hilo 0 toma 0, 8, 16…)"
+        },
+        {
+          "key": "c",
+          "text": "Cada hilo procesa la mitad izquierda o derecha"
+        },
+        {
+          "key": "d",
+          "text": "Un hilo maestro asigna trozos bajo demanda"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "El info lo llama \"ESTE es el reparto manual\"; el for es un for de Python normal que OpenMP no toca."
+    },
+    {
+      "id": "spmd-q2",
+      "order": 2,
+      "text": "En el output real, ¿por qué casi no hay speedup al pasar de 1 a 8 hilos?",
+      "options": [
+        {
+          "key": "a",
+          "text": "El JIT no compiló la función"
+        },
+        {
+          "key": "b",
+          "text": "Hay un data race que corrompe los tiempos"
+        },
+        {
+          "key": "c",
+          "text": "False sharing: las casillas contiguas de partial caen en la misma línea de caché y los hilos se la pelean"
+        },
+        {
+          "key": "d",
+          "text": "omp_set_num_threads no funciona en pyomp"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "El info: \"eso NO es un bug, es la leccion del ejemplo\"."
+    },
+    {
+      "id": "spmd-q3",
+      "order": 3,
+      "text": "¿Qué papel cumple partial = np.zeros(num_threads)?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Es un buffer temporal del JIT"
+        },
+        {
+          "key": "b",
+          "text": "Una casilla de suma parcial por hilo: cada hilo acumula en partial[tid]"
+        },
+        {
+          "key": "c",
+          "text": "Guarda los tiempos de cada hilo"
+        },
+        {
+          "key": "d",
+          "text": "Es la lista de semillas aleatorias"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Así se evita el race sobre un acumulador único (a costa del false sharing)."
+    },
+    {
+      "id": "spmd-q4",
+      "order": 4,
+      "text": "¿Qué función usa el ejemplo para cronometrar dentro de la función @njit?",
+      "options": [
+        {
+          "key": "a",
+          "text": "time.time()"
+        },
+        {
+          "key": "b",
+          "text": "time.perf_counter()"
+        },
+        {
+          "key": "c",
+          "text": "omp_get_wtime()"
+        },
+        {
+          "key": "d",
+          "text": "datetime.now()"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "omp_get_wtime() es el cronómetro de OpenMP y se usa dentro de la función @njit."
+    },
+    {
+      "id": "spmd-q5",
+      "order": 5,
+      "text": "¿A qué equivale omp_set_num_threads(n) según el info?",
+      "options": [
+        {
+          "key": "a",
+          "text": "A schedule(static, n)"
+        },
+        {
+          "key": "b",
+          "text": "A la variable de entorno OMP_NUM_THREADS pero fijada desde código"
+        },
+        {
+          "key": "c",
+          "text": "A crear n procesos con multiprocessing"
+        },
+        {
+          "key": "d",
+          "text": "A limitar el JIT a n funciones"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Fija cuántos hilos usará la siguiente región paralela."
+    }
+  ]
+}

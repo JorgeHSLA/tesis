@@ -1,0 +1,106 @@
+{
+  "lesson_id": "for",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "for-q1",
+      "order": 1,
+      "text": "¿Qué hace reduction(+:red_sum) en la directiva?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Bloquea red_sum con un mutex en cada suma"
+        },
+        {
+          "key": "b",
+          "text": "Da a cada hilo una copia privada de red_sum y las combina con + al final"
+        },
+        {
+          "key": "c",
+          "text": "Redondea red_sum al final del bucle"
+        },
+        {
+          "key": "d",
+          "text": "Divide red_sum entre el número de hilos"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Es la semántica de reduction: evita el data race sin serializar."
+    },
+    {
+      "id": "for-q2",
+      "order": 2,
+      "text": "En parallel for, la variable del bucle (j) es…",
+      "options": [
+        {
+          "key": "a",
+          "text": "Compartida: hay que protegerla con critical"
+        },
+        {
+          "key": "b",
+          "text": "Privada automáticamente para cada hilo"
+        },
+        {
+          "key": "c",
+          "text": "firstprivate por defecto"
+        },
+        {
+          "key": "d",
+          "text": "Indefinida: hay que declararla siempre"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Regla de OpenMP para la variable de control del for paralelizado (confirmado también en infoSumaVectores e infoMultiplicacionMatrices)."
+    },
+    {
+      "id": "for-q3",
+      "order": 3,
+      "text": "¿Qué schedule usa este ejemplo y por qué es la única familia disponible en pyomp 0.5.x?",
+      "options": [
+        {
+          "key": "a",
+          "text": "schedule(dynamic), porque balancea mejor"
+        },
+        {
+          "key": "b",
+          "text": "schedule(guided), porque es el default de OpenMP"
+        },
+        {
+          "key": "c",
+          "text": "schedule(static); dynamic y guided NO están implementados en pyomp 0.5.x"
+        },
+        {
+          "key": "d",
+          "text": "Ninguno: pyomp no acepta la cláusula schedule"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "El README y los comentarios de sumaVectores lo advierten: los tests de dynamic/guided están marcados \"Unimplemented\"."
+    },
+    {
+      "id": "for-q4",
+      "order": 4,
+      "text": "¿Qué patrón de diseño del paper de PyOMP ilustra este ejemplo?",
+      "options": [
+        {
+          "key": "a",
+          "text": "SPMD"
+        },
+        {
+          "key": "b",
+          "text": "Divide y vencerás"
+        },
+        {
+          "key": "c",
+          "text": "Loop-level parallelism"
+        },
+        {
+          "key": "d",
+          "text": "Pipeline"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "El README indica que for/, spmd/ y tareas/ cubren los 3 patrones; este es el de nivel de bucle."
+    }
+  ]
+}

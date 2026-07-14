@@ -1,0 +1,131 @@
+{
+  "lesson_id": "tareas",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "tareas-q1",
+      "order": 1,
+      "text": "¿Para qué sirve el umbral MIN_BLK en el paralelismo recursivo?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Para limitar la memoria de la pila"
+        },
+        {
+          "key": "b",
+          "text": "Crear una task cuesta; si el trozo es pequeño conviene sumarlo secuencialmente — \"SIEMPRE pon umbral en paralelismo recursivo\""
+        },
+        {
+          "key": "c",
+          "text": "Para garantizar precisión numérica"
+        },
+        {
+          "key": "d",
+          "text": "Para que taskwait no espere de más"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Regla literal del info."
+    },
+    {
+      "id": "tareas-q2",
+      "order": 2,
+      "text": "En task shared(sum1) firstprivate(nstart, mid, step), ¿por qué sum1 es shared y los límites firstprivate?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Es arbitrario: podrían intercambiarse"
+        },
+        {
+          "key": "b",
+          "text": "shared(sum1) porque el resultado debe verse fuera de la tarea; firstprivate para que la tarea capture los valores de los límites EN ESE MOMENTO (como una foto)"
+        },
+        {
+          "key": "c",
+          "text": "shared es más rápido para floats"
+        },
+        {
+          "key": "d",
+          "text": "firstprivate evita que la task se ejecute dos veces"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Explicación literal del info."
+    },
+    {
+      "id": "tareas-q3",
+      "order": 3,
+      "text": "¿Qué pasaría sin el taskwait?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Las tareas hijas nunca se ejecutarían"
+        },
+        {
+          "key": "b",
+          "text": "Se haría sum1 + sum2 antes de que las tareas hijas terminen de calcularlos → resultado basura"
+        },
+        {
+          "key": "c",
+          "text": "Deadlock inmediato"
+        },
+        {
+          "key": "d",
+          "text": "pyomp lanza error de compilación"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "El info lo dice explícitamente."
+    },
+    {
+      "id": "tareas-q4",
+      "order": 4,
+      "text": "¿Por qué el árbol de tareas se siembra dentro de single?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Porque task solo puede llamarse desde un hilo maestro"
+        },
+        {
+          "key": "b",
+          "text": "Para que UN solo hilo cree el árbol; si no, cada hilo crearía SU árbol completo = trabajo repetido. Los demás hilos no están ociosos: roban tareas desde la barrera del single"
+        },
+        {
+          "key": "c",
+          "text": "Para medir el tiempo con precisión"
+        },
+        {
+          "key": "d",
+          "text": "Porque single tiene menos overhead que master"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "El \"combo mágico\" del info."
+    },
+    {
+      "id": "tareas-q5",
+      "order": 5,
+      "text": "¿Cuál de estas features de tasking SÍ está soportada en pyomp 0.5.x?",
+      "options": [
+        {
+          "key": "a",
+          "text": "taskloop"
+        },
+        {
+          "key": "b",
+          "text": "task depend(in: x)"
+        },
+        {
+          "key": "c",
+          "text": "task con shared/private/firstprivate/default y taskwait"
+        },
+        {
+          "key": "d",
+          "text": "taskgroup"
+        }
+      ],
+      "correct_key": "c",
+      "explanation": "Verificado en tests oficiales según el info; taskloop/taskgroup/depend/taskyield NO."
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+/* tokens.css — port LITERAL del handoff (handoff-design.md §1.2–§1.5).
+   Único cambio autorizado: token nuevo `--success` (fix del bug §14.5).
+   La conmutación de variante es SOLO `data-variant` en <html>
+   (frontend-spec §5.1); el tema dark se conserva definido, sin toggle en MVP. */
+
+/* ── §1.2 Paleta v1 — "v1 · cálido" ─────────────────────────────────────── */
+:root {
+  /* Naranjas */
+  --orange-50: #FFF4EC;
+  --orange-100: #FFE4D1;
+  --orange-200: #FFCFA8;
+  --orange-300: #FFB078;
+  --orange-400: #FF914D;
+  --orange-500: #F57324;
+  --orange-600: #D75A12;
+  --orange-700: #A3430C;
+
+  /* Cremas */
+  --cream-50: #FDF8EE;
+  --cream-100: #F9EFD9;
+  --cream-200: #F3E3BF;
+
+  /* Tintas (marrones/negros cálidos) */
+  --ink-900: #1A1410;
+  --ink-800: #2A2219;
+  --ink-700: #3D3125;
+  --ink-600: #5C4A39;
+  --ink-500: #7A6549;
+  --ink-400: #A08B6E;
+
+  /* Verdes */
+  --green-500: #3F7A2E;
+  --green-600: #2F5E21;
+  --green-400: #6BA850;
+
+  /* Otros */
+  --red-500: #C94A2B;
+  --amber-500: #E8A317;
+  --blue-500: #2E6EA8;
+
+  /* Semánticos */
+  --bg: var(--cream-50);
+  --surface: #FFFFFF;
+  --surface-2: var(--cream-100);
+  --border: #E9DFC9;
+  --border-strong: #D4C4A0;
+  --text: var(--ink-900);
+  --text-muted: var(--ink-500);
+  --accent: var(--orange-500);
+  --accent-hover: var(--orange-600);
+  /* NUEVO (fix handoff §14.5): usado por `· Completado` del catálogo. */
+  --success: var(--green-500);
+
+  /* Tipografía */
+  --font-sans: 'Instrument Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Fraunces Variable', 'Fraunces', Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* §1.3 Radios */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  /* §1.3 Sombras */
+  --shadow-sm: 0 1px 2px rgba(26,20,16,.06), 0 1px 1px rgba(26,20,16,.04);
+  --shadow-md: 0 6px 20px -8px rgba(26,20,16,.18), 0 2px 6px -2px rgba(26,20,16,.08);
+  --shadow-lg: 0 24px 48px -16px rgba(26,20,16,.22), 0 8px 16px -8px rgba(26,20,16,.12);
+  --shadow-inner: inset 0 1px 0 rgba(255,255,255,.6), inset 0 -1px 0 rgba(26,20,16,.04);
+
+  /* §1.3 Motion — easing única de toda la app */
+  --ease: cubic-bezier(.2,.7,.2,1);
+}
+
+/* ── §1.4 Tema oscuro — definido pero SIN toggle en MVP ─────────────────── */
+[data-theme="dark"] {
+  --bg: #14100C;
+  --surface: #1F1913;
+  --surface-2: #2A2219;
+  --border: #3A2E22;
+  --border-strong: #5C4A39;
+  --text: #F9EFD9;
+  --text-muted: #A08B6E;
+  --cream-50: #1F1913;
+  --cream-100: #2A2219;
+  --cream-200: #3A2E22;
+  --orange-50: #3A2416;
+  --orange-100: #4F2F1A;
+}
+
+/* ── §1.5 Tokens v2 — "v2 · local app": neutra, densa, naranja de acento ── */
+:root[data-variant="v2"] {
+  --bg: #F5F3EE;
+  --surface: #FFFFFF;
+  --surface-2: #EFECE4;
+  --surface-3: #E6E2D7;
+  --border: #DDD7C8;
+  --border-strong: #C5BDA8;
+  --text: #1A1812;
+  --text-muted: #6E6858;
+  --accent: #D75A12;
+  --accent-hover: #A3430C;
+  --accent-soft: #F5E4D4;
+  --green-500: #3F7A2E;
+  --green-soft: #E4ECD9;
+  --amber-500: #B17A0A;
+  --red-500: #B84226;
+  --success: var(--green-500);
+
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+
+  --shadow-sm: 0 1px 0 rgba(26,24,18,.04);
+  --shadow-md: 0 4px 12px -4px rgba(26,24,18,.1);
+}

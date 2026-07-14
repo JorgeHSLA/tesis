@@ -1,0 +1,131 @@
+{
+  "lesson_id": "transporteParticulas",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "transporteParticulas-q1",
+      "order": 1,
+      "text": "¿Por qué este ejemplo escala 8x mientras el stencil apenas 1.1x?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Porque usa más hilos"
+        },
+        {
+          "key": "b",
+          "text": "Monte Carlo es compute-bound: mucho cálculo por cada byte de memoria tocado; el stencil es memory-bound"
+        },
+        {
+          "key": "c",
+          "text": "Porque el stencil usa doble buffer"
+        },
+        {
+          "key": "d",
+          "text": "Porque reduction es más rápida que barrier"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Comparación explícita del info: \"los simuladores Monte Carlo son el caso ideal para OpenMP\"."
+    },
+    {
+      "id": "transporteParticulas-q2",
+      "order": 2,
+      "text": "¿Cómo se muestrea la distancia hasta el próximo choque?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Uniforme en [0, espesor]"
+        },
+        {
+          "key": "b",
+          "text": "dist = -ln(r)/sigma_t: distribución exponencial con camino libre medio 1/σt"
+        },
+        {
+          "key": "c",
+          "text": "Gaussiana centrada en 1/σt"
+        },
+        {
+          "key": "d",
+          "text": "Constante = espesor/número de choques"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "Física literal del info."
+    },
+    {
+      "id": "transporteParticulas-q3",
+      "order": 3,
+      "text": "¿Qué demuestra la cláusula reduction(+:transmitidas, reflejadas, absorbidas)?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Que reduction solo acepta un máximo de 3 variables"
+        },
+        {
+          "key": "b",
+          "text": "Que se puede hacer reducción sobre VARIOS contadores a la vez (lista de variables)"
+        },
+        {
+          "key": "c",
+          "text": "Que las variables deben ser floats"
+        },
+        {
+          "key": "d",
+          "text": "Que reduction reemplaza a critical siempre"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "El info lo destaca: \"si, se puede poner una lista\"."
+    },
+    {
+      "id": "transporteParticulas-q4",
+      "order": 4,
+      "text": "Cada partícula vive un número distinto de choques (while viva). ¿Por qué escala igual de bien?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Porque schedule(dynamic) rebalancea"
+        },
+        {
+          "key": "b",
+          "text": "Porque hay millones de partículas por hilo: la irregularidad se promedia"
+        },
+        {
+          "key": "c",
+          "text": "Porque el while se paraleliza internamente"
+        },
+        {
+          "key": "d",
+          "text": "Porque taskwait redistribuye las partículas"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "El info: \"carga irregular, y aun asi escala perfecto\"."
+    },
+    {
+      "id": "transporteParticulas-q5",
+      "order": 5,
+      "text": "¿Por qué los porcentajes varían en el 2º decimal entre corridas con distinto número de hilos?",
+      "options": [
+        {
+          "key": "a",
+          "text": "Es un data race residual sobre los contadores"
+        },
+        {
+          "key": "b",
+          "text": "Cada hilo usa semillas distintas: es variación estadística normal y esperada de Monte Carlo"
+        },
+        {
+          "key": "c",
+          "text": "Redondeo de floats de 32 bits"
+        },
+        {
+          "key": "d",
+          "text": "El JIT reordena las operaciones"
+        }
+      ],
+      "correct_key": "b",
+      "explanation": "El info lo aclara: la física es estable entre corridas."
+    }
+  ]
+}
