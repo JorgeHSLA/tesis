@@ -1,38 +1,35 @@
 // Suite 5 (frontend-spec §10): stores/themeStore.test.ts
-// Theming unificado (decisión §5.1): default v1; setVariant escribe
-// data-variant en <html> y localStorage 'ehpc-variant'; hidratación persistida.
+// La app quedó FIJA en la variante v2 (2026-07): el switch v1/v2 se retiró.
+// applyFixedVariant() escribe data-variant="v2" en <html> y NO se lee ningún
+// valor persistido (un 'v1' viejo en localStorage debe quedar ignorado).
 import { beforeEach, describe, expect, it } from 'vitest'
-import { useThemeStore } from '@/stores/themeStore'
+import { FIXED_VARIANT, applyFixedVariant } from '@/stores/themeStore'
 
 beforeEach(() => {
   localStorage.clear()
-  useThemeStore.setState({ variant: 'v1' })
   delete document.documentElement.dataset.variant
 })
 
-describe('themeStore', () => {
-  it('el valor por defecto es v1', () => {
-    expect(useThemeStore.getState().variant).toBe('v1')
+describe('themeStore (variante fija v2)', () => {
+  it('la variante fija es v2', () => {
+    expect(FIXED_VARIANT).toBe('v2')
   })
 
-  it('setVariant(v2) escribe data-variant en <html> y persiste', () => {
-    useThemeStore.getState().setVariant('v2')
-    expect(useThemeStore.getState().variant).toBe('v2')
+  it('applyFixedVariant() escribe data-variant="v2" en <html>', () => {
+    applyFixedVariant()
     expect(document.documentElement.dataset.variant).toBe('v2')
-    const raw = localStorage.getItem('ehpc-variant')
-    expect(JSON.parse(raw as string).state.variant).toBe('v2')
   })
 
-  it('setVariant(v1) revierte data-variant a v1', () => {
-    useThemeStore.getState().setVariant('v2')
-    useThemeStore.getState().setVariant('v1')
-    expect(document.documentElement.dataset.variant).toBe('v1')
+  it('ignora un valor v1 heredado en localStorage y aplica v2', () => {
+    // Sesión previa con el switch: pudo quedar 'v1' persistido.
+    localStorage.setItem('ehpc-variant', JSON.stringify({ state: { variant: 'v1' }, version: 0 }))
+    applyFixedVariant()
+    expect(document.documentElement.dataset.variant).toBe('v2')
   })
 
-  it('rehidrata desde un valor persistido aplicando la variante', async () => {
-    localStorage.setItem('ehpc-variant', JSON.stringify({ state: { variant: 'v2' }, version: 0 }))
-    await useThemeStore.persist.rehydrate()
-    expect(useThemeStore.getState().variant).toBe('v2')
+  it('es idempotente: reafirma v2 aunque el atributo se hubiera alterado', () => {
+    document.documentElement.dataset.variant = 'v1'
+    applyFixedVariant()
     expect(document.documentElement.dataset.variant).toBe('v2')
   })
 })

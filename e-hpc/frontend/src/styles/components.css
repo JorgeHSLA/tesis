@@ -275,6 +275,11 @@
   padding: var(--screen-pad-y) var(--screen-pad-x);
   max-width: 1280px;
 }
+/* Lección: usa el ancho disponible (el hueco muerto a la derecha venía del cap
+   de 1280px con el contenedor alineado a la izquierda). Con el panel lateral
+   oculto por defecto el contenido ocupa todo el ancho; la medida de lectura la
+   sigue acotando `.learn .markdown` (70ch), así que ensanchar no daña la prosa. */
+.screen.learn { max-width: 1680px; }
 .screen-head {
   display: flex;
   align-items: flex-end;
@@ -298,13 +303,15 @@
   margin-bottom: var(--sp-7);
 }
 .home .display-xl { font-size: 56px; }
+/* v2 es ahora la ÚNICA variante: el hero conserva su diagrama fork-join (el
+   visual educativo central). Antes v2 lo ocultaba y colapsaba el hero a 1
+   columna, dejando medio hero vacío. Se mantiene la grilla base (2 columnas)
+   y solo se baja la densidad (gap/padding). */
 [data-variant="v2"] .home .hero {
-  grid-template-columns: 1fr;
-  gap: var(--sp-5);
-  padding: var(--sp-2) 0 var(--sp-5);
-  margin-bottom: var(--sp-5);
+  gap: var(--sp-6);
+  padding: var(--sp-2) 0 var(--sp-6);
+  margin-bottom: var(--sp-6);
 }
-[data-variant="v2"] .hero-right { display: none; }
 [data-variant="v2"] .home .display-xl {
   font-size: 38px;
   font-weight: 700;
@@ -320,14 +327,16 @@
   font-size: 14px;
   font-weight: 600;
   border: 1px solid transparent;
-  background: var(--surface-2);
+  /* Neutro = subtono azul claro (los CTA .btn-primary/.btn-accent sobreescriben
+     su propio background naranja; .btn-ghost su transparente). */
+  background: var(--btn-neutral-bg);
   color: var(--text);
   cursor: pointer;
   transition: background .15s var(--ease), border-color .15s var(--ease),
               color .15s var(--ease), box-shadow .2s var(--ease),
               transform .15s var(--ease);
 }
-.btn:hover { background: var(--slate-200); }
+.btn:hover { background: var(--btn-neutral-hover); }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .btn-primary {
   background: var(--accent);
@@ -350,10 +359,10 @@
 .btn-ghost { background: transparent; color: var(--text-muted); }
 .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
 .btn-outline {
-  background: var(--surface);
-  border-color: var(--border);
+  background: var(--btn-neutral-bg);
+  border-color: var(--btn-neutral-border);
 }
-.btn-outline:hover { background: var(--surface-2); border-color: var(--border-accent); }
+.btn-outline:hover { background: var(--btn-neutral-hover); border-color: var(--btn-neutral-hover-border); }
 .btn-sm { padding: 6px 10px; font-size: 13px; }
 .btn-lg { padding: 12px 20px; font-size: 15px; }
 .btn-xl {
@@ -495,33 +504,7 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
 .term-red { color: color-mix(in srgb, var(--red-500) 60%, var(--slate-50)); }
 .term-blue { color: color-mix(in srgb, var(--blue-500) 55%, var(--slate-50)); }
 
-/* ═══════════════════ Variant switcher (handoff §2.8) ═══════════════════ */
-.variant-switch {
-  display: inline-flex;
-  padding: 3px;
-  background: var(--surface-2);
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  gap: 2px;
-  margin-right: 8px;
-}
-.vs-btn {
-  padding: 4px 12px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-muted-strong); /* sobre el pill --surface-2: AA */
-  background: transparent;
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  font-family: var(--font-mono);
-  transition: background .15s var(--ease), color .15s var(--ease);
-}
-.vs-btn.active {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow-sm);
-}
+/* El switch de variante (handoff §2.8) se retiró: la app quedó fija en v2. */
 
 /* ═══════════════ MetricCard / MiniBar (handoff §5.6, §5.8) ═════════════
    "Stat tile" aireado: label sans 13/600 muted, valor 30/700 tabular. */

@@ -28,7 +28,9 @@ export interface LessonInfoProps {
 
 export function LessonInfo({ lesson, example, runDisabled }: LessonInfoProps) {
   const navigate = useNavigate()
-  const [open, setOpen] = useState(true)
+  // Colapsada por defecto (2026-07): el estudiante expande "De qué va esta
+  // lección" con un click. El botón sigue siendo accesible (aria-expanded).
+  const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<LessonTab>('descripcion')
 
   const markdownHtml = useMemo(() => renderMarkdown(lesson.content_markdown), [lesson.content_markdown])

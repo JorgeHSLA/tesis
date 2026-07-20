@@ -15,7 +15,7 @@ import './styles/base.css'
 import './styles/components.css'
 import './styles/screens/admin.css'
 
-// Aplica la variante persistida (data-variant en <html>) ANTES del render.
+// Fija data-variant="v2" en <html> ANTES del render (única variante soportada).
 import './stores/themeStore'
 
 import { StrictMode } from 'react'

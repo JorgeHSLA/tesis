@@ -74,6 +74,14 @@
   --primary-soft: var(--teal-100);
   --ring: var(--teal-600);
 
+  /* Botones NEUTROS — subtono azul claro (antes se veían "blancos"). El texto
+     slate oscuro (--text) encima da contraste holgado (>12:1 AA). Los CTA
+     (--accent) siguen naranja: estos tokens solo tocan .btn/.btn-outline. */
+  --btn-neutral-bg: #EEF4FF;
+  --btn-neutral-border: #DBE4F5;
+  --btn-neutral-hover: #E1EAFB;
+  --btn-neutral-hover-border: #C7D6F0;
+
   /* Semánticos — estados suaves (chips/banners/observaciones) */
   --success: var(--green-500);
   --success-ink: var(--teal-700);
@@ -166,6 +174,11 @@
   --warn-soft: #3A2E14;
   --danger-ink: #FCA5A5;
   --danger-soft: #3B1717;
+  /* Botones neutros en dark: superficie azul-slate oscura, texto claro (--text). */
+  --btn-neutral-bg: #1B2A44;
+  --btn-neutral-border: #2A3B5A;
+  --btn-neutral-hover: #223353;
+  --btn-neutral-hover-border: #35496D;
   --viz-grid: #1E3B34;
   --viz-axis: #2C5048;
   --viz-ideal: #4E6E67;

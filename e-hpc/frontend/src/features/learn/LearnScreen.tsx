@@ -1,15 +1,16 @@
 // LearnScreen — lección (frontend-spec §6.6): CodeShowcase + LessonInfo
 // (markdown/código/salida esperada) + QuizRunner (modelo servidor) en la
-// columna principal; LessonSidebar + RecommendedCard + TracksCard en la
-// lateral. Al montar: progressStore.markViewed(id) → PUT /progress (el
-// backend es la fuente del progreso) y lastLessonId local.
+// columna principal; LessonSidebar + TracksCard en un DRAWER lateral oculto por
+// defecto (2026-07: "Recomendado para ti" retirado; el panel módulo+progreso se
+// muestra/oculta con un botón). Al montar: progressStore.markViewed(id) →
+// PUT /progress (el backend es la fuente del progreso) y lastLessonId local.
 import '../../styles/screens/learn.css'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { getExample, getLesson, loadExamplesIndex } from '../../api/content'
 import { ApiError } from '../../api/client'
 import type { ExampleDetailDto, ExampleSummaryDto, LessonDetailDto } from '../../api/types'
-import { IconAlert, IconChevronLeft, IconChevronRight } from '../../components/icons/icons'
+import { IconAlert, IconChevronLeft, IconChevronRight, IconLayers } from '../../components/icons/icons'
 import { Button } from '../../components/ui/Button'
 import { Chip } from '../../components/ui/Chip'
 import { ErrorState } from '../../components/ui/ErrorState'
@@ -20,8 +21,22 @@ import { CodeShowcase } from './CodeShowcase'
 import { LessonInfo } from './LessonInfo'
 import { LessonSidebar } from './LessonSidebar'
 import { QuizRunner } from './QuizRunner'
-import { RecommendedCard } from './RecommendedCard'
 import { TracksCard } from './TracksCard'
+
+// El panel "módulo + progreso" es un drawer a la derecha, OCULTO por defecto;
+// su estado (abierto/cerrado) se persiste como preferencia de UI en localStorage.
+const SIDE_STORAGE_KEY = 'ehpc-learn-side'
+
+function readSidePref(): boolean {
+  // El acceso a localStorage puede lanzar (iframe sandbox, webview Electron
+  // restringido, modo privado). Simétrico con el write (más abajo): ante error,
+  // el drawer arranca oculto. El try/catch cubre también el caso SSR (undefined).
+  try {
+    return localStorage.getItem(SIDE_STORAGE_KEY) === 'open'
+  } catch {
+    return false
+  }
+}
 
 interface LoadedLesson {
   lesson: LessonDetailDto
@@ -42,6 +57,16 @@ export default function LearnScreen() {
   const [error, setError] = useState<{ message: string; notFound: boolean } | null>(null)
   const [examplesIndex, setExamplesIndex] = useState<Map<string, ExampleSummaryDto> | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  // Drawer "módulo + progreso": oculto por defecto (preferencia persistida).
+  const [sideOpen, setSideOpen] = useState<boolean>(readSidePref)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDE_STORAGE_KEY, sideOpen ? 'open' : 'closed')
+    } catch {
+      // localStorage no disponible (modo privado/SSR): la preferencia no persiste.
+    }
+  }, [sideOpen])
 
   useEffect(() => {
     void hydrate()
@@ -120,15 +145,19 @@ export default function LearnScreen() {
             <Skeleton width={420} height={30} />
           </div>
         </div>
-        <div className="learn-grid" aria-hidden="true">
+        <div className={`learn-grid${sideOpen ? ' with-side' : ''}`} aria-hidden="true">
+          {/* El skeleton refleja la preferencia persistida del drawer para no
+              provocar layout-shift al hidratar (1→2 columnas). */}
           <div className="col" style={{ gap: 20 }}>
             <Skeleton height={320} radius="var(--r-lg)" />
             <Skeleton height={220} radius="var(--r-lg)" />
           </div>
-          <div className="col" style={{ gap: 16 }}>
-            <Skeleton height={260} radius="var(--r-lg)" />
-            <Skeleton height={180} radius="var(--r-lg)" />
-          </div>
+          {sideOpen && (
+            <div className="col" style={{ gap: 16 }}>
+              <Skeleton height={260} radius="var(--r-lg)" />
+              <Skeleton height={180} radius="var(--r-lg)" />
+            </div>
+          )}
         </div>
       </section>
     )
@@ -166,6 +195,18 @@ export default function LearnScreen() {
         <div className="row">
           <Button
             variant="outline"
+            size="sm"
+            className={`learn-side-toggle${sideOpen ? ' is-open' : ''}`}
+            aria-expanded={sideOpen}
+            aria-controls="learn-side-panel"
+            onClick={() => setSideOpen((o) => !o)}
+          >
+            <IconLayers size={14} />
+            {sideOpen ? 'Ocultar módulo y progreso' : 'Módulo y progreso'}
+            <IconChevronRight size={14} className="learn-side-toggle-chev" />
+          </Button>
+          <Button
+            variant="outline"
             disabled={lesson.prev_lesson_id == null}
             onClick={() => lesson.prev_lesson_id && navigate(`/cursos/${lesson.prev_lesson_id}`)}
           >
@@ -181,7 +222,7 @@ export default function LearnScreen() {
         </div>
       </div>
 
-      <div className="learn-grid">
+      <div className={`learn-grid${sideOpen ? ' with-side' : ''}`}>
         {/* Columna principal */}
         <div className="col" style={{ gap: 20 }}>
           {gpuLocked && (
@@ -207,12 +248,19 @@ export default function LearnScreen() {
           )}
         </div>
 
-        {/* Lateral: módulo + recomendados + progreso */}
-        <div className="col learn-side" style={{ gap: 16 }}>
+        {/* Drawer lateral: módulo + progreso. Oculto por defecto (Fix 5);
+            "Recomendado para ti" se retiró (Fix 4: en un path de aprendizaje
+            la recomendación ES la siguiente lección, ya cubierta por el botón
+            "Siguiente"). Se mantiene montado para que aria-controls resuelva. */}
+        <aside
+          id="learn-side-panel"
+          className={`col learn-side${sideOpen ? '' : ' is-collapsed'}`}
+          style={{ gap: 16 }}
+          aria-label="Módulo y progreso"
+        >
           {module && <LessonSidebar module={module} currentLessonId={lesson.id} examplesIndex={examplesIndex} />}
-          <RecommendedCard recommended={lesson.recommended} />
           {modules && <TracksCard modules={modules} />}
-        </div>
+        </aside>
       </div>
     </section>
   )

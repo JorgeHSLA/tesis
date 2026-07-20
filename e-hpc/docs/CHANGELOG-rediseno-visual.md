@@ -97,3 +97,45 @@ Mockup (3 pantallas, 3 paletas conmutables) → aprobación de paleta #1 → tok
 (lead) → workflow de 5 agentes con propiedad exclusiva de archivos (components / home+catalog /
 learn+results / simulator+admin / viz-TSX) → barrido de restos → verificación central →
 auditoría AA renderizada con fixes → E2E final.
+
+---
+
+# Refactor de la lección — feedback de usuario (2026-07-20)
+
+Seis ajustes concretos sobre la pantalla de lección (`/#/cursos/:leccionId`) tras revisión
+del usuario, más el cierre del sistema de variantes. **Solo capa visual/UI**: contratos
+congelados (`api/types.ts`, `ws/messages.ts`, `ehpc.d.ts`, `schemas.py`) intactos.
+
+## Qué cambió
+1. **Switch v1/v2 retirado; app fija en v2.** `TopBar.tsx` sin el `variant-switch`;
+   `themeStore.ts` pasó de store zustand persistido a módulo plano (`FIXED_VARIANT`/
+   `applyFixedVariant`) que siempre aplica `data-variant="v2"` e **ignora un `'v1'` heredado**
+   en localStorage. `index.html` → `data-variant="v2"`. CSS `.variant-switch`/`.vs-btn`
+   eliminado. **Auditoría v2:** el hero de Home recuperó su diagrama fork-join (los overrides
+   `[data-variant="v2"]` lo ocultaban en v2 y dejaban medio hero vacío).
+2. **Responsive — sin hueco muerto a la derecha.** `.screen.learn` ensanchado (max-width
+   1680px); `.learn-grid` a **una columna por defecto** (contenido a ancho completo), dos
+   columnas solo con el drawer abierto. `.code-screen` con `max-height` para no gigantizar a
+   ancho completo.
+3. **Descripción colapsada por defecto** (`LessonInfo` `useState(false)`); conserva
+   `aria-expanded` y labels (de lo que dependen los E2E).
+4. **"Recomendado para ti" eliminado** del render de la lección (en un path de aprendizaje la
+   recomendación es la siguiente lección, ya cubierta por "Siguiente"). El componente queda sin
+   uso.
+5. **Panel "módulo + progreso" como drawer a la derecha, OCULTO por defecto**, con botón
+   toggle (`aria-expanded`/`aria-controls`, chevron animado, entrada suave respetando
+   `prefers-reduced-motion`), estado persistido en `localStorage['ehpc-learn-side']`. Al
+   ocultarse, el contenido ocupa el ancho completo.
+6. **Botones neutros con subtono azul claro** (tokens `--btn-neutral-*` ~ `#EEF4FF`) en
+   `.btn`/`.btn-outline`; texto slate oscuro (contraste AA holgado). Los CTA (`.btn-primary`/
+   `.btn-accent`) siguen naranja. Equivalentes dark definidos.
+
+## Verificación
+| Check | Resultado |
+| --- | --- |
+| `tsc --noEmit` | limpio |
+| `vitest run` | **224/224** (26 archivos; +3 `LessonInfo.test.tsx`, `themeStore.test.ts` reescrito) |
+| `npm run build` (web + Electron) | OK; dist con `data-variant="v2"` |
+| E2E Playwright (stack Docker real) | **15/15** (`b-learn` B1/B4 y `d-admin` ADM5 expanden la descripción vía helper `LearnPage.expandDescription`; `c-home` sigue viendo el diagrama fork-join) |
+| Capturas 1440/768 (Home, lección, drawer abierto, descripción) | OK |
+| Code review (typescript-reviewer) | HIGH (guard localStorage en `readSidePref`) + MEDIUM (skeleton refleja drawer, test de colapso) aplicados |
