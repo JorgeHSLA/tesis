@@ -416,6 +416,7 @@ services:
 volumes:
   ehpc_data:
   ehpc_submissions:
+    name: ehpc_submissions   # sin prefijo de proyecto — igual que el compose raíz (BL-02)
 ```
 
 Estrategia de distribución de imágenes (dos modos, ambos documentados en el
@@ -468,7 +469,10 @@ const CSP = [
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",       // estilos inline puntuales (SVG/anchos dinámicos)
   "img-src 'self' data:",
-  "font-src 'self'",                        // @fontsource = self-hosted, sin red
+  // @fontsource = self-hosted, sin red; `data:` porque Vite inlinea los
+  // subsets pequeños de fuentes (< assetsInlineLimit) como data:font/woff2
+  // en el CSS y sin él la CSP los bloquea en file://
+  "font-src 'self' data:",
   `connect-src 'self' ${API_ORIGIN} ${WS_ORIGIN}` +
     (process.env.VITE_DEV_SERVER_URL ? ' http://localhost:5173 ws://localhost:5173' : ''),
   "object-src 'none'",
