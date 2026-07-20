@@ -489,3 +489,129 @@ reorder y unicidad final (BL-20), orden de locks sin deadlock (BL-19), saneado n
 evadible del 422 (BL-22), carve-out GPU acotado (BL-11), colisión de ids
 cliente↔autogenerado ya detectada (BL-18), y el orden de rutas `/reorder` antes de
 `/{id}`. Higiene: `record_failure()` marcado como solo-para-tests.
+
+## Sesión 5 (2026-07-20) — Semántica de dominio OpenMP + verificación E2E de cierre · rama `fix/auditoria-s5-dominio-e2e`
+
+Última sesión de la campaña: los dos restos de semántica de dominio en la UI
+(frontend puro, TDD RED→GREEN con Vitest) y la verificación E2E de cierre de
+TODO lo corregido en S1-S5.
+
+### BL-30 (medium, central pedagógicamente) — Amdahl invertido sobre el ratio vs NumPy/BLAS
+
+- **Causa:** `pairObservations()` (`frontend/src/lib/observations.ts`) invertía
+  la Ley de Amdahl sobre `speedup_vs_reference` con CUALQUIER parser pair. La
+  inversión (speedup observado → "% paralelizable") solo es válida cuando la
+  referencia es una versión serial equivalente del MISMO algoritmo
+  (`parser_id: pair_parallel_serial`); para `pair_openmp_numpy`/
+  `pair_openmp_blas` la referencia es OTRA implementación, así que el
+  "código con Y% paralelizable, Amdahl predice ~X×" era un dato fabricado
+  mostrado al estudiante — error conceptual en el corazón educativo.
+- **Fix:** branching por `parser_id`. Serial conserva la inversión de Amdahl
+  (y su fallback "Comparación directa" cuando no es derivable, p. ej. 1 hilo);
+  numpy/blas reciben una observación honesta: el ratio compara implementaciones
+  distintas y no mide el escalado t(1)/t(n) del mismo código. El warn de
+  speedup<1 también es coherente por parser: contra serial habla del overhead
+  de crear/sincronizar el equipo de hilos (antes citaba "NumPy/BLAS" incluso ahí).
+- **Tests:** describe nuevo `pair: semántica por parser_id (BL-30)` (6 casos,
+  RED contra el código viejo) + fixture `TIMINGS_PAIR_BLAS`.
+- **Spec:** supersede deliberadamente frontend-spec §6.4 ("siempre que haya
+  speedup → info Amdahl") — esa regla ERA el error. Ver follow-ups de docs.
+
+### BL-40 (low) — etiqueta "Procesos/hilos" (semántica MPI) en Resultados
+
+- **Causa/Fix:** `DegradedSummary` (`ResultsCards.tsx`) rotulaba `pids_max`
+  como "Procesos/hilos" — en OpenMP hay UN proceso con N hilos; "procesos"
+  sugiere ranks MPI. Renombrado a **"Hilos (PIDs)"** + assert en el test del
+  resumen degradado. Era el último resto real del grep anti-MPI de la auditoría.
+
+### Ronda de review de la Sesión 5 (typescript + code reviewer, en paralelo)
+
+Sin CRITICAL. **1 HIGH + 2 MEDIUM + 1 LOW corregidos antes del commit:**
+
+- **HIGH — el texto "honesto" nuevo reintroducía un dato fabricado más sutil:**
+  afirmaba que la referencia corre en "1 core" también para blas. `matrices`
+  usa `A @ B` (BLAS dgemm) y el runner fija `OMP_NUM_THREADS` a nivel de TODO
+  el proceso (`docker_service.py:65`), que OpenBLAS respeta como fallback de su
+  nº de hilos → la referencia BLAS puede correr multi-hilo. El copy ahora se
+  diferencia por parser: solo NumPy elementwise (mono-hilo real) afirma
+  "1 core"; para blas se describe la biblioteca optimizada "que además puede
+  usar varios hilos internamente", sin afirmar conteo. Tests endurecidos
+  (el body de blas NO debe contener "1 core").
+- **MEDIUM — fallback `p == null` de la rama serial sin cubrir** → test nuevo
+  con 1 hilo que fija el texto "Comparación directa" sin Amdahl.
+- **MEDIUM — JSDoc impreciso** — "t(1) del MISMO código" sugería re-ejecutar el
+  kernel con 1 hilo; la referencia real (p. ej. `stencilCalor`) es una función
+  serial equivalente aparte. Reformulado.
+- **LOW — comentario redundante** (duplicaba el JSDoc) eliminado.
+- Señalado sin acción (preexistente e inalcanzable): `s=0` daría "Infinity×" en
+  el título del warn; tras BL-25 (S3) el parser devuelve `None` con tiempos ≤0,
+  así que ese valor no puede llegar al frontend.
+
+### Gates de la Sesión 5
+
+- Backend (sin cambios en S5): **341 passed, cobertura 91.88%** (≥80).
+- Frontend: `npm run typecheck` (src + tests) limpio; Vitest **221/221**;
+  cobertura lib 97.9% / ws 94.3% / stores 97.4% / hooks 95.7% (todos ≥80).
+- Imágenes Docker backend y frontend reconstruidas con todos los fixes S1-S5.
+- Contratos congelados intactos (`types.ts`, `messages.ts`, `ehpc.d.ts`,
+  `schemas.py`): S5 solo tocó `observations.ts`, `ResultsCards.tsx` y tests.
+
+### Verificación E2E de CIERRE de la campaña (stack real + Playwright)
+
+Stack web levantado con `EHPC_ADMIN_PASSWORD` de override e imágenes recién
+construidas. Suite completa de `~/.ehpc-verify/e2e/`: **15/15 verdes a la
+primera corrida (22.6s), sin retries y SIN modificar ningún assert**. Cero
+anomalías: en consola solo los 401/404 esperados y allowlisted de ADM1/ADM4,
+y cero errores en los logs del backend.
+
+Probes dirigidos de los 3 critical (evidencia en
+`~/.ehpc-verify/e2e/artifacts/closure-s5/`):
+
+- **BL-01 (fix S2) — PASS.** Crear lección+quiz, aprobarla como estudiante
+  (`completed:true`, `best_quiz_score:1`), DELETE admin y re-crear una lección
+  distinta con EL MISMO id: aparece sin progreso heredado (`viewed:false`,
+  `completed:false`, `best_quiz_score:null`, `attempts:[]`) y `/progress` ya no
+  tiene la entrada — purga real en la transacción del DELETE, no puesta a cero.
+- **BL-03 (fix S3) — PASS.** Código custom con la línea venenosa `hilos = 0`
+  ejecutado SOBRE el parser real (`example_id=spmd` + editor ⇒ `parser_id`
+  `sweep_pi` se conserva): `status=completed`, `exit_code=0`,
+  `parsed_timings=null` — sin ZeroDivisionError ni reclasificación a
+  `failed`/`sandbox_error`. (Verificado de paso: un POST con solo `code` fuerza
+  `parser_id="none"` y no ejercita el parser — el probe ingenuo no vale.)
+- **BL-09/10 (fix S3) — PASS, camino A.** Conexión WS NUEVA 1 ms después del
+  `eof` (dentro de la retención de 10 s): el replay devuelve mensajes
+  byte-idénticos al live — mismos `seq` y `ts` ORIGINALES — más `status`
+  terminal y `eof`. Junto con el reset de `lastLogSeq` del front al reconectar,
+  la terminal ya no queda vacía tras una reconexión.
+
+### Cierre de la campaña — estado final de la matriz (40 hallazgos)
+
+| Sesión | Hallazgos resueltos |
+|---|---|
+| S1 (desktop empaquetado) | BL-02, BL-12, BL-39 |
+| S2 (progreso/quiz backend) | BL-01, BL-04, BL-05, BL-06, BL-21, BL-38 |
+| S3 (jobs/parsers/WS) | BL-03, BL-07, BL-08, BL-09, BL-10, BL-13*, BL-14*, BL-15, BL-16, BL-25, BL-26, BL-32, BL-33, BL-37 |
+| S4 (admin/auth/contrato) | BL-11, BL-17, BL-18, BL-19, BL-20, BL-22, BL-23, BL-24, BL-27, BL-34, BL-35, BL-36 |
+| S5 (dominio/UI) | BL-30, BL-40 |
+
+\* BL-13 y BL-14 se resolvieron como decisión de zona gris documentada en
+contrato/arquitectura, no como cambio de código (ver §Sesión 3).
+
+**Resueltos: 37/40** — incluidos los 3 critical y los 9 high.
+**Diferidos: 3** (todos medium), con motivo:
+
+- **BL-28 y BL-29 (footer de estado del desktop):** requieren trabajo de UI del
+  shell Electron (`useDockerStatus`/`RuntimeFooter` + wiring de `openExternal`
+  según electron-spec §8) y su verificación exige una pasada Electron dedicada
+  (xvfb + `_electron`), fuera del alcance web de S1-S5. Candidatos a una sesión
+  desktop propia.
+- **BL-31 (el front no acota `fixed_threads` por núcleos):** fix pequeño en
+  `ThreadsField.effectiveCpus()` (replicar el clamp del backend), pero fuera
+  del alcance cerrado de S5. Candidato a una mini-sesión frontend.
+
+**Follow-ups de documentación pendientes** (no bloqueantes):
+`docs/architecture/architecture.md` §2.2 aún documenta el compose raíz sin las
+variantes `127.0.0.1` ni el `name:` del volumen (patrón BL-34, señalado desde
+S1); `frontend-spec.md` §6.4 conserva la regla "siempre que haya speedup →
+info Amdahl" que BL-30 supersede (no se editó en S5 porque ese archivo carga
+cambios sin commitear del rediseño visual, de otra sesión).
