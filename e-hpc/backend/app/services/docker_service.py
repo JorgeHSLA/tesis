@@ -256,6 +256,7 @@ class DockerService:
     ) -> JobExecutionPort:
         """create + start con los flags CONSTANTES de §4. NO bloquea (detach)."""
         del timeout_s  # el timeout duro lo aplica el job_runner en wait()
+        container = None
         try:
             container = self._client.containers.create(
                 image=self._settings.runner_image,
@@ -289,6 +290,16 @@ class DockerService:
             container.start()
         except docker.errors.DockerException as exc:
             logger.exception("run_job(%s) falló", job_id)
+            if container is not None:
+                # BL-15: create() triunfó pero start() falló — sin esto el
+                # contenedor queda en el daemon hasta el próximo reaper.
+                try:
+                    container.remove(force=True, v=True)
+                except docker.errors.DockerException:
+                    logger.warning(
+                        "run_job(%s): no se pudo eliminar el contenedor "
+                        "tras el fallo de start()", job_id,
+                    )
             raise DockerServiceError(str(exc)) from exc
         return JobExecution(container)
 

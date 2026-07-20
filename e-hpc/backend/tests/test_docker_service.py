@@ -31,13 +31,15 @@ from app.services.docker_service import (
 
 class StubContainer:
     def __init__(self, cid="cid-1", *, wait_result=None, wait_error=None,
-                 attrs=None, kill_error=None, remove_error=None):
+                 attrs=None, kill_error=None, remove_error=None,
+                 start_error=None):
         self.id = cid
         self.attrs = attrs or {"State": {"OOMKilled": False}}
         self._wait_result = wait_result or {"StatusCode": 0}
         self._wait_error = wait_error
         self._kill_error = kill_error
         self._remove_error = remove_error
+        self._start_error = start_error
         self.started = False
         self.killed = False
         self.removed = False
@@ -45,6 +47,8 @@ class StubContainer:
         self.log_calls = []
 
     def start(self):
+        if self._start_error is not None:
+            raise self._start_error
         self.started = True
 
     def logs(self, **kwargs):
@@ -220,6 +224,48 @@ def test_run_job_docker_exception_se_traduce(service, stub):
     stub.containers.create_error = docker.errors.APIError("500 server error")
     with pytest.raises(DockerServiceError):
         service.run_job("job1", "/x", threads=1, timeout_s=30)
+
+
+# ─────────── BL-15: sin contenedor huérfano si start() falla ─────────────────
+
+
+def test_bl15_start_fallido_tras_create_elimina_el_contenedor(service, stub):
+    """create() OK + start() KO: el contenedor recién creado se elimina
+    (remove force+v) en vez de quedar en el daemon hasta el próximo reaper."""
+    stub.containers.container = StubContainer(
+        start_error=docker.errors.APIError("cgroup roto")
+    )
+    with pytest.raises(DockerServiceError):
+        service.run_job("job1", "/x", threads=1, timeout_s=30)
+    assert stub.containers.container.removed == (True, True)  # force=True, v=True
+
+
+def test_bl15_create_fallido_no_intenta_remove(service, stub):
+    stub.containers.create_error = docker.errors.APIError("500 server error")
+    with pytest.raises(DockerServiceError):
+        service.run_job("job1", "/x", threads=1, timeout_s=30)
+    assert stub.containers.container.removed is False
+
+
+def test_bl15_fallo_del_remove_no_enmascara_el_error_original(service, stub):
+    stub.containers.container = StubContainer(
+        start_error=docker.errors.APIError("cgroup roto"),
+        remove_error=docker.errors.APIError("contenedor ocupado"),
+    )
+    with pytest.raises(DockerServiceError) as excinfo:
+        service.run_job("job1", "/x", threads=1, timeout_s=30)
+    assert "cgroup roto" in str(excinfo.value)
+
+
+# ─────── BL-14: cpuset 0..N-1 — limitación documentada (architecture §4) ─────
+
+
+def test_bl14_cpuset_siempre_arranca_en_el_core_0(service, stub):
+    """Decisión de la zona gris 6: NO hay cpuset disjunto por slot. Dos jobs
+    concurrentes comparten los cores 0..N-1; la reproducibilidad de las
+    métricas de speedup aplica ejecutando un job a la vez (architecture §4)."""
+    service.run_job("job1", "/x", threads=4, timeout_s=30)
+    assert stub.containers.create_kwargs["cpuset_cpus"] == "0-3"
 
 
 def test_sandbox_environment_valores():
