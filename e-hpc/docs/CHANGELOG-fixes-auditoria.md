@@ -293,3 +293,55 @@ por hallazgo (TDD RED→GREEN). Contratos congelados (`schemas.py`,
 - Backend: 315 tests, cobertura 91.5 % (`DOCKER_HOST=tcp://127.0.0.1:1 pytest
   --cov=app --cov-fail-under=80`).
 - Frontend: 210 tests Vitest, `tsc --noEmit` limpio.
+
+### Ronda de review de la Sesión 3 (python-reviewer + typescript-reviewer)
+
+Ambos revisores confirmaron **cero hallazgos CRITICAL/HIGH**. El de backend
+verificó explícitamente como correctos los cinco puntos delicados del diff: la
+reserva del slot de cola (sin fuga posible, el `finally` cubre también
+`CancelledError`), la retención del handle (`get_active` sigue devolviendo
+`None`, sin fuga de memoria, sin interferencia de `subscribe`/`cancel`), la
+ausencia de doble emisión en el cancel-en-queued, el orden `status → logs →
+eof → close(1000)` del replay retenido, y el cleanup de `start()` fallido. El de
+frontend comprobó, revirtiendo el fix, que los tests nuevos de BL-10 fallan con
+los mensajes exactos del bug auditado (no son tautológicos).
+
+Cuatro hallazgos MEDIUM corregidos en esta misma rama:
+
+- **Frontera Docker en la limpieza de BL-15** — el `except` solo atrapaba
+  `docker.errors.DockerException`. Si el daemon se cae a mitad del ciclo
+  create→start, el `remove` golpea la misma conectividad rota y docker-py deja
+  escapar una excepción cruda de `requests`, rompiendo la regla dura de
+  `backend/CLAUDE.md` («`docker_service` es la única frontera con Docker»): el
+  llamador recibiría un `requests.*` en vez de `DockerServiceError`. Se atrapan
+  ambas familias, replicando la cautela que el propio archivo ya aplica en
+  `JobExecution.wait()`. Un `NotFound` pasa a tratarse como la carrera benigna
+  que es, sin warning de fallo de limpieza.
+- **Drainer del cancel-en-cola** — un job cancelado en `queued` dejaba su
+  drainer despertando cada `flush_interval` sin nada que consumir hasta que su
+  tarea alcanzaba el semáforo: con la cola llena de jobs largos por delante,
+  minutos. Se detiene en el acto (`_stop_drainer` es idempotente; `_run` lo
+  re-invoca al despertar).
+- **Retenciones vivas al apagar** — efecto colateral de BL-09: un `SIGTERM`
+  dentro de la ventana de 10 s dejaba tareas `_expire()` pendientes y CPython
+  avisaba «Task was destroyed but it is pending!» en cada redespliegue.
+  `JobRunner.shutdown()` las cancela desde el lifespan.
+- **`connect()` no autocontenido y ámbito de `sawActivePhase`** (frontend) —
+  ver el detalle en BL-10 arriba; incluye una corrección de criterio: resetear
+  `sawActivePhase` por conexión expulsaba al usuario del live cuando el job
+  terminaba durante la desconexión.
+
+Residuos aceptados (LOW, documentados y no corregidos):
+
+- **Fila DB huérfana si `runner.start()` lanzara tras `job_repo.create()`** —
+  pre-existente, no introducido por este diff (crear+arrancar no son una
+  transacción conjunta). El `try/finally` nuevo protege el contador de cola,
+  **no** la consistencia DB↔registro: conviene no leerlo como si lo hiciera.
+- **La entrada en el registro de un job cancelado en cola sobrevive hasta que
+  su tarea alcanza el semáforo** (su drainer ya no, ver arriba). No afecta a
+  nada observable —`queued_count()` no lo cuenta, `get_active()` lo oculta y un
+  WS que conecte recibe el replay terminal correcto— pero es una ventana más
+  larga que los 10 s que sugiere `TERMINAL_HANDLE_RETENTION_S`. Cancelar la
+  tarea parada en el semáforo se evaluó y se descartó: el `CancelledError`
+  interrumpiría los `await` del `finally` de `_run` y podría dejar el drainer
+  sin detener — peor que el residuo.
