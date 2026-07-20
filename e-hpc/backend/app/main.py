@@ -15,6 +15,7 @@ CORS: lista de §10.5 con ``allow_credentials=False`` (incluye ``"null"`` por
 Electron ``file://`` — riesgo residual documentado en api-contract).
 """
 
+import asyncio
 import inspect
 import logging
 from contextlib import asynccontextmanager
@@ -135,6 +136,9 @@ def create_app(
         app.state.progress = ProgressRepository(db_conn)
         app.state.quiz_attempts = QuizAttemptRepository(db_conn)
         app.state.write_lock = database.write_lock
+        # BL-19: lock de lectura DEDICADO para los GET admin (no el write_lock
+        # transversal) — evita que un dashboard admin serialice finish()/quiz.
+        app.state.content_read_lock = asyncio.Lock()
         app.state.job_runner = JobRunner(
             docker_service=docker,
             job_repo=job_repo,

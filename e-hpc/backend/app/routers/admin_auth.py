@@ -85,10 +85,11 @@ async def login(
     # Comparación en tiempo constante SIEMPRE (dummy compare si deshabilitado).
     ok = verify_password(payload.password, settings.admin_password)
     if not ok:
-        await throttle.sleep_if_needed()
-        throttle.record_failure()
+        # BL-23: espera + incremento del backoff serializados (no evadible con
+        # logins concurrentes).
+        await throttle.register_failure()
         raise ApiException("UNAUTHORIZED", _UNAUTHORIZED_MESSAGE)
-    throttle.reset()
+    await throttle.reset()
     session = sessions.create()
     result = AdminLoginResult(token=session.token, expires_at=_iso_z(session.expires_at))
     return _envelope_ok(result, status_code=200)

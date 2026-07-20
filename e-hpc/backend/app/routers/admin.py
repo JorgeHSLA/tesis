@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from app.errors import sanitize_validation_errors
 from app.repositories import content_admin
 from app.routers.admin_deps import require_admin
 from app.routers.modules import envelope_error, envelope_ok
@@ -35,6 +36,7 @@ from app.schemas import (
     AdminModuleUpdate,
     AdminModulesResponse,
     AdminQuizUpsert,
+    AdminReorderRequest,
 )
 from app.services import content_writer
 
@@ -53,25 +55,22 @@ def _db(request: Request) -> Any:
 
 
 def _parse_json_body(
-    model_cls: Any, payload: Any, *, code_fields: tuple[str, ...] = ()
+    model_cls: Any, payload: Any
 ) -> tuple[Any, JSONResponse | None]:
-    """Valida ``payload`` contra ``model_cls``; mapea ``string_too_long`` de un
-    campo de código a ``413 CODE_TOO_LARGE`` (resto → ``422``)."""
+    """Valida ``payload`` contra ``model_cls`` → ``422 VALIDATION_ERROR``.
+
+    El tope de bytes del código NO es un cap estático de pydantic (BL-17): se
+    valida en runtime contra ``settings.max_code_bytes`` en ``content_writer``
+    (``413 CODE_TOO_LARGE``), por igual en JSON y multipart.
+    """
     try:
         return model_cls.model_validate(payload), None
     except ValidationError as exc:
-        errors = exc.errors(include_url=False)
-        for err in errors:
-            if err.get("type") == "string_too_long" and any(
-                field in err.get("loc", ()) for field in code_fields
-            ):
-                return None, envelope_error(
-                    413, "CODE_TOO_LARGE",
-                    "El código supera el máximo de 262144 bytes.",
-                )
+        # BL-22: nunca reflejar el valor rechazado (código fuente, filename…)
+        # en los detalles de un 422.
         return None, envelope_error(
             422, "VALIDATION_ERROR", "El cuerpo de la petición no es válido.",
-            details=errors,
+            details=sanitize_validation_errors(exc.errors(include_url=False)),
         )
 
 
@@ -81,9 +80,10 @@ def _parse_json_body(
 @router.get("/modules")
 async def list_modules(request: Request) -> JSONResponse:
     """§10.2 ``GET /admin/modules`` — módulos con detalle admin."""
-    # CW-04: lee bajo write_lock para no observar una mutación admin a medias
-    # (la conexión única ve los cambios sin commitear de un writer en curso).
-    async with request.app.state.write_lock:
+    # CW-04/BL-19: lee bajo el lock de lectura DEDICADO (no el write_lock
+    # transversal) para no observar una mutación admin a medias sin acoplar la
+    # latencia con finish()/quiz/progress.
+    async with request.app.state.content_read_lock:
         modules = await content_admin.select_admin_modules(_db(request))
     return envelope_ok(AdminModulesResponse(modules=modules))
 
@@ -93,6 +93,17 @@ async def create_module(request: Request, body: AdminModuleCreate) -> JSONRespon
     """§10.2 ``POST /admin/modules`` — crea un módulo."""
     result = await content_writer.create_module(request.app, body)
     return envelope_ok(result, status_code=201)
+
+
+# Registrado ANTES de ``/modules/{module_id}`` para que no lo capture el path
+# param (``reorder`` no es un id de módulo).
+@router.put("/modules/reorder")
+async def reorder_modules(
+    request: Request, body: AdminReorderRequest
+) -> JSONResponse:
+    """§10.2 ``PUT /admin/modules/reorder`` — reordena módulos por lote (BL-20)."""
+    result = await content_writer.reorder_modules(request.app, body.items)
+    return envelope_ok(result)
 
 
 @router.put("/modules/{module_id}")
@@ -117,7 +128,7 @@ async def delete_module(request: Request, module_id: str) -> JSONResponse:
 @router.get("/lessons/{lesson_id}")
 async def get_lesson(request: Request, lesson_id: str) -> JSONResponse:
     """§10.3 ``GET /admin/lessons/{id}`` — lección + ejemplo pareado."""
-    async with request.app.state.write_lock:  # CW-04: sin dirty reads
+    async with request.app.state.content_read_lock:  # CW-04/BL-19: lock de lectura dedicado
         detail = await content_admin.select_admin_lesson_detail(_db(request), lesson_id)
     if detail is None:
         return envelope_error(
@@ -133,13 +144,21 @@ async def create_lesson(request: Request) -> JSONResponse:
         payload = await request.json()
     except Exception:
         return envelope_error(422, "VALIDATION_ERROR", "El body debe ser JSON válido.")
-    body, error = _parse_json_body(
-        AdminLessonCreate, payload, code_fields=("source_code",)
-    )
+    body, error = _parse_json_body(AdminLessonCreate, payload)
     if error is not None:
         return error
     result = await content_writer.create_lesson(request.app, body)
     return envelope_ok(result, status_code=201)
+
+
+# Registrado ANTES de ``/lessons/{lesson_id}`` (mismo motivo que módulos).
+@router.put("/lessons/reorder")
+async def reorder_lessons(
+    request: Request, body: AdminReorderRequest
+) -> JSONResponse:
+    """§10.3 ``PUT /admin/lessons/reorder`` — reordena lecciones por lote (BL-20)."""
+    result = await content_writer.reorder_lessons(request.app, body.items)
+    return envelope_ok(result)
 
 
 @router.put("/lessons/{lesson_id}")
@@ -165,7 +184,7 @@ async def delete_lesson(request: Request, lesson_id: str) -> JSONResponse:
 async def get_quiz(request: Request, lesson_id: str) -> JSONResponse:
     """§10.5 ``GET /admin/lessons/{id}/quiz`` — CON clave correcta (solo admin)."""
     db = _db(request)
-    async with request.app.state.write_lock:  # CW-04: sin dirty reads
+    async with request.app.state.content_read_lock:  # CW-04/BL-19: lock de lectura dedicado
         exists = await content_admin.lesson_exists(db, lesson_id)
         quiz = await content_admin.select_admin_quiz(db, lesson_id) if exists else None
     if not exists:
@@ -201,7 +220,7 @@ async def delete_quiz(request: Request, lesson_id: str) -> JSONResponse:
 @router.get("/examples/{example_id}")
 async def get_example(request: Request, example_id: str) -> JSONResponse:
     """§10.4 ``GET /admin/examples/{id}`` — ejemplo con código."""
-    async with request.app.state.write_lock:  # CW-04: sin dirty reads
+    async with request.app.state.content_read_lock:  # CW-04/BL-19: lock de lectura dedicado
         example = await content_admin.select_admin_example(_db(request), example_id)
     if example is None:
         return envelope_error(
@@ -293,9 +312,18 @@ async def _read_json_code(
         return "", "", envelope_error(
             422, "VALIDATION_ERROR", "El body debe ser JSON válido."
         )
-    body, error = _parse_json_body(
-        AdminExampleCodeRequest, payload, code_fields=("source_code",)
-    )
+    # BL-35: un filename presente que no cumple el patrón `.py` da 415
+    # INVALID_EXTENSION, igual que la variante multipart (§7.2/§10.4) — se
+    # comprueba con el MISMO validador antes de pydantic (que lo degradaría a
+    # 422). filename ausente/no-string cae al 422 de pydantic (missing/type).
+    if isinstance(payload, dict):
+        raw_filename = payload.get("filename")
+        if isinstance(raw_filename, str) and not _FILENAME_RE.fullmatch(raw_filename):
+            return "", "", envelope_error(
+                415, "INVALID_EXTENSION",
+                "El archivo debe llamarse ^[A-Za-z0-9._-]{1,80}\\.py$ (solo .py).",
+            )
+    body, error = _parse_json_body(AdminExampleCodeRequest, payload)
     if error is not None:
         return "", "", error
     return body.filename, body.source_code, None

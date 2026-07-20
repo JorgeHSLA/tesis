@@ -171,6 +171,18 @@ async def question_ids_in_other_lessons(
     return [row["id"] for row in await cur.fetchall()]
 
 
+async def all_module_orders(db: "aiosqlite.Connection") -> dict[str, int]:
+    """``{module_id: order}`` de todos los módulos (para validar el reorder)."""
+    cur = await db.execute('SELECT id, "order" FROM modules')
+    return {row["id"]: int(row["order"]) for row in await cur.fetchall()}
+
+
+async def all_lesson_orders(db: "aiosqlite.Connection") -> dict[str, int]:
+    """``{lesson_id: order}`` de todas las lecciones (para validar el reorder)."""
+    cur = await db.execute('SELECT id, "order" FROM lessons')
+    return {row["id"]: int(row["order"]) for row in await cur.fetchall()}
+
+
 # ──────────────────────────────── módulos ───────────────────────────────────
 
 
@@ -205,6 +217,50 @@ async def update_module(
 
 async def delete_module(db: "aiosqlite.Connection", module_id: str) -> None:
     await db.execute("DELETE FROM modules WHERE id = ?", (module_id,))
+
+
+# ───────────────────────────── reorden por lote ─────────────────────────────
+
+
+async def _reorder(
+    db: "aiosqlite.Connection", table: str, items: list[tuple[str, int]]
+) -> None:
+    """Reasigna ``order`` de varias filas de ``table`` en dos fases (BL-20).
+
+    ``"order"`` es ``UNIQUE ... CHECK ("order" > 0)``: no se puede pasar por
+    valores intermedios ≤ 0 ni chocar con una fila intacta a mitad de
+    transacción. Se estacionan primero todas las filas tocadas en valores
+    positivos por ENCIMA de cualquier order actual o final (únicos entre sí), y
+    luego se fija cada order definitivo. ``table`` es un literal del propio
+    código (``modules``/``lessons``), nunca entrada del usuario.
+    """
+    if not items:
+        return
+    cur = await db.execute(f'SELECT COALESCE(MAX("order"), 0) AS m FROM {table}')
+    row = await cur.fetchone()
+    current_max = int(row["m"]) if row is not None else 0
+    park_base = max(current_max, max(order for _, order in items)) + 1
+    for offset, (row_id, _) in enumerate(items):  # fase 1: estacionar arriba
+        await db.execute(
+            f'UPDATE {table} SET "order" = ? WHERE id = ?',
+            (park_base + offset, row_id),
+        )
+    for row_id, order in items:  # fase 2: order definitivo
+        await db.execute(
+            f'UPDATE {table} SET "order" = ? WHERE id = ?', (order, row_id)
+        )
+
+
+async def reorder_modules(
+    db: "aiosqlite.Connection", items: list[tuple[str, int]]
+) -> None:
+    await _reorder(db, "modules", items)
+
+
+async def reorder_lessons(
+    db: "aiosqlite.Connection", items: list[tuple[str, int]]
+) -> None:
+    await _reorder(db, "lessons", items)
 
 
 # ─────────────────────────── lecciones + ejemplo ────────────────────────────

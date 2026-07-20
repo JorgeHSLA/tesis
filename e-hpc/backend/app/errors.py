@@ -57,6 +57,25 @@ _HTTP_FALLBACK_CODE: dict[int, str] = {
     422: "VALIDATION_ERROR",
 }
 
+#: Claves de cada error de pydantic que NO deben viajar al cliente (BL-22,
+#: security): ``input`` refleja el valor rechazado —p. ej. la contraseña literal
+#: de ``/admin/login`` cuando supera ``max_length``— y ``ctx``/``url`` pueden
+#: arrastrar el mismo dato o rutas internas. Se conservan ``type``/``loc``/``msg``
+#: (suficientes para que la UI posicione el error sin exponer el valor).
+_REDACTED_VALIDATION_KEYS = frozenset({"input", "ctx", "url"})
+
+
+def sanitize_validation_errors(errors: list[dict]) -> list[dict]:
+    """Elimina ``input``/``ctx``/``url`` de cada error de validación (BL-22).
+
+    Nunca se filtra el valor rechazado (contraseñas, código fuente) en el cuerpo
+    de la respuesta, la consola del navegador ni los logs de un proxy.
+    """
+    return [
+        {k: v for k, v in err.items() if k not in _REDACTED_VALIDATION_KEYS}
+        for err in errors
+    ]
+
 
 def success_envelope(data: Any, meta: dict[str, int] | None = None) -> dict:
     """Envelope de éxito: ``{"success": true, "data", "error": null, "meta"}``."""
@@ -113,7 +132,7 @@ def register_error_handlers(app: FastAPI) -> None:
             content=error_envelope(
                 "VALIDATION_ERROR",
                 "El cuerpo o los parámetros de la petición no son válidos.",
-                details=jsonable_encoder(exc.errors()),
+                details=jsonable_encoder(sanitize_validation_errors(exc.errors())),
             ),
         )
 

@@ -142,22 +142,59 @@ class LoginThrottle:
         self._failures = 0
         self._step_s = step_s
         self._max_s = max_s
+        #: Serializa lee-espera-incrementa (BL-23): sin él, N logins fallidos
+        #: concurrentes leerían el mismo contador bajo y dormirían el mismo
+        #: delay corto EN PARALELO, evadiendo el backoff.
+        self._lock = asyncio.Lock()
 
     @property
     def delay_s(self) -> float:
         """Segundos de espera para el estado actual de fallos consecutivos."""
         return min(self._step_s * self._failures, self._max_s)
 
+    async def register_failure(self) -> None:
+        """Espera el backoff actual y registra el fallo, **serializado** (BL-23).
+
+        Bajo el lock: lee el delay del estado actual, incrementa el contador y
+        SÓLO ENTONCES duerme sin soltar el lock. Así N fallos concurrentes se
+        encolan y cada uno ve el contador ya incrementado por el anterior — el
+        backoff crece de verdad en vez de aplicarse el mismo delay corto en
+        paralelo. Preserva el perfil secuencial (el n-ésimo fallo espera
+        ``step·(n-1)``).
+        """
+        async with self._lock:
+            delay = self.delay_s
+            self._failures += 1
+            if delay > 0:
+                await asyncio.sleep(delay)
+
     async def sleep_if_needed(self) -> None:
-        """Espera el backoff actual (no espera si no hay fallos previos)."""
-        delay = self.delay_s
+        """Espera el backoff actual (no espera si no hay fallos previos).
+
+        Se conserva para usos de solo-espera; el camino de login usa
+        ``register_failure`` (espera + incremento atómicos).
+        """
+        async with self._lock:
+            delay = self.delay_s
         if delay > 0:
             await asyncio.sleep(delay)
 
     def record_failure(self) -> None:
-        """Registra un fallo de credencial (incrementa el backoff)."""
+        """Incrementa el contador de fallos SIN espera ni lock.
+
+        SOLO para tests unitarios de ``LoginThrottle``. El camino de login de
+        producción usa ``register_failure`` (espera + incremento serializados,
+        BL-23); NO usar ``record_failure`` ahí o se reintroduce la carrera.
+        """
         self._failures += 1
 
-    def reset(self) -> None:
-        """Resetea el contador de fallos (login correcto)."""
-        self._failures = 0
+    async def reset(self) -> None:
+        """Resetea el contador de fallos (login correcto), bajo el mismo lock.
+
+        Serializado con ``register_failure`` (BL-23): un login correcto que
+        corre a la vez que una ráfaga de fallos concurrentes no puede pisar el
+        contador a mitad de la ventana espera-incremento — espera a que el fallo
+        en vuelo termine antes de resetear.
+        """
+        async with self._lock:
+            self._failures = 0

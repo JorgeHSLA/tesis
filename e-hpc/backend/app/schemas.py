@@ -670,6 +670,23 @@ class AdminModulesResponse(BaseModel):
     modules: list[AdminModule]
 
 
+# ── §10.2/§10.3 Reorden por lote (BL-20) ─────────────────────────────────────
+
+
+class AdminReorderItem(BaseModel):
+    """Un id de módulo/lección y su nuevo ``order`` (global, ≥1)."""
+
+    id: str
+    order: int = Field(ge=1)
+
+
+class AdminReorderRequest(BaseModel):
+    """``PUT /admin/{modules,lessons}/reorder`` — reasigna varios ``order`` en
+    una sola transacción (evita el 409 del swap directo, §10.2)."""
+
+    items: list[AdminReorderItem] = Field(min_length=1)
+
+
 # ── §10.4 Ejemplos (faceta; nacen/mueren con la lección) ─────────────────────
 
 
@@ -712,7 +729,10 @@ class AdminExampleCodeRequest(BaseModel):
     """§10.4 ``POST /admin/examples/{id}/code`` — variante JSON (alt: multipart)."""
 
     filename: str = Field(pattern=FILENAME_PATTERN)
-    source_code: str = Field(min_length=1, max_length=262144)
+    # BL-17: el tope de bytes se aplica en RUNTIME (settings.max_code_bytes) en
+    # content_writer, no como cap estático — así JSON y multipart honran el
+    # mismo límite configurable (subir o bajar EHPC_MAX_CODE_BYTES).
+    source_code: str = Field(min_length=1)
 
 
 class AdminExampleCodeResult(BaseModel):
@@ -740,7 +760,8 @@ class AdminLessonCreate(AdminLessonBase):
 
     id: str = Field(pattern=ID_PATTERN)
     example: AdminExampleBase
-    source_code: str = Field(min_length=1, max_length=262144)
+    # BL-17: tope en runtime (settings.max_code_bytes), no cap estático.
+    source_code: str = Field(min_length=1)
 
 
 class AdminLessonUpdate(AdminLessonBase):
@@ -768,7 +789,9 @@ class AdminQuizOption(BaseModel):
 
 
 class AdminQuizQuestion(BaseModel):
-    id: str = Field(pattern=QUESTION_ID_PATTERN)
+    # §10.5/BL-18: id opcional; si falta, el servidor autogenera
+    # ``{lesson_id}-q{order}`` (content_writer). Con valor, cumple el patrón.
+    id: str | None = Field(default=None, pattern=QUESTION_ID_PATTERN)
     order: int = Field(ge=1)
     text: str = Field(min_length=1)
     options: list[AdminQuizOption] = Field(min_length=2, max_length=4)

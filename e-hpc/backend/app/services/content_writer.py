@@ -22,6 +22,7 @@ Todas las validaciones que leen la DB corren DENTRO del lock: en el event loop
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from app.errors import ApiException
@@ -36,19 +37,22 @@ from app.schemas import (
     AdminLessonUpdate,
     AdminModule,
     AdminModuleCreate,
+    AdminModulesResponse,
     AdminModuleUpdate,
     AdminQuiz,
     AdminQuizUpsert,
     AdminRecommended,
+    AdminReorderItem,
+    QUESTION_ID_PATTERN,
 )
 from app.services.markdown_validator import validate as validate_markdown
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
-#: Tope de bytes del código fuente (espejo de ``settings.max_code_bytes``).
-_CODE_MAX_BYTES = 262144
-
+#: Patrón de id de pregunta (§10.6); valida también los ids AUTOGENERADOS, que
+#: no pasan por pydantic (BL-18).
+_QUESTION_ID_RE = re.compile(QUESTION_ID_PATTERN)
 
 # ─────────────────────────── errores de validación ──────────────────────────
 
@@ -65,11 +69,22 @@ def _code_bytes(source_code: str) -> int:
     return len(source_code.encode("utf-8"))
 
 
-def _check_code_size(source_code: str) -> None:
-    if _code_bytes(source_code) > _CODE_MAX_BYTES:
+def _max_code_bytes(app: "FastAPI") -> int:
+    """Tope de bytes del código fuente leído en runtime (BL-17).
+
+    Espeja la vía multipart y ``/jobs``: el límite es ``settings.max_code_bytes``
+    (``EHPC_MAX_CODE_BYTES``), no una constante — un operador que baje el tope lo
+    ve aplicado por igual en la vía JSON.
+    """
+    return int(app.state.settings.max_code_bytes)
+
+
+def _check_code_size(app: "FastAPI", source_code: str) -> None:
+    max_bytes = _max_code_bytes(app)
+    if _code_bytes(source_code) > max_bytes:
         raise ApiException(
             "CODE_TOO_LARGE",
-            f"El código supera el máximo de {_CODE_MAX_BYTES} bytes.",
+            f"El código supera el máximo de {max_bytes} bytes.",
         )
 
 
@@ -86,6 +101,7 @@ def _example_coherence_issues(ex: AdminExampleBase) -> list[dict]:
     if (
         not ex.threads_configurable
         and not ex.sweeps_threads
+        and not ex.requires_gpu  # BL-11: los ejemplos GPU no usan hilos de CPU
         and (ex.fixed_threads is None or ex.fixed_threads < 1)
     ):
         issues.append(
@@ -130,12 +146,42 @@ async def _recommended_issues(
     return issues
 
 
+def _assign_question_ids(lesson_id: str, body: AdminQuizUpsert) -> AdminQuizUpsert:
+    """Autogenera el id de las preguntas sin id como ``{lesson_id}-q{order}``.
+
+    BL-18 / api-contract §10.5: el ``id`` de pregunta es opcional; cuando falta,
+    el servidor lo deriva del ``order`` (único por §10.6, validado justo después)
+    en vez de rechazar la petición con un 422. Las preguntas con id de cliente se
+    conservan intactas.
+    """
+    if all(q.id for q in body.questions):
+        return body
+    questions = [
+        q if q.id else q.model_copy(update={"id": f"{lesson_id}-q{q.order}"})
+        for q in body.questions
+    ]
+    return body.model_copy(update={"questions": questions})
+
+
 def _quiz_issues(body: AdminQuizUpsert) -> list[dict]:
     """Unicidad de ids/orden de pregunta, keys de opción y ``correct_key`` (§10.6)."""
     issues: list[dict] = []
     seen_ids: set[str] = set()
     seen_orders: set[int] = set()
     for question in body.questions:
+        # BL-18: el id autogenerado ({lesson_id}-q{order}) no pasa por pydantic;
+        # con un lesson_id largo + order enorme podría superar los 80 chars del
+        # patrón. Se valida aquí para no persistir un id fuera de contrato.
+        if question.id is None or not _QUESTION_ID_RE.fullmatch(question.id):
+            issues.append(
+                {
+                    "field": "questions",
+                    "reason": (
+                        f"id de pregunta inválido (patrón {QUESTION_ID_PATTERN}): "
+                        f"{question.id}"
+                    ),
+                }
+            )
         if question.id in seen_ids:
             issues.append(
                 {"field": "questions", "reason": f"pregunta duplicada: {question.id}"}
@@ -184,25 +230,31 @@ async def _persist(app: "FastAPI", write) -> None:
       swap. El fallo de reload (grafo inconsistente) también hace ``rollback``.
     """
     db = app.state.db
-    try:
-        await write()  # INSERT/UPDATE/DELETE (sin commit)
-        new_content = await ContentRepository.load(db)  # valida el grafo
-        await db.commit()
-    except ApiException:
-        await db.rollback()
-        raise
-    except ContentError as exc:
-        await db.rollback()
-        raise ApiException(
-            "INTERNAL_ERROR",
-            "El contenido quedó en un estado inconsistente; se descartó el cambio.",
-        ) from exc
-    except Exception as exc:  # IntegrityError/OperationalError/… → rollback + 500
-        await db.rollback()
-        raise ApiException(
-            "INTERNAL_ERROR", "No se pudo guardar el cambio de contenido."
-        ) from exc
-    app.state.content = new_content  # swap atómico SOLO tras commit OK
+    # BL-19: el lock de lectura DEDICADO cubre la ventana con cambios sin
+    # commitear en la conexión compartida. Los GET admin lo toman también, así
+    # que no observan una mutación a medias SIN retener el ``write_lock``
+    # transversal — la persistencia de ``finish()`` de jobs / quiz / progreso
+    # ya no espera a un dashboard admin que lee.
+    async with app.state.content_read_lock:
+        try:
+            await write()  # INSERT/UPDATE/DELETE (sin commit)
+            new_content = await ContentRepository.load(db)  # valida el grafo
+            await db.commit()
+        except ApiException:
+            await db.rollback()
+            raise
+        except ContentError as exc:
+            await db.rollback()
+            raise ApiException(
+                "INTERNAL_ERROR",
+                "El contenido quedó en un estado inconsistente; se descartó el cambio.",
+            ) from exc
+        except Exception as exc:  # IntegrityError/OperationalError/… → rollback + 500
+            await db.rollback()
+            raise ApiException(
+                "INTERNAL_ERROR", "No se pudo guardar el cambio de contenido."
+            ) from exc
+        app.state.content = new_content  # swap atómico SOLO tras commit OK
 
 
 # ──────────────────────────────── módulos ───────────────────────────────────
@@ -260,7 +312,7 @@ async def create_lesson(
     app: "FastAPI", body: AdminLessonCreate
 ) -> AdminLessonDetail:
     db = app.state.db
-    _check_code_size(body.source_code)
+    _check_code_size(app, body.source_code)
     async with app.state.write_lock:
         if not await content_admin.module_exists(db, body.module_id):
             raise ApiException(
@@ -335,6 +387,84 @@ async def delete_lesson(app: "FastAPI", lesson_id: str) -> None:
         await _persist(app, lambda: content_admin.delete_lesson(db, lesson_id))
 
 
+# ───────────────────────────── reorden por lote ─────────────────────────────
+
+
+async def _reorder(
+    app: "FastAPI",
+    items: list[AdminReorderItem],
+    *,
+    exists,
+    get_orders,
+    persist_write,
+    not_found_code: str,
+    kind: str,
+) -> AdminModulesResponse:
+    """Valida y aplica un reorden por lote (BL-20, §10.2/§10.3).
+
+    Reglas: sin ids repetidos en la petición; cada id existe
+    (``not_found_code``); el conjunto FINAL de ``order`` (filas tocadas +
+    intactas) es único y ``> 0`` (``ORDER_CONFLICT``). La escritura en dos fases
+    del repo evita violar el ``UNIQUE`` a mitad de transacción. Devuelve el
+    listado admin completo ya reordenado.
+    """
+    db = app.state.db
+    async with app.state.write_lock:
+        ids = [it.id for it in items]
+        if len(set(ids)) != len(ids):
+            raise _content_error(
+                [{"field": "items", "reason": f"id de {kind} repetido en la petición"}]
+            )
+        missing: list[str] = []
+        for row_id in ids:
+            if not await exists(db, row_id):
+                missing.append(row_id)
+        if missing:
+            raise ApiException(
+                not_found_code,
+                f"{kind} inexistente(s): {', '.join(missing)}.",
+            )
+        current = await get_orders(db)  # {id: order} de TODAS las filas
+        final = {**current, **{it.id: it.order for it in items}}
+        if len(set(final.values())) != len(final):
+            raise ApiException(
+                "ORDER_CONFLICT",
+                "El reorden deja dos elementos con el mismo order.",
+            )
+        pairs = [(it.id, it.order) for it in items]
+        await _persist(app, lambda: persist_write(db, pairs))
+        modules = await content_admin.select_admin_modules(db)
+    return AdminModulesResponse(modules=modules)
+
+
+async def reorder_modules(
+    app: "FastAPI", items: list[AdminReorderItem]
+) -> AdminModulesResponse:
+    return await _reorder(
+        app,
+        items,
+        exists=content_admin.module_exists,
+        get_orders=content_admin.all_module_orders,
+        persist_write=content_admin.reorder_modules,
+        not_found_code="MODULE_NOT_FOUND",
+        kind="módulo",
+    )
+
+
+async def reorder_lessons(
+    app: "FastAPI", items: list[AdminReorderItem]
+) -> AdminModulesResponse:
+    return await _reorder(
+        app,
+        items,
+        exists=content_admin.lesson_exists,
+        get_orders=content_admin.all_lesson_orders,
+        persist_write=content_admin.reorder_lessons,
+        not_found_code="LESSON_NOT_FOUND",
+        kind="lección",
+    )
+
+
 # ──────────────────────────────── ejemplos ──────────────────────────────────
 
 
@@ -360,7 +490,7 @@ async def set_example_code(
     app: "FastAPI", example_id: str, *, source_code: str, filename: str
 ) -> AdminExample:
     db = app.state.db
-    _check_code_size(source_code)
+    _check_code_size(app, source_code)
     async with app.state.write_lock:
         if not await content_admin.example_exists(db, example_id):
             raise ApiException(
@@ -389,6 +519,7 @@ async def replace_quiz(
             raise ApiException(
                 "LESSON_NOT_FOUND", f"No existe la lección {lesson_id}."
             )
+        body = _assign_question_ids(lesson_id, body)  # BL-18: id opcional
         issues = _quiz_issues(body)
         # CW-02: quiz_questions.id es PK GLOBAL; un id ya usado por OTRA lección
         # daría IntegrityError (500). Se detecta aquí como 422 limpio.
