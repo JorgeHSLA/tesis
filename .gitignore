@@ -1,1 +1,16 @@
 /.ruff_cache
+
+# Entornos virtuales de Python (no versionar: pesados y específicos de máquina)
+.venv/
+venv/
+
+# Cachés y artefactos generados
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Builds de Node / frontend
+node_modules/
+dist/
