@@ -50,6 +50,10 @@ def make_runner(docker, repo, **over):
         job_repo=repo,
         settings=make_settings(**defaults),
         flush_interval_s=0.01,
+        # Estas pruebas fijan el paso 5 de §3.4 (retirada del registro); la
+        # retención del handle terminal (BL-09) se ejerce en tests/test_ws.py
+        # y tests/test_job_runner.py.
+        terminal_retention_s=over.pop("terminal_retention_s", 0.0),
         **over,
     )
 
