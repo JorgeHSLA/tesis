@@ -1,4 +1,5 @@
-// LearnScreen — lección (frontend-spec §6.6): CodeShowcase + LessonInfo
+// LearnScreen — lección (frontend-spec §6.6): LessonMedia (reproductor de video
+// + CTA chico al simulador) + LessonInfo
 // (markdown/código/salida esperada) + QuizRunner (modelo servidor) en la
 // columna principal; LessonSidebar + TracksCard en un DRAWER lateral oculto por
 // defecto (2026-07: "Recomendado para ti" retirado; el panel módulo+progreso se
@@ -17,7 +18,7 @@ import { ErrorState } from '../../components/ui/ErrorState'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { useSystemInfo } from '../../hooks/useSystemInfo'
 import { useProgressStore } from '../../stores/progressStore'
-import { CodeShowcase } from './CodeShowcase'
+import { LessonMedia } from './LessonMedia'
 import { LessonInfo } from './LessonInfo'
 import { LessonSidebar } from './LessonSidebar'
 import { QuizRunner } from './QuizRunner'
@@ -231,12 +232,7 @@ export default function LearnScreen() {
               <span>Esta lección requiere GPU NVIDIA + gcc; puedes leerla pero no ejecutarla.</span>
             </div>
           )}
-          <CodeShowcase
-            sourceCode={example.source_code}
-            filename={example.filename}
-            exampleId={example.id}
-            runDisabled={runDisabled}
-          />
+          <LessonMedia exampleId={example.id} filename={example.filename} runDisabled={runDisabled} />
           <LessonInfo lesson={lesson} example={example} runDisabled={runDisabled} />
           {lesson.has_quiz && (
             <QuizRunner

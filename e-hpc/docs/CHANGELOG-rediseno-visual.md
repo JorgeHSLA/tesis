@@ -139,3 +139,33 @@ congelados (`api/types.ts`, `ws/messages.ts`, `ehpc.d.ts`, `schemas.py`) intacto
 | E2E Playwright (stack Docker real) | **15/15** (`b-learn` B1/B4 y `d-admin` ADM5 expanden la descripción vía helper `LearnPage.expandDescription`; `c-home` sigue viendo el diagrama fork-join) |
 | Capturas 1440/768 (Home, lección, drawer abierto, descripción) | OK |
 | Code review (typescript-reviewer) | HIGH (guard localStorage en `readSidePref`) + MEDIUM (skeleton refleja drawer, test de colapso) aplicados |
+
+## Video de la lección (queja #3, frontend-only)
+
+El bloque grande de la lección deja de ser el preview de código y pasa a ser un
+**reproductor de video** (`LessonMedia`, sustituye a `CodeShowcase`). Se resolvió
+en **frontend, sin tocar contratos congelados**.
+
+- **Dos formas de fuente** (`src/features/learn/lessonVideos.ts`, keyed por
+  `example_id`): (1) **URL externa** con esquema (`https://…`); (2) **.mp4 en
+  disco** — ruta relativa a `public/` (bundleada en `dist/`), servida por nginx
+  en web y por `file://` en Electron. `resolveVideoSrc` devuelve la URL tal cual
+  o resuelve la ruta contra `BASE_URL` (base `./`). El `.mp4` se coloca en
+  `frontend/public/media/videos/` y se referencia desde el mapa.
+- **Placeholder "Video próximamente"** cuando la lección no tiene fuente (el mapa
+  arranca vacío → todas las lecciones lo muestran hasta que haya videos).
+- **CTA secundario chico** "Ejecutar en el simulador" debajo del reproductor →
+  `/simulador?ejemplo=<exampleId>`. El CTA primario naranja "Probar en el
+  simulador" sigue **intacto** en `LessonInfo` (lo usa el E2E B4).
+- **Reproductor**: `<video controls preload="metadata" playsInline>`, **sin
+  autoplay** (nunca con sonido), `aria-label`, marco 16:9 que llena el ancho
+  (letterbox). Captions (`<track>`, WCAG 1.2.2) quedan como TODO para cuando haya
+  videos reales (el valor del mapa puede evolucionar sin tocar contratos).
+- `highlightDirectives` (tab "Código") se extrajo a `codeHighlight.tsx` al
+  eliminar `CodeShowcase`.
+
+Verificación: `tsc` limpio, **vitest 232/232** (+`LessonMedia.test.tsx`: resolver
++ placeholder/video/CTA/navegación), build OK (`media/` en `dist/`), **E2E 16/16**
+(nuevo `b-learn` B5: placeholder + CTA al simulador). Review typescript-reviewer:
+sin CRITICAL/HIGH; MEDIUM aplicados (footgun del doble slash, aserciones de
+atributos del `<video>` y de navegación del CTA, nota de captions).

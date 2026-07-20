@@ -10,7 +10,7 @@ import { IconCheck, IconChevronRight, IconDownload, IconPlay } from '../../compo
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { renderMarkdown } from '../../lib/markdown'
-import { highlightDirectives } from './CodeShowcase'
+import { highlightDirectives } from './codeHighlight'
 
 type LessonTab = 'descripcion' | 'codigo' | 'salida'
 
