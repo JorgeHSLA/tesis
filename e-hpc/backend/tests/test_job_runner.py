@@ -552,6 +552,27 @@ async def test_bl09_handle_retenido_conserva_backlog_con_seq_originales(db, sett
     assert runner.get_finished("j1") is None
 
 
+async def test_shutdown_cancela_las_retenciones_pendientes(db, settings):
+    """Apagar el proceso no deja tareas `_expire()` colgadas (review S3): sin
+    esto CPython avisa «Task was destroyed but it is pending!» al redesplegar."""
+    docker = FakeDockerService()
+    repo = JobRepository(db)
+    runner = make_runner(docker, repo, settings, terminal_retention_s=30.0)
+    handle = await launch(runner, repo, "j1")
+    await asyncio.wait_for(handle.task, 10)
+    retention = [t for t in handle.aux_tasks if not t.done()]
+    assert retention, "la retención debería seguir viva"
+
+    await runner.shutdown()
+    assert all(t.done() for t in handle.aux_tasks)
+
+
+async def test_shutdown_sin_jobs_no_rompe(db, settings):
+    docker = FakeDockerService()
+    runner = make_runner(docker, JobRepository(db), settings)
+    await runner.shutdown()  # idempotente y seguro con el registro vacío
+
+
 async def test_bl09_sin_retencion_el_registro_se_vacia_al_instante(db, settings):
     docker = FakeDockerService()
     repo = JobRepository(db)

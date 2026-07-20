@@ -50,6 +50,40 @@ def test_job_end_to_end_contra_app_real(settings, fake_docker):
         assert detail["stdout"] == "hola e2e\n"
 
 
+def test_apagado_invoca_el_shutdown_del_runner(settings, fake_docker, monkeypatch):
+    """El lifespan debe cancelar las retenciones de handles terminales (BL-09)
+    al cerrar; si no, uvicorn deja tareas `_expire()` colgadas y CPython avisa
+    «Task was destroyed but it is pending!» en cada redespliegue (review S3).
+
+    Se verifica el WIRING (que main.py lo llame), no el efecto: bajo TestClient
+    el portal de anyio cancela las tareas remanentes de todas formas, así que
+    observar solo las tareas no distinguiría el fix de su ausencia.
+    """
+    from app.services.job_runner import JobRunner
+
+    calls: list[JobRunner] = []
+    original = JobRunner.shutdown
+
+    async def spy(self: JobRunner) -> None:
+        calls.append(self)
+        await original(self)
+
+    monkeypatch.setattr(JobRunner, "shutdown", spy)
+
+    fake_docker.queue_execution(FakeExecution(stdout=[b"ok\n"]))
+    application = create_app(settings=settings, docker_service=fake_docker)
+    with TestClient(application) as client:
+        job_id = client.post(
+            "/api/v1/jobs", json={"code": "print('x')\n"}
+        ).json()["data"]["job_id"]
+        wait_terminal(client, job_id)
+        handle = application.state.jobs[job_id]  # terminal, aún retenido
+        assert any(not t.done() for t in handle.aux_tasks)
+        assert calls == []  # todavía no se apagó
+    assert calls == [application.state.job_runner]
+    assert all(t.done() for t in handle.aux_tasks)
+
+
 def test_reaper_marca_huerfanos_en_db(settings, fake_docker):
     """Jobs no terminales de una sesión anterior → failed/orphaned_on_restart."""
 

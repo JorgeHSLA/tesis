@@ -149,6 +149,10 @@ def create_app(
         try:
             yield
         finally:
+            runner = getattr(app.state, "job_runner", None)
+            if runner is not None:
+                # retenciones de handles terminales y kills en vuelo (§3.4)
+                await runner.shutdown()
             await db_conn.close()
 
     app = FastAPI(title="E-HPC API", version=BACKEND_VERSION, lifespan=lifespan)

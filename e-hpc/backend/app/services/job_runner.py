@@ -831,6 +831,24 @@ class JobRunner:
                             break
         handle.closed = True
 
+    async def shutdown(self) -> None:
+        """Cancela las tareas auxiliares vivas al apagar el proceso.
+
+        Sin esto, un handle aún dentro de su ventana de retención deja una
+        tarea `_expire()` pendiente cuando uvicorn cierra el loop y CPython
+        avisa «Task was destroyed but it is pending!» en cada redespliegue.
+        """
+        pending = [
+            task
+            for handle in list(self.registry.values())
+            for task in handle.aux_tasks
+            if not task.done()
+        ]
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+
     def _retire_handle(self, handle: JobHandle) -> None:
         """§3.4 paso 5, con retención (BL-09): el handle terminal sigue un
         periodo corto en el registro para servir el replay de reconexión con
