@@ -204,6 +204,7 @@ def build_app(
             registry=app.state.jobs,
             flush_interval_s=flush_interval_s,
             subscriber_queue_max=subscriber_queue_max,
+            progress=app.state.progress,  # wiring real (main.py): last_job_id
         )
         # Fuente runtime de Fase 4: el snapshot se carga DESDE la DB sembrada.
         app.state.content = await ContentRepository.load(conn)

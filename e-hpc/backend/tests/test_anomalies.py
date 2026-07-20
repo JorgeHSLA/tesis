@@ -20,11 +20,16 @@ POST /api/v1/lessons/{id}/quiz/attempts:
 - No lo detectó nadie antes porque la suite local de WP3 usa repos FAKE que
   solo INSPECCIONAN ``lock.locked()`` sin adquirirlo.
 
-ANOMALÍA WP9-02 — ``lesson_progress.last_job_id`` jamás se escribe:
+ANOMALÍA WP9-02 — CORREGIDA por integración (BL-05, auditoría §3):
 api-contract §7.1 exige «al terminar bien el job se actualiza
-``lesson_progress.last_job_id``», pero ni ``job_runner`` ni ``routers/jobs``
-tocan ``ProgressRepository`` (el repo SÍ soporta el upsert). El campo queda
-``NULL`` para siempre.
+``lesson_progress.last_job_id``». Antes ni ``job_runner`` ni ``routers/jobs``
+tocaban ``ProgressRepository`` y el campo quedaba ``NULL`` para siempre.
+- Fix: ``JobRunner`` recibe el ``ProgressRepository`` y ``start()`` propaga
+  ``lesson_id`` al ``JobHandle``; al terminar ``completed`` un job con
+  ``lesson_id``, el runner hace ``upsert(last_job_id)`` bajo ``write_lock``
+  ANTES de confirmar el estado terminal — cualquier observador que ya vea
+  ``completed`` ve también ``last_job_id``. El test WP9-02 se INVIRTIÓ para
+  verificar el comportamiento correcto del contrato.
 """
 
 from __future__ import annotations
@@ -86,10 +91,10 @@ async def test_workaround_lock_separado_funciona(db, real_content):
     assert record.best_quiz_score == len(answers)
 
 
-def test_ANOMALIA_WP9_02_last_job_id_no_se_actualiza(client, fake_docker):
-    """§7.1: un job con ``lesson_id`` que termina bien debería dejar
-    ``lesson_progress.last_job_id``; hoy NO ocurre. Este test pasa MIENTRAS
-    el gap exista (fallará cuando integración lo implemente)."""
+def test_WP9_02_corregida_last_job_id_se_actualiza(client, fake_docker):
+    """§7.1 (WP9-02 CORREGIDA): un job con ``lesson_id`` que termina bien
+    deja ``lesson_progress.last_job_id`` apuntando al job — y como el upsert
+    ocurre antes del commit terminal, quien ve ``completed`` ya lo ve."""
     from conftest import wait_terminal
 
     response = client.post(
@@ -97,10 +102,15 @@ def test_ANOMALIA_WP9_02_last_job_id_no_se_actualiza(client, fake_docker):
         json={"code": "print('leccion')\n", "lesson_id": "primerEjemplo"},
     )
     assert response.status_code == 202
-    detail = wait_terminal(client, response.json()["data"]["job_id"])
+    job_id = response.json()["data"]["job_id"]
+    detail = wait_terminal(client, job_id)
     assert detail["status"] == "completed"
     assert detail["lesson_id"] == "primerEjemplo"
     progress = client.get("/api/v1/progress").json()["data"]["lessons"]
     entry = progress.get("primerEjemplo")
-    # contrato §7.1: entry debería existir con last_job_id = job_id
-    assert entry is None or entry["last_job_id"] is None  # ← el bug
+    assert entry is not None, "el job completed debe crear la fila de progreso"
+    assert entry["last_job_id"] == job_id
+    # y NO toca los campos que gestiona el quiz/el estudiante
+    assert entry["completed"] is False
+    assert entry["best_quiz_score"] is None
+    assert entry["viewed"] is False

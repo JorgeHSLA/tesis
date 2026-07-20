@@ -146,6 +146,7 @@ class JobHandle:
     timeout_s: int
     parser_id: str
     max_output_bytes: int
+    lesson_id: str | None = None  # §7.1: destino de last_job_id al completar
     phase: str = "queued"
     cancel_requested: bool = False
     kill_reason: str = KILL_NONE
@@ -207,9 +208,11 @@ class JobRunner:
         registry: dict[str, JobHandle] | None = None,
         flush_interval_s: float = FLUSH_INTERVAL_S,
         subscriber_queue_max: int = SUBSCRIBER_QUEUE_MAX,
+        progress: Any | None = None,  # ProgressRepository (BL-05, §7.1)
     ) -> None:
         self._docker = docker_service
         self._repo = job_repo
+        self._progress = progress
         self._settings = settings
         self.registry: dict[str, JobHandle] = registry if registry is not None else {}
         self._semaphore = asyncio.Semaphore(settings.max_concurrent_jobs)
@@ -236,6 +239,7 @@ class JobRunner:
         threads: int,
         timeout_s: int,
         parser_id: str,
+        lesson_id: str | None = None,
     ) -> JobHandle:
         """Crea handle + drainer + task (la fila ya existe en DB, 'queued')."""
         handle = JobHandle(
@@ -244,6 +248,7 @@ class JobRunner:
             threads=threads,
             timeout_s=timeout_s,
             parser_id=parser_id,
+            lesson_id=lesson_id,
             max_output_bytes=self._settings.max_output_bytes,
             central_queue=asyncio.Queue(maxsize=CENTRAL_QUEUE_MAX),
         )
@@ -616,6 +621,25 @@ class JobRunner:
                     if handle.started_at
                     else None
                 )
+                # BL-05 (§7.1): «al terminar bien el job se actualiza
+                # lesson_progress.last_job_id». El upsert (unidad de escritura
+                # propia bajo write_lock) va ANTES del finish terminal: quien
+                # observe status 'completed' por REST ya ve last_job_id. Un
+                # fallo aquí jamás reclasifica un job correcto (solo logs).
+                if (
+                    status == "completed"
+                    and handle.lesson_id
+                    and self._progress is not None
+                ):
+                    try:
+                        await self._progress.upsert(
+                            handle.lesson_id, last_job_id=handle.job_id
+                        )
+                    except Exception:
+                        logger.exception(
+                            "job %s: no se pudo actualizar last_job_id de %s",
+                            handle.job_id, handle.lesson_id,
+                        )
                 # §3.4 paso 1: finish() escribe DB (guard de terminales en repo)
                 await self._finish_db(
                     handle, status=status, exit_code=exit_code, oom=oom,

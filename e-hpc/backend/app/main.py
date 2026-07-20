@@ -123,6 +123,7 @@ def create_app(
             job_repo=job_repo,
             settings=cfg,
             registry=app.state.jobs,
+            progress=app.state.progress,  # §7.1: last_job_id al completar
         )
 
         # Fuente de contenido de Fase 4: el snapshot se carga DESDE la DB

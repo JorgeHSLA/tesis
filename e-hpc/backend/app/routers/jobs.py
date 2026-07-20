@@ -208,6 +208,7 @@ async def _create_job(
         threads=threads_effective,
         timeout_s=eff_timeout,
         parser_id=parser_id,
+        lesson_id=lesson_id,
     )
     return _ok(
         {

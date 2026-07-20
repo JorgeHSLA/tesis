@@ -47,16 +47,18 @@ async def launch(
     runner: JobRunner, repo: JobRepository, job_id: str, *,
     threads: int = 2, timeout_s: int = 30, parser_id: str = "none",
     source_code: str = "print('x')\n", wait_timeout_s: int | None = None,
+    lesson_id: str | None = None,
 ) -> JobHandle:
     """Crea la fila (queued) y arranca el runner. ``wait_timeout_s`` permite
     un timeout de espera menor que el mínimo del CHECK de la DB (5s)."""
     await repo.create(make_job_record(
         job_id, threads=threads, timeout_s=timeout_s, source_code=source_code,
+        lesson_id=lesson_id,
     ))
     return runner.start(
         job_id=job_id, source_code=source_code, threads=threads,
         timeout_s=timeout_s if wait_timeout_s is None else wait_timeout_s,
-        parser_id=parser_id,
+        parser_id=parser_id, lesson_id=lesson_id,
     )
 
 
@@ -460,3 +462,75 @@ async def test_run_startup_reaper(db, settings):
     record = await repo.find_by_id("huerfano")
     assert record.status == "failed"
     assert record.error_detail == "orphaned_on_restart"
+
+
+# ───────── BL-05 (auditoría §3): lesson_progress.last_job_id (§7.1) ──────────
+
+
+async def test_bl05_completed_con_lesson_id_escribe_last_job_id(db, settings):
+    """Un job ``completed`` con ``lesson_id`` deja ``last_job_id`` en progreso."""
+    from app.repositories.progress import ProgressRepository
+
+    docker = FakeDockerService()
+    repo = JobRepository(db)
+    progress = ProgressRepository(db)
+    runner = make_runner(docker, repo, settings, progress=progress)
+    handle = await launch(runner, repo, "job-bl05", lesson_id="spmd")
+    await handle.task
+
+    record = await progress.get("spmd")
+    assert record is not None
+    assert record.last_job_id == "job-bl05"
+    # el runner NO toca lo que gestionan quiz/estudiante
+    assert record.completed is False
+    assert record.best_quiz_score is None
+
+
+async def test_bl05_job_fallido_no_escribe_last_job_id(db, settings):
+    """«Al terminar BIEN» (§7.1): un job failed no actualiza el progreso."""
+    from app.repositories.progress import ProgressRepository
+
+    docker = FakeDockerService()
+    docker.queue_execution(FakeExecution(exit_code=1))
+    repo = JobRepository(db)
+    progress = ProgressRepository(db)
+    runner = make_runner(docker, repo, settings, progress=progress)
+    handle = await launch(runner, repo, "job-bl05-fail", lesson_id="spmd")
+    await handle.task
+
+    assert (await repo.find_by_id("job-bl05-fail")).status == "failed"
+    assert await progress.get("spmd") is None
+
+
+async def test_bl05_sin_lesson_id_no_escribe_progreso(db, settings):
+    """Job sin lección asociada: cero filas nuevas en lesson_progress."""
+    from app.repositories.progress import ProgressRepository
+
+    docker = FakeDockerService()
+    repo = JobRepository(db)
+    progress = ProgressRepository(db)
+    runner = make_runner(docker, repo, settings, progress=progress)
+    handle = await launch(runner, repo, "job-bl05-sin")
+    await handle.task
+
+    assert (await repo.find_by_id("job-bl05-sin")).status == "completed"
+    assert await progress.get_all() == []
+
+
+async def test_bl05_upsert_que_falla_no_reclasifica_el_job(db, settings):
+    """Si el upsert de progreso falla, el job sigue ``completed`` (el fallo
+    se logea; jamás reclasifica un resultado correcto como sandbox_error)."""
+
+    class ExplodingProgress:
+        async def upsert(self, lesson_id, **kwargs):
+            raise RuntimeError("progreso caído")
+
+    docker = FakeDockerService()
+    repo = JobRepository(db)
+    runner = make_runner(docker, repo, settings, progress=ExplodingProgress())
+    handle = await launch(runner, repo, "job-bl05-boom", lesson_id="spmd")
+    await handle.task
+
+    record = await repo.find_by_id("job-bl05-boom")
+    assert record.status == "completed"
+    assert record.error_detail is None
