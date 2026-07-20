@@ -52,7 +52,7 @@ usan el envelope:
 | 409 | `EXAMPLE_DISABLED` | Ejecutar un ejemplo con `enabled=false` (GPU) |
 | 409 | `JOB_NOT_CANCELLABLE` | Cancelar un job ya terminal |
 | 409 | `JOB_NOT_FINISHED` | Descargar output de un job aún no terminal |
-| 413 | `CODE_TOO_LARGE` | Código > 262 144 bytes (JSON o upload; nginx corta antes a 1 MB) |
+| 413 | `CODE_TOO_LARGE` | Código > `max_code_bytes` (`EHPC_MAX_CODE_BYTES`, por defecto 262 144; JSON o upload; nginx corta antes a 1 MB) |
 | 415 | `INVALID_EXTENSION` | Upload con extensión ≠ `.py` |
 | 422 | `VALIDATION_ERROR` | Falla de esquema pydantic |
 | 422 | `INVALID_ENCODING` | Upload no es UTF-8 válido |
@@ -485,7 +485,7 @@ Validación (pydantic + reglas de negocio):
 | Campo | Regla |
 |---|---|
 | `example_id` / `code` | al menos uno presente → si no, `400 VALIDATION_ERROR`; `example_id` inexistente → `404 EXAMPLE_NOT_FOUND` |
-| `code` | `1 ≤ len ≤ 262144` bytes UTF-8 (`max_length` pydantic) → `413 CODE_TOO_LARGE` vía handler |
+| `code` | `1 ≤ bytes ≤ max_code_bytes` UTF-8 (tope `EHPC_MAX_CODE_BYTES`, por defecto 262144; aplicado en **runtime** en el router, por igual que `/upload` y la vía admin JSON — fix de residuos de auditoría, BL-17) → `413 CODE_TOO_LARGE` |
 | `filename` | opcional (default: `filename` del ejemplo, o `main.py`); patrón `^[A-Za-z0-9._-]{1,80}\.py$` |
 | `threads` | **opcional**. Si el ejemplo tiene `threads_configurable=false`, se IGNORA por completo (puede omitirse; el backend usa su valor fijo: `min(8, cores)` para sweep, `fixed_threads` para fixed) y la respuesta lleva `threads_note`. En caso contrario: entero `1..max_threads` (de `/system`), default 4 |
 | `timeout_s` | opcional; `5..120` (tope servidor `EHPC_MAX_TIMEOUT_S`); default = `default_timeout_s` del ejemplo o 60 para código propio |
