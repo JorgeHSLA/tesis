@@ -151,7 +151,12 @@ export function ExampleMetaFields({
           <input
             type="checkbox"
             checked={value.requires_gpu}
-            onChange={(e) => onChange({ requires_gpu: e.currentTarget.checked })}
+            onChange={(e) => {
+              const on = e.currentTarget.checked
+              // Coherencia §10.6 (BL-24): requires_gpu=true ⇒ enabled=false. Se
+              // fuerza en la UI para no enterarse recién al guardar (422).
+              onChange(on ? { requires_gpu: true, enabled: false } : { requires_gpu: false })
+            }}
           />
           <span>Requiere GPU (se deshabilita en equipos sin GPU)</span>
         </label>
@@ -235,14 +240,32 @@ export function ExampleMetaFields({
         hint="3–4 bullets se muestran en la card del simulador."
       />
 
-      <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <input
-          type="checkbox"
-          checked={value.enabled}
-          onChange={(e) => onChange({ enabled: e.currentTarget.checked })}
-        />
-        <span>Ejemplo habilitado (visible para el estudiante)</span>
-      </label>
+      <div className="col" style={{ gap: 4 }}>
+        <label
+          style={{
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+            opacity: value.requires_gpu ? 0.55 : 1,
+          }}
+        >
+          <input
+            type="checkbox"
+            // BL-24: coherencia GPU⇒deshabilitado inmediata en la UI. Un ejemplo
+            // GPU no puede estar habilitado (§10.6); se fuerza y se bloquea el
+            // control para no diferir el aviso al 422 del backend.
+            checked={value.requires_gpu ? false : value.enabled}
+            disabled={value.requires_gpu}
+            onChange={(e) => onChange({ enabled: e.currentTarget.checked })}
+          />
+          <span>Ejemplo habilitado (visible para el estudiante)</span>
+        </label>
+        {value.requires_gpu && (
+          <span className="field-hint">
+            Los ejemplos que requieren GPU quedan deshabilitados para el estudiante.
+          </span>
+        )}
+      </div>
     </div>
   )
 }
