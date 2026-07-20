@@ -3,3 +3,6 @@ pytest
 pytest-asyncio
 pytest-cov
 httpx
+# test_compose_parity.py; hoy llega transitivo vía fastapi[standard]→uvicorn[standard],
+# pero un test no debe depender de un extra de un paquete de producción
+pyyaml
