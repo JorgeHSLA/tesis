@@ -72,7 +72,7 @@ function DegradedSummary({ job }: { job: JobDetailDto }) {
           <div className="mono-small">de {fmtBytes(m.mem_limit_bytes)}</div>
         </div>
         <div>
-          <div className="metric-label">Procesos/hilos</div>
+          <div className="metric-label">Hilos (PIDs)</div>
           <div className="metric-value">{m.pids_max}</div>
           <div className="mono-small">{m.samples} muestras</div>
         </div>
