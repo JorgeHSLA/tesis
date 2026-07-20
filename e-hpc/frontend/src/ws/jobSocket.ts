@@ -56,23 +56,13 @@ export class JobSocket {
   /** Inicia (o reinicia) la conexión. Resetea el store vía begin(). */
   connect(): void {
     this.closedByClient = false
-    // BL-10: begin() vacía el store — el estado de dedupe/sesión del socket
-    // se resetea CON él. Sin esto, el backlog o el replay renumerado desde
-    // DB (seq desde 1, §8.2) quedaba descartado por lastLogSeq obsoleto y
-    // la terminal se mostraba vacía tras «Reintentar conexión».
-    this.lastLogSeq = -1
-    this.sawEof = false
-    this.lastPhase = null
-    this.sawActivePhase = false
-    this.buffer = []
+    this.resetSession()
     useJobStore.getState().begin(this.jobId)
     this.open()
   }
 
   /** Reintento manual (banner «Reintentar conexión» del estado lost). */
   retry(): void {
-    this.retries = 0
-    this.clearRetryTimer()
     this.connect()
   }
 
@@ -99,6 +89,35 @@ export class JobSocket {
   }
 
   // ───────────────────────────── internos ──────────────────────────────
+
+  /**
+   * Estado que vive UNA sesión de socket. `begin()` vacía el store, así que
+   * el dedupe, el buffer pendiente y el backoff deben empezar de cero con él
+   * (BL-10): si no, el backlog —o el replay renumerado desde DB (§8.2)—
+   * llega con `seq` que el filtro descarta y la terminal queda vacía.
+   *
+   * `sawActivePhase` NO se resetea a propósito: su ámbito es la INSTANCIA
+   * (= esta visita a la pantalla del job), no la conexión. Es lo que
+   * distingue «aterricé en un job ya terminado» —F5/historial, redirigir a
+   * resultados— de «lo vi correr y se completó mientras yo reconectaba»,
+   * donde el usuario debe quedarse en el live ya re-poblado.
+   */
+  private resetSession(): void {
+    this.cancelPendingFlush()
+    this.buffer = []
+    this.lastLogSeq = -1
+    this.sawEof = false
+    this.lastPhase = null
+    this.retries = 0
+    this.clearRetryTimer()
+  }
+
+  private cancelPendingFlush(): void {
+    if (this.rafId != null && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(this.rafId)
+    }
+    this.rafId = null
+  }
 
   private wsPath(): string {
     const rel = this.opts.wsUrl
@@ -232,10 +251,7 @@ export class JobSocket {
   }
 
   private flushLogs(): void {
-    if (this.rafId != null && typeof cancelAnimationFrame === 'function') {
-      cancelAnimationFrame(this.rafId)
-      this.rafId = null
-    }
+    this.cancelPendingFlush()
     if (this.buffer.length === 0) return
     const lines = this.buffer
     this.buffer = []

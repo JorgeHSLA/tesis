@@ -261,11 +261,11 @@ describe('BL-10: retry() resetea el estado de dedupe (sesión nueva)', () => {
     expect(store().logs.map((l) => l.text)).toEqual(['salida completa'])
   })
 
-  it('retry() con job ya terminal es replay puro: redirige a resultados', () => {
+  it('el job completado durante la desconexión NO expulsa del live', () => {
     vi.useFakeTimers()
     const onReplayTerminal = vi.fn()
     const { socket, ws } = connectOpen({ onReplayTerminal })
-    ws.emit(statusMsg('running')) // la sesión 1 SÍ vio una fase viva
+    ws.emit(statusMsg('running')) // el usuario SÍ lo vio correr
     ws.serverClose(1006)
 
     socket.retry()
@@ -273,8 +273,42 @@ describe('BL-10: retry() resetea el estado de dedupe (sesión nueva)', () => {
     ws2.open()
     ws2.emit(statusMsg('completed', COMPLETED_DETAIL))
     ws2.emit(eofMsg(false))
-    // sesión nueva: sin fase viva vista EN ESTA sesión → onReplayTerminal
+    // sawActivePhase es de la INSTANCIA (esta visita), no de la conexión:
+    // se queda en el live ya re-poblado, igual que si nunca se hubiera caído.
+    expect(onReplayTerminal).not.toHaveBeenCalled()
+    expect(store().phase).toBe('completed')
+  })
+
+  it('sin fase viva en toda la visita, el replay tras retry() sí redirige', () => {
+    vi.useFakeTimers()
+    const onReplayTerminal = vi.fn()
+    const { socket, ws } = connectOpen({ onReplayTerminal })
+    ws.serverClose(1006) // aterrizaje fallido, nunca se vio el job vivo
+
+    socket.retry()
+    const ws2 = FakeWebSocket.last!
+    ws2.open()
+    ws2.emit(statusMsg('completed', COMPLETED_DETAIL))
+    ws2.emit(eofMsg(false))
     expect(onReplayTerminal).toHaveBeenCalledWith(JOB_ID)
+  })
+
+  it('retry() resetea también el backoff (el banner siempre reconecta)', () => {
+    vi.useFakeTimers()
+    const { socket, ws } = connectOpen()
+    let current = ws
+    for (const delay of [1000, 2000, 4000]) {
+      current.serverClose(1006)
+      vi.advanceTimersByTime(delay)
+      current = FakeWebSocket.last!
+    }
+    current.serverClose(1006) // backoff agotado
+    const before = FakeWebSocket.instances.length
+    socket.retry() // connect() es autocontenido: reintentos a cero
+    expect(FakeWebSocket.instances.length).toBe(before + 1)
+    FakeWebSocket.last!.serverClose(1006)
+    vi.advanceTimersByTime(1000)
+    expect(FakeWebSocket.instances.length).toBe(before + 2)
   })
 
   it('el sawEof de una sesión anterior no suprime el backoff de la nueva', () => {
