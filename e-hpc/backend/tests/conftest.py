@@ -167,6 +167,7 @@ def build_app(
     content_dir: Path = CONTENT_DIR,
     flush_interval_s: float = 0.02,
     subscriber_queue_max: int = 200,
+    terminal_retention_s: float = 0.0,
 ) -> FastAPI:
     """App con los routers y handlers REALES y estado como el lifespan de WP1,
     pero DB en memoria y docker service inyectado (fake).
@@ -205,6 +206,9 @@ def build_app(
             flush_interval_s=flush_interval_s,
             subscriber_queue_max=subscriber_queue_max,
             progress=app.state.progress,  # wiring real (main.py): last_job_id
+            # 0 por defecto: los tests históricos fuerzan la vía DB con
+            # wait_registry_empty; los de BL-09 activan la retención.
+            terminal_retention_s=terminal_retention_s,
         )
         # Fuente runtime de Fase 4: el snapshot se carga DESDE la DB sembrada.
         app.state.content = await ContentRepository.load(conn)

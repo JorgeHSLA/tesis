@@ -234,6 +234,40 @@ def test_timeout_default_del_ejemplo(client, fake_docker, real_content):
     assert detail["timeout_s"] == real_content.example("primerEjemplo").default_timeout_s
 
 
+# ────────── BL-32: threads_note con el valor YA clampado (auditoría) ─────────
+
+
+def test_bl32_threads_note_cita_el_valor_clampado(client, app, fake_docker, monkeypatch):
+    """Con fixed_threads > max_threads, la nota por defecto debe citar los
+    hilos/CPUs EFECTIVOS (post-clamp), no los del fixture."""
+    from types import SimpleNamespace
+
+    from app.routers import jobs as jobs_router
+
+    monkeypatch.setattr(jobs_router, "_max_threads", lambda: 2)
+    fixed_example = SimpleNamespace(
+        enabled=True, threads_configurable=False, sweeps_threads=False,
+        fixed_threads=4, fixed_threads_note=None, parser_id="none",
+        source_code="print('fijo')\n", filename="fijo.py", default_timeout_s=30,
+    )
+
+    class StubContent:
+        def example(self, example_id):
+            return fixed_example if example_id == "fijoAlto" else None
+
+        def exists_lesson(self, lesson_id):
+            return False
+
+    app.state.content = StubContent()
+    fake_docker.queue_execution(FakeExecution(stdout=[b"ok\n"]))
+    response = client.post("/api/v1/jobs", json={"example_id": "fijoAlto"})
+    data = assert_ok_envelope(response, 202)["data"]
+    assert data["threads_effective"] == 2
+    assert "fija 2 hilos" in data["threads_note"]
+    assert "2 CPUs" in data["threads_note"]
+    assert "4" not in data["threads_note"]
+
+
 # ─────────────────── capacidad e infraestructura §7.1 ────────────────────────
 
 
@@ -247,6 +281,81 @@ def test_cola_llena_429(client, app):
     response = client.post("/api/v1/jobs", json={"code": "print(1)\n"})
     assert_error_envelope(response, 429, "TOO_MANY_JOBS")
     runner.registry.clear()
+
+
+async def test_bl08_rafaga_concurrente_respeta_el_tope_de_cola(settings, fake_docker):
+    """TOCTOU del tope (auditoría BL-08): N POST concurrentes cerca del límite
+    no pueden superar los 10 en cola — la reserva del slot es atómica respecto
+    al chequeo (antes de cualquier await) y se revierte si la petición falla."""
+    import asyncio
+    import time
+
+    import httpx
+
+    from conftest import build_app
+
+    def slow_ping() -> bool:
+        time.sleep(0.1)  # corre en to_thread: mantiene N peticiones en vuelo
+        return True
+
+    fake_docker.ping = slow_ping
+    application = build_app(settings=settings, docker=fake_docker)
+    async with application.router.lifespan_context(application):
+        transport = httpx.ASGITransport(app=application)
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as async_client:
+            responses = await asyncio.gather(*[
+                async_client.post("/api/v1/jobs", json={"code": "print(1)\n"})
+                for _ in range(25)
+            ])
+        codes = [r.status_code for r in responses]
+        assert codes.count(202) == 10, codes
+        assert codes.count(429) == 15, codes
+
+        # dejar terminar los 10 jobs antes de cerrar la DB del lifespan
+        runner = application.state.job_runner
+
+        async def _drained():
+            while runner.registry:
+                await asyncio.sleep(0.02)
+
+        await asyncio.wait_for(_drained(), 15)
+
+
+async def test_bl08_la_reserva_se_libera_si_la_peticion_falla(settings, fake_docker):
+    """Un 503 posterior a la reserva no puede dejar el slot ocupado."""
+    import httpx
+
+    from conftest import build_app
+
+    fake_docker.ping_ok = False
+    application = build_app(settings=settings, docker=fake_docker)
+    async with application.router.lifespan_context(application):
+        transport = httpx.ASGITransport(app=application)
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as async_client:
+            for _ in range(12):  # más intentos que el tope de 10
+                response = await async_client.post(
+                    "/api/v1/jobs", json={"code": "print(1)\n"}
+                )
+                assert response.status_code == 503  # jamás degenera en 429
+            fake_docker.ping_ok = True
+            fake_docker.queue_execution(FakeExecution(stdout=[b"ok\n"]))
+            response = await async_client.post(
+                "/api/v1/jobs", json={"code": "print(1)\n"}
+            )
+            assert response.status_code == 202  # la cola quedó libre
+
+        runner = application.state.job_runner
+        import asyncio
+
+        async def _drained():
+            while runner.registry:
+                await asyncio.sleep(0.02)
+
+        await asyncio.wait_for(_drained(), 15)
 
 
 def test_docker_no_disponible_503(client, fake_docker):

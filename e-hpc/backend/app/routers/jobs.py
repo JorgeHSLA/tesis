@@ -136,13 +136,16 @@ async def _create_job(
                 f"se asignan {threads_effective} CPUs."
             )
         else:
-            threads_effective = example.fixed_threads or max_threads
+            # BL-32: clamp ANTES de formatear la nota — jamás citar más
+            # hilos/CPUs de los que realmente se asignan.
+            threads_effective = min(
+                example.fixed_threads or max_threads, max_threads
+            )
             note = getattr(example, "fixed_threads_note", None)
             threads_note = note or (
                 f"Este ejemplo fija {threads_effective} hilos; "
                 f"se asignan {threads_effective} CPUs."
             )
-        threads_effective = min(threads_effective, max_threads)
     else:
         # default 4 (§7.1) acotado por los cores reales de la máquina
         threads_effective = threads if threads is not None else min(4, max_threads)
@@ -163,53 +166,60 @@ async def _create_job(
         )
 
     # --- capacidad e infraestructura ---
-    if runner.queued_count() >= _MAX_QUEUE:
+    # BL-08: la reserva del slot es atómica respecto al chequeo (síncrona,
+    # ANTES de cualquier await) — una ráfaga concurrente no supera el tope.
+    # Se libera SIEMPRE: tras start() el handle ya cuenta como queued, y en
+    # cualquier salida de error el slot vuelve a quedar libre.
+    if not runner.try_reserve_queue_slot(_MAX_QUEUE):
         return _err(429, "TOO_MANY_JOBS", "La cola interna de jobs está llena.")
-    docker = getattr(state, "docker_service", None)
-    if docker is None or not await asyncio.to_thread(docker.ping):
-        return _err(503, "DOCKER_UNAVAILABLE", "El daemon Docker no responde.")
-    if not await asyncio.to_thread(docker.image_present):
-        return _err(
-            503, "RUNNER_IMAGE_MISSING",
-            f"La imagen {settings.runner_image} no existe en el daemon.",
-        )
+    try:
+        docker = getattr(state, "docker_service", None)
+        if docker is None or not await asyncio.to_thread(docker.ping):
+            return _err(503, "DOCKER_UNAVAILABLE", "El daemon Docker no responde.")
+        if not await asyncio.to_thread(docker.image_present):
+            return _err(
+                503, "RUNNER_IMAGE_MISSING",
+                f"La imagen {settings.runner_image} no existe en el daemon.",
+            )
 
-    job_id = uuid.uuid4().hex
-    created_at = utc_now_iso()
-    record = JobRecord(
-        id=job_id,
-        source_kind=source_kind,
-        example_id=example_id,
-        lesson_id=lesson_id,
-        filename=eff_filename,
-        source_code=source_code,
-        threads=threads_effective,
-        timeout_s=eff_timeout,
-        runner_image=settings.runner_image,
-        status="queued",
-        container_id=None,
-        error_detail=None,
-        exit_code=None,
-        oom_killed=False,
-        stdout=None,
-        stderr=None,
-        output_truncated=False,
-        metrics_summary=None,
-        parsed_timings=None,
-        created_at=created_at,
-        started_at=None,
-        finished_at=None,
-        wall_time_ms=None,
-    )
-    await state.job_repo.create(record)
-    runner.start(
-        job_id=job_id,
-        source_code=source_code,
-        threads=threads_effective,
-        timeout_s=eff_timeout,
-        parser_id=parser_id,
-        lesson_id=lesson_id,
-    )
+        job_id = uuid.uuid4().hex
+        created_at = utc_now_iso()
+        record = JobRecord(
+            id=job_id,
+            source_kind=source_kind,
+            example_id=example_id,
+            lesson_id=lesson_id,
+            filename=eff_filename,
+            source_code=source_code,
+            threads=threads_effective,
+            timeout_s=eff_timeout,
+            runner_image=settings.runner_image,
+            status="queued",
+            container_id=None,
+            error_detail=None,
+            exit_code=None,
+            oom_killed=False,
+            stdout=None,
+            stderr=None,
+            output_truncated=False,
+            metrics_summary=None,
+            parsed_timings=None,
+            created_at=created_at,
+            started_at=None,
+            finished_at=None,
+            wall_time_ms=None,
+        )
+        await state.job_repo.create(record)
+        runner.start(
+            job_id=job_id,
+            source_code=source_code,
+            threads=threads_effective,
+            timeout_s=eff_timeout,
+            parser_id=parser_id,
+            lesson_id=lesson_id,
+        )
+    finally:
+        runner.release_queue_slot()
     return _ok(
         {
             "job_id": job_id,

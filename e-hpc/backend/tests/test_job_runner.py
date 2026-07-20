@@ -39,6 +39,9 @@ def make_runner(docker: FakeDockerService, repo, settings, **over) -> JobRunner:
         job_repo=repo,
         settings=settings,
         flush_interval_s=over.pop("flush_interval_s", 0.01),
+        # sin retención por defecto: los tests históricos asumen la retirada
+        # inmediata del registro (§3.4 paso 5); BL-09 la activa a propósito.
+        terminal_retention_s=over.pop("terminal_retention_s", 0.0),
         **over,
     )
 
@@ -462,6 +465,97 @@ async def test_run_startup_reaper(db, settings):
     record = await repo.find_by_id("huerfano")
     assert record.status == "failed"
     assert record.error_detail == "orphaned_on_restart"
+
+
+# ──────── BL-07: cancel sobre queued sincroniza el handle (auditoría §3) ─────
+
+
+async def test_bl07_cancel_en_queued_sincroniza_handle_y_emite_terminal(db, settings):
+    """El cancel en queued deja el handle terminal EN EL ACTO: la cola no lo
+    sobrecuenta y un WS ya suscrito recibe status cancelled + eof (§8.1)."""
+    one = settings.model_copy(update={"max_concurrent_jobs": 1})
+    docker = FakeDockerService()
+    repo = JobRepository(db)
+    runner = make_runner(docker, repo, one)
+    blocker_exec = docker.queue_execution(FakeExecution(hang=True))
+    blocker = await launch(runner, repo, "ocupa")
+    await wait_phase(blocker, "compiling", "running")
+
+    queued = await launch(runner, repo, "encolado")
+    _, queue, _ = runner.subscribe(queued)  # WS conectado ANTES del cancel
+    assert runner.queued_count() == 1
+    assert await runner.cancel("encolado") == "cancelling"
+
+    # sincronizado en el mismo instante que la escritura en DB
+    assert queued.phase == "cancelled"
+    assert runner.queued_count() == 0  # (b) la cola no cuenta cancelados
+    assert runner.get_active("encolado") is None  # (a) ningún WS lo ve activo
+    items = drain(queue)
+    assert items[-1] is None  # cola por-conexión cerrada
+    messages = [m for m in items if m is not None]
+    assert messages[-2]["type"] == "status"
+    assert messages[-2]["phase"] == "cancelled"
+    assert messages[-2]["detail"]["error_detail"] is None
+    assert messages[-1]["type"] == "eof"
+
+    blocker_exec.finish(exit_code=0)
+    await asyncio.wait_for(blocker.task, 10)
+    await asyncio.wait_for(queued.task, 10)
+    assert (await repo.find_by_id("encolado")).status == "cancelled"
+    assert "encolado" not in docker.prepared  # jamás llegó a create
+
+
+# ──────── BL-13: la CAUSA de terminación prevalece (contrato §7.4) ───────────
+
+
+def test_bl13_causa_de_terminacion_prevalece_sobre_output_truncated():
+    """Si cancel/timeout ya fijaron kill_reason, el truncado posterior NO
+    reclasifica: status/error_detail reflejan la causa (primer escritor gana)
+    y output_truncated=true convive como flag informativo (§7.4)."""
+    handle = JobHandle(
+        job_id="x", source_code="", threads=1, timeout_s=5,
+        parser_id="none", max_output_bytes=64,
+    )
+    assert handle.request_kill(KILL_CANCEL) is True
+    handle.output_truncated = True  # el drainer cortó output en la misma ventana
+    assert handle.request_kill(KILL_OUTPUT_LIMIT) is False
+    status, error_detail = JobRunner._derive_terminal(handle.kill_reason, None, False)
+    assert (status, error_detail) == ("cancelled", None)
+
+
+# ──────── BL-09 (opción A): retención corta del handle terminal ──────────────
+
+
+async def test_bl09_handle_retenido_conserva_backlog_con_seq_originales(db, settings):
+    docker = FakeDockerService()
+    repo = JobRepository(db)
+    runner = make_runner(docker, repo, settings, terminal_retention_s=0.3)
+    docker.queue_execution(FakeExecution(stdout=[b"uno\ndos\n"]))
+    handle = await launch(runner, repo, "j1")
+    await asyncio.wait_for(handle.task, 10)
+
+    # terminal: invisible para el stream vivo, visible para el replay
+    assert runner.get_active("j1") is None
+    retained = runner.get_finished("j1")
+    assert retained is handle
+    assert retained.closed is True and retained.phase == "completed"
+    seqs = [m["seq"] for m in retained.backlog]
+    assert seqs and seqs == sorted(seqs)  # seq ORIGINALES del stream vivo
+
+    # pasada la retención, §3.4 paso 5 (diferido): registro vacío
+    await asyncio.sleep(0.6)
+    assert runner.registry == {}
+    assert runner.get_finished("j1") is None
+
+
+async def test_bl09_sin_retencion_el_registro_se_vacia_al_instante(db, settings):
+    docker = FakeDockerService()
+    repo = JobRepository(db)
+    runner = make_runner(docker, repo, settings)  # retención 0 (histórico)
+    handle = await launch(runner, repo, "j1")
+    await asyncio.wait_for(handle.task, 10)
+    assert runner.registry == {}
+    assert runner.get_finished("j1") is None
 
 
 # ───────── BL-05 (auditoría §3): lesson_progress.last_job_id (§7.1) ──────────

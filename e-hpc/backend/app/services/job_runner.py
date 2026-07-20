@@ -50,6 +50,10 @@ FLUSH_MAX_BYTES = 4096  # …o al acumular 4 KB, lo que ocurra antes (§8.4)
 BRIDGE_PUT_TIMEOUT_S = 5.0  # .result(timeout): el thread jamás cuelga (§3 p.3)
 KILL_GRACE_S = 5.0  # wait() tras kill para el exit code real (137)
 STREAMS_EOF_GRACE_S = 10.0  # espera de EOF de logs tras exit
+# §3.4 paso 5 diferido (§8.2/BL-09): el handle terminal se retiene este
+# periodo para que una reconexión (backoff 1s/2s/4s del cliente) reciba el
+# backlog con los seq ORIGINALES en vez del replay renumerado desde DB.
+TERMINAL_HANDLE_RETENTION_S = 10.0
 _QUEUE_CLOSED = None  # sentinela de cierre de cola por-conexión
 _FINALIZE = object()  # sentinela interno drainer (comparado por identidad)
 
@@ -209,6 +213,7 @@ class JobRunner:
         flush_interval_s: float = FLUSH_INTERVAL_S,
         subscriber_queue_max: int = SUBSCRIBER_QUEUE_MAX,
         progress: Any | None = None,  # ProgressRepository (BL-05, §7.1)
+        terminal_retention_s: float = TERMINAL_HANDLE_RETENTION_S,
     ) -> None:
         self._docker = docker_service
         self._repo = job_repo
@@ -219,6 +224,8 @@ class JobRunner:
         self._flush_interval = flush_interval_s
         self._subscriber_queue_max = subscriber_queue_max
         self._sub_keys = itertools.count(1)
+        self._terminal_retention_s = terminal_retention_s
+        self._queue_reserved = 0  # slots reservados pre-registro (BL-08)
 
     # ---- API para routers ----------------------------------------------------
 
@@ -230,6 +237,27 @@ class JobRunner:
 
     def queued_count(self) -> int:
         return sum(1 for h in self.registry.values() if h.phase == "queued")
+
+    def get_finished(self, job_id: str) -> JobHandle | None:
+        """Handle terminal retenido (BL-09): su backlog conserva los seq
+        originales para el replay de una reconexión (§8.2)."""
+        handle = self.registry.get(job_id)
+        if handle is None or not handle.closed:
+            return None
+        return handle
+
+    def try_reserve_queue_slot(self, limit: int) -> bool:
+        """Reserva atómica de un slot de cola (BL-08): chequeo e incremento
+        son síncronos en el event loop — sin ventana TOCTOU frente a otros
+        POST concurrentes. Debe liberarse SIEMPRE con release_queue_slot()."""
+        if self.queued_count() + self._queue_reserved >= limit:
+            return False
+        self._queue_reserved += 1
+        return True
+
+    def release_queue_slot(self) -> None:
+        """Libera una reserva (tras start() el handle ya cuenta como queued)."""
+        self._queue_reserved = max(0, self._queue_reserved - 1)
 
     def start(
         self,
@@ -274,11 +302,20 @@ class JobRunner:
             # tras el semáforo y ANTES de containers.create (§3.3).
             handle.cancel_requested = True
             handle.request_kill(KILL_CANCEL)
+            # BL-07: el estado en memoria se sincroniza ANTES de cualquier
+            # await — la cola deja de contarlo y ningún WS lo ve activo.
+            handle.phase = "cancelled"
+            handle.terminal_detail = self._detail(
+                exit_code=None, oom=False, wall_time_ms=None,
+                truncated=False, error_detail=None)
             await self._finish_db(
                 handle, status="cancelled", exit_code=None, oom=False,
                 error_detail=None, parsed=None, finished_at=utc_now_iso(),
                 wall_time_ms=None,
             )
+            # §3.4 pasos 2-3 para los suscriptores ya conectados: status
+            # terminal + eof + cierre de colas (idempotente vía handle.closed).
+            self._emit_terminal_and_close(handle)
             return "cancelling"
         # job con contenedor (o creándolo): kill_reason ANTES de kill()
         handle.cancel_requested = True
@@ -687,7 +724,8 @@ class JobRunner:
             # §3.4 paso 4: remove(force) + borrado del dir de código
             await self._cleanup_resources(handle)
             # §3.4 paso 5: RECIÉN AHORA se retira el job del registro
-            self.registry.pop(handle.job_id, None)
+            # (diferido el periodo de retención — BL-09).
+            self._retire_handle(handle)
 
     async def _wait_with_timeout(
         self, handle: JobHandle, execution: "JobExecutionPort"
@@ -786,6 +824,23 @@ class JobRunner:
                         except asyncio.QueueEmpty:  # pragma: no cover
                             break
         handle.closed = True
+
+    def _retire_handle(self, handle: JobHandle) -> None:
+        """§3.4 paso 5, con retención (BL-09): el handle terminal sigue un
+        periodo corto en el registro para servir el replay de reconexión con
+        los seq originales; después se retira de verdad."""
+        if self._terminal_retention_s <= 0:
+            self.registry.pop(handle.job_id, None)
+            return
+
+        async def _expire() -> None:
+            await asyncio.sleep(self._terminal_retention_s)
+            self.registry.pop(handle.job_id, None)
+
+        task = asyncio.create_task(
+            _expire(), name=f"ehpc-retain-{handle.job_id}"
+        )
+        handle.aux_tasks.append(task)  # referencia viva (trampa GC de asyncio)
 
     async def _cleanup_resources(self, handle: JobHandle) -> None:
         if handle.execution is not None:
