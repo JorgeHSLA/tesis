@@ -609,9 +609,101 @@ contrato/arquitectura, no como cambio de código (ver §Sesión 3).
   `ThreadsField.effectiveCpus()` (replicar el clamp del backend), pero fuera
   del alcance cerrado de S5. Candidato a una mini-sesión frontend.
 
-**Follow-ups de documentación pendientes** (no bloqueantes):
-`docs/architecture/architecture.md` §2.2 aún documenta el compose raíz sin las
-variantes `127.0.0.1` ni el `name:` del volumen (patrón BL-34, señalado desde
-S1); `frontend-spec.md` §6.4 conserva la regla "siempre que haya speedup →
-info Amdahl" que BL-30 supersede (no se editó en S5 porque ese archivo carga
-cambios sin commitear del rediseño visual, de otra sesión).
+**Follow-ups de documentación pendientes** (no bloqueantes): **RESUELTOS** en la
+sesión de cierre de residuos (ver abajo). `architecture.md` §2.2 y `frontend-spec.md`
+§6.4 quedaron alineados con el código.
+
+---
+
+## Cierre de residuos (2026-07-20) — rama `fix/auditoria-residuos`
+
+Barrido final de los 5 cabos sueltos que la campaña S1-S5 dejó documentados como
+follow-ups (1 medium de seguridad + 4 low). Doc-first donde toca contrato; TDD
+(RED→GREEN) en los 3 cambios de código; ronda de review por dominio + code-reviewer.
+
+### BL-22 (medium, security) — el 422 de `POST /jobs` reflejaba el input crudo del cliente
+El catch manual de `ValidationError` en `create_job` (`routers/jobs.py`) devolvía
+`exc.errors(include_url=False)` **sin sanear**, reflejando el valor rechazado
+(`input`/`ctx`) del cliente en `error.details` — el mismo patrón que S4 corrigió en
+`/admin/login` y en `admin.py`, pero en la ruta pública `/jobs` (residuo, NO el mismo
+endpoint que la fila BL-22 del audit, que apunta a `/admin/login`). Ahora pasa por
+`errors.sanitize_validation_errors()`. **Auditoría exhaustiva del backend** (confirmada
+por el security-reviewer): son los ÚNICOS 3 puntos que arman respuesta desde
+`.errors()` de pydantic — `errors.py:135` (handler global) y `admin.py:73` ya saneados
+en S4, y este. Los demás no exponen input crudo: `content.py` es carga de fixtures
+server-side (a logs), `quizzes.py` usa un error de dominio con `details` curados (la
+opción ecoada es un `Literal["a".."d"]`, acotada), y `/jobs/upload` valida sus Form
+params vía el handler global ya saneado.
+- **Test:** `test_bl22_post_jobs_422_no_refleja_input_crudo` (el centinela crudo no
+  aparece en `response.text`; se conservan `type`/`loc`/`msg`, se van `input`/`ctx`/`url`).
+
+### BL-17 (low, consistency) — `POST /jobs` ignoraba `EHPC_MAX_CODE_BYTES` al SUBIR el tope
+`JobCreateRequest.code` conservaba un `max_length=262144` estático de pydantic mientras
+la vía admin JSON ya leía `settings.max_code_bytes` en runtime (fix S4). El check runtime
+de bytes ya existía en `_create_job` (compartido con `/upload`), así que **bajar** el tope
+ya funcionaba; **subir** `EHPC_MAX_CODE_BYTES` por encima de 262144 no tenía efecto por
+JSON (pydantic rechazaba antes) — mismo bug que el HIGH que S4 encontró para el
+`source_code` admin. **Fix:** se quita el cap estático de `code` (el tope es 100% runtime);
+se elimina la rama `string_too_long` de `create_job` (ya inalcanzable) — el 413
+`CODE_TOO_LARGE` lo sigue emitiendo `_create_job`. De paso, unifica char↔byte: pydantic
+contaba caracteres, el runtime cuenta bytes UTF-8 (como `/upload` y el nombre del setting).
+- **Doc-first:** `api-contract.md` §7.1 (tabla de validación de `code`) y la tabla de
+  errores §1.1 pasan a documentar el tope runtime, coherentes con §10.6 (admin).
+- **Tests:** `test_bl17_jobs_json_honra_max_code_bytes_alto` (RED: subir el tope permite
+  código > 262144 por JSON) y `..._bajo` (bajar → 413).
+
+### BL-09/BL-10 (low, robustez WS) — la reconexión AUTOMÁTICA no reseteaba el dedupe
+`ws/jobSocket.ts`: la reconexión automática (`scheduleRetry`→`open`) no reseteaba
+`lastLogSeq` ni vaciaba el store; solo lo hacían `connect()`/`retry()` (manuales). Era
+seguro únicamente porque el backoff acumulado del cliente (~7 s) < `TERMINAL_HANDLE_RETENTION_S`
+(10 s): dentro de la ventana el backend sirve el backlog retenido con `seq` reales
+(`_replay_retained`); si expira, cae al replay-desde-DB con `seq` renumerado desde 1
+(`_replay_terminal`) y el filtro `seq <= lastLogSeq` descartaría el replay entero.
+**Opción A (elegida):** la reconexión automática también resetea el dedupe. Se refactorizó
+`resetSession()` en `resetDedupe()` (buffer/`lastLogSeq`/`sawEof`/`lastPhase`) + `resetSession`
+(dedupe + `retries`=0). El path automático llama `resetDedupe()`, PRESERVANDO `retries`
+(presupuesto de backoff, se agota a los 3) y `sawActivePhase` (ámbito de la visita).
+- **Refinamiento de la ronda de review (typescript + code reviewer, 1 HIGH + 1 LOW):**
+  el `begin()` inicial hacía un reset TOTAL del store en cada reconexión, borrando
+  `metrics` (que el backend NO replica → pérdida permanente del `LiveMetricsChart`),
+  `startedAt` (el contador saltaba a ~0) y el latch `logsTruncated` (`OUTPUT_TRUNCATED`
+  se señaliza una vez, no viaja en el backlog → se perdía el banner). Nuevo
+  `jobStore.beginReconnect()`: reset PARCIAL que vacía solo `logs`/`wsError`/`sawEof` y
+  preserva `metrics`/`startedAt`/`wallTimeMs`/`exitCode`/`errorDetail`/`logsTruncated`.
+- **Tests:** describe `BL-09/10: la reconexión AUTOMÁTICA también resetea el dedupe`
+  (replay renumerado re-puebla; `sawActivePhase` preservado; reset PARCIAL preserva
+  metrics/startedAt/truncado).
+
+### BL-34 (low, doc-only) — `fase4-autoria-design.md` documentaba `403 ADMIN_DISABLED`
+4 ubicaciones autoritativas que aún lo presentaban como vigente → `401 UNAUTHORIZED`
+indistinguible, coherente con `api-contract.md` §10.0 y el código (`admin_auth`/`admin_deps`):
+cabecera de §6, flujo de login §9.F y los criterios de verificación §11 (1 y 5). El
+disclaimer del lead en §5 ya superseded el resto (§0 C2/C3, §8, §10) como obsoletas.
+
+### Docs congelados desincronizados (low, doc-only)
+- `architecture.md` §2.2 (y la tabla de env vars §10.5): `EHPC_ALLOWED_ORIGINS` con las
+  variantes `127.0.0.1` (el navegador manda ese Origin al abrir `127.0.0.1:8080` — BL-12)
+  y el volumen `ehpc_submissions` con `name:` explícito (sin él Compose prefija el proyecto
+  y el runner monta un volumen vacío — BL-02). Alineado con `compose.yaml` raíz y `config.py`.
+- `frontend-spec.md` §6.4: se corrige la regla vieja "siempre que haya speedup → info
+  Amdahl" (que BL-30 supersede). La inversión de Amdahl aplica solo con referencia serial
+  del MISMO código (`sweep`, o `pair` con `parser_id: pair_parallel_serial`); con
+  `pair_openmp_numpy`/`pair_openmp_blas` la referencia es otra implementación → comparación
+  directa honesta. Editado SOLO el bloque §6.4 (el árbol estaba limpio; sin ruido del
+  rediseño visual). Coherente con `lib/observations.ts` tras el fix S5.
+
+### Verificación
+- **Backend:** `pytest tests -q --cov=app --cov-fail-under=80` → **344 passed, 91.9%**
+  (`DOCKER_HOST=tcp://127.0.0.1:1`, fakes del Protocol). Nuevas regresiones en
+  `tests/test_audit_residuos.py` (BL-22 + BL-17, RED→GREEN verificado contra `main`).
+- **Frontend:** `tsc --noEmit` (src + tests) limpio; **vitest 224/224**; cobertura
+  `ws/jobSocket.ts` 94% (≥80).
+- **Contratos congelados intactos** (`types.ts`, `messages.ts`, `ehpc.d.ts`): solo se
+  tocó `schemas.py` (adaptación al contrato, BL-17) y `api-contract.md` (doc-first).
+- **Ronda de review:** security-reviewer (BL-22, sin hallazgos), python-reviewer (BL-17,
+  approve), typescript-reviewer (BL-09/10) y code-reviewer (rama) → 1 HIGH + 1 MEDIUM +
+  1 LOW, todos corregidos (ver refinamiento de BL-09/10 y esta entrada del changelog).
+
+**Los 3 DIFERIDOS siguen fuera de alcance** (sesión aparte): BL-28 y BL-29 (footer de
+estado del shell Electron — requieren pasada Electron con xvfb) y BL-31 (clamp de
+`fixed_threads` por núcleos en `ThreadsField.effectiveCpus` del frontend).
