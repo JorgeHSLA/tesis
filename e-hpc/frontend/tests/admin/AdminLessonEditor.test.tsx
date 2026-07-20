@@ -1,7 +1,7 @@
 // tests/admin/AdminLessonEditor.test.tsx — editor de lección: dirty, preview
 // WYSIWYG (renderMarkdown), submit create (createLesson con ejemplo pareado) vs
 // submit edit (updateLesson solo la faceta lección).
-import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 

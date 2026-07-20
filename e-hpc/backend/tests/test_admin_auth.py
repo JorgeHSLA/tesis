@@ -236,7 +236,7 @@ def test_store_tope_max_sessions():
 # ───────────────────────────── LoginThrottle (unit) ─────────────────────────
 
 
-def test_throttle_backoff_y_reset():
+async def test_throttle_backoff_y_reset():
     throttle = LoginThrottle(step_s=0.5, max_s=5.0)
     assert throttle.delay_s == 0.0
     throttle.record_failure()
@@ -244,7 +244,7 @@ def test_throttle_backoff_y_reset():
     for _ in range(20):
         throttle.record_failure()
     assert throttle.delay_s == 5.0  # tope
-    throttle.reset()
+    await throttle.reset()  # BL-23: reset serializado bajo el lock
     assert throttle.delay_s == 0.0
 
 

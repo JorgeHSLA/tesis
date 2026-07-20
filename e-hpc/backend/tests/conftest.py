@@ -198,6 +198,9 @@ def build_app(
         # sostener el lock y dejar que los repos lo re-adquieran sin
         # autobloquearse (WP9-01 corregido).
         app.state.write_lock = db_module.write_lock
+        # BL-19: lock de lectura dedicado de los GET admin (creado por lifespan,
+        # ligado a este loop igual que write_lock).
+        app.state.content_read_lock = asyncio.Lock()
         app.state.job_runner = JobRunner(
             docker_service=docker,
             job_repo=repo,
