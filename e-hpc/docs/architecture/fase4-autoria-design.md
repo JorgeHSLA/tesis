@@ -424,8 +424,9 @@ No se toca CORS, `allow_credentials`, ni la lista de orígenes.
 ## 6. Endpoints admin de contenido
 
 Router `admin.py`, `prefix="/api/v1/admin"`, todos `Depends(require_admin)`. Envelope
-`{success,data,error,meta}` (helpers `envelope_ok`/`envelope_error`). Errores 401 `UNAUTHORIZED` /
-403 `ADMIN_DISABLED` aplican a todos.
+`{success,data,error,meta}` (helpers `envelope_ok`/`envelope_error`). El error 401 `UNAUTHORIZED`
+aplica a todos, **indistinguible** (Bearer ausente/inválido/expirado y modo admin deshabilitado
+dan el mismo 401; no se filtra el estado del servidor — BL-34, no existe `ADMIN_DISABLED`).
 
 ### 6.1 Tabla completa
 
@@ -760,8 +761,9 @@ contra `GET /admin/session`; si `authenticated:false` → limpia, cubre backend 
 ### 9.F Las 5 pantallas
 
 1. **Login** `#/admin/login`: `Field` password (autoFocus, Enter=submit) + botón "Entrar". `401` →
-   error rojo "Contraseña incorrecta". `403 ADMIN_DISABLED` → `EmptyState` "Modo administrador
-   deshabilitado / Define EHPC_ADMIN_PASSWORD en el backend" (sin campo). Red → `ErrorState` retry.
+   error rojo "Contraseña incorrecta" (401 **indistinguible**: cubre la credencial errónea Y el modo
+   admin deshabilitado sin `EHPC_ADMIN_PASSWORD`; la UI trata cualquier 401 como "credencial o modo no
+   disponibles", no se filtra el estado — BL-34, no existe `ADMIN_DISABLED`). Red → `ErrorState` retry.
    Si ya autenticado al montar → `Navigate` a `state.from ?? '/admin'`.
 2. **Dashboard** `#/admin`: `getModules()`; `ModuleGroup` colapsable con acciones CRUD + botón
    "+ Nuevo módulo"/"+ Lección"; `LessonAdminRow` con badges (`enabled`, `has_quiz·count`, ejemplo)
@@ -848,7 +850,7 @@ A,B,C). Ola 4 = E (tras A,C,D). E2E (§11) tras E.
 
 **Verificación E2E (flujo crítico, Playwright; precondición: backend con `EHPC_ADMIN_PASSWORD`)**
 1. `#/admin/login` con password correcto → dashboard; con password malo → 401 en el form; sin la env
-   var → 403 pantalla "modo deshabilitado".
+   var → **el mismo 401 indistinguible** (no una pantalla distinta; no se filtra el estado — BL-34).
 2. Crear módulo → crear lección con markdown (+ ejemplo pareado + `source_code`) → añadir quiz →
    subir/editar `.py`.
 3. **Aparece en el catálogo del estudiante**: `GET /api/v1/modules`/`/lessons/{id}`/`/examples/{id}`
@@ -856,8 +858,8 @@ A,B,C). Ola 4 = E (tras A,C,D). E2E (§11) tras E.
    `correct_key`/`explanation`.
 4. **Corre en el simulador**: "Probar en simulador" → `POST /jobs` ejecuta el `.py` en el runner
    (network none, non-root, read-only, límites) y muestra logs por WS.
-5. **Sin sesión, `/admin/*` = 401** (o 403 si la var está ausente); `logout` invalida el token
-   (siguiente request → 401).
+5. **Sin sesión, `/admin/*` = 401** (también sin la env var: el mismo 401 indistinguible, BL-34);
+   `logout` invalida el token (siguiente request → 401).
 6. **No-pérdida en seed**: `test_seed_no_data_loss` verde (igualdad de snapshot + conteos +
    idempotencia); goldens HTTP de los GET públicos idénticos a Fase 3.
 ```
