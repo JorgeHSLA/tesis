@@ -284,6 +284,17 @@ vez al inicio del request (patrón `get_content`). **Invariante a documentar**: 
 
 ## 5. Auth
 
+> **Corrección del lead — `ADMIN_DISABLED` NO existe (supersede a C2/C3 y a toda
+> mención de `403 ADMIN_DISABLED` en este documento).** El contrato congelado
+> (`api-contract.md` §10.0) y la implementación (`admin_auth.py`,
+> `admin_deps.py`) resuelven el modo admin deshabilitado, la credencial errónea y
+> el Bearer inválido/expirado **todos** como `401 UNAUTHORIZED` **indistinguible**:
+> no se filtra el estado del servidor (se descarta la enumeración de T5 por
+> mínima que sea). La UI trata cualquier 401 del login como "credencial o modo no
+> disponibles". Los fragmentos de §5.3/§5.4/§5.6 abajo ya reflejan esta decisión;
+> las filas C2/C3 de §0 y las menciones sueltas de `403`/`ADMIN_DISABLED` en el
+> resto del doc quedan **obsoletas** (BL-34).
+
 ### 5.1 Config — `backend/app/config.py`
 
 ```python
@@ -340,13 +351,15 @@ def verify_password(candidate: str, configured: str) -> bool:
 
 | Método | Path | Request | Response `data` | OK | Errores |
 |---|---|---|---|---|---|
-| POST | `/admin/login` | `AdminLoginRequest{password}` | `AdminLoginResult{token, expires_at}` | 200 | 401 `UNAUTHORIZED`, 403 `ADMIN_DISABLED`, 422 `VALIDATION_ERROR` |
+| POST | `/admin/login` | `AdminLoginRequest{password}` | `AdminLoginResult{token, expires_at}` | 200 | 401 `UNAUTHORIZED`, 422 `VALIDATION_ERROR` |
 | POST | `/admin/logout` | — (Bearer) | `{revoked: true}` | 200 | 401 `UNAUTHORIZED` |
 | GET | `/admin/session` | — (Bearer) | `AdminSessionInfo{authenticated, expires_at}` | 200 | 401 `UNAUTHORIZED` |
 
-`login`: si `not settings.admin_enabled` → `403 ADMIN_DISABLED` (revela deshabilitado, C3). Si
-habilitado: `throttle.delay` → `verify_password` → `401 UNAUTHORIZED` en fallo (mensaje genérico,
-`record_failure`) o `store.create()` + `reset()` en éxito. `expires_at` en ISO-8601 UTC `Z`.
+`login`: SIEMPRE ejecuta `verify_password` (dummy compare en tiempo constante si
+`not settings.admin_enabled`) y responde `401 UNAUTHORIZED` indistinguible tanto si el modo está
+deshabilitado como si la contraseña es incorrecta (no revela el estado — BL-34, supersede C3). El
+fallo pasa por `throttle.register_failure()` (serializa lee-espera-incrementa, BL-23) con mensaje
+genérico; el éxito hace `store.create()` + `reset()`. `expires_at` en ISO-8601 UTC `Z`.
 `GET /session` no renueva TTL (C4).
 
 ### 5.4 `require_admin` — `backend/app/routers/admin_deps.py` (nuevo)
@@ -357,8 +370,10 @@ def get_admin_sessions(request) -> AdminSessionStore:   # lee app.state.admin_se
 def _extract_bearer(request) -> str | None:             # 'Authorization: Bearer <token>' estricto
     ...
 async def require_admin(request) -> str:
+    # BL-34: deshabilitado, token ausente/ inválido/expirado ⇒ el MISMO 401
+    # indistinguible (no se filtra el estado del servidor). No existe ADMIN_DISABLED.
     if not request.app.state.settings.admin_enabled:
-        raise ApiException("ADMIN_DISABLED", "Modo administrador deshabilitado.")
+        raise ApiException("UNAUTHORIZED", "Sesión inválida o expirada.")
     token = _extract_bearer(request)
     if token is None or not get_admin_sessions(request).validate(token):
         raise ApiException("UNAUTHORIZED", "Sesión inválida o expirada.")
@@ -386,7 +401,7 @@ No se toca CORS, `allow_credentials`, ni la lista de orígenes.
 | T2 | Timing sobre password | Tiempo constante siempre (dummy compare si deshabilitado) | Insignificante |
 | T3 | Robo del bearer por XSS | CSP `script-src 'self'`, TTL 8h, logout revoca, `sessionStorage` | Documentado/aceptado |
 | T4 | CSRF a mutaciones admin | Bearer en header custom (no ambient) + `allow_credentials=False` | Nulo para mutaciones |
-| T5 | Enumerar si admin activo | Se acepta revelar vía `ADMIN_DISABLED` por UX (C3) | Nulo en loopback |
+| T5 | Enumerar si admin activo | `401` indistinguible en login y `/admin/*` (no existe `ADMIN_DISABLED`; BL-34) | Nulo (no se filtra el estado) |
 | T6 | Escalado vía `.py` subido | Sandbox NO relajado (§0.6, §6.3) | Igual al del estudiante |
 | T7 | Sesiones colgadas | TTL + purga perezosa + tope 16 | Nulo |
 

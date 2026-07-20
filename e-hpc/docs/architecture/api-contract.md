@@ -691,7 +691,8 @@ Si el output fue truncado, se añade una última línea
 
 Errores (con envelope JSON): `404 JOB_NOT_FOUND`; `409` con
 `code="JOB_NOT_FINISHED"`, `message="El job aún no ha terminado"` si el job
-no es terminal (añadir `JOB_NOT_FINISHED` al catálogo de §1.1).
+no es terminal (añadir `JOB_NOT_FINISHED` al catálogo de §1.1); `422
+VALIDATION_ERROR` si `stream` no es `combined`/`stdout`/`stderr` (BL-36).
 
 ### 7.7 Estados del job (máquina de fases)
 
@@ -934,17 +935,19 @@ C:      GET /api/v1/jobs/01a2…   → parsed_timings (curva de speedup)
 | GET | `/api/v1/jobs` | Listar recientes | 200 | 422 |
 | GET | `/api/v1/jobs/{id}` | Detalle + resultados | 200 | 404 |
 | POST | `/api/v1/jobs/{id}/cancel` | Cancelar | 202 | 404, 409 |
-| GET | `/api/v1/jobs/{id}/output` | Descargar salida (text/plain) | 200 | 404, 409 |
+| GET | `/api/v1/jobs/{id}/output` | Descargar salida (text/plain) | 200 | 404, 409, 422 |
 | WS | `/ws/jobs/{id}` | Stream multiplexado del job | — | close 4404 |
 | POST | `/api/v1/admin/login` | Login admin → Bearer (§10) | 200 | 401, 422 |
 | POST | `/api/v1/admin/logout` | Invalidar sesión (§10) | 200 | 401 |
 | GET | `/api/v1/admin/session` | Estado de la sesión (§10) | 200 | 401 |
 | GET | `/api/v1/admin/modules` | Módulos con detalle admin (§10) | 200 | 401 |
 | POST | `/api/v1/admin/modules` | Crear módulo (§10) | 201 | 401, 409, 422 |
+| PUT | `/api/v1/admin/modules/reorder` | Reordenar módulos por lote (§10) | 200 | 401, 404, 409, 422 |
 | PUT | `/api/v1/admin/modules/{id}` | Editar módulo (§10) | 200 | 401, 404, 409, 422 |
 | DELETE | `/api/v1/admin/modules/{id}` | Borrar módulo vacío (§10) | 200 | 401, 404, 409 |
 | GET | `/api/v1/admin/lessons/{id}` | Lección + ejemplo (admin) (§10) | 200 | 401, 404 |
 | POST | `/api/v1/admin/lessons` | Crear lección + ejemplo (§10) | 201 | 401, 404, 409, 413, 422 |
+| PUT | `/api/v1/admin/lessons/reorder` | Reordenar lecciones por lote (§10) | 200 | 401, 404, 409, 422 |
 | PUT | `/api/v1/admin/lessons/{id}` | Editar lección (§10) | 200 | 401, 404, 409, 422 |
 | DELETE | `/api/v1/admin/lessons/{id}` | Borrar lección + ejemplo + quiz (§10) | 200 | 401, 404 |
 | GET | `/api/v1/admin/lessons/{id}/quiz` | Quiz CON clave correcta (§10) | 200 | 401, 404 |
@@ -1036,6 +1039,7 @@ deshabilitado. `POST /api/v1/admin/logout` (Bearer) → `200 {"revoked": true}`.
 |---|---|---|---|---|
 | GET | `/admin/modules` | — | `{ "modules": [AdminModule…] }` | 401 |
 | POST | `/admin/modules` | `AdminModuleCreate` | `AdminModule` | 401, 409 `DUPLICATE_ID`/`ORDER_CONFLICT`, 422 `CONTENT_VALIDATION_ERROR` |
+| PUT | `/admin/modules/reorder` | `AdminReorderRequest` | `{ "modules": [AdminModule…] }` | 401, 404 `MODULE_NOT_FOUND`, 409 `ORDER_CONFLICT`, 422 |
 | PUT | `/admin/modules/{id}` | `AdminModuleUpdate` | `AdminModule` | 401, 404 `MODULE_NOT_FOUND`, 409 `ORDER_CONFLICT`, 422 |
 | DELETE | `/admin/modules/{id}` | — | `{ "deleted": true, "id": "…" }` | 401, 404, 409 `MODULE_NOT_EMPTY` |
 
@@ -1044,12 +1048,26 @@ deshabilitado. `POST /api/v1/admin/logout` (Bearer) → `200 {"revoked": true}`.
 `AdminModuleCreate` = `AdminModuleBase` + `id`; `AdminModuleUpdate` = `AdminModuleBase`
 (`id` por el path). `AdminModuleBase` = `{ order, title, description, level }`.
 
+**Reorden por lote** *(extensión — fix de auditoría S4, BL-20)*: el `order` es
+`UNIQUE` global e inmediato, así que un swap directo `A↔B` vía dos `PUT` falla
+siempre en el primero con `409 ORDER_CONFLICT`. `PUT /admin/modules/reorder`
+reasigna el `order` de varios módulos **en una sola transacción**:
+`AdminReorderRequest` = `{ items: [{ id, order }] (≥1) }`. Se valida que cada `id`
+exista (`404 MODULE_NOT_FOUND`), que no haya `id` repetido en la petición y que
+el conjunto **final** de `order` (los módulos tocados + los intactos) sea único y
+`> 0` (`409 ORDER_CONFLICT`); la reasignación se aplica con un *parking* temporal
+para no violar el `UNIQUE` a mitad de transacción. Devuelve el listado admin
+completo ya reordenado. El mismo `AdminReorderRequest` sirve para lecciones
+(§10.3). *(La UI puede seguir usando el workaround de `order` libre temporal; este
+endpoint lo hace innecesario.)*
+
 ### 10.3 Lecciones (unidad lección + ejemplo pareado)
 
 | Método | Path | Request | Data | Errores |
 |---|---|---|---|---|
 | GET | `/admin/lessons/{id}` | — | `AdminLessonDetail` | 401, 404 `LESSON_NOT_FOUND` |
 | POST | `/admin/lessons` | `AdminLessonCreate` | `AdminLessonDetail` | 401, 404 `MODULE_NOT_FOUND`, 409 `DUPLICATE_ID`/`ORDER_CONFLICT`, 413 `CODE_TOO_LARGE`, 422 |
+| PUT | `/admin/lessons/reorder` | `AdminReorderRequest` | `{ "modules": [AdminModule…] }` | 401, 404 `LESSON_NOT_FOUND`, 409 `ORDER_CONFLICT`, 422 |
 | PUT | `/admin/lessons/{id}` | `AdminLessonUpdate` | `AdminLessonDetail` | 401, 404, 409 `ORDER_CONFLICT`, 422 |
 | DELETE | `/admin/lessons/{id}` | — | `{ "deleted": true, "id": "…" }` | 401, 404 |
 
@@ -1058,6 +1076,13 @@ recommended: [{lesson_id,label,tag}] }`. `AdminLessonCreate` = base + `{ id, exa
 AdminExampleBase, source_code }` (crea el ejemplo pareado). `AdminLessonUpdate` = base.
 `AdminLessonDetail` = base + `{ id, enabled, has_quiz, quiz_question_count,
 prev_lesson_id, next_lesson_id, example: AdminExample }`.
+
+`PUT /admin/lessons/reorder` reordena lecciones por lote con la misma semántica y
+el mismo `AdminReorderRequest` que los módulos (§10.2): `order` de lección es
+`UNIQUE` global, cada `id` debe existir (`404 LESSON_NOT_FOUND`) y el conjunto
+final de `order` debe ser único y `> 0` (`409 ORDER_CONFLICT`). Devuelve
+`{ "modules": [AdminModule…] }` (el listado admin, con las lecciones ya en su
+nuevo orden intra-módulo).
 
 ### 10.4 Ejemplos (solo edición) y subida de código
 
@@ -1093,10 +1118,13 @@ UTF-8) y guarda `source_code`+`filename` en la fila del ejemplo. `AdminExampleCo
 | DELETE | `/admin/lessons/{id}/quiz` | — | `{ "deleted": true, "id": "…" }` | 401, 404 |
 
 `AdminQuizUpsert` = `{ pass_threshold, questions: [AdminQuizQuestion…] }` (reemplazo
-**total** del set). `AdminQuizQuestion` = `{ id, order, text, options: [{key,text}] (2-4),
+**total** del set). `AdminQuizQuestion` = `{ id?, order, text, options: [{key,text}] (2-4),
 correct_key, explanation }`. `AdminQuiz` = upsert + `{ lesson_id, question_count }`.
-El `id` de pregunta lo provee el cliente (patrón `^[A-Za-z0-9._-]{1,80}$`) o el
-servidor autogenera `{lesson_id}-q{n}`. **Este es el único endpoint que expone
+El `id` de pregunta es **opcional** *(fix de auditoría S4, BL-18)*: si el cliente lo
+provee debe cumplir el patrón `^[A-Za-z0-9._-]{1,80}$`; si se **omite** (`null` o
+ausente), el servidor lo **autogenera** como `{lesson_id}-q{order}` (usando el
+`order` de la propia pregunta) antes de validar unicidad e insertar. El `AdminQuiz`
+devuelto siempre trae los ids ya resueltos. **Este es el único endpoint que expone
 `correct_key`/`explanation`** — el GET público §5.1 los sigue omitiendo.
 
 > **Reconciliación del progreso** *(extensión deliberada — fixes de auditoría
@@ -1125,12 +1153,15 @@ salvo donde se indica otro código:
 - **Orden**: `order` global de lección o `order` de módulo colisiona →
   `409 ORDER_CONFLICT`.
 - **Contenido**: `correct_key ∈ keys(options)`; `parser_id` ∈ los 6 de §3.1;
-  `filename` cumple el patrón `.py`; `source_code` `1 ≤ bytes ≤ 262144`
-  (`413 CODE_TOO_LARGE`); **markdown dentro del subset** de `frontend/src/lib/markdown.ts`
+  `filename` cumple el patrón `.py`; `source_code` `1 ≤ bytes ≤ max_code_bytes`
+  (`413 CODE_TOO_LARGE`; el tope es `EHPC_MAX_CODE_BYTES`, por defecto 262144, y se
+  aplica en **runtime** por igual en las vías JSON y multipart — fix de auditoría
+  S4, BL-17); **markdown dentro del subset** de `frontend/src/lib/markdown.ts`
   (h1-h4, listas, código, negrita/cursiva, enlaces `http(s)`/`#`/relativos, tablas
   simples; sin HTML crudo; fences cerrados); **coherencia de hilos** (espeja §7.1):
   `threads_configurable=true ⇒ fixed_threads=null`; `threads_configurable=false ∧
-  sweeps_threads=false ⇒ fixed_threads ≥ 1`; **GPU**: `requires_gpu=true ⇒
-  enabled=false`.
+  sweeps_threads=false ∧ requires_gpu=false ⇒ fixed_threads ≥ 1` (los ejemplos GPU
+  no usan hilos de CPU, así que quedan exentos de esta regla — fix de auditoría S4,
+  BL-11); **GPU**: `requires_gpu=true ⇒ enabled=false`.
 - Rangos por DTO (pydantic): `difficulty 1..5`, `default_timeout_s 5..120`,
   `pass_threshold ∈ (0,1]`, `takeaways` no vacío, etc. → `422 VALIDATION_ERROR`.
