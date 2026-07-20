@@ -313,6 +313,12 @@ class JobRunner:
                 error_detail=None, parsed=None, finished_at=utc_now_iso(),
                 wall_time_ms=None,
             )
+            # El job nunca ejecutará: su drainer no tiene productores ni nada
+            # que consumir. Se detiene YA en vez de dejarlo despertando cada
+            # flush_interval hasta que la tarea alcance el semáforo — con la
+            # cola llena de jobs largos por delante eso podían ser minutos.
+            # _run lo re-invoca al despertar; _stop_drainer es idempotente.
+            await self._stop_drainer(handle)
             # §3.4 pasos 2-3 para los suscriptores ya conectados: status
             # terminal + eof + cierre de colas (idempotente vía handle.closed).
             self._emit_terminal_and_close(handle)

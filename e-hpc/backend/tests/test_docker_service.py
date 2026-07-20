@@ -247,14 +247,42 @@ def test_bl15_create_fallido_no_intenta_remove(service, stub):
     assert stub.containers.container.removed is False
 
 
-def test_bl15_fallo_del_remove_no_enmascara_el_error_original(service, stub):
+@pytest.mark.parametrize("remove_error", [
+    docker.errors.APIError("contenedor ocupado"),
+    # el daemon caído a mitad de create→start hace que docker-py deje escapar
+    # la excepción CRUDA de requests (mismo caso que wait(), docker-py.md §5.1)
+    requests.exceptions.ConnectionError("socket cerrado"),
+    requests.exceptions.ReadTimeout("sin respuesta"),
+])
+def test_bl15_fallo_del_remove_no_enmascara_el_error_original(service, stub, remove_error):
+    """La limpieza jamás rompe la frontera del módulo: pase lo que pase en el
+    remove, el llamador recibe DockerServiceError con el error original."""
     stub.containers.container = StubContainer(
         start_error=docker.errors.APIError("cgroup roto"),
-        remove_error=docker.errors.APIError("contenedor ocupado"),
+        remove_error=remove_error,
     )
     with pytest.raises(DockerServiceError) as excinfo:
         service.run_job("job1", "/x", threads=1, timeout_s=30)
     assert "cgroup roto" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("remove_error,se_logea", [
+    # NotFound = carrera benigna: el contenedor ya no está, nada que limpiar
+    (docker.errors.NotFound("no such container"), False),
+    # control positivo: un fallo real de limpieza SÍ deja rastro
+    (docker.errors.APIError("contenedor ocupado"), True),
+])
+def test_bl15_solo_los_fallos_reales_de_limpieza_se_logean(
+    service, stub, caplog, remove_error, se_logea
+):
+    stub.containers.container = StubContainer(
+        start_error=docker.errors.APIError("cgroup roto"),
+        remove_error=remove_error,
+    )
+    with caplog.at_level("WARNING", logger="ehpc.docker_service"):
+        with pytest.raises(DockerServiceError):
+            service.run_job("job1", "/x", threads=1, timeout_s=30)
+    assert ("no se pudo eliminar" in caplog.text) is se_logea
 
 
 # ─────── BL-14: cpuset 0..N-1 — limitación documentada (architecture §4) ─────

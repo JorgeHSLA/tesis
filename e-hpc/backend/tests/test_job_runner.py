@@ -498,6 +498,10 @@ async def test_bl07_cancel_en_queued_sincroniza_handle_y_emite_terminal(db, sett
     assert messages[-2]["detail"]["error_detail"] is None
     assert messages[-1]["type"] == "eof"
 
+    # el drainer se detiene YA: no queda despertando mientras la tarea espera
+    # el semáforo detrás de jobs largos (review S3)
+    assert queued.drainer.done()
+
     blocker_exec.finish(exit_code=0)
     await asyncio.wait_for(blocker.task, 10)
     await asyncio.wait_for(queued.task, 10)

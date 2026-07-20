@@ -295,7 +295,15 @@ class DockerService:
                 # contenedor queda en el daemon hasta el próximo reaper.
                 try:
                     container.remove(force=True, v=True)
-                except docker.errors.DockerException:
+                except docker.errors.NotFound:
+                    pass  # ya no existe: carrera benigna, nada que limpiar
+                except (docker.errors.DockerException, requests.exceptions.RequestException):
+                    # Si el daemon se cayó a mitad del ciclo create→start, el
+                    # remove golpea la misma conectividad rota y docker-py
+                    # deja escapar la excepción cruda de requests (mismo caso
+                    # que wait(), docker-py.md §5.1): se atrapan ambas para no
+                    # romper la frontera del módulo con una excepción sin
+                    # abstraer.
                     logger.warning(
                         "run_job(%s): no se pudo eliminar el contenedor "
                         "tras el fallo de start()", job_id,
