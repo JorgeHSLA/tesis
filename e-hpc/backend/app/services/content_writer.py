@@ -404,7 +404,24 @@ async def replace_quiz(
         ]
         if issues:
             raise _content_error(issues)
-        await _persist(app, lambda: content_admin.replace_quiz(db, lesson_id, body))
+        # BL-06 (§10.5): el estado previo se lee ANTES del reemplazo (el
+        # DELETE+INSERT de preguntas borra la evidencia del conteo anterior).
+        # Cambiar el nº de preguntas o el umbral invalida el progreso: un
+        # best_quiz_score sobre un total distinto (o un "aprobado" con otro
+        # umbral) sería una nota imposible de corregir para el estudiante.
+        prev_count = await content_admin.quiz_question_count(db, lesson_id)
+        prev_threshold = await content_admin.lesson_pass_threshold(db, lesson_id)
+        reset_progress = (
+            prev_count != len(body.questions)
+            or prev_threshold != body.pass_threshold
+        )
+
+        async def _write() -> None:
+            await content_admin.replace_quiz(db, lesson_id, body)
+            if reset_progress:
+                await content_admin.reset_quiz_progress(db, lesson_id)
+
+        await _persist(app, _write)
         result = await content_admin.select_admin_quiz(db, lesson_id)
     assert result is not None
     return result
@@ -421,4 +438,11 @@ async def delete_quiz(app: "FastAPI", lesson_id: str) -> None:
             raise ApiException(
                 "QUIZ_NOT_FOUND", f"La lección {lesson_id} no tiene quiz."
             )
-        await _persist(app, lambda: content_admin.delete_quiz(db, lesson_id))
+
+        # BL-06 (§10.5): borrar el quiz siempre cambia el nº de preguntas
+        # (el guard de arriba garantiza que había ≥1) ⇒ reset incondicional.
+        async def _write() -> None:
+            await content_admin.delete_quiz(db, lesson_id)
+            await content_admin.reset_quiz_progress(db, lesson_id)
+
+        await _persist(app, _write)

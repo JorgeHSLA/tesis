@@ -132,6 +132,16 @@ async def quiz_question_count(db: "aiosqlite.Connection", lesson_id: str) -> int
     return int(value or 0)
 
 
+async def lesson_pass_threshold(
+    db: "aiosqlite.Connection", lesson_id: str
+) -> float | None:
+    """``pass_threshold`` actual de la lección (``None`` si no existe)."""
+    value = await _scalar(
+        db, "SELECT pass_threshold FROM lessons WHERE id = ?", (lesson_id,)
+    )
+    return None if value is None else float(value)
+
+
 async def question_ids_in_other_lessons(
     db: "aiosqlite.Connection", lesson_id: str, ids: list[str]
 ) -> list[str]:
@@ -298,9 +308,20 @@ async def update_lesson(
 
 
 async def delete_lesson(db: "aiosqlite.Connection", lesson_id: str) -> None:
-    """Borra la lección (CASCADE → ejemplo + quiz) y limpia ``recommended``
-    colgantes que apunten a ``lesson_id`` en el resto de lecciones."""
+    """Borra la lección (CASCADE → ejemplo + quiz), limpia ``recommended``
+    colgantes y PURGA el estado del estudiante asociado (BL-01, §10.1).
+
+    ``lesson_progress``/``quiz_attempts`` no tienen FK a ``lessons`` (viven en
+    el schema v1); sin la purga explícita quedarían huérfanos y un id
+    reutilizado resucitaría ``completed``/``best_quiz_score`` de un contenido
+    que ya no existe. Misma transacción que el DELETE (commit en el writer)."""
     await _clean_dangling_recommended(db, lesson_id)
+    await db.execute(
+        "DELETE FROM lesson_progress WHERE lesson_id = ?", (lesson_id,)
+    )
+    await db.execute(
+        "DELETE FROM quiz_attempts WHERE lesson_id = ?", (lesson_id,)
+    )
     await db.execute("DELETE FROM lessons WHERE id = ?", (lesson_id,))
 
 
@@ -408,6 +429,22 @@ async def replace_quiz(
 async def delete_quiz(db: "aiosqlite.Connection", lesson_id: str) -> None:
     await db.execute(
         "DELETE FROM quiz_questions WHERE lesson_id = ?", (lesson_id,)
+    )
+
+
+async def reset_quiz_progress(
+    db: "aiosqlite.Connection", lesson_id: str
+) -> None:
+    """Invalida el progreso de quiz de la lección (BL-06, §10.5).
+
+    Se ejecuta en la MISMA transacción que el reemplazo/borrado del quiz
+    cuando cambia el nº de preguntas o el ``pass_threshold`` (la decisión de
+    cuándo aplica vive en el writer). ``viewed`` se conserva."""
+    await db.execute(
+        "UPDATE lesson_progress SET best_quiz_score = NULL, completed = 0, "
+        "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') "
+        "WHERE lesson_id = ?",
+        (lesson_id,),
     )
 
 

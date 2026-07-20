@@ -515,3 +515,149 @@ def test_delete_lesson_limpia_recommended_colgante(client, auth):
     lb = client.get("/api/v1/admin/lessons/lB", headers=auth)
     assert lb.status_code == 200
     assert lb.json()["data"]["recommended"] == []
+
+
+# ───────────── BL-01/BL-06 (auditoría §3): integridad del progreso ───────────
+
+
+def _quiz_payload_n(lesson_id="lTest", n=2, pass_threshold=0.5, text_suffix=""):
+    """Quiz de ``n`` preguntas (correcta siempre 'a') para tests de progreso."""
+    return {
+        "pass_threshold": pass_threshold,
+        "questions": [
+            {
+                "id": f"{lesson_id}-q{i}",
+                "order": i,
+                "text": f"¿Pregunta {i}{text_suffix}?",
+                "options": [
+                    {"key": "a", "text": "Correcta"},
+                    {"key": "b", "text": "Incorrecta"},
+                ],
+                "correct_key": "a",
+                "explanation": "Porque sí.",
+            }
+            for i in range(1, n + 1)
+        ],
+    }
+
+
+def _put_quiz(client, auth, lesson_id="lTest", **over):
+    response = client.put(
+        f"/api/v1/admin/lessons/{lesson_id}/quiz",
+        json=_quiz_payload_n(lesson_id, **over),
+        headers=auth,
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["data"]
+
+
+def _pass_quiz(client, lesson_id="lTest", n=2):
+    """Intento público con todas las respuestas correctas (aprueba)."""
+    answers = {f"{lesson_id}-q{i}": "a" for i in range(1, n + 1)}
+    response = client.post(
+        f"/api/v1/lessons/{lesson_id}/quiz/attempts", json={"answers": answers}
+    )
+    assert response.status_code == 201, response.text
+    data = response.json()["data"]
+    assert data["passed"] is True
+    return data
+
+
+def _progress_entry(client, lesson_id="lTest"):
+    progress = client.get("/api/v1/progress").json()["data"]["lessons"]
+    return progress.get(lesson_id)
+
+
+def test_bl01_borrar_y_recrear_id_no_resucita_progreso(client, auth):
+    """BL-01: borrar la lección purga progreso e intentos; reutilizar el id
+    NO hereda ``completed``/``best_quiz_score`` de un contenido que ya no existe."""
+    _create_module(client, auth)
+    _create_lesson(client, auth)
+    _put_quiz(client, auth, n=2)
+    _pass_quiz(client, n=2)
+
+    entry = _progress_entry(client)
+    assert entry is not None and entry["completed"] is True
+    assert entry["best_quiz_score"] == 2
+
+    deleted = client.delete("/api/v1/admin/lessons/lTest", headers=auth)
+    assert deleted.status_code == 200
+
+    # recrear una lección NUEVA y distinta con el MISMO id
+    _create_lesson(client, auth, title="Otra lección distinta")
+    assert _progress_entry(client) is None  # sin progreso heredado
+
+    # el historial de intentos también quedó purgado
+    _put_quiz(client, auth, n=1)
+    history = client.get("/api/v1/lessons/lTest/quiz/attempts")
+    assert history.status_code == 200, history.text
+    assert history.json()["data"]["attempts"] == []
+    assert history.json()["meta"]["total"] == 0
+
+
+def test_bl06_replace_quiz_menos_preguntas_resetea_progreso(client, auth):
+    """BL-06: cambiar el nº de preguntas invalida best_quiz_score/completed
+    (evita la nota imposible best=2 sobre quiz_total=1)."""
+    _create_module(client, auth)
+    _create_lesson(client, auth)
+    _put_quiz(client, auth, n=2)
+    _pass_quiz(client, n=2)
+    # viewed lo marca el estudiante y debe SOBREVIVIR al reset
+    client.put("/api/v1/progress/lessons/lTest", json={"viewed": True})
+
+    _put_quiz(client, auth, n=1)  # quiz reemplazado con MENOS preguntas
+
+    entry = _progress_entry(client)
+    assert entry is not None, "la fila de progreso no debe desaparecer"
+    assert entry["best_quiz_score"] is None
+    assert entry["completed"] is False
+    assert entry["quiz_total"] == 1
+    assert entry["viewed"] is True
+
+
+def test_bl06_replace_quiz_solo_threshold_resetea_progreso(client, auth):
+    """BL-06: cambiar pass_threshold también invalida el progreso previo
+    (un 'aprobado' con el umbral viejo no vale con el nuevo)."""
+    _create_module(client, auth)
+    _create_lesson(client, auth)
+    _put_quiz(client, auth, n=2, pass_threshold=0.5)
+    _pass_quiz(client, n=2)
+
+    _put_quiz(client, auth, n=2, pass_threshold=0.9)  # mismas preguntas
+
+    entry = _progress_entry(client)
+    assert entry["best_quiz_score"] is None
+    assert entry["completed"] is False
+
+
+def test_bl06_replace_quiz_identico_no_resetea(client, auth):
+    """Editar solo el texto (mismo nº de preguntas y umbral) NO borra el
+    progreso del estudiante — el reset es por cambio estructural, no cosmético."""
+    _create_module(client, auth)
+    _create_lesson(client, auth)
+    _put_quiz(client, auth, n=2)
+    _pass_quiz(client, n=2)
+
+    _put_quiz(client, auth, n=2, text_suffix=" (texto corregido)")
+
+    entry = _progress_entry(client)
+    assert entry["best_quiz_score"] == 2
+    assert entry["completed"] is True
+
+
+def test_bl06_delete_quiz_resetea_progreso(client, auth):
+    """BL-06: borrar el quiz deja best=NULL/completed=false (no best=2 sobre
+    un quiz_total de 0)."""
+    _create_module(client, auth)
+    _create_lesson(client, auth)
+    _put_quiz(client, auth, n=2)
+    _pass_quiz(client, n=2)
+
+    deleted = client.delete("/api/v1/admin/lessons/lTest/quiz", headers=auth)
+    assert deleted.status_code == 200
+
+    entry = _progress_entry(client)
+    assert entry is not None
+    assert entry["best_quiz_score"] is None
+    assert entry["completed"] is False
+    assert entry["quiz_total"] == 0
