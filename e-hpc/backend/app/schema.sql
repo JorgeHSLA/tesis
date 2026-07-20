@@ -153,3 +153,15 @@ CREATE TABLE IF NOT EXISTS quiz_questions (
     UNIQUE (lesson_id, "order")
 );
 CREATE INDEX IF NOT EXISTS idx_quiz_lesson ON quiz_questions (lesson_id, "order");
+
+-- migration 3
+-- BL-21 (auditoría): metadatos clave→valor de la aplicación. La clave
+-- 'content_seeded_at' gobierna el auto-seed del lifespan: "lessons vacía"
+-- dejó de ser la condición (no distinguía "nunca sembrada" de "vaciada a
+-- propósito por el admin"). El seeder escribe el marcador en su MISMA
+-- transacción; para DBs pobladas antes de esta migración el lifespan hace
+-- backfill del marcador sin tocar el contenido.
+CREATE TABLE IF NOT EXISTS app_meta (
+    key    TEXT PRIMARY KEY,
+    value  TEXT NOT NULL
+);

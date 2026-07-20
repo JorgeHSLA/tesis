@@ -38,6 +38,11 @@ if TYPE_CHECKING:
 
 CONTENT_DIR = Path(__file__).resolve().parents[1] / "content"
 
+#: Clave de ``app_meta`` que gobierna el auto-seed del lifespan (BL-21):
+#: presente ⇒ el contenido ya se sembró alguna vez y un catálogo vacío es una
+#: decisión del admin, no un primer arranque.
+SEED_MARKER_KEY = "content_seeded_at"
+
 
 @dataclass(frozen=True)
 class SeedReport:
@@ -121,6 +126,40 @@ ON CONFLICT(id) DO UPDATE SET
 def _dumps(value: object) -> str:
     """JSON compacto pero legible, preservando unicode (acentos/comillas)."""
     return json.dumps(value, ensure_ascii=False)
+
+
+# ─────────────────────────── marcador de seed (BL-21) ───────────────────────
+
+
+async def _set_seed_marker(db: "aiosqlite.Connection") -> None:
+    """UPSERT del marcador, SIN lock ni commit (pieza de una unidad mayor)."""
+    await db.execute(
+        "INSERT INTO app_meta (key, value) "
+        "VALUES (?, strftime('%Y-%m-%dT%H:%M:%fZ','now')) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (SEED_MARKER_KEY,),
+    )
+
+
+async def get_seed_marker(db: "aiosqlite.Connection") -> str | None:
+    """Timestamp de la última siembra, o ``None`` si nunca se sembró."""
+    cursor = await db.execute(
+        "SELECT value FROM app_meta WHERE key = ?", (SEED_MARKER_KEY,)
+    )
+    row = await cursor.fetchone()
+    return None if row is None else str(row[0])
+
+
+async def backfill_seed_marker(db: "aiosqlite.Connection") -> None:
+    """Marca como sembrada una DB poblada ANTES de la migración 3, sin tocar
+    su contenido (no pisa ediciones del admin). Unidad de escritura propia."""
+    async with db_module.write_lock:
+        try:
+            await _set_seed_marker(db)
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            raise
 
 
 # ──────────────────────────────── Seeding ───────────────────────────────────
@@ -234,6 +273,10 @@ async def seed_content_into(
 
         if prune_extra:
             await _prune_extra(db, modules, lessons, repo)
+
+        # BL-21: el marcador viaja en la MISMA transacción que la siembra —
+        # o se confirma todo (contenido + marcador) o nada.
+        await _set_seed_marker(db)
 
         await db.commit()
 

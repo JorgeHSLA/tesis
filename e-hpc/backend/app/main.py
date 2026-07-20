@@ -5,8 +5,9 @@ Lifespan (orden congelado):
 2. crea el docker service (inyectable por puerto para tests),
 3. reaper de huérfanos POR INTERFAZ (``reap_orphans()``, lo implementa WP2)
    y ``mark_orphans_failed()`` en DB,
-4. auto-seed condicional del contenido (si ``lessons`` está vacía) y carga del
-   snapshot desde la DB (``ContentRepository.load`` es la fuente de Fase 4),
+4. auto-seed condicional del contenido (gobernado por el marcador persistente
+   ``content_seeded_at`` de ``app_meta``, BL-21) y carga del snapshot desde la
+   DB (``ContentRepository.load`` es la fuente de Fase 4),
 5. registro de jobs en memoria ``app.state.jobs`` (1 worker uvicorn) + estado
    de auth admin (``admin_sessions``/``admin_throttle``, Fase 4).
 
@@ -33,7 +34,11 @@ from app.routers import system as system_router
 from app.routers.system import BACKEND_VERSION
 from app.services.admin_auth import AdminSessionStore, LoginThrottle
 from app.services.job_runner import JobRunner
-from app.tools.seed_content import seed_content_into
+from app.tools.seed_content import (
+    backfill_seed_marker,
+    get_seed_marker,
+    seed_content_into,
+)
 
 logger = logging.getLogger("ehpc.main")
 
@@ -54,13 +59,25 @@ def _build_docker_service(settings: Settings) -> Any:
     return docker_module.DockerService(settings)  # type: ignore[attr-defined]
 
 
-async def _seed_content_if_empty(db_conn: Any) -> None:
-    """Auto-seed idempotente (design §3.3): siembra los fixtures versionados solo
-    si la tabla ``lessons`` está vacía (primer arranque / DB nueva)."""
+async def _seed_content_if_unseeded(db_conn: Any) -> None:
+    """Auto-seed gobernado por el marcador persistente ``content_seeded_at``
+    (BL-21): «lessons vacía» no distingue "nunca sembrada" de "vaciada a
+    propósito por el admin", así que dejó de ser la condición.
+
+    - Marcador presente → no sembrar (aunque el catálogo esté vacío).
+    - Sin marcador y ``lessons`` con filas → DB poblada antes de la migración
+      3: backfill del marcador sin tocar el contenido.
+    - Sin marcador y ``lessons`` vacía → primer arranque real: sembrar (el
+      seeder deja el marcador en la misma transacción).
+    """
+    if await get_seed_marker(db_conn) is not None:
+        return
     async with db_conn.execute("SELECT COUNT(*) FROM lessons") as cursor:
         row = await cursor.fetchone()
-    if (row[0] if row is not None else 0) == 0:
-        await seed_content_into(db_conn)
+    if (row[0] if row is not None else 0) > 0:
+        await backfill_seed_marker(db_conn)
+        return
+    await seed_content_into(db_conn)
 
 
 async def _reap_orphans(docker: Any, db_conn: Any) -> None:
@@ -89,7 +106,7 @@ def create_app(
         db_path.parent.mkdir(parents=True, exist_ok=True)
         db_conn = await database.open_db(str(db_path))
         await database.apply_schema(db_conn)
-        await _seed_content_if_empty(db_conn)  # auto-seed condicional (Fase 4)
+        await _seed_content_if_unseeded(db_conn)  # auto-seed condicional (Fase 4)
         app.state.db = db_conn
         app.state.settings = cfg
         app.state.jobs = {}  # registro en memoria por job (architecture §3.3)

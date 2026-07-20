@@ -126,3 +126,81 @@ def test_internal_error_envelope_generico(settings, fake_docker):
         body = response.json()
         assert body["error"]["code"] == "INTERNAL_ERROR"
         assert "secreto" not in response.text  # detalle SOLO en logs
+
+
+# ───────── BL-21 (auditoría §3): marcador persistente del auto-seed ──────────
+
+
+def _db_path(settings) -> str:
+    return str(settings.db_path_expanded)
+
+
+async def _run_sql(path: str, sql: str, params: tuple = ()) -> list:
+    conn = await open_db(path)
+    try:
+        cursor = await conn.execute(sql, params)
+        rows = list(await cursor.fetchall())
+        await conn.commit()
+        return rows
+    finally:
+        await conn.close()
+
+
+def _lessons_count(settings) -> int:
+    rows = asyncio.run(_run_sql(_db_path(settings), "SELECT COUNT(*) FROM lessons"))
+    return int(rows[0][0])
+
+
+def _seed_marker(settings) -> str | None:
+    rows = asyncio.run(_run_sql(
+        _db_path(settings),
+        "SELECT value FROM app_meta WHERE key = 'content_seeded_at'",
+    ))
+    return rows[0][0] if rows else None
+
+
+def test_bl21_primer_arranque_siembra_y_deja_marcador(settings, fake_docker):
+    application = create_app(settings=settings, docker_service=fake_docker)
+    with TestClient(application):
+        pass
+    assert _lessons_count(settings) == 14
+    assert _seed_marker(settings) is not None
+
+
+def test_bl21_catalogo_vaciado_por_admin_no_se_resiembra(settings, fake_docker):
+    """BL-21: 'lessons vacía' ya no implica 'nunca sembrada' — vaciar el
+    catálogo es una decisión del admin que un reinicio debe respetar."""
+    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
+        pass  # primer arranque: siembra + marcador
+
+    # el admin vacía el catálogo (DELETE lecciones; CASCADE ejemplos/quiz)
+    asyncio.run(_run_sql(_db_path(settings), "DELETE FROM lessons"))
+    assert _lessons_count(settings) == 0
+
+    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
+        pass  # reinicio: NO debe re-sembrar los fixtures
+
+    assert _lessons_count(settings) == 0
+    assert _seed_marker(settings) is not None
+
+
+def test_bl21_backfill_db_poblada_sin_marcador(settings, fake_docker):
+    """DB legado (pre-migración 3) ya sembrada y quizá editada: el arranque
+    marca content_seeded_at SIN tocar el contenido (no pisa ediciones)."""
+    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
+        pass
+    # simular instalación previa a la migración: sin marcador + edición admin
+    asyncio.run(_run_sql(_db_path(settings), "DELETE FROM app_meta"))
+    asyncio.run(_run_sql(
+        _db_path(settings),
+        "UPDATE lessons SET title = 'Editada por el admin' WHERE id = 'spmd'",
+    ))
+
+    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
+        pass
+
+    assert _seed_marker(settings) is not None  # backfill del marcador
+    rows = asyncio.run(_run_sql(
+        _db_path(settings), "SELECT title FROM lessons WHERE id = 'spmd'"
+    ))
+    assert rows[0][0] == "Editada por el admin"  # el contenido NO se pisó
