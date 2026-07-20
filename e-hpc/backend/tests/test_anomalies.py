@@ -42,6 +42,7 @@ from app import db as db_module
 from app.repositories.progress import ProgressRepository
 from app.repositories.quiz_attempts import QuizAttemptRepository
 from app.services.quiz_service import QuizService
+from app.tools.seed_content import seed_content_into
 
 
 async def test_ANOMALIA_WP9_01_quiz_attempt_wiring_real_ya_no_deadlockea(
@@ -51,6 +52,7 @@ async def test_ANOMALIA_WP9_01_quiz_attempt_wiring_real_ya_no_deadlockea(
     instancia que los repos re-adquieren), ``submit_attempt`` ahora COMPLETA en
     milisegundos gracias a ``ReentrantWriteLock``. Antes se deadlockeaba."""
     assert isinstance(db_module.write_lock, db_module.ReentrantWriteLock)
+    await seed_content_into(db)  # producción: contenido y estado, misma conexión
     service = QuizService(
         content=real_content,
         attempts=QuizAttemptRepository(db),
@@ -74,6 +76,7 @@ async def test_ANOMALIA_WP9_01_quiz_attempt_wiring_real_ya_no_deadlockea(
 async def test_workaround_lock_separado_funciona(db, real_content):
     """El mismo flujo con un lock de servicio SEPARADO (workaround del
     conftest de WP9) termina y produce el resultado del contrato §5.2."""
+    await seed_content_into(db)
     service = QuizService(
         content=real_content,
         attempts=QuizAttemptRepository(db),

@@ -142,6 +142,16 @@ async def lesson_pass_threshold(
     return None if value is None else float(value)
 
 
+async def quiz_question_ids(
+    db: "aiosqlite.Connection", lesson_id: str
+) -> list[str]:
+    """Ids de las preguntas ACTUALES de la lección (revalidación en vuelo)."""
+    cur = await db.execute(
+        "SELECT id FROM quiz_questions WHERE lesson_id = ?", (lesson_id,)
+    )
+    return [row["id"] for row in await cur.fetchall()]
+
+
 async def question_ids_in_other_lessons(
     db: "aiosqlite.Connection", lesson_id: str, ids: list[str]
 ) -> list[str]:

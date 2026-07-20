@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Mapping, Protocol
 
+from app.repositories import content_admin
 from app.repositories.content import ContentRepository, Quiz
 from app.repositories.records import QuizAttemptRecord
 from app.schemas import (
@@ -158,6 +159,7 @@ class QuizService:
 
         async with self._write_lock:
             try:
+                await self._ensure_content_current(lesson_id, quiz)
                 await self._attempts.create_no_commit(attempt)
                 await self._progress.upsert_no_commit(
                     lesson_id,
@@ -181,6 +183,42 @@ class QuizService:
         )
 
     # ── Helpers ─────────────────────────────────────────────────────────────
+
+    async def _ensure_content_current(self, lesson_id: str, quiz: Quiz) -> None:
+        """Re-valida contra la DB, DENTRO del lock, que el contenido con el
+        que se puntuó el intento sigue vigente.
+
+        El snapshot en memoria se lee ANTES de tomar ``write_lock``; un admin
+        pudo borrar la lección (BL-01) o reemplazar/borrar el quiz (BL-06) y
+        commitear mientras este intento esperaba el lock. Sin esta guarda, el
+        intento obsoleto re-crearía las filas purgadas o pisaría el reset — y
+        el MAX de ``best_quiz_score`` haría la corrupción permanente. Cambios
+        cosméticos (mismos ids de pregunta y mismo umbral) no abortan, igual
+        que no disparan el reset de §10.5.
+        """
+        threshold = await content_admin.lesson_pass_threshold(
+            self._db, lesson_id
+        )
+        if threshold is None:
+            raise LessonNotFoundError(lesson_id)
+        ids = await content_admin.quiz_question_ids(self._db, lesson_id)
+        if not ids:
+            raise QuizNotFoundError(lesson_id)
+        if (
+            set(ids) != {q.id for q in quiz.questions}
+            or threshold != quiz.pass_threshold
+        ):
+            raise QuizValidationError(
+                [
+                    {
+                        "field": "quiz",
+                        "error": (
+                            "el quiz cambió mientras se enviaba el intento; "
+                            "recarga la lección e inténtalo de nuevo"
+                        ),
+                    }
+                ]
+            )
 
     def _require_quiz(self, lesson_id: str) -> Quiz:
         if not self._content.exists_lesson(lesson_id):

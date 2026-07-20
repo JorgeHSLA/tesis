@@ -162,3 +162,28 @@ def test_get_quiz_publico_omite_correct_key(client, real_content):
         assert "explanation" not in question
         for option in question["options"]:
             assert set(option) == {"key", "text"}
+
+
+async def test_seed_fallido_hace_rollback_completo(db, monkeypatch):
+    """Un fallo a mitad de la siembra revierte la unidad ENTERA (ninguna
+    tabla parcialmente poblada, conexión sana para la siguiente siembra)."""
+    import pytest
+
+    from app import db as db_module
+    from app.tools import seed_content as sc
+
+    async def boom(_db):
+        raise RuntimeError("boom en la siembra")
+
+    monkeypatch.setattr(sc, "_set_seed_marker", boom)
+    with pytest.raises(RuntimeError, match="boom"):
+        await sc.seed_content_into(db)
+
+    for table in ("modules", "lessons", "examples", "quiz_questions"):
+        cur = await db.execute(f"SELECT COUNT(*) FROM {table}")
+        assert (await cur.fetchone())[0] == 0, table
+    assert db_module.write_lock.locked() is False
+
+    monkeypatch.undo()
+    report = await sc.seed_content_into(db)  # la conexión no quedó envenenada
+    assert report.lessons == 14

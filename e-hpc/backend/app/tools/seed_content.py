@@ -186,99 +186,14 @@ async def seed_content_into(
     examples = repo.examples()
 
     async with db_module.write_lock:
-        for module in modules:
-            await db.execute(
-                _UPSERT_MODULE,
-                (
-                    module.id,
-                    module.order,
-                    module.title,
-                    module.description,
-                    module.level,
-                ),
+        try:
+            question_count = await _apply_seed_statements(
+                db, repo, modules, lessons, examples, prune_extra
             )
-
-        for lesson in lessons:
-            quiz = repo.quiz(lesson.id)
-            pass_threshold = quiz.pass_threshold if quiz is not None else 1.0
-            await db.execute(
-                _UPSERT_LESSON,
-                (
-                    lesson.id,
-                    lesson.module_id,
-                    lesson.order,
-                    lesson.title,
-                    lesson.estimated_minutes,
-                    lesson.content_markdown,
-                    pass_threshold,
-                    _dumps(
-                        [
-                            {"lesson_id": r.lesson_id, "label": r.label, "tag": r.tag}
-                            for r in lesson.recommended
-                        ]
-                    ),
-                ),
-            )
-
-        for example in examples:
-            await db.execute(
-                _UPSERT_EXAMPLE,
-                (
-                    example.id,
-                    example.filename,
-                    example.title,
-                    example.difficulty,
-                    example.teaches,
-                    _dumps(list(example.directives)),
-                    int(example.threads_configurable),
-                    example.fixed_threads,
-                    example.fixed_threads_note,
-                    int(example.sweeps_threads),
-                    int(example.self_measures),
-                    example.parser_id,
-                    example.default_timeout_s,
-                    example.est_run_seconds,
-                    int(example.enabled),
-                    int(example.requires_gpu),
-                    example.expected_output_note,
-                    _dumps(list(example.takeaways)),
-                    example.source_code,
-                ),
-            )
-
-        question_count = 0
-        for lesson in lessons:
-            quiz = repo.quiz(lesson.id)
-            if quiz is None:
-                continue
-            for question in quiz.questions:
-                await db.execute(
-                    _UPSERT_QUESTION,
-                    (
-                        question.id,
-                        quiz.lesson_id,
-                        question.order,
-                        question.text,
-                        _dumps(
-                            [
-                                {"key": o.key, "text": o.text}
-                                for o in question.options
-                            ]
-                        ),
-                        question.correct_key,
-                        question.explanation,
-                    ),
-                )
-                question_count += 1
-
-        if prune_extra:
-            await _prune_extra(db, modules, lessons, repo)
-
-        # BL-21: el marcador viaja en la MISMA transacción que la siembra —
-        # o se confirma todo (contenido + marcador) o nada.
-        await _set_seed_marker(db)
-
-        await db.commit()
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            raise
 
     return SeedReport(
         modules=len(modules),
@@ -286,6 +201,111 @@ async def seed_content_into(
         examples=len(examples),
         questions=question_count,
     )
+
+
+async def _apply_seed_statements(
+    db: "aiosqlite.Connection",
+    repo: ContentRepository,
+    modules: list,
+    lessons: list,
+    examples: list,
+    prune_extra: bool,
+) -> int:
+    """Statements de la siembra SIN lock ni commit — la unidad y su
+    ``commit()``/``rollback()`` viven en ``seed_content_into``. Devuelve
+    el nº de preguntas escritas."""
+    for module in modules:
+        await db.execute(
+            _UPSERT_MODULE,
+            (
+                module.id,
+                module.order,
+                module.title,
+                module.description,
+                module.level,
+            ),
+        )
+
+    for lesson in lessons:
+        quiz = repo.quiz(lesson.id)
+        pass_threshold = quiz.pass_threshold if quiz is not None else 1.0
+        await db.execute(
+            _UPSERT_LESSON,
+            (
+                lesson.id,
+                lesson.module_id,
+                lesson.order,
+                lesson.title,
+                lesson.estimated_minutes,
+                lesson.content_markdown,
+                pass_threshold,
+                _dumps(
+                    [
+                        {"lesson_id": r.lesson_id, "label": r.label, "tag": r.tag}
+                        for r in lesson.recommended
+                    ]
+                ),
+            ),
+        )
+
+    for example in examples:
+        await db.execute(
+            _UPSERT_EXAMPLE,
+            (
+                example.id,
+                example.filename,
+                example.title,
+                example.difficulty,
+                example.teaches,
+                _dumps(list(example.directives)),
+                int(example.threads_configurable),
+                example.fixed_threads,
+                example.fixed_threads_note,
+                int(example.sweeps_threads),
+                int(example.self_measures),
+                example.parser_id,
+                example.default_timeout_s,
+                example.est_run_seconds,
+                int(example.enabled),
+                int(example.requires_gpu),
+                example.expected_output_note,
+                _dumps(list(example.takeaways)),
+                example.source_code,
+            ),
+        )
+
+    question_count = 0
+    for lesson in lessons:
+        quiz = repo.quiz(lesson.id)
+        if quiz is None:
+            continue
+        for question in quiz.questions:
+            await db.execute(
+                _UPSERT_QUESTION,
+                (
+                    question.id,
+                    quiz.lesson_id,
+                    question.order,
+                    question.text,
+                    _dumps(
+                        [
+                            {"key": o.key, "text": o.text}
+                            for o in question.options
+                        ]
+                    ),
+                    question.correct_key,
+                    question.explanation,
+                ),
+            )
+            question_count += 1
+
+    if prune_extra:
+        await _prune_extra(db, modules, lessons, repo)
+
+    # BL-21: el marcador viaja en la MISMA transacción que la siembra —
+    # o se confirma todo (contenido + marcador) o nada.
+    await _set_seed_marker(db)
+    return question_count
 
 
 async def _prune_extra(

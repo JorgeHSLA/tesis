@@ -135,3 +135,27 @@ en verde (289 tests, cobertura 91.0%, goldens de GET públicos intactos).
   extensión deliberada (este changelog es su registro).
 - Nuevos tests: `test_quiz_atomicity.py` (3), `test_admin_content.py` (+6),
   `test_job_runner.py` (+4), `test_app_lifespan.py` (+3), WP9-02 invertido.
+
+### Ronda de review de la Sesión 2 (python-reviewer + database-reviewer)
+
+- **F1 (high, corregido)** — `submit_attempt` puntuaba contra el snapshot en
+  memoria ANTES de tomar `write_lock`: un reemplazo/borrado admin commiteado
+  mientras el intento esperaba el lock era pisado por el intento obsoleto,
+  derrotando la purga de BL-01 y el reset de BL-06 (permanente por el MAX de
+  `best_quiz_score`). Fix: revalidación contra la DB DENTRO del lock
+  (`_ensure_content_current`): lección inexistente → 404 `LESSON_NOT_FOUND`;
+  quiz borrado → 404 `QUIZ_NOT_FOUND`; ids de pregunta o umbral distintos →
+  422 `VALIDATION_ERROR` («el quiz cambió; recarga la lección»). Sin códigos
+  nuevos de error. Cambios cosméticos no abortan (espeja §10.5).
+- **F3 (low, corregido)** — `seed_content_into` era la única unidad de
+  escritura sin `rollback` ante fallo (gap pre-existente): el cuerpo se
+  extrajo a `_apply_seed_statements` y la unidad hace commit/rollback único.
+- **F2 (residual aceptado)** — el upsert de `last_job_id` y el `finish`
+  terminal de un job son dos unidades commiteadas en secuencia (deliberado:
+  quien ve `completed` ya ve `last_job_id`). Ventana residual: un crash entre
+  ambas deja `last_job_id` apuntando a un job que el reaper marcará
+  `orphaned_on_restart`. Análogo residual: un `PUT /progress` o un job en
+  vuelo durante un `DELETE` de lección puede recrear una fila de progreso
+  (sin `completed`/`best` de quiz — la vía quiz quedó cerrada por F1).
+- Follow-ups anotados (no bloqueantes): tipado `Any` de dependencias del
+  runner (convención pre-existente del archivo).
