@@ -233,16 +233,16 @@ export class JobSocket {
     this.clearRetryTimer()
     this.retryTimer = setTimeout(() => {
       if (this.closedByClient) return
-      // BL-09/10: la reconexión AUTOMÁTICA también hace rebuild desde cero —
-      // resetea el dedupe y vacía el store con begin() (que además deja la fase
-      // en 'connecting') — para aceptar tanto el backlog retenido (seq reales,
-      // dentro de la ventana de retención) como el replay renumerado desde DB
-      // (§8.2) si la ventana expiró. Preserva `retries` (presupuesto de backoff)
-      // y `sawActivePhase` (ámbito de la visita, no de la conexión). Alinea el
-      // path automático con el diseño del store: «el reset ocurre en begin() al
-      // conectar (nuevo o reconexión: el backlog re-puebla los logs)».
+      // BL-09/10: la reconexión AUTOMÁTICA resetea el dedupe (`lastLogSeq`) y
+      // vacía los logs del store vía `beginReconnect()` — para aceptar tanto el
+      // backlog retenido (seq reales, dentro de la ventana de retención) como el
+      // replay renumerado desde DB (§8.2) si la ventana expiró, sin duplicar ni
+      // descartar. Reset PARCIAL a propósito: `beginReconnect` PRESERVA `metrics`
+      // (el backend no los replica) y `startedAt` (el contador no salta por un
+      // blip). Preserva además `retries` (presupuesto de backoff) y
+      // `sawActivePhase` (ámbito de la visita, no de la conexión).
       this.resetDedupe()
-      useJobStore.getState().begin(this.jobId)
+      useJobStore.getState().beginReconnect(this.jobId)
       this.open()
     }, delay)
   }

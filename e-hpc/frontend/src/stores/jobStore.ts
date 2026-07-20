@@ -7,8 +7,11 @@
 //
 // DECISIÓN (documentada): el store NO se resetea al desmontar el live —
 // §6.4 exige que `jobStore.metrics` siga en memoria al navegar del live a
-// Resultados (LiveMetricsChart). El reset ocurre en `begin()` al conectar
-// con un job (nuevo o reconexión: el backlog re-puebla los logs).
+// Resultados (LiveMetricsChart). El reset TOTAL ocurre en `begin()` al conectar
+// con un job (nuevo, o retry MANUAL del banner). La reconexión AUTOMÁTICA usa
+// `beginReconnect()`: reset PARCIAL que vacía los logs (los re-puebla el backlog
+// o el replay renumerado, BL-09/10) pero PRESERVA `metrics` y `startedAt` — el
+// backend no replica métricas y el contador de tiempo no debe saltar por un blip.
 import { create } from 'zustand'
 import type { JobPhase, StatusDetailDto } from '../ws/messages'
 
@@ -62,6 +65,7 @@ export interface JobState {
   sawEof: boolean
   // Acciones llamadas por JobSocket (fuera de React):
   begin(jobId: string): void
+  beginReconnect(jobId: string): void
   appendLogs(lines: LogLine[]): void
   appendMetric(m: MetricSample): void
   setPhase(p: UiPhase, detail?: StatusDetailDto | null): void
@@ -89,6 +93,18 @@ export const useJobStore = create<JobState>()((set) => ({
   ...INITIAL,
 
   begin: (jobId) => set({ ...INITIAL, jobId, phase: 'connecting' }),
+
+  // Reset PARCIAL de la reconexión automática (BL-09/10): vacía los logs y el
+  // wsError/sawEof de la sesión (el backlog/replay re-pueblan los logs; con
+  // `lastLogSeq` reseteado en el socket no hay duplicados ni descartes) PERO
+  // preserva `metrics` (el backend no los replica → no se pierde el
+  // LiveMetricsChart), `startedAt`/`wallTimeMs`/`exitCode`/`errorDetail` (un
+  // status de replay los reescribe si aplica) y `logsTruncated`: es un latch (el
+  // resto de reducers hace `|| truncated`) y `OUTPUT_TRUNCATED` se señaliza UNA
+  // vez (no viaja en el backlog), así que resetearlo perdería el banner de un job
+  // ya truncado tras un blip.
+  beginReconnect: (jobId) =>
+    set({ jobId, phase: 'connecting', logs: [], wsError: null, sawEof: false }),
 
   appendLogs: (lines) =>
     set((s) => {

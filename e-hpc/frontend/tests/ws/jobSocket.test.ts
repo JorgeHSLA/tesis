@@ -371,6 +371,31 @@ describe('BL-09/10: la reconexión AUTOMÁTICA también resetea el dedupe', () =
     expect(onReplayTerminal).not.toHaveBeenCalled()
     expect(store().phase).toBe('completed')
   })
+
+  it('reset PARCIAL: preserva metrics, startedAt y el banner de truncado (no begin()), vacía solo los logs', () => {
+    vi.useFakeTimers()
+    const { ws } = connectOpen()
+    ws.emit(statusMsg('running')) // fija startedAt
+    ws.emit(metricsMsg({ cpu_percent: 300 }))
+    ws.emit(logMsg(3, ['linea vieja']))
+    ws.emit(errorMsg('OUTPUT_TRUNCATED')) // latch de truncado (no viaja en el backlog)
+    ws.serverClose(1006) // flush + backoff AUTOMÁTICO
+    const startedAtBefore = store().startedAt
+    expect(startedAtBefore).not.toBeNull()
+    expect(store().metrics).toHaveLength(1)
+    expect(store().logs).toHaveLength(1)
+    expect(store().logsTruncated).toBe(true)
+
+    vi.advanceTimersByTime(1000) // reintento AUTOMÁTICO
+    FakeWebSocket.last!.open()
+    // logs vaciados (los re-puebla el backlog/replay) PERO métricas, startedAt y
+    // el banner de truncado intactos: el LiveMetricsChart no se pierde, el
+    // contador no salta y el banner de un job truncado no desaparece (BL-09/10).
+    expect(store().logs).toHaveLength(0)
+    expect(store().metrics).toHaveLength(1)
+    expect(store().startedAt).toBe(startedAtBefore)
+    expect(store().logsTruncated).toBe(true)
+  })
 })
 
 describe('replay terminal (F5 / historial)', () => {
