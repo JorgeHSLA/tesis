@@ -23,7 +23,9 @@ services:
     ports: ["127.0.0.1:8000:8000"]
     environment:
       EHPC_DB_PATH: /app/data/ehpc.db
-      EHPC_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080,null"
+      # Idéntica al compose raíz: el navegador manda Origin http://127.0.0.1:8080
+      # (no localhost); 'null' es para Electron (file://).
+      EHPC_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null"
       EHPC_CODE_DELIVERY: volume
       EHPC_SUBMISSIONS_VOLUME: ehpc_submissions
       EHPC_RUNNER_IMAGE: ghcr.io/jorgesierra/ehpc-runner:0.5.1
@@ -49,4 +51,9 @@ services:
 
 volumes:
   ehpc_data:
+  # name: explícito para DESACTIVAR el prefijo del proyecto ('name: ehpc'
+  # arriba): sin él, Compose crea 'ehpc_ehpc_submissions' mientras el runner
+  # monta el literal EHPC_SUBMISSIONS_VOLUME → volumen vacío → todos los jobs
+  # fallan con 'no such file or directory' (igual que compose.yaml raíz).
   ehpc_submissions:
+    name: ehpc_submissions
