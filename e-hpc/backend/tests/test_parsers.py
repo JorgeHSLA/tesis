@@ -188,3 +188,75 @@ def test_formato_que_no_casa_devuelve_null():
     assert parse_output("sweep_pi", load_stdout("none_hello.txt")) is None
     assert parse_output("sweep_transporte", load_stdout("none_fibonacci.txt")) is None
     assert parse_output("pair_parallel_serial", load_stdout("none_for_pi.txt")) is None
+
+
+# ─────────────── fixes de auditoría (BL-03, BL-25, BL-26, BL-37) ──────────────
+
+
+def test_bl03_hilos_cero_devuelve_null_sin_lanzar():
+    """`hilos = 0` (posible con código editado por el estudiante) NO puede
+    lanzar ZeroDivisionError: el docstring promete «jamás lanza» y la
+    excepción reclasificaba un job exitoso como failed/sandbox_error."""
+    stdout = (
+        "hilos = 1 | pi = 3.141593 | tiempo = 0.812 s\n"
+        "hilos = 0 | pi = 3.141593 | tiempo = 0.500 s\n"
+    )
+    assert parse_output("sweep_pi", stdout) is None
+
+
+def test_bl03_hilos_cero_en_transporte_tampoco_lanza():
+    stdout = (
+        "hilos = 1 | tiempo = 0.726 s | transmitidas: 2.35 % "
+        "| reflejadas: 20.85 % | absorbidas: 76.8 %\n"
+        "hilos = 0 | tiempo = 0.100 s | transmitidas: 2.35 % "
+        "| reflejadas: 20.85 % | absorbidas: 76.8 %\n"
+    )
+    assert parse_output("sweep_transporte", stdout) is None
+
+
+@pytest.mark.parametrize("parser_id,stdout", [
+    ("pair_openmp_numpy", "tiempo openmp: 0.02 s\ntiempo numpy : 0.000 s\n"),
+    ("pair_openmp_blas", "tiempo openmp : 0.4 s\ntiempo np.dot : 0 s\n"),
+    ("pair_parallel_serial", "tiempo paralelo: 0.9 s\ntiempo serial  : 0.000 s\n"),
+])
+def test_bl25_referencia_cero_o_negativa_devuelve_null(parser_id, stdout):
+    """Regla general «algún time_s<=0 ⇒ None»: también para la referencia
+    (antes producía speedup_vs_reference=0.0 mostrado como «0x»)."""
+    assert parse_output(parser_id, stdout) is None
+
+
+def test_bl26_hilos_duplicados_devuelve_null():
+    """Dos líneas con el mismo N (re-impresión por bug del estudiante) ⇒
+    serie corrupta: se descarta entera en vez de pintarla como válida."""
+    stdout = (
+        "hilos = 1 | pi = 3.141593 | tiempo = 0.812 s\n"
+        "hilos = 2 | pi = 3.141593 | tiempo = 0.418 s\n"
+        "hilos = 2 | pi = 3.141593 | tiempo = 0.430 s\n"
+    )
+    assert parse_output("sweep_pi", stdout) is None
+
+
+def test_bl26_serie_parcial_sin_duplicados_sigue_siendo_valida():
+    """Solo la duplicación invalida; un barrido parcial {1,2} es una serie
+    legítima (el conjunto de hilos no está fijado por contrato)."""
+    stdout = (
+        "hilos = 1 | pi = 3.141593 | tiempo = 0.812 s\n"
+        "hilos = 2 | pi = 3.141593 | tiempo = 0.418 s\n"
+    )
+    result = parse_output("sweep_pi", stdout)
+    assert [p["threads"] for p in result["series"]] == [1, 2]
+
+
+def test_bl37_efficiency_desde_tiempos_crudos_un_solo_redondeo():
+    """efficiency = t(1)/(t(n)·n) redondeada UNA vez — no derivada del
+    speedup ya redondeado (el doble redondeo desviaba el 2º decimal)."""
+    stdout = (
+        "hilos = 1 | pi = 3.141593 | tiempo = 1.0 s\n"
+        "hilos = 2 | pi = 3.141593 | tiempo = 0.4926 s\n"
+    )
+    result = parse_output("sweep_pi", stdout)
+    point = result["series"][1]
+    # crudo: 1.0/(0.4926*2) = 1.01502… → 1.02. Con doble redondeo:
+    # speedup=2.03 → 2.03/2 = 1.015 → 1.01 (desviado).
+    assert point["speedup"] == 2.03
+    assert point["efficiency"] == 1.02

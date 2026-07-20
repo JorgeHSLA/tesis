@@ -80,20 +80,23 @@ def _sweep_series(points: list[tuple[int, float]]) -> list[dict] | None:
     """Construye la serie con speedup/eficiencia; requiere baseline t(1)."""
     if not points:
         return None
+    seen_threads = [n for n, _ in points]
+    if len(set(seen_threads)) != len(seen_threads):
+        return None  # hilos duplicados (re-impresión) ⇒ serie corrupta
     baseline = next((t for n, t in points if n == 1), None)
     if baseline is None or baseline <= 0:
         return None
     series = []
     for threads, time_s in points:
-        if time_s <= 0:
+        if threads <= 0 or time_s <= 0:
             return None
-        speedup = round(baseline / time_s, 2)
         series.append(
             {
                 "threads": threads,
                 "time_s": time_s,
-                "speedup": speedup,
-                "efficiency": round(speedup / threads, 2),
+                "speedup": round(baseline / time_s, 2),
+                # eficiencia desde los tiempos crudos, UN solo redondeo
+                "efficiency": round(baseline / (time_s * threads), 2),
             }
         )
     return series
@@ -165,8 +168,10 @@ def _parse_pair(parser_id: str, stdout: str) -> dict | None:
             match = re_correct.search(line)
             if match:
                 correct = match.group(1) == "True"
-    if parallel_s is None or reference_s is None or parallel_s <= 0:
+    if parallel_s is None or reference_s is None:
         return None
+    if parallel_s <= 0 or reference_s <= 0:
+        return None  # algún time_s<=0 ⇒ None (también la referencia)
     return {
         "parser_id": parser_id,
         "kind": "pair",
