@@ -30,7 +30,14 @@ class QuizAttemptRepository:
     def __init__(self, db: aiosqlite.Connection) -> None:
         self._db = db
 
-    async def create(self, attempt: QuizAttemptRecord) -> QuizAttemptRecord:
+    async def create_no_commit(self, attempt: QuizAttemptRecord) -> None:
+        """Solo el INSERT, sin lock ni commit.
+
+        Pieza para unidades de escritura COMPUESTAS (p.ej. la secuencia
+        intento→progreso de ``QuizService.submit_attempt``) que ya sostienen
+        ``write_lock`` y hacen su ÚNICO ``commit()``/``rollback()`` al final
+        (data-model §2/§5). Fuera de una unidad así, usar ``create``.
+        """
         params = {
             "id": attempt.id,
             "lesson_id": attempt.lesson_id,
@@ -40,13 +47,16 @@ class QuizAttemptRepository:
             "passed": int(attempt.passed),
             "created_at": attempt.created_at,
         }
+        await self._db.execute(
+            f"INSERT INTO quiz_attempts ({_COLUMNS}) VALUES "
+            "(:id, :lesson_id, :answers, :score, :total, :passed, :created_at)",
+            params,
+        )
+
+    async def create(self, attempt: QuizAttemptRecord) -> QuizAttemptRecord:
         async with database.write_lock:
             try:
-                await self._db.execute(
-                    f"INSERT INTO quiz_attempts ({_COLUMNS}) VALUES "
-                    "(:id, :lesson_id, :answers, :score, :total, :passed, :created_at)",
-                    params,
-                )
+                await self.create_no_commit(attempt)
                 await self._db.commit()
             except Exception:
                 await self._db.rollback()

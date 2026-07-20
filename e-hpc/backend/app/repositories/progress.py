@@ -62,13 +62,20 @@ class ProgressRepository:
         rows = await cursor.fetchall()
         return [_row_to_record(row) for row in rows]
 
-    async def upsert(
+    async def upsert_no_commit(
         self, lesson_id: str, *,
         viewed: bool | None = None,          # None = no tocar
         completed: bool | None = None,
         best_quiz_score: int | None = None,  # solo si mejora (MAX en SQL)
         last_job_id: str | None = None,
-    ) -> LessonProgressRecord:
+    ) -> None:
+        """Solo el UPSERT, sin lock ni commit.
+
+        Pieza para unidades de escritura COMPUESTAS (p.ej. intento→progreso
+        de ``QuizService.submit_attempt``) que ya sostienen ``write_lock`` y
+        hacen su ÚNICO ``commit()``/``rollback()`` al final (data-model
+        §2/§5). Fuera de una unidad así, usar ``upsert``.
+        """
         params = {
             "lesson_id": lesson_id,
             "viewed": None if viewed is None else int(viewed),
@@ -76,9 +83,24 @@ class ProgressRepository:
             "best_quiz_score": best_quiz_score,
             "last_job_id": last_job_id,
         }
+        await self._db.execute(_UPSERT_SQL, params)
+
+    async def upsert(
+        self, lesson_id: str, *,
+        viewed: bool | None = None,          # None = no tocar
+        completed: bool | None = None,
+        best_quiz_score: int | None = None,  # solo si mejora (MAX en SQL)
+        last_job_id: str | None = None,
+    ) -> LessonProgressRecord:
         async with database.write_lock:
             try:
-                await self._db.execute(_UPSERT_SQL, params)
+                await self.upsert_no_commit(
+                    lesson_id,
+                    viewed=viewed,
+                    completed=completed,
+                    best_quiz_score=best_quiz_score,
+                    last_job_id=last_job_id,
+                )
                 await self._db.commit()
             except Exception:
                 await self._db.rollback()

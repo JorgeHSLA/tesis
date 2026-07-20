@@ -42,15 +42,15 @@ class QuizValidationError(ValueError):
 
 
 class _AttemptsRepo(Protocol):
-    """Firma congelada de QuizAttemptRepository (data-model §5)."""
+    """QuizAttemptRepository: variante sin-commit para la unidad compuesta."""
 
-    async def create(self, attempt: QuizAttemptRecord) -> QuizAttemptRecord: ...
+    async def create_no_commit(self, attempt: QuizAttemptRecord) -> None: ...
 
 
 class _ProgressRepo(Protocol):
-    """Firma congelada de ProgressRepository.upsert (data-model §5)."""
+    """ProgressRepository: variante sin-commit para la unidad compuesta."""
 
-    async def upsert(
+    async def upsert_no_commit(
         self,
         lesson_id: str,
         *,
@@ -103,7 +103,9 @@ class QuizService:
         self._attempts = attempts
         self._progress = progress
         self._write_lock = write_lock
-        self._db = db  # solo para rollback() ante fallo a mitad de la unidad
+        # Conexión de la unidad compuesta: el ÚNICO commit()/rollback() de
+        # intento→progreso lo hace el servicio (BL-04), no los repositorios.
+        self._db = db
 
     def get_quiz(self, lesson_id: str) -> QuizResponse:
         """Quiz público (§5.1). Lanza LessonNotFound/QuizNotFound."""
@@ -115,10 +117,18 @@ class QuizService:
     ) -> QuizAttemptResult:
         """§5.2 — corrige, persiste intento y actualiza progreso (atómico).
 
-        INSERT del intento + upsert de progreso se ejecutan como unidad
-        DENTRO de ``write_lock`` (data-model §5, reglas transversales): ningún
-        ``commit()`` de otra task puede confirmar la secuencia a medias.
+        INSERT del intento + upsert de progreso son UNA unidad de escritura:
+        statements sin commit (``create_no_commit``/``upsert_no_commit``) y un
+        ÚNICO ``commit()``/``rollback()`` DENTRO de ``write_lock`` (data-model
+        §2/§5; patrón build-then-commit de ``content_writer._persist``). Un
+        fallo en cualquier paso revierte la unidad ENTERA: nunca queda un
+        intento persistido sin su progreso (BL-04).
         """
+        if self._db is None:
+            raise RuntimeError(
+                "QuizService.submit_attempt requiere la conexión db para "
+                "confirmar la unidad intento→progreso (BL-04)"
+            )
         quiz = self._require_quiz(lesson_id)
         self._validate_answers(quiz, answers)
 
@@ -148,25 +158,25 @@ class QuizService:
 
         async with self._write_lock:
             try:
-                created = await self._attempts.create(attempt)
-                await self._progress.upsert(
+                await self._attempts.create_no_commit(attempt)
+                await self._progress.upsert_no_commit(
                     lesson_id,
                     completed=True if passed else None,  # None = no tocar
                     best_quiz_score=score,  # el repo aplica MAX en SQL
                 )
+                await self._db.commit()  # ÚNICO commit de la unidad
             except Exception:
-                if self._db is not None:
-                    await self._db.rollback()
+                await self._db.rollback()
                 raise
 
         return QuizAttemptResult(
-            attempt_id=created.id,
+            attempt_id=attempt.id,
             lesson_id=lesson_id,
             score=score,
             total=total,
             passed=passed,
             pass_threshold=quiz.pass_threshold,
-            created_at=created.created_at,
+            created_at=attempt.created_at,
             results=results,
         )
 
