@@ -345,3 +345,147 @@ Residuos aceptados (LOW, documentados y no corregidos):
   tarea parada en el semáforo se evaluó y se descartó: el `CancelledError`
   interrumpiría los `await` del `finally` de `_run` y podría dejar el drainer
   sin detener — peor que el residuo.
+
+---
+
+## Sesión 4 (2026-07-20) — Admin, autoría, auth y contrato · rama `fix/auditoria-s4-admin-auth`
+
+Bugs de autoría admin, seguridad de auth y conformidad de contrato. Doc-first
+donde toca contrato (`api-contract.md`, `fase4-autoria-design.md`), TDD por
+hallazgo (una regresión ≥1 por BL en `backend/tests/test_audit_s4.py` y
+`frontend/tests/admin/ExampleMetaFields.test.tsx`).
+
+### Seguridad / auth
+
+#### BL-22 (medium, security) — la contraseña podía volver en el 422 de `/admin/login`
+El handler global de `RequestValidationError` serializaba `exc.errors()` de
+pydantic sin filtrar, y `AdminLoginRequest.password` tiene `max_length=256` (el
+input de la UI no acota): un password pegado > 256 chars fallaba validación y su
+valor literal viajaba en `error.details[].input`. Nuevo
+`errors.sanitize_validation_errors()` elimina `input`/`ctx`/`url` de cada error
+(conserva `type`/`loc`/`msg`), aplicado en el handler global y en el
+`_parse_json_body` de `admin.py` (donde el mismo riesgo aplica al `source_code`).
+
+#### BL-23 (medium, race) — el backoff de `LoginThrottle` era evadible en concurrencia
+`sleep_if_needed()` leía `delay` y sólo tras despertar se llamaba
+`record_failure()`: N logins fallidos concurrentes leían el mismo contador bajo
+y dormían el mismo delay corto **en paralelo**. Nuevo
+`LoginThrottle.register_failure()` serializa lee-espera-incrementa bajo un
+`asyncio.Lock` (lee el delay, incrementa, y duerme sin soltar el lock); el
+router usa este método único. Se preserva el perfil secuencial (el n-ésimo
+fallo espera `step·(n-1)`).
+
+### Contenido admin
+
+#### BL-11 (high) — el fixture GPU era ineditable (422 de coherencia de hilos)
+`_example_coherence_issues` exigía `fixed_threads ≥ 1` a todo ejemplo sin hilos
+configurables ni barrido, incluido `sumaVectoresGPU` (`requires_gpu`,
+`fixed_threads=null`): guardarlo desde la UI daba 422. Carve-out `and not
+ex.requires_gpu` (los ejemplos GPU no usan hilos de CPU). El fixture NO se tocó;
+`seed_content --check` sigue OK. Contrato: §10.6 documenta la excepción.
+
+#### BL-17 (medium) — `EHPC_MAX_CODE_BYTES` se ignoraba en la vía JSON
+`content_writer._check_code_size` usaba una constante `262144` hardcodeada
+mientras la vía multipart y `/jobs` leían `settings.max_code_bytes`. Ahora
+`_check_code_size(app, source_code)` lee `app.state.settings.max_code_bytes` en
+runtime: un operador que baje el tope global lo ve aplicado por igual en JSON.
+
+#### BL-18 (medium) — el id de pregunta autogenerado de §10.5 no existía
+`AdminQuizQuestion.id` era obligatorio; una pregunta sin id daba `422 Field
+required` pese a que el contrato promete `{lesson_id}-q{n}`. `id` pasa a
+opcional (`str | None`, patrón sólo si se provee) y `content_writer` autogenera
+`{lesson_id}-q{order}` antes de validar unicidad e insertar. Coherente con el
+fix de BUG-01 en el frontend (que hoy suple el id con `_cid`).
+
+#### BL-19 (medium, race) — los GET admin retenían el `write_lock` transversal
+`GET /admin/{modules,lessons/{id},lessons/{id}/quiz,examples/{id}}` envolvían
+sus lecturas N+1 en el `write_lock` transversal — el mismo con el que `finish()`
+de jobs, `submit_attempt` y `progress.upsert` persisten —, acoplando la latencia
+de subsistemas sin relación. Nuevo `app.state.content_read_lock` (asyncio.Lock
+dedicado): los GET admin lo toman en vez del transversal, y `_persist` lo
+adquiere durante su ventana sin commitear. Así se evitan los dirty reads
+(CW-04 preservado) SIN que un dashboard admin serialice el `finish()` de un job.
+
+#### BL-20 (medium) — sin reorden por lote (swap de `order` siempre daba 409)
+`order` es `UNIQUE` global inmediato: intercambiar dos lecciones/módulos vía dos
+PUT fallaba en el primero. Nuevos `PUT /admin/modules/reorder` y
+`/admin/lessons/reorder` (`AdminReorderRequest{items:[{id,order}]}`): validan
+existencia, sin ids repetidos y unicidad del conjunto FINAL de `order` (409
+`ORDER_CONFLICT`), y aplican la reasignación con un *parking* temporal por
+encima del máximo (respeta el `CHECK("order">0)` y el `UNIQUE` a mitad de
+transacción). Documentado en api-contract §10.2/§10.3 y la tabla §9.
+
+### Contrato / docs
+
+- **BL-34** — `fase4-autoria-design.md` §5.3/§5.4/§5.6 dejan de documentar `403
+  ADMIN_DISABLED` (contradecía contrato+código): 401 indistinguible. Nota que
+  supersede C2/C3 y toda mención suelta de `ADMIN_DISABLED`.
+- **BL-35** — filename inválido en `POST /admin/examples/{id}/code`: la vía JSON
+  daba `422 VALIDATION_ERROR` y la multipart `415 INVALID_EXTENSION`. Unificado
+  a **415** (pre-check con el mismo `FILENAME_RE` antes de pydantic).
+- **BL-36** — `GET /jobs/{id}/output?stream=foo` devuelve `422` (ya lo hacía el
+  código); **decisión: documentarlo** (validación estricta, coherente con el
+  resto de la API) añadiéndolo a §7.6 y a la tabla §9. No se relaja a `combined`.
+- **BL-27** — el catálogo huérfano `backend/app/content/fundamentos/` (4
+  módulos / 23 lecciones, incargable e incompatible) se movió a
+  `docs/analysis/fundamentos-catalogo-huerfano/` con un README. **Decisión (zona
+  gris 8): NO integrarlo** (requeriría extender el modelo a lecciones sin
+  ejemplo). `seed_content --check` sigue OK (sólo lee el `catalog.json` superior).
+
+### Frontend
+
+#### BL-24 (medium) — coherencia GPU⇒deshabilitado no implementada en el editor
+`ExampleMetaFields.tsx` prometía "coherencia en UI: hilos + GPU" pero sólo
+sincronizaba hilos. Ahora marcar **Requiere GPU** fuerza `enabled=false` y bloquea
+el checkbox "Ejemplo habilitado" con un aviso inline — coherencia inmediata en la
+UI, sin esperar al 422 del backend (regla §10.6).
+
+### Zonas grises resueltas
+
+- **Zona 2 (BL-18)**: implementar el autogen server-side `{lesson_id}-q{n}`.
+- **Zona 5 (BL-20)**: sí, endpoint de reorden por lote transaccional.
+- **Zona 8 (BL-27)**: material de fase futura → fuera de `app/content/`.
+- **Zona 9 (rango `fixed_threads`)**: el DTO se queda en `1..16` y el **clamp
+  runtime es la política** (coherente con el carve-out GPU de BL-11); no se acota
+  el DTO a 8.
+
+### Verificación
+
+- Backend: **341 passed**, cobertura **91.9%** (`DOCKER_HOST=tcp://127.0.0.1:1`,
+  fakes del Protocol). 22 regresiones nuevas en `test_audit_s4.py`.
+- Frontend: **vitest 216/216**, `tsc --noEmit` limpio (src + tests; de paso se
+  quitó el `within` sin usar pre-existente en `AdminLessonEditor.test.tsx`).
+- `seed_content --check` OK tras mover `fundamentos/`.
+- Contratos de datos congelados (`schemas.py` §10 sólo id de pregunta opcional +
+  source_code sin cap estático + DTOs de reorder aditivos; `types.ts`/`messages.ts`
+  sin tocar).
+
+### Ronda de review de la Sesión 4 (security + database + code reviewer, en paralelo)
+
+Sin hallazgos CRITICAL. **1 HIGH + 2 MEDIUM corregidos** antes del commit:
+
+- **HIGH — BL-17 sólo cubría bajar el tope** — el `Field(max_length=262144)`
+  estático de pydantic en `source_code` (JSON) rechazaba antes del check runtime:
+  subir `EHPC_MAX_CODE_BYTES` por encima de 262144 no tenía efecto por JSON
+  (sí por multipart), rompiendo la paridad que el propio fix prometía. Se quitó
+  el cap estático de `AdminExampleCodeRequest`/`AdminLessonCreate.source_code`:
+  el límite es 100% runtime (`content_writer._check_code_size`), idéntico en JSON
+  y multipart. Regresión nueva `test_bl17_json_honra_max_code_bytes_alto`.
+- **MEDIUM — `LoginThrottle.reset()` no tomaba el lock** — un login correcto
+  concurrente con una ráfaga de fallos podía pisar el contador a mitad de la
+  ventana espera-incremento (evasión marginal del backoff de BL-23). `reset()`
+  pasa a `async` bajo el mismo `asyncio.Lock`; el router hace `await`. Regresión
+  `test_bl23_reset_espera_al_fallo_en_vuelo`.
+- **MEDIUM — id de pregunta autogenerado sin re-validar** — `{lesson_id}-q{order}`
+  con un `lesson_id` de 64 chars + `order` enorme podía superar los 80 chars del
+  patrón y persistir un id fuera de contrato (`model_copy` no re-valida). Se
+  valida el id final (cliente o autogenerado) contra `QUESTION_ID_PATTERN` en
+  `_quiz_issues` → `422 CONTENT_VALIDATION_ERROR`. Regresiones
+  `test_bl18_id_cliente_colisiona_con_autogenerado_422` y
+  `test_bl18_id_autogenerado_demasiado_largo_422`.
+
+Verificados correctos por los revisores (sin cambios): parking en dos fases del
+reorder y unicidad final (BL-20), orden de locks sin deadlock (BL-19), saneado no
+evadible del 422 (BL-22), carve-out GPU acotado (BL-11), colisión de ids
+cliente↔autogenerado ya detectada (BL-18), y el orden de rutas `/reorder` antes de
+`/{id}`. Higiene: `record_failure()` marcado como solo-para-tests.
