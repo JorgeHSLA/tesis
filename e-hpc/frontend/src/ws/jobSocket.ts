@@ -91,23 +91,32 @@ export class JobSocket {
   // ───────────────────────────── internos ──────────────────────────────
 
   /**
-   * Estado que vive UNA sesión de socket. `begin()` vacía el store, así que
-   * el dedupe, el buffer pendiente y el backoff deben empezar de cero con él
-   * (BL-10): si no, el backlog —o el replay renumerado desde DB (§8.2)—
-   * llega con `seq` que el filtro descarta y la terminal queda vacía.
+   * Estado de dedupe/buffer que debe empezar de cero con CADA (re)conexión y
+   * su `begin()` del store (BL-09/10): el buffer pendiente, el dedupe por `seq`,
+   * `sawEof` y la última fase. Si no, el backlog —o el replay renumerado desde
+   * DB (§8.2)— llega con `seq` que el filtro descarta y la terminal queda vacía.
    *
-   * `sawActivePhase` NO se resetea a propósito: su ámbito es la INSTANCIA
-   * (= esta visita a la pantalla del job), no la conexión. Es lo que
-   * distingue «aterricé en un job ya terminado» —F5/historial, redirigir a
-   * resultados— de «lo vi correr y se completó mientras yo reconectaba»,
-   * donde el usuario debe quedarse en el live ya re-poblado.
+   * NO incluye `retries` (presupuesto de backoff: se agota a lo largo de varias
+   * reconexiones automáticas) ni `sawActivePhase` (ámbito de la INSTANCIA = esta
+   * visita a la pantalla, no la conexión): éste distingue «aterricé en un job ya
+   * terminado» —F5/historial, redirigir a resultados— de «lo vi correr y se
+   * completó mientras reconectaba», donde el usuario se queda en el live
+   * re-poblado.
    */
-  private resetSession(): void {
+  private resetDedupe(): void {
     this.cancelPendingFlush()
     this.buffer = []
     this.lastLogSeq = -1
     this.sawEof = false
     this.lastPhase = null
+  }
+
+  /**
+   * Reinicio de sesión COMPLETO (conexión/retry manual): además del dedupe,
+   * pone a cero el presupuesto de backoff. Va emparejado con `begin()`.
+   */
+  private resetSession(): void {
+    this.resetDedupe()
     this.retries = 0
     this.clearRetryTimer()
   }
@@ -224,7 +233,16 @@ export class JobSocket {
     this.clearRetryTimer()
     this.retryTimer = setTimeout(() => {
       if (this.closedByClient) return
-      useJobStore.getState().setPhase('connecting')
+      // BL-09/10: la reconexión AUTOMÁTICA también hace rebuild desde cero —
+      // resetea el dedupe y vacía el store con begin() (que además deja la fase
+      // en 'connecting') — para aceptar tanto el backlog retenido (seq reales,
+      // dentro de la ventana de retención) como el replay renumerado desde DB
+      // (§8.2) si la ventana expiró. Preserva `retries` (presupuesto de backoff)
+      // y `sawActivePhase` (ámbito de la visita, no de la conexión). Alinea el
+      // path automático con el diseño del store: «el reset ocurre en begin() al
+      // conectar (nuevo o reconexión: el backlog re-puebla los logs)».
+      this.resetDedupe()
+      useJobStore.getState().begin(this.jobId)
       this.open()
     }, delay)
   }

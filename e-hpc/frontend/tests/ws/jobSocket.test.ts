@@ -329,6 +329,50 @@ describe('BL-10: retry() resetea el estado de dedupe (sesión nueva)', () => {
   })
 })
 
+describe('BL-09/10: la reconexión AUTOMÁTICA también resetea el dedupe', () => {
+  it('el replay renumerado tras un reintento automático re-puebla los logs', () => {
+    vi.useFakeTimers()
+    const { ws } = connectOpen()
+    ws.emit(statusMsg('running'))
+    ws.emit(logMsg(5, ['linea vieja']))
+    ws.serverClose(1006) // conexión perdida sin eof → flush + backoff AUTOMÁTICO
+    expect(store().logs).toHaveLength(1)
+    expect(store().phase).toBe('lost')
+
+    vi.advanceTimersByTime(1000) // 1er reintento AUTOMÁTICO (no manual)
+    const ws2 = FakeWebSocket.last!
+    ws2.open()
+    // el path automático hace rebuild desde cero igual que el manual: begin()
+    // vació el store y el dedupe arrancó de nuevo.
+    expect(store().logs).toHaveLength(0)
+    // la ventana de retención expiró → replay desde DB con seq renumerado (≤ 5):
+    // sin resetear el dedupe en el path automático, el filtro seq<=lastLogSeq
+    // descartaría el replay entero y la terminal quedaría VACÍA (BL-09/10).
+    ws2.emit(statusMsg('completed', COMPLETED_DETAIL))
+    ws2.emit(logMsg(1, ['salida completa']))
+    ws2.emit(eofMsg(false))
+    expect(store().logs.map((l) => l.text)).toEqual(['salida completa'])
+  })
+
+  it('preserva sawActivePhase: un job completado durante el reintento automático NO expulsa del live', () => {
+    vi.useFakeTimers()
+    const onReplayTerminal = vi.fn()
+    const { ws } = connectOpen({ onReplayTerminal })
+    ws.emit(statusMsg('running')) // el usuario SÍ lo vio correr en esta visita
+    ws.serverClose(1006)
+
+    vi.advanceTimersByTime(1000) // reintento AUTOMÁTICO
+    const ws2 = FakeWebSocket.last!
+    ws2.open()
+    ws2.emit(statusMsg('completed', COMPLETED_DETAIL))
+    ws2.emit(eofMsg(false))
+    // sawActivePhase es de la INSTANCIA (esta visita), no de la conexión: el
+    // reset del dedupe automático NO debe tocarlo (se queda en el live).
+    expect(onReplayTerminal).not.toHaveBeenCalled()
+    expect(store().phase).toBe('completed')
+  })
+})
+
 describe('replay terminal (F5 / historial)', () => {
   it('status terminal + eof SIN fase viva previa dispara onReplayTerminal', () => {
     const onReplayTerminal = vi.fn()
