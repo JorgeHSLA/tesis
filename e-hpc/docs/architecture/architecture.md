@@ -137,8 +137,10 @@ services:
     environment:
       EHPC_DB_PATH: /app/data/ehpc.db
       # 'null' es necesario para Electron (file://); riesgo residual documentado
-      # en api-contract.md §0 — mitigado por el bind a loopback.
-      EHPC_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080,null"
+      # en api-contract.md §0 — mitigado por el bind a loopback. Las variantes
+      # 127.0.0.1 son OBLIGATORIAS: al abrir http://127.0.0.1:8080 el navegador
+      # manda ese Origin (no 'localhost'), y sin ellas CORS/WS lo rechazan (BL-12).
+      EHPC_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null"
       EHPC_CODE_DELIVERY: volume            # 'volume' (compose) | 'bind' (dev nativo)
       EHPC_SUBMISSIONS_VOLUME: ehpc_submissions
       EHPC_RUNNER_IMAGE: ehpc-runner:0.5.1
@@ -171,7 +173,12 @@ services:
 
 volumes:
   ehpc_data:
+  # `name:` explícito (BL-02): sin él Compose antepone el prefijo del proyecto
+  # (`<proyecto>_ehpc_submissions`) y el runner montaría un volumen vacío
+  # distinto del que escribe el backend → todos los jobs fallan con "no such
+  # file or directory". Debe coincidir con EHPC_SUBMISSIONS_VOLUME.
   ehpc_submissions:
+    name: ehpc_submissions
 ```
 
 ### 2.3 nginx.conf (claves)
@@ -720,7 +727,7 @@ make dist           # vite build + electron-builder --linux
 | Variable | Default | Usada por |
 |---|---|---|
 | `EHPC_DB_PATH` | `~/.ehpc/ehpc.db` (dev) / `/app/data/ehpc.db` (compose) | db.py |
-| `EHPC_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:8080,null` | CORS + validación Origin del WS |
+| `EHPC_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null` (incluye las variantes `127.0.0.1` — BL-12) | CORS + validación Origin del WS |
 | `EHPC_CODE_DELIVERY` | `bind` (dev) / `volume` (compose) | docker_service |
 | `EHPC_SUBMISSIONS_VOLUME` | `ehpc_submissions` | docker_service (modo volume) |
 | `EHPC_JOBS_DIR` | `~/.ehpc/jobs` | docker_service (modo bind) |
