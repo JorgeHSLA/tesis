@@ -162,3 +162,127 @@ públicos intactos).
   (sin `completed`/`best` de quiz — la vía quiz quedó cerrada por F1).
 - Follow-ups anotados (no bloqueantes): tipado `Any` de dependencias del
   runner (convención pre-existente del archivo).
+
+---
+
+## Sesión 3 (2026-07-19) — Jobs, parsers y WebSocket · rama `fix/auditoria-s3-jobs-ws`
+
+14 hallazgos del ciclo de vida de jobs, los parsers de stdout y el protocolo
+WebSocket, más las decisiones de las zonas grises 3 y 6. Un test de regresión
+por hallazgo (TDD RED→GREEN). Contratos congelados (`schemas.py`,
+`frontend/src/ws/messages.ts`, `api/types.ts`): SIN cambios.
+
+### Parsers (`output_parser.py`)
+
+- **BL-03 (critical)** — una línea `hilos = 0` en el stdout de un sweep
+  (posible con el código editado por el estudiante) lanzaba `ZeroDivisionError`
+  al calcular `speedup/threads`. La excepción escapaba del módulo —cuyo
+  docstring promete «jamás lanza»— y el manejo de errores del `job_runner`
+  reclasificaba un job con `exit 0` como `failed`/`sandbox_error`. Reproducido
+  primero en un test; `threads<=0` ahora devuelve `None`, igual que `time_s<=0`.
+- **BL-25 (medium)** — el guard de los parsers `pair` solo cubría
+  `parallel_s<=0`: una referencia que imprimiera `0.000 s` daba
+  `speedup_vs_reference=0.0`, mostrado como «0x» en vez de descartar el
+  parseo. Extendido a `reference_s<=0`; la regla «algún `time_s<=0` ⇒ `None`»
+  queda uniforme.
+- **BL-26 (medium)** — `_sweep_series` acumulaba cada línea sin deduplicar:
+  dos líneas del mismo N (re-impresión por un bug del estudiante) producían
+  puntos repetidos que la `SpeedupChart` pintaba como curva válida. Ahora la
+  serie con hilos duplicados se descarta entera. Un barrido **parcial** sin
+  duplicados sigue siendo válido: el conjunto de hilos no está en contrato.
+- **BL-37 (low)** — `efficiency` se derivaba del `speedup` ya redondeado a 2
+  decimales (doble redondeo que desviaba el segundo decimal). Se calcula desde
+  los tiempos crudos, `t(1)/(t(n)·n)`, con un solo redondeo.
+
+### Ciclo de vida de jobs
+
+- **BL-07 (high)** — `cancel()` sobre un job `queued` escribía `cancelled` en
+  DB al instante pero dejaba `handle.phase='queued'` hasta que la tarea
+  adquiría el semáforo (minutos con jobs largos delante): la cola sobrecontaba
+  el job cancelado (429 con capacidad real libre) y un WS que conectara en esa
+  ventana lo veía activo en vez de recibir el status terminal. La
+  sincronización del handle pasa a ser síncrona —antes de cualquier `await`—
+  y se emiten `status` terminal + `eof` a los suscriptores conectados.
+  Documentado en `architecture.md` §3.3.
+- **BL-08 (high, race)** — TOCTOU en el tope de cola: `queued_count()` se leía
+  una vez y seguían varios `await` (ping, `image_present`, `create`) antes de
+  registrar el job, así que N POST concurrentes cerca del límite superaban los
+  10 sin límite efectivo. Se añade una reserva atómica del slot
+  (`try_reserve_queue_slot`, síncrona en el event loop) liberada **siempre** en
+  un `finally`. Test: 25 POST concurrentes con `asyncio.gather` +
+  `httpx.ASGITransport` y un `ping` lento ⇒ exactamente 10×202 y 15×429.
+- **BL-32 (low)** — `threads_note` por defecto se construía ANTES del clamp a
+  `max_threads`, citando más CPUs de las asignadas (el DTO admin permite
+  `fixed_threads` hasta 16 y `max_threads ≤ 8`). El clamp pasa a ser previo.
+- **BL-15 (medium)** — si `containers.create()` triunfaba y `start()` lanzaba,
+  nadie eliminaba el contenedor (`handle.execution` seguía `None`, así que
+  `_cleanup_resources` no limpiaba) y quedaba en el daemon hasta el reaper del
+  siguiente arranque. Ahora el `except` hace `remove(force=True, v=True)`; un
+  fallo del propio remove se logea sin enmascarar el error original.
+
+### WebSocket
+
+- **BL-09 (high, contract-violation)** — el replay post-terminal reconstruía
+  los logs desde el texto plano de la DB y numeraba `seq` desde 0, mientras
+  §8.2 promete que el backlog re-usa los originales y el cliente descarta
+  `seq <= lastLogSeq`. Si la conexión caía con el job vivo y este terminaba
+  durante la desconexión, la reconexión traía un replay que el dedupe
+  descartaba entero: **terminal sin salida**.
+  **Opción elegida (A), por menor riesgo:** diferir el paso 5 de §3.4 — el
+  `JobHandle` terminal se retiene 10 s en el registro (`closed=True`:
+  `get_active()` devuelve `None` y la cola no lo cuenta; `get_finished()` lo
+  expone al handler WS) y el replay sirve ese backlog TAL CUAL, con `seq` y
+  `ts` reales. No toca el formato de los mensajes ni el cliente, y el caso
+  frecuente —reconexión por backoff de 1s/2s/4s— cae dentro de la ventana.
+  Se descartó la opción B (renumerar y documentar la discontinuidad) porque
+  degradaba una garantía del contrato para todos los clientes. Pasado el
+  plazo, el replay cae a la vía DB, ahora documentada en §8.2 como sesión
+  nueva; el reset del cliente (BL-10) se implementa igualmente como defensa
+  en profundidad.
+- **BL-16 (medium)** — el replay desde DB fabricaba el `ts` de cada línea con
+  la hora del replay y `LiveTerminalCard` lo pintaba como reloj `[HH:MM:SS]`:
+  tras un F5, todas las líneas mostraban la hora del refresh como si fuera el
+  tiempo real de ejecución. Ahora va `""` (instante desconocido, §8.2) y la
+  terminal lo renderiza como `—` sin cambios de código; test de coordinación
+  añadido en `LiveTerminalCard.test.tsx`.
+- **BL-33 (low)** — la única rama de `close(1011)` cerraba sin enviar nada,
+  cuando §8.4 lo define como «error interno (tras intentar emitir `error`)».
+  Se emite un `{"type":"error","code":"STREAM_ERROR"}` del catálogo cerrado
+  §8.2 antes del cierre.
+
+### Frontend (un solo archivo)
+
+- **BL-10 (high)** — `retry()` → `connect()` reseteaba el store (`logs=[]` vía
+  `begin()`) confiando en que el backlog re-poblara, pero `JobSocket` nunca
+  reseteaba `lastLogSeq`: el backlog llegaba con los `seq` originales y el
+  filtro lo descartaba todo (job `lost` → «Reintentar conexión» → pantalla sin
+  ninguna línea). `connect()` pasa a resetear todo el estado de sesión del
+  socket junto con el store: `lastLogSeq`, `sawEof`, `lastPhase`,
+  `sawActivePhase` y el buffer pendiente. Con `sawEof`/`lastPhase` se corrigen
+  dos efectos colaterales de la misma familia: el `eof` de una sesión anterior
+  ya no suprime el backoff de la nueva, y un replay terminal tras `retry()`
+  vuelve a disparar `onReplayTerminal`.
+
+### Decisiones de zonas grises (documentación deliberada)
+
+- **BL-13 / zona gris 3 — precedencia `output_truncated` × `kill_reason`:**
+  gana la **causa de terminación**. `status`/`error_detail` se derivan
+  exclusivamente de `kill_reason + exit_code + OOMKilled` (primer escritor
+  gana, comportamiento ya testeado) y `output_truncated` es un flag
+  informativo independiente: un job cancelado mientras su salida se truncaba
+  responde `cancelled` + `error_detail=null` + `output_truncated=true`. Se
+  corrige `api-contract.md` §7.4, que afirmaba la implicación en el sentido
+  incorrecto; la implicación válida (`error_detail="output_limit_exceeded"` ⇒
+  `output_truncated=true`) queda escrita. Sin cambios de código.
+- **BL-14 / zona gris 6 — aislamiento de cores bajo concurrencia:** NO se
+  implementa `cpuset` disjunto por slot. `architecture.md` §4 documenta que el
+  rango arranca siempre en el core 0, que con `EHPC_MAX_CONCURRENT_JOBS > 1`
+  dos jobs comparten cores físicos, y que la reproducibilidad de las métricas
+  aplica **ejecutando un job a la vez**. Test que fija el comportamiento como
+  deliberado.
+
+### Verificación
+
+- Backend: 315 tests, cobertura 91.5 % (`DOCKER_HOST=tcp://127.0.0.1:1 pytest
+  --cov=app --cov-fail-under=80`).
+- Frontend: 210 tests Vitest, `tsc --noEmit` limpio.

@@ -371,7 +371,13 @@ cancel_requested: bool, kill_reason: 'none'|'cancel'|'output_limit'|'timeout'}`.
   inmediatamente DESPUÉS de adquirir el semáforo y ANTES de
   `containers.create` → si está seteado, retorna sin ejecutar. Sin carrera:
   o el flag se ve (no se crea contenedor), o el job ya pasó a `creating` y el
-  cancel sigue la vía kill.
+  cancel sigue la vía kill. El estado **en memoria** se sincroniza en el mismo
+  instante que la escritura en DB (precisión de 2026-07-19): `phase` pasa a
+  `cancelled` de forma síncrona, antes de cualquier `await`, y se emiten
+  `status` terminal + `eof` a los suscriptores ya conectados (pasos 2-3 de
+  §3.4, idempotentes). Sin esto el handle seguía `queued` hasta que el task
+  despertaba —minutos con jobs largos delante—, la cola sobrecontaba el job
+  cancelado y un WS que conectara en esa ventana lo veía activo.
 - **Cancel sobre job con contenedor**: se escribe `kill_reason="cancel"`
   ANTES de invocar `kill()`. Ídem `output_limit` (drainer) y `timeout`
   (watchdog). Prioridad si coinciden en la misma ventana:
@@ -403,13 +409,25 @@ Secuencia estricta al terminar un job:
 2. drainer emite `status` terminal + `eof` a TODAS las colas por-conexión
 3. se cierran las colas por-conexión (los handlers WS hacen close 1000)
 4. remove(force=True) del contenedor + borrado del dir de código (finally)
-5. RECIÉN AHORA se retira el job de app.state.jobs
+5. el job se marca cerrado; se retira de app.state.jobs tras la RETENCIÓN
 ```
 
 El handler WS que conecta durante la transición: consulta registro →
 si no está, consulta DB → si la DB no es terminal aún, reintenta UNA vez tras
 ~100 ms → decide (activo: suscribir; terminal: replay + close 1000;
 inexistente: 4404). Con el orden anterior ambos casos son exhaustivos.
+
+**Retención del handle terminal** (añadida el 2026-07-19): el paso 5 se
+difiere `TERMINAL_HANDLE_RETENTION_S` (10 s). Durante esa ventana el handle
+sigue en el registro pero con `closed=True`: `get_active()` devuelve `None`
+(nadie se suscribe a un job muerto) y `queued_count()` no lo cuenta, mientras
+`get_finished()` lo expone al handler WS para servir el **backlog con los
+`seq` y `ts` originales**. Motivo: el replay reconstruido desde el texto plano
+de la DB no puede conservar la numeración, y una reconexión del cliente
+(backoff 1s/2s/4s) caía justo en esa ventana — el dedupe por `seq` del cliente
+descartaba el replay entero y la terminal quedaba vacía. Pasada la retención
+el replay cae a la vía DB, ya documentada como sesión nueva en
+`api-contract.md` §8.2.
 
 ---
 
@@ -444,6 +462,18 @@ Notas:
 - `--cpus` limita por quota CFS; `cpuset_cpus="0-{N-1}"` da cores enteros
   dedicados — preferido para que las mediciones de speedup sean reproducibles.
   Se aplican ambos coherentes con N.
+- **Alcance real de esa reproducibilidad** (precisión de 2026-07-19, decisión
+  deliberada): el rango arranca SIEMPRE en el core 0 y no se reparte por slot
+  del semáforo, así que con `EHPC_MAX_CONCURRENT_JOBS > 1` dos jobs
+  concurrentes de N hilos reciben ambos `0-{N-1}` y **comparten los mismos
+  cores físicos**. Las cifras de speedup/eficiencia solo son comparables
+  entre sí **ejecutando un job a la vez**; bajo concurrencia siguen siendo
+  válidas como ejecución, pero no como medición. Se descartó asignar
+  `cpuset` disjuntos por slot: exigiría acoplar el semáforo al
+  `docker_service` (hoy sin estado compartido) y repartir cores del host
+  entre jobs de tamaño distinto, complejidad que no compensa en una
+  plataforma didáctica de un solo usuario. El uso pedagógico (ver N hilos ≈
+  N·100 % de CPU) no se ve afectado.
 - `omp_set_num_threads(n)` desde el código del estudiante puede pedir más hilos
   que N: solo produce oversubscription dentro de su propia cuota, no escape.
   Los 3 ejemplos de barrido interno dependen de esto (ver §7).

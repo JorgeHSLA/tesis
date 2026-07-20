@@ -634,7 +634,25 @@ null
 - Mientras el job no es terminal: `stdout/stderr` son `null`,
   `metrics_summary` y `parsed_timings` `null` (el vivo va por WS).
 - Si `output_truncated=true`: `parsed_timings=null` (no se parsea output
-  incompleto) y `error_detail="output_limit_exceeded"`.
+  incompleto). El `error_detail` **depende de la causa de terminación**, no
+  del truncado (ver la precedencia abajo).
+
+**Precedencia `output_truncated` × causa de terminación** (aclaración de
+2026-07-19; antes esta sección afirmaba que `output_truncated=true` implicaba
+`error_detail="output_limit_exceeded"`, lo que contradecía el
+primer-escritor-gana de `architecture.md` §3.3):
+
+- `status` y `error_detail` se derivan **exclusivamente** de
+  `kill_reason + exit_code + OOMKilled` (tabla §3.3), y `kill_reason` lo fija
+  el primer escritor con la prioridad `cancel > output_limit > timeout`.
+- `output_truncated` es un **flag informativo independiente**: describe si el
+  presupuesto de 262 144 B se agotó, no por qué murió el job.
+- Por tanto, si un job se cancela (o expira su timeout) en la misma ventana en
+  que su salida se trunca, gana la causa: la respuesta puede traer
+  `status="cancelled"`/`"timeout"` con `error_detail=null`/`"wall_timeout"`
+  **y** `output_truncated=true`. Es la combinación esperada, no un error.
+- La implicación sí se cumple en el sentido útil: `error_detail =
+  "output_limit_exceeded"` ⇒ `output_truncated=true`.
 - `error_detail` es un **código estable de catálogo cerrado**:
   `wall_timeout | output_limit_exceeded | oom | orphaned_on_restart |
   sandbox_error | null`. Nunca texto crudo de excepciones docker-py/FastAPI
@@ -719,7 +737,8 @@ Terminales: `completed | failed | timeout | cancelled`.
 - Job ya terminal al conectar → el servidor envía `status` final + replay del
   output almacenado como mensajes `log` + `eof`, y cierra `1000` (soporta F5).
   No existe un close-code especial para «job terminado»: el cliente lo
-  detecta por el `status` terminal + `eof`.
+  detecta por el `status` terminal + `eof`. El replay tiene **dos fuentes**
+  según cuándo se conecte (ver §8.2, «Replay de un job terminal»).
 - Job activo al conectar → `status` actual + backlog del ring-buffer en
   memoria (últimas ~500 líneas) + stream en vivo.
 - **Exhaustividad activo/terminal** (sin ventana ciega): el handler consulta
@@ -780,6 +799,22 @@ cliente debe pedir `GET /api/v1/jobs/{id}` para `parsed_timings` y
   chunks de Docker no son líneas). Una línea parcial final se emite al EOF.
 - `seq`: contador monótono por job (detección de huecos tras reconexión;
   el backlog re-usa los `seq` originales).
+
+**Replay de un job terminal** (precisión de 2026-07-19; antes esta regla se
+enunciaba sin distinguir las dos fuentes, y el replay desde DB rompía la
+continuidad de `seq` que el cliente asume):
+
+| Fuente | Cuándo | `seq` | `ts` |
+|---|---|---|---|
+| Ring-buffer del job retenido | Reconexión dentro de los ~10 s posteriores al fin del job (`TERMINAL_HANDLE_RETENTION_S`) | **originales** del stream vivo | reales de cada línea |
+| Texto persistido en `jobs.stdout/stderr` | Cualquier conexión posterior (F5, historial) | **renumerados desde 1** (el texto plano no conserva la numeración) | `""` — la DB no guarda el instante de cada línea |
+
+- El cliente **debe** tratar cada conexión como una sesión nueva: resetear su
+  estado de dedupe (`lastLogSeq`) al (re)conectar. Con la retención el dedupe
+  sigue protegiendo del solapamiento backlog↔vivo dentro de una misma sesión;
+  sin ella, un `seq` renumerado no puede compararse con el de la sesión previa.
+- `ts: ""` significa «instante desconocido»: la UI no debe fabricar un reloj
+  (la terminal lo renderiza como `—`).
 
 #### `metrics` — muestra de `docker stats` (~1/s, lossy)
 
