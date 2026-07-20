@@ -385,7 +385,11 @@ class JobCreateRequest(BaseModel):
     """
 
     example_id: str | None = None
-    code: str | None = Field(default=None, min_length=1, max_length=262144)
+    # BL-17: sin cap estático de bytes — el tope se aplica en RUNTIME
+    # (settings.max_code_bytes) en el router `_create_job`, por igual que la vía
+    # multipart y la admin JSON. Así subir/bajar EHPC_MAX_CODE_BYTES surte efecto
+    # también por esta vía; el exceso da 413 CODE_TOO_LARGE (no un 422 genérico).
+    code: str | None = Field(default=None, min_length=1)
     filename: str | None = Field(default=None, pattern=FILENAME_PATTERN)
     threads: int | None = Field(default=None, ge=1)  # tope: max_threads (/system)
     timeout_s: int | None = Field(default=None, ge=5, le=120)

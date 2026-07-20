@@ -20,6 +20,7 @@ from fastapi import APIRouter, Form, Query, Request, Response, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from ..errors import sanitize_validation_errors
 from ..repositories.records import JobRecord
 from ..schemas import FILENAME_PATTERN, JobCreateRequest
 from ..services.job_runner import TERMINAL_STATUSES, utc_now_iso
@@ -247,11 +248,15 @@ async def create_job(request: Request) -> JSONResponse:
     try:
         body = JobCreateRequest.model_validate(payload)
     except ValidationError as exc:
-        errors = exc.errors(include_url=False)
-        if any(e.get("type") == "string_too_long" and "code" in e.get("loc", ())
-               for e in errors):
-            return _err(413, "CODE_TOO_LARGE", "El código supera el máximo de 262144 bytes.")
-        return _err(422, "VALIDATION_ERROR", "Body inválido.", details=errors)
+        # BL-22: sanea `input`/`ctx`/`url` — nunca reflejar el valor crudo
+        # rechazado del cliente (código, filename) en el cuerpo del 422.
+        # BL-17: el tope de tamaño de `code` ya no es un `max_length` estático de
+        # pydantic; el 413 CODE_TOO_LARGE lo emite `_create_job` en runtime contra
+        # `settings.max_code_bytes` (por igual que `/upload`).
+        return _err(
+            422, "VALIDATION_ERROR", "Body inválido.",
+            details=sanitize_validation_errors(exc.errors(include_url=False)),
+        )
     return await _create_job(
         request,
         example_id=body.example_id,
