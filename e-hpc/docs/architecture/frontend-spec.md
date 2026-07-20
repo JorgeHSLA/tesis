@@ -709,8 +709,14 @@ una serie que el backend no guarda:
   - sweep con speedup ≥ 0.8·N → ok `**Escala casi lineal.** Este problema es compute-bound…`
   - `parsed_timings.correct === true` → ok `**Resultado validado.**` (p. ej. `correcto? True`).
   - status `failed` → warn con las últimas 3 líneas de `stderr`.
-  - siempre que haya speedup → info Amdahl: `**Speedup {s}× con {n} hilos.** La ley de Amdahl
-    predice…` (`lib/speedup.ts`).
+  - info Amdahl **solo cuando la referencia es una versión serial del MISMO código**: en un
+    `sweep` (el speedup es t(1)/t(n) del mismo código) y en un `pair` con
+    `parser_id: pair_parallel_serial` → `**Speedup {s}× con {n} hilos.** La ley de Amdahl
+    predice…` (`lib/speedup.ts`, `lib/observations.ts`). Con `parser_id: pair_openmp_numpy` /
+    `pair_openmp_blas` la referencia es OTRA implementación (NumPy/BLAS), no el escalado
+    t(1)/t(n) del mismo código: **NO se invierte Amdahl** — se muestra una observación honesta
+    de comparación directa (invertirla fabricaba un "% paralelizable" falso — **BL-30**).
+    Fallback a "Comparación directa" cuando el speedup no es derivable (p. ej. 1 hilo).
 - **Card `Output`** (mt 20): head IconTerminal `Output (stdout · {n} líneas)` + ghost
   [IconDownload] `descargar` (mismo endpoint `/output`). Terminal sin dots con `data.stdout`
   completo (scroll interno); si `output_truncated`: banner ámbar `Salida truncada a 256 KB`.
