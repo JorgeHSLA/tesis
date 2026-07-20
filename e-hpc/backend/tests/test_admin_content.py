@@ -661,3 +661,35 @@ def test_bl06_delete_quiz_resetea_progreso(client, auth):
     assert entry["best_quiz_score"] is None
     assert entry["completed"] is False
     assert entry["quiz_total"] == 0
+
+
+# ───────── BL-38 (auditoría §3): lessons_completed filtra enabled ────────────
+
+
+def test_bl38_leccion_completada_y_deshabilitada_no_cuenta(client, auth):
+    """Una lección completada que luego se deshabilita no debe contar en
+    ``lessons_completed`` (podría superar ``lessons_enabled``)."""
+    put = client.put("/api/v1/progress/lessons/spmd", json={"completed": True})
+    assert put.status_code == 200
+    before = client.get("/api/v1/modules").json()["data"]["summary"]
+    assert before["lessons_completed"] == 1
+    assert before["lessons_enabled"] == 13
+
+    # el admin deshabilita el ejemplo (la lección deja de estar disponible)
+    example = client.get("/api/v1/admin/examples/spmd", headers=auth).json()["data"]
+    body = {
+        k: v
+        for k, v in example.items()
+        if k not in ("id", "module_id", "order", "source_code")
+    }
+    body["enabled"] = False
+    updated = client.put("/api/v1/admin/examples/spmd", json=body, headers=auth)
+    assert updated.status_code == 200, updated.text
+
+    summary = client.get("/api/v1/modules").json()["data"]["summary"]
+    assert summary["lessons_enabled"] == 12
+    assert summary["lessons_completed"] == 0  # ya no cuenta la deshabilitada
+
+    progress = client.get("/api/v1/progress").json()["data"]
+    assert progress["summary"]["lessons_completed"] == 0
+    assert "spmd" in progress["lessons"]  # el registro del estudiante persiste

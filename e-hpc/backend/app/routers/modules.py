@@ -148,10 +148,14 @@ async def get_modules(
     summary = ModulesSummary(
         lessons_total=len(lessons),
         lessons_enabled=sum(1 for lesson in lessons if lesson.enabled),
+        # BL-38: solo lecciones HABILITADAS — una completada y luego
+        # deshabilitada no cuenta (podría superar lessons_enabled).
         lessons_completed=sum(
             1
             for record in records.values()
-            if record.completed and content.exists_lesson(record.lesson_id)
+            if record.completed
+            and (lesson := content.lesson(record.lesson_id)) is not None
+            and lesson.enabled
         ),
         quizzes_total=sum(1 for lesson in lessons if lesson.has_quiz),
         questions_enabled_total=sum(

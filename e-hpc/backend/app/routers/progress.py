@@ -73,8 +73,15 @@ async def get_progress(
         for r in records
     }
     completed_ids = {r.lesson_id for r in records if r.completed}
+    # BL-38: la métrica solo cuenta lecciones HABILITADAS (espeja /modules);
+    # _modules_completed ya intersecta con las habilitadas por módulo.
+    completed_enabled = {
+        lid
+        for lid in completed_ids
+        if (lesson := content.lesson(lid)) is not None and lesson.enabled
+    }
     summary = ProgressSummary(
-        lessons_completed=len(completed_ids),
+        lessons_completed=len(completed_enabled),
         lessons_enabled=sum(1 for lesson in content.lessons() if lesson.enabled),
         modules_completed=_modules_completed(content, completed_ids),
         modules_total=len(content.modules()),
