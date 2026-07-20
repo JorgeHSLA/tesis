@@ -56,6 +56,15 @@ export class JobSocket {
   /** Inicia (o reinicia) la conexión. Resetea el store vía begin(). */
   connect(): void {
     this.closedByClient = false
+    // BL-10: begin() vacía el store — el estado de dedupe/sesión del socket
+    // se resetea CON él. Sin esto, el backlog o el replay renumerado desde
+    // DB (seq desde 1, §8.2) quedaba descartado por lastLogSeq obsoleto y
+    // la terminal se mostraba vacía tras «Reintentar conexión».
+    this.lastLogSeq = -1
+    this.sawEof = false
+    this.lastPhase = null
+    this.sawActivePhase = false
+    this.buffer = []
     useJobStore.getState().begin(this.jobId)
     this.open()
   }

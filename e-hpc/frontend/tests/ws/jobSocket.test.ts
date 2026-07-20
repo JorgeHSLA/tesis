@@ -238,6 +238,63 @@ describe('cierre y backoff', () => {
   })
 })
 
+describe('BL-10: retry() resetea el estado de dedupe (sesión nueva)', () => {
+  it('el replay renumerado tras retry() re-puebla los logs (no se descarta)', () => {
+    vi.useFakeTimers()
+    const { socket, ws } = connectOpen()
+    ws.emit(statusMsg('running'))
+    ws.emit(logMsg(5, ['linea vieja']))
+    ws.serverClose(1006) // conexión perdida sin eof (fuerza el flush)
+    expect(store().logs).toHaveLength(1)
+    expect(store().phase).toBe('lost')
+
+    socket.retry()
+    const ws2 = FakeWebSocket.last!
+    ws2.open()
+    expect(store().logs).toHaveLength(0) // begin() vació el store
+    // el job terminó durante la desconexión: replay desde DB con seq
+    // renumerado desde 1 (≤ lastLogSeq=5 de la sesión anterior)
+    ws2.emit(statusMsg('completed', COMPLETED_DETAIL))
+    ws2.emit(logMsg(1, ['salida completa']))
+    ws2.emit(eofMsg(false))
+    // sin el reset del dedupe, la terminal quedaba VACÍA (auditoría BL-10)
+    expect(store().logs.map((l) => l.text)).toEqual(['salida completa'])
+  })
+
+  it('retry() con job ya terminal es replay puro: redirige a resultados', () => {
+    vi.useFakeTimers()
+    const onReplayTerminal = vi.fn()
+    const { socket, ws } = connectOpen({ onReplayTerminal })
+    ws.emit(statusMsg('running')) // la sesión 1 SÍ vio una fase viva
+    ws.serverClose(1006)
+
+    socket.retry()
+    const ws2 = FakeWebSocket.last!
+    ws2.open()
+    ws2.emit(statusMsg('completed', COMPLETED_DETAIL))
+    ws2.emit(eofMsg(false))
+    // sesión nueva: sin fase viva vista EN ESTA sesión → onReplayTerminal
+    expect(onReplayTerminal).toHaveBeenCalledWith(JOB_ID)
+  })
+
+  it('el sawEof de una sesión anterior no suprime el backoff de la nueva', () => {
+    vi.useFakeTimers()
+    const { socket, ws } = connectOpen()
+    ws.emit(statusMsg('completed', COMPLETED_DETAIL))
+    ws.emit(eofMsg(false))
+    ws.serverClose(1000) // cierre normal de la sesión 1
+
+    socket.retry() // el usuario relanza la conexión (sesión 2)
+    const ws2 = FakeWebSocket.last!
+    ws2.open()
+    const before = FakeWebSocket.instances.length
+    ws2.serverClose(1006) // la sesión 2 cae SIN eof propio
+    expect(store().phase).toBe('lost')
+    vi.advanceTimersByTime(1000)
+    expect(FakeWebSocket.instances.length).toBe(before + 1) // sí reintenta
+  })
+})
+
 describe('replay terminal (F5 / historial)', () => {
   it('status terminal + eof SIN fase viva previa dispara onReplayTerminal', () => {
     const onReplayTerminal = vi.fn()

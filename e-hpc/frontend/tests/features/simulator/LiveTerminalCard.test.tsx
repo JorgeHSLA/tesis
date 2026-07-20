@@ -26,6 +26,18 @@ describe('render de líneas', () => {
   })
 })
 
+describe('BL-16: ts del replay desde DB', () => {
+  it('ts vacío (no fabricado por el servidor) se muestra como «—»', () => {
+    // El replay post-terminal no conoce el instante real de cada línea y
+    // manda `ts: ""` (§8.2): la terminal NO puede inventar un reloj.
+    const { container } = renderCard('completed', [
+      { seq: 1, ts: '', stream: 'stdout', text: 'salida vieja' },
+    ])
+    expect(container.querySelector('.term-line .term-dim')?.textContent).toBe('[—]')
+    expect(screen.getByText('salida vieja')).toBeInTheDocument()
+  })
+})
+
 describe('placeholders por fase (logs vacíos)', () => {
   it('creating → «Creando contenedor…»', () => {
     renderCard('creating')
