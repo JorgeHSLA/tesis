@@ -247,6 +247,89 @@ def test_desconexion_no_cancela_el_job(client, fake_docker):
     assert data["status"] == "completed"
 
 
+def test_bl16_replay_no_fabrica_ts_en_los_logs(client, fake_docker, app):
+    """El replay desde DB no conoce el instante real de cada línea: `ts` va
+    vacío (marcado, §8.2) en vez de fabricarse con la hora del refresh."""
+    fake_docker.queue_execution(FakeExecution(stdout=[b"salida\n"]))
+    job_id = post_job(client)
+    wait_terminal(client, job_id)
+    from conftest import wait_registry_empty
+    wait_registry_empty(app, job_id)  # forzar la vía DB (replay §8.1)
+
+    with client.websocket_connect(f"/ws/jobs/{job_id}") as ws:
+        messages = collect_until_eof(ws)
+        assert messages[0]["type"] == "status" and messages[0]["ts"]
+        logs = [m for m in messages if m["type"] == "log"]
+        assert logs and all(m["ts"] == "" for m in logs)
+        assert messages[-1]["type"] == "eof" and messages[-1]["ts"]
+
+
+def test_bl33_estado_inconsistente_emite_error_antes_del_1011(
+    client, fake_docker, app
+):
+    """§8.4: el cierre 1011 va «tras intentar emitir error» (catálogo §8.2)."""
+    execution = fake_docker.queue_execution(
+        FakeExecution(stdout=[b"x\n"], hang=True)
+    )
+    job_id = post_job(client)
+    # inconsistencia forzada: no-terminal en DB pero fuera del registro
+    import time
+    deadline = time.monotonic() + 5
+    while job_id not in app.state.jobs and time.monotonic() < deadline:
+        time.sleep(0.01)
+    handle = app.state.jobs.pop(job_id)
+    try:
+        with client.websocket_connect(f"/ws/jobs/{job_id}") as ws:
+            error = ws.receive_json()
+            assert error["type"] == "error"
+            assert error["code"] == "STREAM_ERROR"  # catálogo cerrado §8.2
+            with pytest.raises(WebSocketDisconnect) as excinfo:
+                ws.receive_json()
+            assert excinfo.value.code == 1011
+    finally:
+        app.state.jobs[job_id] = handle
+        execution.finish(exit_code=0)
+        wait_terminal(client, job_id)
+
+
+def test_bl09_reconexion_en_retencion_recibe_backlog_con_seq_originales(
+    settings, fake_docker, real_content
+):
+    """BL-09 (opción A): el handle terminal se retiene un periodo corto — la
+    reconexión recibe el backlog con los seq y ts ORIGINALES del stream vivo
+    (el dedupe del cliente por `seq` sigue funcionando, §8.2)."""
+    from conftest import build_app
+    from fastapi.testclient import TestClient
+
+    retained_app = build_app(
+        settings=settings, docker=fake_docker, content=real_content,
+        terminal_retention_s=5.0,
+    )
+    fake_docker.queue_execution(FakeExecution(stdout=[b"uno\ndos\n"]))
+    with TestClient(retained_app) as retained_client:
+        job_id = post_job(retained_client)
+        wait_terminal(retained_client, job_id)
+        # terminal en DB pero AÚN retenido en el registro (§3.4 p.5 diferido)
+        handle = retained_app.state.jobs[job_id]
+        original_seqs = [m["seq"] for m in handle.backlog]
+        assert original_seqs
+
+        with retained_client.websocket_connect(f"/ws/jobs/{job_id}") as ws:
+            messages = collect_until_eof(ws)
+            status = messages[0]
+            assert status["type"] == "status"
+            assert status["phase"] == "completed"
+            assert status["detail"]["exit_code"] == 0
+            logs = [m for m in messages if m["type"] == "log"]
+            assert [line for m in logs for line in m["lines"]] == ["uno", "dos"]
+            assert [m["seq"] for m in logs] == original_seqs
+            assert all(m["ts"] for m in logs)  # ts reales del vivo
+            assert messages[-1]["truncated"] is False
+            with pytest.raises(WebSocketDisconnect) as excinfo:
+                ws.receive_json()
+            assert excinfo.value.code == 1000
+
+
 def test_replay_truncado_marca_eof(client, fake_docker, settings, real_content):
     """Job truncado: el replay terminal marca ``eof.truncated=true``."""
     from conftest import build_app

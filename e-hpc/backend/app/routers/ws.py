@@ -62,6 +62,12 @@ async def job_stream(websocket: WebSocket, job_id: str) -> None:
     if handle is not None:
         await _stream_active(websocket, runner, job_id, handle)
         return
+    finished = runner.get_finished(job_id)
+    if finished is not None:
+        # BL-09: terminal aún retenido — replay con los seq/ts ORIGINALES
+        # del stream vivo (el dedupe del cliente sigue funcionando, §8.2).
+        await _replay_retained(websocket, finished)
+        return
 
     record = await repo.find_by_id(job_id)
     if record is None:
@@ -78,6 +84,10 @@ async def job_stream(websocket: WebSocket, job_id: str) -> None:
     if handle is not None:
         await _stream_active(websocket, runner, job_id, handle)
         return
+    finished = runner.get_finished(job_id)
+    if finished is not None:
+        await _replay_retained(websocket, finished)
+        return
     record = await repo.find_by_id(job_id)
     if record is None:
         await websocket.close(code=4404, reason="job not found")
@@ -86,6 +96,13 @@ async def job_stream(websocket: WebSocket, job_id: str) -> None:
         await _replay_terminal(websocket, record)
         return
     logger.error("ws %s: job no terminal y fuera del registro tras reintento", job_id)
+    # §8.4: el 1011 va «tras intentar emitir `error`» (BL-33); el código
+    # sale del catálogo cerrado de §8.2.
+    with contextlib.suppress(WebSocketDisconnect, RuntimeError):
+        await websocket.send_json(_error_msg(
+            job_id, "STREAM_ERROR",
+            "Estado interno inconsistente; reintenta la conexión.",
+        ))
     await websocket.close(code=1011, reason="internal error")
 
 
@@ -123,7 +140,10 @@ async def _replay_terminal(websocket: WebSocket, record: Any) -> None:
                     {
                         "type": "log",
                         "job_id": record.id,
-                        "ts": utc_now_iso(),
+                        # BL-16: la DB no guarda el instante de cada línea —
+                        # `ts` va vacío (marcado, §8.2) en vez de fabricarse
+                        # con la hora del replay.
+                        "ts": "",
                         "stream": stream,
                         "lines": lines[i : i + _REPLAY_LINES_PER_MSG],
                         "seq": seq,
@@ -136,6 +156,39 @@ async def _replay_terminal(websocket: WebSocket, record: Any) -> None:
                 "ts": utc_now_iso(),
                 "total_log_bytes": total_bytes,
                 "truncated": record.output_truncated,
+            }
+        )
+        await websocket.close(code=1000)
+    except (WebSocketDisconnect, RuntimeError):
+        pass  # el cliente se fue durante el replay: no es un error
+
+
+async def _replay_retained(websocket: WebSocket, handle: JobHandle) -> None:
+    """Job terminal retenido en el registro (BL-09): ``status`` final +
+    backlog del ring-buffer TAL CUAL (seq y ts originales) + ``eof`` + 1000."""
+    try:
+        detail = handle.terminal_detail or {
+            "exit_code": None, "oom_killed": False, "wall_time_ms": None,
+            "output_truncated": handle.output_truncated, "error_detail": None,
+        }
+        await websocket.send_json(
+            {
+                "type": "status",
+                "job_id": handle.job_id,
+                "ts": utc_now_iso(),
+                "phase": handle.phase,
+                "detail": detail,
+            }
+        )
+        for msg in list(handle.backlog):
+            await websocket.send_json(msg)
+        await websocket.send_json(
+            {
+                "type": "eof",
+                "job_id": handle.job_id,
+                "ts": utc_now_iso(),
+                "total_log_bytes": handle.total_log_bytes,
+                "truncated": handle.output_truncated,
             }
         )
         await websocket.close(code=1000)
