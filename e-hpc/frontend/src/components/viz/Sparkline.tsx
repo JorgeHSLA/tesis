@@ -1,7 +1,8 @@
 // Sparkline — hint de la MetricCard CPU en el live (frontend-spec §8.1).
-// Polilínea de las últimas 60 muestras, 120×28, stroke #3F7A2E 1.5, área
-// rgba(63,122,46,.08). SIN ejes ni labels. Escala: max = threads_effective·100
-// (fallback online_cpus·100) — cpu_percent puede superar 100, JAMÁS max=100 fijo.
+// Polilínea de las últimas 60 muestras, 120×28, stroke var(--viz-cpu) 1.5,
+// área teal suave (mismo token con fillOpacity .12). SIN ejes ni labels.
+// Escala: max = threads_effective·100 (fallback online_cpus·100) —
+// cpu_percent puede superar 100, JAMÁS max=100 fijo.
 
 const W = 120
 const H = 28
@@ -26,8 +27,8 @@ export function Sparkline({ data, max }: SparklineProps) {
   const area = `M0,${H} L${coords.join(' L')} L${W},${H} Z`
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true" style={{ display: 'block' }}>
-      <path d={area} fill="rgba(63,122,46,.08)" stroke="none" />
-      <polyline points={coords.join(' ')} fill="none" stroke="#3F7A2E" strokeWidth={1.5} />
+      <path d={area} fill="var(--viz-cpu)" fillOpacity={0.12} stroke="none" />
+      <polyline points={coords.join(' ')} fill="none" stroke="var(--viz-cpu)" strokeWidth={1.5} />
     </svg>
   )
 }

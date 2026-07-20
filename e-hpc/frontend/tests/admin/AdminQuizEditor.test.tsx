@@ -11,6 +11,7 @@ vi.mock('@/api/admin', () => ({
 }))
 
 import { getAdminQuiz, putAdminQuiz } from '@/api/admin'
+import { ApiError } from '@/api/client'
 import AdminQuizEditor from '@/features/admin/quiz/AdminQuizEditor'
 
 const getAdminQuizMock = getAdminQuiz as Mock
@@ -98,5 +99,83 @@ describe('AdminQuizEditor', () => {
     expect(body.questions).toHaveLength(2)
     expect(body.questions[0].correct_key).toBe('b')
     expect(body.questions.map((q: { order: number }) => q.order)).toEqual([1, 2])
+  })
+
+  // BUG-01: crear el PRIMER quiz de una lección. El GET admin devuelve
+  // 404 QUIZ_NOT_FOUND cuando la lección existe pero no tiene preguntas; eso NO
+  // es un error a mostrar, sino el punto de partida para autorar (formulario vacío).
+  it('lección sin quiz (404 QUIZ_NOT_FOUND) → formulario vacío editable, no ErrorState', async () => {
+    getAdminQuizMock.mockRejectedValue(new ApiError('QUIZ_NOT_FOUND', 'La lección no tiene quiz.', 404))
+    renderEditor()
+
+    expect(await screen.findByText('Preguntas del quiz')).toBeInTheDocument()
+    // Controles de autoría presentes (umbral + añadir pregunta):
+    expect(screen.getByRole('spinbutton', { name: 'Umbral para aprobar' })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Añadir pregunta' }).length).toBeGreaterThan(0)
+    expect(screen.getByText('Este quiz no tiene preguntas')).toBeInTheDocument()
+    // NO se muestra el ErrorState:
+    expect(screen.queryByText('No se pudo cargar el quiz.')).not.toBeInTheDocument()
+    // Parte sin cambios (nada que guardar aún):
+    expect(screen.getByText('Todo guardado')).toBeInTheDocument()
+  })
+
+  it('lección inexistente (404 LESSON_NOT_FOUND) → ErrorState, no formulario', async () => {
+    getAdminQuizMock.mockRejectedValue(new ApiError('LESSON_NOT_FOUND', 'No existe la lección.', 404))
+    renderEditor()
+
+    expect(await screen.findByText('No se pudo cargar el quiz.')).toBeInTheDocument()
+    expect(screen.queryByRole('spinbutton', { name: 'Umbral para aprobar' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Añadir pregunta' })).not.toBeInTheDocument()
+  })
+
+  it('otros errores (500 INTERNAL_ERROR) → ErrorState (solo QUIZ_NOT_FOUND es especial)', async () => {
+    getAdminQuizMock.mockRejectedValue(new ApiError('INTERNAL_ERROR', 'Error del servidor.', 500))
+    renderEditor()
+
+    expect(await screen.findByText('No se pudo cargar el quiz.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Añadir pregunta' })).not.toBeInTheDocument()
+  })
+
+  it('desde el formulario vacío, añade una pregunta y guarda con un id de pregunta válido', async () => {
+    const savedQuiz = {
+      lesson_id: 'lesson-1',
+      question_count: 1,
+      pass_threshold: 0.6,
+      questions: [
+        {
+          id: 'lesson-1-q-nueva', order: 1, text: 'P',
+          options: [{ key: 'a', text: 'A' }, { key: 'b', text: 'B' }],
+          correct_key: 'a', explanation: 'E',
+        },
+      ],
+    }
+    // Primera carga: sin quiz (404). Tras guardar, el reload ya ve el quiz creado.
+    getAdminQuizMock.mockRejectedValueOnce(new ApiError('QUIZ_NOT_FOUND', 'La lección no tiene quiz.', 404))
+    getAdminQuizMock.mockResolvedValue(structuredClone(savedQuiz))
+    putAdminQuizMock.mockResolvedValue(structuredClone(savedQuiz))
+
+    renderEditor()
+    await screen.findByText('Preguntas del quiz')
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Añadir pregunta' })[0])
+    fireEvent.change(await screen.findByLabelText('Enunciado'), { target: { value: 'P' } })
+    fireEvent.change(screen.getByLabelText('Texto de la opción A'), { target: { value: 'A' } })
+    fireEvent.change(screen.getByLabelText('Texto de la opción B'), { target: { value: 'B' } })
+    fireEvent.change(screen.getByLabelText('Explicación'), { target: { value: 'E' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar quiz' }))
+
+    await waitFor(() => expect(putAdminQuizMock).toHaveBeenCalledTimes(1))
+    const [lessonId, body] = putAdminQuizMock.mock.calls[0]
+    expect(lessonId).toBe('lesson-1')
+    expect(body.pass_threshold).toBeCloseTo(0.6)
+    expect(body.questions).toHaveLength(1)
+    // El id de la pregunta nueva NO viaja vacío: cumple ^[A-Za-z0-9._-]{1,80}$ del contrato §10.6.
+    expect(body.questions[0].id).not.toBe('')
+    expect(body.questions[0].id).toMatch(/^[A-Za-z0-9._-]{1,80}$/)
+    expect(body.questions[0].order).toBe(1)
+
+    // Tras el reload (getAdminQuiz ya resuelve el quiz creado) → Todo guardado.
+    await waitFor(() => expect(screen.getByText('Todo guardado')).toBeInTheDocument())
   })
 })

@@ -1,26 +1,28 @@
-/* screens/simulator.css — Simulador idle + live (frontend-spec §6.2-§6.3;
-   layouts del handoff §5). El terminal es SIEMPRE oscuro #14100C en ambas
-   variantes (handoff §1.6: correcto no tokenizarlo). */
+/* screens/simulator.css — Simulador idle + live (frontend-spec §6.2-§6.3).
+   Rediseño 2026-07 "plataforma de curso": tarjetas blancas que flotan sobre
+   el neutro, teal = progreso/estado activo, naranja SOLO en el CTA de lanzar
+   (hereda .btn-primary). El código/terminal usa los tokens --term-* (siempre
+   oscuro en ambas variantes). */
 
 /* ── header compartido ─────────────────────────────────────────────────── */
 .screen-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--sp-3);
   flex-shrink: 0;
 }
 .live-head-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   margin-top: 6px;
 }
 
-/* ── IDLE: config-grid (handoff §5.3) ──────────────────────────────────── */
+/* ── IDLE: config-grid (§6.2) ──────────────────────────────────────────── */
 .config-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: var(--grid-gap);
 }
 @media (max-width: 980px) {
   .config-grid { grid-template-columns: 1fr; }
@@ -29,10 +31,12 @@
 .code-upload-body {
   display: grid;
   grid-template-rows: auto 1fr;
-  gap: 14px;
-  padding: 16px;
+  gap: var(--sp-4);
+  padding: var(--card-pad);
 }
 
+/* Dropzone: interactivo → hover en clave teal (mismo patrón que las
+   opciones seleccionables del quiz: --border-accent + --primary-soft). */
 .dropzone {
   display: flex;
   flex-direction: column;
@@ -40,32 +44,32 @@
   justify-content: center;
   border: 2px dashed var(--border-strong);
   border-radius: var(--r-md);
-  background: var(--cream-50);
-  padding: 24px;
+  background: var(--bg);
+  padding: var(--card-pad);
   text-align: center;
   color: var(--text-muted);
   cursor: pointer;
-  transition: border-color .18s var(--ease), background .18s var(--ease), color .18s var(--ease);
+  transition: border-color .2s var(--ease), background .2s var(--ease), color .2s var(--ease);
 }
 .dropzone:hover,
 .dropzone.drag-over {
-  border-color: var(--orange-400, #F58A4B);
-  background: var(--orange-50, #FDEBDD);
-  color: var(--orange-700, #B44E12);
+  border-color: var(--border-accent);
+  background: var(--primary-soft);
+  color: var(--primary-ink);
 }
 .dz-title {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text);
-  margin-top: 8px;
+  margin-top: var(--sp-2);
 }
 .dz-sub { margin-top: 2px; }
 
-/* Preview/editor de código: estilo terminal (handoff §5.3) — no tokenizar. */
+/* Preview/editor de código: marco terminal con tokens --term-* (§6.2). */
 .code-preview {
-  border: 1px solid var(--border);
+  border: 1px solid var(--term-border);
   border-radius: var(--r-md);
-  background: #14100C;
+  background: var(--term-bg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -74,12 +78,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  background: #1F1913;
-  border-bottom: 1px solid #3A2E22;
-  color: #A08B6E;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--term-head);
+  border-bottom: 1px solid var(--term-border);
+  color: var(--term-dim);
 }
-.code-preview-head .mono-small { color: #A08B6E; }
+.code-preview-head .mono-small { color: var(--term-dim); }
 .code-editor {
   width: 100%;
   min-height: 260px;
@@ -87,41 +91,42 @@
   border: none;
   outline: none;
   resize: vertical;
-  background: #14100C;
-  color: #F9EFD9;
+  background: var(--term-bg);
+  color: var(--term-text);
   font-family: var(--font-mono);
-  font-size: 11.5px;
-  line-height: 1.55;
-  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: var(--sp-3) var(--sp-4);
   white-space: pre;
   overflow: auto;
   tab-size: 4;
 }
+/* v2 · compacto: solo densidad (misma paleta --term-*) */
 [data-variant="v2"] .code-editor {
-  font-size: 11px;
   min-height: 220px;
   max-height: 300px;
 }
 
+/* Marco de la topología en idle: blanco limpio, sin degradados */
 .topology-viz {
-  padding: 20px 20px 4px;
-  background: linear-gradient(180deg, var(--cream-50), transparent);
+  padding: var(--sp-5) var(--sp-5) var(--sp-1);
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 .config-fields {
-  padding: 20px;
+  padding: var(--card-pad);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--sp-4);
 }
-[data-variant="v2"] .config-fields { padding: 14px; gap: 12px; }
+[data-variant="v2"] .config-fields { gap: var(--sp-3); }
 
-.sweep-warn { color: var(--amber-500); }
+.sweep-warn { color: var(--warn); }
 
 .adv-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  gap: var(--sp-4);
 }
 @media (max-width: 800px) {
   .adv-grid { grid-template-columns: 1fr; }
@@ -132,73 +137,90 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding: 12px 14px;
-  background: rgba(201, 74, 43, .08);
-  border: 1px solid rgba(201, 74, 43, .3);
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+  padding: 14px 18px;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
   border-radius: var(--r-md);
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--text);
 }
+.launch-error b { color: var(--danger-ink); }
 .launch-error-instructions {
   flex-basis: 100%;
   margin: 0;
   padding: 10px 12px;
-  border-radius: var(--r-sm, 6px);
-  background: #14100C;
-  color: #F9EFD9;
+  border-radius: var(--r-sm);
+  background: var(--term-bg);
+  color: var(--term-text);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.55;
   overflow-x: auto;
 }
 
 /* ── LIVE ──────────────────────────────────────────────────────────────── */
+/* Grilla de métricas del live: 4 tarjetas, gap de grilla del sistema */
+.simulator-screen .metrics-row {
+  gap: var(--grid-gap);
+  margin-bottom: var(--sp-5);
+}
+@media (max-width: 980px) {
+  .simulator-screen .metrics-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Banner informativo (threads_note): clave teal, texto --text con <b> teal */
 .threads-note {
-  margin-bottom: 16px;
-  padding: 10px 14px;
-  background: rgba(232, 163, 23, .1);
-  border: 1px solid rgba(232, 163, 23, .35);
+  margin-bottom: var(--sp-4);
+  padding: 14px 18px;
+  background: var(--primary-soft);
+  border: 1px solid var(--border-accent);
   border-radius: var(--r-md);
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--text);
 }
+.threads-note b { color: var(--primary-ink); }
+
+/* Banner de conexión perdida: familia danger */
 .lost-banner {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--sp-3);
   flex-wrap: wrap;
-  margin-bottom: 16px;
-  padding: 12px 14px;
-  background: rgba(201, 74, 43, .08);
-  border: 1px solid rgba(201, 74, 43, .35);
+  margin-bottom: var(--sp-4);
+  padding: 14px 18px;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
   border-radius: var(--r-md);
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--text);
 }
+.lost-banner b { color: var(--danger-ink); }
 
 .running-grid {
   display: grid;
   grid-template-columns: 1.3fr 1fr;
-  gap: 20px;
+  gap: var(--sp-5);
 }
 @media (max-width: 980px) {
   .running-grid { grid-template-columns: 1fr; }
 }
 
+/* Topología en vivo: fondo blanco limpio con la SVG centrada */
 .live-topology {
-  padding: 10px 16px;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(245, 115, 36, .06), transparent 60%),
-    linear-gradient(180deg, var(--cream-50), transparent);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  display: grid;
+  place-items: center;
 }
 .live-topology-foot {
-  padding: 0 20px 14px;
+  padding: 0 var(--card-pad) 14px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 
-/* Terminal live: card sin padding, terminal sin borde/radius (handoff §5.7) */
+/* Terminal live: card sin padding, terminal sin borde/radius (§6.3) */
 .terminal-card { padding: 0; overflow: hidden; }
 .terminal-card .terminal {
   border: none;
@@ -217,62 +239,82 @@
   position: absolute;
   right: 14px;
   bottom: 12px;
-  border: 1px solid #3A2E22;
-  background: #1F1913;
-  color: #F9EFD9;
+  border: 1px solid var(--term-border);
+  background: var(--term-head);
+  color: var(--term-text);
   font-family: var(--font-mono);
-  font-size: 11px;
-  padding: 5px 10px;
+  font-size: 12px;
+  padding: 5px 12px;
   border-radius: 999px;
   cursor: pointer;
+  transition: background .15s var(--ease), color .15s var(--ease);
 }
-.follow-btn:hover { background: #2A2219; }
+.follow-btn:hover {
+  background: var(--term-border);
+  color: var(--term-accent);
+}
 
-/* Tabla «Detalle por hilo» (handoff §5.8 adaptada a 4 columnas honestas) */
-.threads-table { padding-bottom: 8px; }
+/* Tabla «Detalle por hilo» (§6.3): aireada, th sans 12/600 uppercase,
+   valores mono tabular-nums, hover de fila en --surface-2 */
+.threads-table {
+  padding-bottom: var(--sp-2);
+  font-variant-numeric: tabular-nums;
+}
 .threads-table-head,
 .threads-table-row {
   display: grid;
   grid-template-columns: 140px 160px 1fr 120px;
-  gap: 14px;
+  gap: var(--sp-4);
   align-items: center;
-  padding: 10px 20px;
+  padding: var(--sp-3) var(--card-pad);
 }
 .threads-table-head {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .06em;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
 }
+.threads-table-row { transition: background .15s var(--ease); }
+.threads-table-row:hover { background: var(--surface-2); }
 .threads-table-sub {
   text-transform: none;
   letter-spacing: 0;
-  opacity: .7;
+  font-weight: 500;
+  opacity: .75;
 }
+/* v2 · compacto: solo densidad */
 [data-variant="v2"] .threads-table-head,
-[data-variant="v2"] .threads-table-row { padding: 8px 14px; font-size: 12.5px; }
+[data-variant="v2"] .threads-table-row { padding: 8px 14px; }
+[data-variant="v2"] .threads-table-row { font-size: 13px; }
 
-/* SweepProgressCard */
+/* SweepProgressCard — el caso «en curso» se marca en teal (progreso) */
 .sweep-progress {
-  padding: 14px 20px 18px;
+  padding: 14px var(--card-pad) var(--sp-5);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 .sweep-case {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  background: var(--cream-50);
+  background: var(--surface);
+  transition: border-color .2s var(--ease), background .2s var(--ease);
 }
 .sweep-case.current {
-  border-color: rgba(245, 115, 36, .45);
-  background: var(--orange-50, #FDEBDD);
+  border-color: var(--border-accent);
+  background: var(--primary-soft);
 }
-.sweep-case-value { display: flex; align-items: center; gap: 6px; }
-.sweep-check { color: var(--green-500); font-weight: 700; }
+.sweep-case-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.sweep-check { color: var(--success-ink); font-weight: 700; }

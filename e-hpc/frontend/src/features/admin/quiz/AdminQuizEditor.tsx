@@ -45,9 +45,24 @@ function newQuestion(): QRow {
   }
 }
 
-/** Serializa las filas a preguntas del contrato con `order` 1..N. */
+/**
+ * Serializa las filas a preguntas del contrato con `order` 1..N. Una pregunta
+ * recién añadida nace con `id: ''`; el contrato §10.6 exige `id` no vacío
+ * (`^[A-Za-z0-9._-]{1,80}$`), así que en ese caso se usa la clave estable `_cid`
+ * (mismo formato) como id provisional — estable entre guardados de la sesión.
+ */
 function toQuestions(rows: QRow[]): AdminQuizQuestionDto[] {
-  return rows.map(({ _cid: _drop, ...q }, i) => ({ ...q, order: i + 1 }))
+  return rows.map(({ _cid, ...q }, i) => ({ ...q, id: q.id || _cid, order: i + 1 }))
+}
+
+/**
+ * Quiz vacío editable para autoría. Cuando la lección existe pero aún no tiene
+ * preguntas, el GET admin responde 404 QUIZ_NOT_FOUND (BUG-01): ese caso NO es un
+ * error a mostrar, sino el estado inicial para crear el PRIMER quiz. `pass_threshold`
+ * por defecto 0.6; el usuario lo ajusta antes de guardar.
+ */
+function emptyQuiz(lessonId: string): AdminQuizDto {
+  return { lesson_id: lessonId, question_count: 0, pass_threshold: 0.6, questions: [] }
 }
 
 export default function AdminQuizEditor() {
@@ -57,6 +72,15 @@ export default function AdminQuizEditor() {
     [lessonId],
   )
 
+  // Una lección sin quiz responde 404 QUIZ_NOT_FOUND: se trata como quiz vacío
+  // editable (crear el primero). Cualquier OTRO error (LESSON_NOT_FOUND, 401,
+  // 500, red…) sigue siendo un ErrorState.
+  const isMissingQuiz = error instanceof ApiError && error.code === 'QUIZ_NOT_FOUND'
+  const effectiveData = useMemo<AdminQuizDto | null>(
+    () => data ?? (isMissingQuiz ? emptyQuiz(lessonId) : null),
+    [data, isMissingQuiz, lessonId],
+  )
+
   const [rows, setRows] = useState<QRow[] | null>(null)
   const [threshold, setThreshold] = useState(0.8)
   const [initial, setInitial] = useState<string>('') // snapshot serializado
@@ -64,15 +88,15 @@ export default function AdminQuizEditor() {
   const [banner, setBanner] = useState<string | null>(null)
 
   useEffect(() => {
-    if (data == null) return
-    const loaded: QRow[] = [...data.questions]
+    if (effectiveData == null) return
+    const loaded: QRow[] = [...effectiveData.questions]
       .sort((a, b) => a.order - b.order)
       .map((q) => ({ ...q, _cid: nextCid() }))
     setRows(loaded)
-    setThreshold(data.pass_threshold)
-    setInitial(JSON.stringify({ t: data.pass_threshold, q: toQuestions(loaded) }))
+    setThreshold(effectiveData.pass_threshold)
+    setInitial(JSON.stringify({ t: effectiveData.pass_threshold, q: toQuestions(loaded) }))
     setBanner(null)
-  }, [data])
+  }, [effectiveData])
 
   const current = useMemo(
     () => (rows ? JSON.stringify({ t: threshold, q: toQuestions(rows) }) : ''),
@@ -101,14 +125,14 @@ export default function AdminQuizEditor() {
   }, [])
 
   const discard = useCallback(() => {
-    if (data == null) return
-    const loaded: QRow[] = [...data.questions]
+    if (effectiveData == null) return
+    const loaded: QRow[] = [...effectiveData.questions]
       .sort((a, b) => a.order - b.order)
       .map((q) => ({ ...q, _cid: nextCid() }))
     setRows(loaded)
-    setThreshold(data.pass_threshold)
+    setThreshold(effectiveData.pass_threshold)
     setBanner(null)
-  }, [data])
+  }, [effectiveData])
 
   const save = useCallback(async () => {
     if (rows == null || saving || !dirty) return
@@ -130,7 +154,7 @@ export default function AdminQuizEditor() {
     }
   }, [rows, saving, dirty, threshold, lessonId, reload])
 
-  if (loading && data == null) {
+  if (loading && rows == null) {
     return (
       <section className="screen">
         <Skeleton width={240} height={28} />
@@ -143,7 +167,7 @@ export default function AdminQuizEditor() {
     )
   }
 
-  if (error != null && data == null) {
+  if (error != null && effectiveData == null) {
     return (
       <section className="screen">
         <ErrorState

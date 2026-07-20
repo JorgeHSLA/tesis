@@ -1,6 +1,6 @@
 // MiniBar — port del handoff (§5.8): contenedor 18px (14px en v2) con fill
-// coloreado y label del % dentro a la derecha. Colores del prototipo:
-// CPU #3F7A2E, memoria #F57324, warning #E8A317.
+// coloreado y label del % dentro a la derecha. Colores de tokens:
+// CPU var(--viz-cpu) (por defecto), memoria var(--viz-mem) donde aplique.
 export interface MiniBarProps {
   /** 0..100. */
   pct: number
@@ -9,7 +9,7 @@ export interface MiniBarProps {
   label?: string
 }
 
-export function MiniBar({ pct, color = '#3F7A2E', label }: MiniBarProps) {
+export function MiniBar({ pct, color = 'var(--viz-cpu)', label }: MiniBarProps) {
   const clamped = Math.min(100, Math.max(0, pct))
   return (
     <div

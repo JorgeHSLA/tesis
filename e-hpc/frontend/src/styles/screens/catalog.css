@@ -1,28 +1,40 @@
-/* screens/catalog.css — WP7. Port pixel-perfect del handoff screens.css
-   §CATALOG con los fixes de frontend-spec §5.2.4: `var(--ink)` → `var(--text)`
-   en `.fpill.active` v2 y `· Completado` con el token `--success`.
-   `.v2 .xxx` → `[data-variant="v2"] .xxx` (§5.1). */
+/* screens/catalog.css — rediseño 2026-07 "plataforma de curso": cabecera de
+   pantalla aireada, ContinueCard destacada (borde teal), stat tiles blancas,
+   acordeones de módulo como tarjetas blancas con progreso TEAL (--primary
+   sobre --surface-2) y filas de lección con hover suave. Se conservan los
+   fixes del handoff: `var(--ink)` → `var(--text)` en `.fpill.active` v2
+   (§14.4) y `· Completado` con el token `--success` (§14.5). */
 
-.catalog .screen-head { align-items: flex-start; }
+.screen.catalog { padding: var(--screen-pad-y) var(--screen-pad-x); }
 
-/* ── ContinueCard ───────────────────────────────────────────────────────── */
+.catalog .screen-head {
+  align-items: flex-start;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: var(--section-gap);
+}
+
+/* ── ContinueCard — card destacada con borde teal ───────────────────────── */
 .catalog-continue {
   min-width: 280px;
-  padding: 16px 18px;
-  background: linear-gradient(135deg, var(--orange-50), var(--surface));
-  border: 1px solid var(--orange-200);
+  padding: var(--sp-5);
+  background: var(--surface);
+  border: 1px solid var(--border-accent);
+  box-shadow: var(--shadow-md);
 }
 [data-variant="v2"] .catalog-continue {
   background: var(--surface-2);
   border-color: var(--border);
+  box-shadow: none;
 }
 .continue-title {
   font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.01em;
   margin: 4px 0 6px;
   color: var(--text);
-  line-height: 1.25;
+  line-height: 1.3;
 }
 .continue-meta {
   display: inline-flex;
@@ -31,38 +43,41 @@
   color: var(--text-muted);
 }
 
-/* ── Stats strip ────────────────────────────────────────────────────────── */
+/* ── Stats strip — stat tiles blancas que flotan ────────────────────────── */
 .catalog-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 20px;
+  gap: var(--grid-gap);
+  margin-bottom: var(--section-gap);
 }
 .cstat {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 14px 16px;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--sp-4) var(--sp-5);
 }
+/* Número = dato → JetBrains Mono con tabular-nums. */
 .cstat-n {
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 500;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--text);
-  line-height: 1.1;
+  line-height: 1.15;
 }
 .cstat-l {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: var(--sp-1);
 }
 
 /* ── Toolbar ────────────────────────────────────────────────────────────── */
 .catalog-toolbar {
   display: flex;
-  gap: 14px;
+  gap: var(--sp-3);
   align-items: center;
-  margin-bottom: 18px;
+  margin-bottom: var(--grid-gap);
   flex-wrap: wrap;
 }
 .catalog-search {
@@ -70,12 +85,17 @@
   min-width: 280px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   padding: 10px 14px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   color: var(--text-muted);
+  transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
+}
+.catalog-search:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
 }
 .catalog-search input {
   flex: 1;
@@ -88,7 +108,7 @@
 }
 .catalog-filters {
   display: flex;
-  gap: 6px;
+  gap: var(--sp-2);
 }
 .fpill {
   display: inline-flex;
@@ -101,14 +121,17 @@
   font-size: 13px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: all .15s var(--ease);
+  transition: color .15s var(--ease), border-color .15s var(--ease),
+    background .15s var(--ease);
   font-family: inherit;
 }
-.fpill:hover { color: var(--text); border-color: var(--text-muted); }
+.fpill:hover { color: var(--text); border-color: var(--border-strong); }
+/* Chip activo en teal de marca (el naranja queda para CTAs primarios).
+   --primary-ink de fondo: blanco encima da 5.47:1 (con --primary solo 3.74). */
 .fpill.active {
-  background: var(--orange-600);
-  color: white;
-  border-color: var(--orange-600);
+  background: var(--primary-ink);
+  color: var(--on-accent);
+  border-color: var(--primary-ink);
 }
 /* FIX handoff §14.4: `var(--ink)` no existía → `var(--text)`. */
 [data-variant="v2"] .fpill.active { background: var(--text); border-color: var(--text); }
@@ -116,33 +139,39 @@
   font-family: var(--font-mono);
   font-size: 11px;
   padding: 1px 6px;
-  background: rgba(0,0,0,.08);
+  background: var(--surface-2);
+  color: var(--text-muted-strong); /* sobre --surface-2: AA */
   border-radius: 4px;
+  font-variant-numeric: tabular-nums;
 }
-.fpill.active .fpill-n { background: rgba(255,255,255,.2); }
+/* Oscurecer (no aclarar): el blanco del contador sigue AA sobre el pill. */
+.fpill.active .fpill-n {
+  background: rgba(0, 0, 0, .18);
+  color: var(--on-accent);
+}
 
-/* ── Acordeones de módulo ───────────────────────────────────────────────── */
+/* ── Acordeones de módulo — tarjetas blancas, progreso teal ─────────────── */
 .catalog-modules {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--grid-gap);
 }
 .cat-module {
   overflow: hidden;
-  transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
+  transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
 }
 .cat-module.open {
-  border-color: var(--orange-300);
+  border-color: var(--border-accent);
   box-shadow: var(--shadow-md);
 }
-[data-variant="v2"] .cat-module.open { border-color: var(--text-muted); }
+[data-variant="v2"] .cat-module.open { border-color: var(--border-strong); }
 
 .cat-module-head {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: var(--sp-5);
   width: 100%;
-  padding: 18px 22px;
+  padding: var(--sp-5) var(--card-pad);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -153,41 +182,45 @@
 }
 .cat-module-head:hover { background: var(--surface-2); }
 .cat-module.open .cat-module-head {
-  background: linear-gradient(180deg, var(--cream-50), var(--surface));
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 [data-variant="v2"] .cat-module.open .cat-module-head {
   background: var(--surface-2);
 }
 
+/* Número de módulo en teal de marca (dato → mono desde el .tsx).
+   --primary-ink: como texto 22px/600 exige 4.5:1 (no cuenta como "grande"). */
 .cat-module-n {
-  font-size: 26px;
-  font-weight: 500;
-  color: var(--orange-500);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--primary-ink);
   min-width: 44px;
   letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 [data-variant="v2"] .cat-module-n { color: var(--text-muted); }
 
 .cat-module-info { flex: 1; min-width: 0; }
 .cat-module-title {
   font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.01em;
   color: var(--text);
-  line-height: 1.2;
+  line-height: 1.25;
 }
 .cat-module-desc {
   font-size: 13.5px;
   color: var(--text-muted);
-  margin-top: 4px;
-  line-height: 1.45;
+  margin-top: var(--sp-1);
+  line-height: 1.5;
 }
 .cat-module-meta {
   display: flex;
   gap: 10px;
   align-items: center;
-  margin-top: 8px;
+  margin-top: var(--sp-2);
   flex-wrap: wrap;
 }
 .cat-module-meta .mono-small {
@@ -207,9 +240,9 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.level-principiante { background: #E8F3E4; color: #4A7F3A; }
-.level-intermedio { background: #FFF0DB; color: #A85A1B; }
-.level-avanzado { background: #F5DEDE; color: #8F3838; }
+.level-principiante { background: var(--success-soft); color: var(--success-ink); }
+.level-intermedio { background: var(--warn-soft); color: var(--warn-ink); }
+.level-avanzado { background: var(--danger-soft); color: var(--danger-ink); }
 
 .cat-module-progress {
   min-width: 140px;
@@ -218,21 +251,22 @@
 .cat-prog-n {
   font-size: 15px;
   color: var(--text);
-  font-weight: 500;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
+/* Progreso TEAL: barra --primary sobre --surface-2. */
 .cat-prog-bar {
-  margin-top: 6px;
-  height: 4px;
-  background: var(--border);
+  margin-top: var(--sp-2);
+  height: 6px;
+  background: var(--surface-2);
   border-radius: 999px;
   overflow: hidden;
 }
 .cat-prog-bar > div {
   height: 100%;
-  background: var(--orange-500);
+  background: var(--primary);
   border-radius: 999px;
 }
-[data-variant="v2"] .cat-prog-bar > div { background: var(--accent); }
 
 .cat-module-chev {
   color: var(--text-muted);
@@ -243,35 +277,39 @@
 
 /* ── Filas de lección dentro del módulo ─────────────────────────────────── */
 .cat-lesson-list {
-  padding: 8px 12px 12px;
+  padding: var(--sp-2) var(--sp-3) var(--sp-3);
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 .cat-empty {
-  padding: 20px;
+  padding: var(--sp-5);
   text-align: center;
   color: var(--text-muted);
 }
 .cat-lesson {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--sp-4);
   width: 100%;
-  padding: 12px 14px;
+  padding: var(--sp-3) var(--sp-4);
   background: transparent;
   border: none;
   border-radius: var(--r-md);
   cursor: pointer;
   text-align: left;
-  transition: background .12s var(--ease);
+  transition: background .15s var(--ease);
   font: inherit;
   color: var(--text);
 }
 .cat-lesson:hover { background: var(--surface-2); }
-.cat-lesson.current { background: var(--orange-50); }
+.cat-lesson.current { background: var(--primary-soft); }
 .cat-lesson:disabled { opacity: .55; cursor: not-allowed; }
 .cat-lesson:disabled:hover { background: transparent; }
-[data-variant="v2"] .cat-lesson.current { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
+[data-variant="v2"] .cat-lesson.current {
+  background: var(--surface-2);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
 
 .num-badge {
   width: 26px; height: 26px;
@@ -279,33 +317,33 @@
   display: grid; place-items: center;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  color: var(--text-muted);
+  color: var(--text-muted-strong); /* sobre --surface-2: AA */
   flex-shrink: 0;
 }
-/* Estados done con --success (fix handoff §14.5 / frontend-spec §5.2.4). */
+/* Completado: chip --success-soft/--success-ink (fix §14.5 conservado). */
 .num-badge.done {
-  background: #E8F3E4;
-  border-color: #B8DAA8;
-  color: var(--success);
+  background: var(--success-soft);
+  border-color: var(--border-accent);
+  color: var(--success-ink);
 }
 .num-badge.current {
-  background: var(--orange-500);
-  border-color: var(--orange-600);
-  color: white;
+  background: var(--primary-ink); /* blanco encima: 5.47:1 AA */
+  border-color: var(--primary-ink);
+  color: var(--on-accent);
 }
-[data-variant="v2"] .num-badge.current { background: var(--accent); border-color: var(--accent); }
+/* el hijo .mono-small trae color propio de base.css → heredar el del badge */
+.num-badge .mono-small { color: inherit; }
 
 .cat-lesson-icon {
-  width: 32px; height: 32px;
-  border-radius: 8px;
+  width: 34px; height: 34px;
+  border-radius: var(--r-sm);
   display: grid; place-items: center;
   flex-shrink: 0;
 }
-/* `.video` del handoff → `.example` (no hay videos: el ejemplo es la lección). */
-.cat-lesson-icon.example { background: var(--orange-100); color: var(--orange-700); }
-.cat-lesson-icon.quiz  { background: #E8F3E4; color: var(--success); }
-[data-variant="v2"] .cat-lesson-icon.example { background: var(--surface-2); color: var(--accent); }
-[data-variant="v2"] .cat-lesson-icon.quiz { background: var(--surface-2); color: var(--success); }
+/* `.video` del handoff → `.example` (no hay videos: el ejemplo es la lección).
+   Ejemplo (play) en teal de marca; quiz en naranja suave (momento de logro). */
+.cat-lesson-icon.example { background: var(--primary-soft); color: var(--primary-ink); }
+.cat-lesson-icon.quiz  { background: var(--accent-soft); color: var(--orange-600); }
 
 .cat-lesson-title {
   font-size: 14px;
@@ -317,26 +355,26 @@
   margin-top: 3px;
   color: var(--text-muted);
 }
-.cat-lesson-meta .done-mark { color: var(--success); }
+.cat-lesson-meta .done-mark { color: var(--success-ink); }
 
 /* ── Banner GPU (módulo M8 sin GPU) ─────────────────────────────────────── */
 .gpu-banner {
-  display: flex; align-items: flex-start; gap: 12px;
+  display: flex; align-items: flex-start; gap: var(--sp-3);
   margin: 10px 14px 6px;
-  padding: 12px 14px;
-  background: rgba(232,163,23,.1);
-  border: 1px solid rgba(232,163,23,.35);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--warn-soft);
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
   border-radius: var(--r-md);
-  color: var(--ink-800);
+  color: var(--warn-ink);
   font-size: 13px;
 }
-.gpu-banner > svg { color: var(--amber-500); flex-shrink: 0; margin-top: 2px; }
+.gpu-banner > svg { color: var(--warn); flex-shrink: 0; margin-top: 2px; }
 
 /* ── Skeleton del catálogo (8 cards) ────────────────────────────────────── */
 .catalog-skeleton {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--grid-gap);
 }
 
 @media (max-width: 980px) {

@@ -1,6 +1,6 @@
 // CodeShowcase — reemplazo del "video player" del handoff (frontend-spec
 // §6.6): el código del ejemplo en un panel estilo terminal (marco 16:9,
-// fondo #14100C) con las directivas OpenMP resaltadas — regex simple sobre
+// fondo --term-bg) con las directivas OpenMP resaltadas — regex simple sobre
 // los strings `openmp("...")`, NO un highlighter completo — y el botón play
 // de 72 px heredado con label `Ejecutar en el simulador`.
 import type { ReactNode } from 'react'

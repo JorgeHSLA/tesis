@@ -1,6 +1,15 @@
 # E-HPC — Especificación de arquitectura del frontend (React + Vite + TS)
 
 > **Estado: CONGELADO para Fase 3.** Cambios posteriores requieren decisión explícita registrada.
+>
+> **ACTUALIZACIÓN 2026-07-16 — Rediseño visual "plataforma de curso" (decisión registrada).**
+> La dirección visual del handoff cálido (crema + Fraunces) queda **SUPERADA** por la dirección
+> aprobada por mockup en §5.0: fondo neutro teal clarísimo, tarjetas blancas flotantes, acento
+> naranja único para CTAs, teal = progreso, IBM Plex Sans + JetBrains Mono. Todo lo **estructural
+> y de comportamiento** de este documento (rutas, estado, WS, contratos, pantallas §6, tests §10)
+> sigue vigente; las referencias *pixel-perfect al handoff* en §5.1/§5.5 y los colores literales
+> §1.6 quedan superadas por `styles/tokens.css` (única fuente) — ver
+> `docs/CHANGELOG-rediseno-visual.md`.
 > **`api-contract.md` es la ÚNICA fuente de verdad del contrato de datos**: todos los shapes,
 > paths (`/api/v1/*`), envelope `{success,data,error,meta}`, nombres snake_case, las 8 fases de
 > job y los mensajes WS de este documento son ESPEJO LITERAL de ese contrato. Ante cualquier
@@ -25,7 +34,7 @@
 | TypeScript | ~5.6 | `strict: true` |
 | react-router-dom | ^7 | **HashRouter** (`createHashRouter`) |
 | zustand | ^5 | ver §3 (decisión Zustand vs Context) |
-| @fontsource/fraunces (variable), @fontsource/instrument-sans, @fontsource/jetbrains-mono | latest | pesos 400/500/600 (+700 mono para `sidebar-brand-mark`, bug §14.11 del handoff) |
+| @fontsource/ibm-plex-sans, @fontsource/jetbrains-mono | latest | rediseño 2026-07: Plex Sans 400/500/600/700 (UI) + JetBrains Mono 400/500/600/700 (datos/terminal); self-hosted, cero requests de red |
 | vitest + @testing-library/react + @testing-library/user-event + jsdom | latest | plan de tests §10 |
 
 **Regla WSL2 (obligatoria):** el código vive en `/mnt/d/universidad/tesis/e-hpc/frontend/`, pero
@@ -322,7 +331,33 @@ cambiar de job. Idempotente ante StrictMode (guarda instancia en ref y cierra la
 
 ## 5. Sistema de diseño
 
-### 5.1 Port de tokens y variantes
+### 5.0 Rediseño visual 2026-07 — dirección VIGENTE (supera el look del handoff)
+
+Aprobada por mockup (paleta "Teal de progreso + Naranja de logro"). Receta Coursera/Udemy:
+
+- **Superficie**: fondo neutro clarísimo `--bg #F0FDFA` → **tarjetas blancas** `--surface` que
+  "flotan" (borde `--border #E2E8F0` + `--shadow-md`); radios generosos (`--r-lg 16px`).
+- **UN acento**: naranja `--accent #CC4A0B` SOLO para CTAs primarios y logro (AA 4.61:1 con
+  blanco en ambos sentidos; el naranja vivo `--orange-500 #EA580C` queda para usos UI ≥3:1).
+  **Teal** `--primary #0D9488` / `--primary-ink #0F766E` = marca, progreso, chips activos.
+- **Texto**: principal `--text #134E4A`; secundario `--text-muted #64748B` (slate); sobre
+  superficies teñidas (`--surface-2`, `*-soft`) se usa `--text-muted-strong` (AA 6.6:1).
+- **Tipografía**: IBM Plex Sans para toda la UI (jerarquía por tamaño/peso: display-xl 40/700,
+  display-lg 27/700, eyebrow 12/600 uppercase teal); JetBrains Mono SOLO datos/código/terminal
+  con `tabular-nums`.
+- **Espacialidad**: escala 4/8pt en tokens `--sp-1..--sp-10` + semánticos `--screen-pad-x/y`,
+  `--section-gap 44px`, `--card-pad 24px`, `--grid-gap 18px` (v2 "compacto" los reduce).
+- **Gráficas** (siguen SVG a mano, §8): "de-junkeadas" — 3 líneas de grid sólidas `--viz-grid`,
+  ideal punteado `--viz-ideal`, serie protagonista `--viz-observed` con área suave; tokens
+  `--viz-*` en tokens.css. Terminal siempre oscuro en familia slate: tokens `--term-*`.
+- **Variantes**: `data-variant` en `<html>` se mantiene — v1 "curso" (por defecto) y v2
+  "compacto" (denso; mismos colores, spacing/radios/sombras reducidos vía tokens). Dark queda
+  definido sin toggle.
+- **A11y verificada**: contraste AA auditado sobre páginas renderizadas (0 fallos en 4 rutas),
+  `prefers-reduced-motion` global, focus visible `--ring`, cero requests de red (fuentes
+  self-hosted), semántica accesible intacta (E2E 15/15 sin tocar la suite).
+
+### 5.1 Port de tokens y variantes *(histórico — superado por §5.0 en lo visual)*
 
 - `styles/tokens.css` porta **literales** los bloques §1.2 (paleta v1), §1.3 (radios/sombras/
   `--ease`), §1.4 (`[data-theme="dark"]` — se conserva definido, sin toggle en MVP) y §1.5
@@ -405,9 +440,9 @@ Misma geometría SVG del handoff §5.7 (viewBox 800×280, rombos, codos, dashes,
 
 ### 5.5 Fuentes e iconos
 
-- `@fontsource/fraunces` (variable opsz+wght) + `@fontsource/instrument-sans` (400/500/600) +
-  `@fontsource/jetbrains-mono` (400/500/600/**700**). Imports en `main.tsx`; cero requests de red
-  (requisito CSP del desktop).
+- **Rediseño 2026-07**: `@fontsource/ibm-plex-sans` (400/500/600/700) +
+  `@fontsource/jetbrains-mono` (400/500/600/700). Imports en `main.tsx`; cero requests de red
+  (requisito CSP del desktop). *(Histórico: Fraunces + Instrument Sans, retiradas.)*
 - Los **29 iconos** de `icons.jsx` se portan literalmente a `components/icons/icons.tsx`
   (wrapper `Icon` con `size=18 stroke=1.75` + un named export por icono, paths idénticos).
   No se usa lucide-react: pixel-perfect manda. Los 4 iconos no usados (`IconMemory`,

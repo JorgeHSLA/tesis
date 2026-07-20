@@ -23,7 +23,7 @@ export function SweepProgressCard({ logs, parserId, phase }: SweepProgressCardPr
   const currentCase = SWEEP_CASES.find((n) => !times.has(n))
 
   return (
-    <Card style={{ marginTop: 20 }}>
+    <Card style={{ marginTop: 'var(--sp-5)' }}>
       <CardHead
         icon={<IconLayers size={16} />}
         title="Barrido de hilos"
@@ -42,7 +42,8 @@ export function SweepProgressCard({ logs, parserId, phase }: SweepProgressCardPr
                     <span className="sweep-check">✓</span> {t.toFixed(3)} s
                   </>
                 ) : isCurrent ? (
-                  <Chip tone="orange" dot="var(--orange-500)">
+                  // Medición en curso = progreso → teal (el naranja queda para CTAs/logro).
+                  <Chip tone="green" dot="var(--primary)">
                     midiendo…
                   </Chip>
                 ) : terminal ? (

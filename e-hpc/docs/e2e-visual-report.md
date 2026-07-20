@@ -7,7 +7,8 @@
 
 - **Fechas:** Fase 3 (estudiante) 2026-07-13 · **Fase 4 (autoría/admin) 2026-07-14**.
 - **Suite:** `~/.ehpc-verify/e2e/` (ext4, aislada del repo) — Page Object Model, `playwright.config.ts`.
-- **Veredicto global:** ✅ **PASS con 1 defecto documentado** — **15/15 tests verdes** (8 estudiante A–D + 7 admin ADM1–7) + aislamiento del sandbox. Se encontró **1 bug real de UI** en la autoría de quizzes (el editor no permite crear el PRIMER quiz de una lección; §10) — root-causado con evidencia, no parcheado. Además: 1 desviación de *literalidad* en Resultados (no es bug) y 1 flaky corregido de raíz.
+- **Veredicto global:** ✅ **PASS** — **15/15 tests verdes** (8 estudiante A–D + 7 admin ADM1–7) + aislamiento del sandbox. La verificación encontró **1 bug real de UI** en la autoría de quizzes (el editor no permitía crear el PRIMER quiz de una lección; §10). **BUG-01 quedó RESUELTO** (fix aplicado y verificado el 2026-07-14): ADM4 se reescribió de "documenta el defecto" a **camino feliz** que crea el quiz enteramente por la UI. Además: 1 desviación de *literalidad* en Resultados (no es bug) y 1 flaky corregido de raíz.
+- **Actualización 2026-07-14 (resolución de BUG-01):** se trató el `404 QUIZ_NOT_FOUND` como quiz vacío editable en `AdminQuizEditor` y se corrigió el `id` provisional de las preguntas nuevas (el contrato §10.6 exige `id` no vacío). Frontend: **206 tests Vitest verdes** (+4), `tsc --noEmit` limpio; E2E **15/15** con ADM4 como camino feliz. Sin cambios en contratos congelados ni en el backend. Detalle en §10.
 - **Nota Fase 4:** requiere `EHPC_ADMIN_PASSWORD` (sin la var, admin deshabilitado). Se levantó el stack con esa variable y se **reconstruyeron** las imágenes backend+frontend para incluir el código de Fase 4.
 
 ---
@@ -29,7 +30,7 @@
 | **ADM1** | Login gate: guard redirige, contraseña incorrecta → error, correcta → dashboard | ✅ PASS | `admin-login.png`, trace/video |
 | **ADM2** | Crear **módulo** desde el diálogo del dashboard | ✅ PASS | `admin-dashboard-modulo-creado.png` |
 | **ADM3** | Crear **lección + ejemplo** (.py inline) desde el editor | ✅ PASS | `admin-lesson-editor.png` |
-| **ADM4** | Crear **quiz** desde el editor de autoría | ❌ **FAIL (bug §10)** | `admin-quiz-DEFECTO-nuevo.png` |
+| **ADM4** | Crear el **primer quiz** de la lección **enteramente por la UI** | ✅ **PASS** (BUG-01 resuelto, §10) | `admin-quiz-nuevo-formulario.png`, `admin-quiz-creado.png` |
 | **ADM5** | El **estudiante** ve el contenido nuevo: catálogo + markdown + quiz público **sin `correct_key`** + corre en el simulador con el código del admin | ✅ PASS | `admin-student-catalogo.png`, `admin-student-simulador.png` |
 | **ADM6** | **Editar** un módulo (cambiar título) desde el diálogo | ✅ PASS | trace/video |
 | **ADM7** | Seguridad: sin sesión `/admin/*` = 401 + guard redirige a login | ✅ PASS | trace/video |
@@ -87,7 +88,7 @@ Smoke E2E de datos (`bash scripts/smoke.sh`) previo: **8/8 PASS** (job `spmd` co
 
 ### D — Sanidad de consola
 - Flujos de estudiante (A/B/C): **0 mensajes** de consola / `pageerror` / `requestfailed` (`artifacts/console/*.json` `[]`). Mecanismo de captura **validado con ruido intencional** (`console.error`, `console.warn`, 404 → sí se capturan).
-- Flujos admin: los **únicos** mensajes son los HTTP esperados de `/api/v1/admin/*` — un **401** del login gate (ADM1, contraseña incorrecta / guard sin sesión) y un **404** del defecto del editor de quiz (ADM4, §10). Ambos son el navegador registrando un status HTTP de endpoints admin, no excepciones de la app; se identifican por su URL y no ocultan errores de otros orígenes. Sin `pageerror` ni excepciones de React en ningún flujo.
+- Flujos admin: los **únicos** mensajes son los HTTP esperados de `/api/v1/admin/*` — un **401** del login gate (ADM1, contraseña incorrecta / guard sin sesión) y un **404** `QUIZ_NOT_FOUND` en la **carga inicial** del editor de quiz cuando la lección aún no tiene quiz (ADM4, §10 — estado normal al crear el primero, ya no un defecto). Ambos son el navegador registrando un status HTTP de endpoints admin, no excepciones de la app; se identifican por su URL y no ocultan errores de otros orígenes. Sin `pageerror` ni excepciones de React en ningún flujo.
 
 ---
 
@@ -123,7 +124,7 @@ para incluir el código de Fase 4. Journey verificado de punta a punta:
 - **ADM1 — Login gate (✅):** visitar `/#/admin` sin sesión **redirige** a `/#/admin/login`; contraseña incorrecta → **401** → mensaje "Contraseña incorrecta"; contraseña correcta → dashboard "Módulos del curso".
 - **ADM2 — Crear módulo (✅):** diálogo "Nuevo módulo" (id/orden/título/nivel/descripción) → "Crear módulo" → el módulo aparece en el dashboard.
 - **ADM3 — Crear lección + ejemplo (✅):** editor `/#/admin/lecciones/nueva` → meta de lección + ejemplo pareado (`lesson_id==example_id`) + código `.py` inline → "Crear lección" → navega al dashboard (prueba de éxito; en error se quedaría con banner).
-- **ADM4 — Crear quiz (❌ DEFECTO, §10):** el editor de quiz **no** permite crear el primer quiz de una lección. Se creó vía API (el backend `PUT` sí funciona) para poder verificar aguas abajo.
+- **ADM4 — Crear el primer quiz por la UI (✅, BUG-01 resuelto, §10):** con una lección sin quiz, el editor abre un **formulario vacío editable** (el `404 QUIZ_NOT_FOUND` ya no es ErrorState). Se fija el umbral, se añade la primera pregunta (enunciado + opciones A/B + correcta + explicación) y "Guardar quiz" → la SaveBar pasa a **"Todo guardado"**. El quiz creado por la UI persiste (`question_count: 1`, `id` de pregunta válido no vacío) y ADM5 lo comprueba aguas abajo.
 - **ADM5 — El estudiante ve lo nuevo (✅):** (a) el **quiz público** (`GET /api/v1/lessons/e2eLeccion/quiz`) **NO** incluye `correct_key` ni `explanation` (invariante de servidor comprobado); (b) el módulo/lección nuevos aparecen en el **catálogo**; (c) la lección **renderiza el markdown** del admin; (d) el ejemplo del admin **corre en el simulador** y su terminal en vivo muestra la salida real `hola desde el ejemplo creado por el admin (E2E)` (ver `admin-student-simulador.png`).
 - **ADM6 — Editar módulo (✅):** "Editar" → cambiar título → "Guardar cambios" → el dashboard refleja el título editado.
 - **ADM7 — Seguridad (✅):** `GET /api/v1/admin/modules` **sin token → 401 UNAUTHORIZED**; y el guard redirige a login sin sesión. El mensaje 401 es genérico ("Sesión inválida o expirada.") — no distingue contraseña incorrecta de modo deshabilitado (no filtra estado).
@@ -132,15 +133,22 @@ para incluir el código de Fase 4. Journey verificado de punta a punta:
 
 ## 6. Hallazgos y observaciones honestas
 
-### 🐛 BUG-01 (Fase 4, real) — el editor de quiz NO permite crear el primer quiz de una lección
+### 🐛 BUG-01 (Fase 4) — el editor de quiz no permitía crear el primer quiz de una lección · ✅ RESUELTO (2026-07-14)
 
-- **Severidad:** media-alta (bloquea un flujo central de autoría: todo quiz nuevo).
+> **RESUELTO.** El fix se aplicó y verificó el 2026-07-14 (ver "Resolución" al final de esta sección). El análisis de causa raíz de abajo se conserva como registro de lo hallado. ADM4 es ahora un **camino feliz** (creación por UI) y la suite queda **15/15** verde.
+
+- **Severidad (al hallarlo):** media-alta (bloqueaba un flujo central de autoría: todo quiz nuevo).
 - **Síntoma:** tras crear una lección, al abrir su quiz (botón "Quiz" de la fila → `/#/admin/quiz/<id>`) la pantalla muestra **"Algo salió mal · No se pudo cargar el quiz."** con un botón "Reintentar" (que vuelve a fallar). Nunca aparecen "Umbral para aprobar" ni "Añadir pregunta". Evidencia: `admin-quiz-DEFECTO-nuevo.png`.
 - **Causa raíz (con evidencia):** `AdminQuizEditor` carga el quiz con `getAdminQuiz(lessonId)` → `GET /api/v1/admin/lessons/{id}/quiz`. Para una lección **sin preguntas** el backend responde **`404 QUIZ_NOT_FOUND`** (verificado por `curl`: `HTTP 404 {"code":"QUIZ_NOT_FOUND"}`). El hook `useAdminResource` propaga ese 404 como `error`, y el render `if (error != null && data == null) return <ErrorState .../>` (`AdminQuizEditor.tsx:146-156`) muestra el estado de error **en lugar de** un formulario de quiz vacío editable. Como no hay otro punto de entrada para crear un quiz, **el primer quiz de una lección es inautorable desde la UI**.
 - **Alcance acotado (verificado):** el editor **sí** funciona para quizzes **existentes** — tras crear el quiz vía API, pulsar "Reintentar" carga el formulario con la pregunta. El fallo es específico del estado "lección sin quiz".
 - **Por qué no lo detectó el E2E de backend:** ese test usa el `PUT` (upsert) directo, que sí crea el quiz; nunca ejercita la carga del editor con 404. Justo el hueco que cubre la verificación visual independiente.
-- **Fix recomendado (no aplicado — soy verificador):** en `AdminQuizEditor`, tratar el `404 QUIZ_NOT_FOUND` como "quiz vacío" (inicializar `rows=[]`, `threshold` por defecto) en vez de `ErrorState`; p. ej. envolver `getAdminQuiz` para que un `ApiError.code === 'QUIZ_NOT_FOUND'` resuelva a `{pass_threshold: 0.6, questions: []}`. Alternativa: que `GET` admin devuelva 200 con `questions:[]` cuando la lección existe pero no tiene quiz.
-- **Impacto en esta verificación:** el criterio "un admin crea quizzes desde `#/admin`" es **FAIL**. Para no bloquear el resto de la cadena, el quiz se creó por API y se comprobó que el estudiante lo ve como quiz público (sin `correct_key`).
+#### Resolución aplicada (2026-07-14)
+
+- **Fix (frontend, diff mínimo, sin tocar contratos congelados ni el backend):**
+  1. En `AdminQuizEditor.tsx` se trata **solo** `ApiError.code === 'QUIZ_NOT_FOUND'` como quiz vacío editable (`effectiveData = data ?? emptyQuiz(lessonId)`, con `pass_threshold: 0.6`, `questions: []`). Cualquier **otro** error (`LESSON_NOT_FOUND`, 401, 500, red…) sigue mostrando el `ErrorState`.
+  2. Segundo bloqueo latente descubierto al implementar: una pregunta nueva nacía con `id: ''`, pero el contrato §10.6 exige `id` no vacío (`^[A-Za-z0-9._-]{1,80}$`) → el `PUT` habría dado `422`. `toQuestions` ahora usa la clave estable `_cid` como `id` provisional cuando la pregunta aún no tiene id, de modo que **crear y guardar** funciona por UI.
+- **Verificación del fix:** `tsc --noEmit` limpio; **Vitest 206/206** verde (4 tests nuevos: forma vacía en `QUIZ_NOT_FOUND`, `ErrorState` en `LESSON_NOT_FOUND` y en `500`, y crear+guardar con id válido); **E2E 15/15** con ADM4 como camino feliz. Comprobado a runtime que el quiz creado por la UI persiste (`question_count: 1`, `id` = `q-1-…`) y que el **quiz público sigue sin `correct_key`/`explanation`** (ADM5 verde).
+- **Impacto del criterio:** "un admin crea quizzes desde `#/admin`" pasa de **FAIL** a **PASS**.
 
 ---
 
@@ -160,7 +168,7 @@ para incluir el código de Fase 4. Journey verificado de punta a punta:
 
 Raíz: `~/.ehpc-verify/e2e/artifacts/`
 
-- **Capturas por hito** (`artifacts/shots/*.png`, **16 PNG**): estudiante — `home`, `simulador-live`, `resultados-speedup`, `learn-leccion`, `learn-quiz-resultado`, `A-simulador-idle-spmd`, `A4-resultados-regenerados`, `A5-live-antes-de-cancelar`, `A5-cancelado`; admin — `admin-login`, `admin-dashboard-modulo-creado`, `admin-lesson-editor`, **`admin-quiz-DEFECTO-nuevo`** (evidencia del BUG-01), `admin-student-catalogo`, `admin-student-simulador`.
+- **Capturas por hito** (`artifacts/shots/*.png`, **16 PNG**): estudiante — `home`, `simulador-live`, `resultados-speedup`, `learn-leccion`, `learn-quiz-resultado`, `A-simulador-idle-spmd`, `A4-resultados-regenerados`, `A5-live-antes-de-cancelar`, `A5-cancelado`; admin — `admin-login`, `admin-dashboard-modulo-creado`, `admin-lesson-editor`, **`admin-quiz-nuevo-formulario`** y **`admin-quiz-creado`** (BUG-01 resuelto: crear el primer quiz por UI), `admin-student-catalogo`, `admin-student-simulador`. *(La corrida previa al fix dejó `admin-quiz-DEFECTO-nuevo.png` como registro histórico del defecto.)*
 - **Trace + video por test** (`artifacts/evidence/**`): **15 `trace.zip` + 15 `video.webm`** (corrida verde bajo `playwright.evidence.config.ts` con `trace/video/screenshot: 'on'`).
 - **Reporte HTML:** `artifacts/evidence-html-report/index.html` (abrir con `npx playwright show-report artifacts/evidence-html-report`).
 - **Logs de consola por test:** `artifacts/console/*.json` (estudiante `[]`; admin solo 401/404 esperados de `/api/v1/admin/*`).
@@ -205,12 +213,11 @@ de speedup, no como tabla de tiempos). → **PASS**.
 **Fase 4 (autoría/admin).** El login gate, la creación de **módulos** y **lecciones+ejemplos**,
 la **edición**, la propagación al **estudiante** (catálogo + markdown + quiz público sin
 `correct_key` + el `.py` del admin corriendo en el simulador) y la **seguridad** (401 sin
-sesión, guard) funcionan. **Una excepción real:** el editor de quiz **no permite crear el
-primer quiz** de una lección (BUG-01, §10) — root-causado con evidencia, con fix recomendado,
-**sin parchear** (es competencia del equipo de implementación, no del verificador). → **PASS
-del área con 1 defecto abierto**; el criterio "crear quiz por UI" queda en **FAIL** hasta que
-se corrija BUG-01.
+sesión, guard) funcionan. El único defecto hallado —el editor de quiz **no permitía crear el
+primer quiz** de una lección (BUG-01, §10)— quedó **RESUELTO y verificado** (2026-07-14): ADM4
+es ahora un **camino feliz** que crea el quiz enteramente por la UI, con Vitest 206/206 y
+`tsc` limpio. → **PASS del área**, sin defectos abiertos.
 
-**En conjunto:** 15/15 tests verdes, evidencia visual completa (16 capturas, 15 trace + 15
-video), y un defecto de autoría de quizzes localizado y explicado. La plataforma está lista
-para la memoria salvo la corrección de BUG-01.
+**En conjunto:** 15/15 tests verdes, evidencia visual completa (capturas, 15 trace + 15
+video), y el único defecto de autoría de quizzes hallado, **root-causado, corregido y
+re-verificado**. La plataforma está lista para la memoria.

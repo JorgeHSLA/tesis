@@ -1,6 +1,6 @@
 // CodePanel — card «Tu código» del idle (frontend-spec §6.2): dropzone del
 // handoff con accept=".py" + validación client-side (extensión, ≤256 KB,
-// UTF-8) y preview EDITABLE estilo terminal (#14100C, mono 11.5px, sin
+// UTF-8) y preview EDITABLE estilo terminal (--term-bg, mono 11.5px, sin
 // resaltado en MVP). Editar el código de un ejemplo lo marca `modificado`.
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { Button } from '../../components/ui/Button'

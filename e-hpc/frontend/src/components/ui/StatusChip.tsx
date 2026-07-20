@@ -13,13 +13,16 @@ interface PhaseSpec {
   dot?: string
 }
 
+// Paleta de fases del rediseño: preparación → neutral (el naranja se reserva
+// a CTAs/logro), running → teal (progreso), completed → success,
+// failed/timeout/lost → danger, cancelled → warn.
 const PHASE_CHIP: Record<UiPhase, PhaseSpec> = {
   idle: { label: 'Conectando…', tone: 'neutral' },
   connecting: { label: 'Conectando…', tone: 'neutral' },
-  queued: { label: 'Preparando', tone: 'orange', dot: 'var(--orange-500)' },
-  creating: { label: 'Preparando', tone: 'orange', dot: 'var(--orange-500)' },
-  compiling: { label: 'Compilando (JIT)', tone: 'orange', dot: 'var(--orange-500)' },
-  running: { label: 'Ejecutando', tone: 'green', dot: 'var(--green-400)' },
+  queued: { label: 'Preparando', tone: 'neutral', dot: 'var(--text-muted)' },
+  creating: { label: 'Preparando', tone: 'neutral', dot: 'var(--text-muted)' },
+  compiling: { label: 'Compilando (JIT)', tone: 'neutral', dot: 'var(--text-muted)' },
+  running: { label: 'Ejecutando', tone: 'green', dot: 'var(--primary)' },
   completed: { label: 'Finalizado', tone: 'green' },
   failed: { label: 'Error', tone: 'red' },
   timeout: { label: 'Timeout', tone: 'red' },

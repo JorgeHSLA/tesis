@@ -1,7 +1,8 @@
 // ComparisonBars — resultados de ejemplos kind "pair" (frontend-spec §8.3).
 // Reutiliza el layout del WorkDistributionChart del handoff (§6.3): filas
 // grid label+track, track 26px radius 4, barras con transition width .4s
-// var(--ease). Colores §1.6: OpenMP #3F7A2E, referencia #F57324.
+// var(--ease). Paleta de tokens.css: OpenMP var(--viz-cpu) (teal),
+// referencia var(--viz-mem) (naranja).
 import { useEffect, useState } from 'react'
 
 export interface ComparisonBarsProps {
@@ -27,16 +28,16 @@ export function ComparisonBars({ parallel_time_s, reference_time_s, reference_la
   }, [])
 
   const rows: Row[] = [
-    { label: 'openmp', time: parallel_time_s, color: '#3F7A2E' },
-    { label: reference_label, time: reference_time_s, color: '#F57324' },
+    { label: 'openmp', time: parallel_time_s, color: 'var(--viz-cpu)' },
+    { label: reference_label, time: reference_time_s, color: 'var(--viz-mem)' },
   ]
   const maxTime = Math.max(...rows.map((r) => r.time), 1e-9)
 
   return (
     <div>
       <div className="legend-row">
-        <span className="lg-dot" style={{ background: '#3F7A2E' }} /> OpenMP
-        <span className="lg-dot" style={{ background: '#F57324', marginLeft: 14 }} /> {reference_label}
+        <span className="lg-dot" style={{ background: 'var(--viz-cpu)' }} /> OpenMP
+        <span className="lg-dot" style={{ background: 'var(--viz-mem)', marginLeft: 14 }} /> {reference_label}
       </div>
       <div className="bar-chart" role="img" aria-label={`OpenMP ${parallel_time_s}s frente a ${reference_label} ${reference_time_s}s`}>
         {rows.map((r) => (

@@ -43,7 +43,7 @@ export function ThreadsTable({ nodes, phase }: ThreadsTableProps) {
               {n.kind === 'master' ? 'hilo maestro' : 'hilo del equipo'}
             </span>
             <span role="cell">
-              <MiniBar pct={n.activity * 100} color={n.kind === 'master' ? '#2F5E21' : '#3F7A2E'} />
+              <MiniBar pct={n.activity * 100} color={n.kind === 'master' ? 'var(--viz-node-master)' : 'var(--viz-node)'} />
             </span>
             <span role="cell">
               {running ? (

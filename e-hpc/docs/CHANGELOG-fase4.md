@@ -68,6 +68,28 @@ todos corregidos** con tests de regresión:
 - **SEED-2 (bajo)** — `from_fixtures` deriva `lesson_ids` por orden global (idéntico a
   `load(db)`): sin reordenamiento silencioso en el round-trip.
 
+## BUG-01 (hallado en la verificación E2E visual) — resuelto
+
+La verificación de aceptación independiente (Chromium/Playwright, ver
+[`e2e-visual-report.md`](e2e-visual-report.md) §10) encontró **1 bug real de UI**: el editor
+de quiz **no permitía crear el PRIMER quiz** de una lección. Corregido el 2026-07-14 (fix
+frontend, diff mínimo, sin tocar contratos congelados ni el backend):
+
+- **Causa raíz:** `AdminQuizEditor` carga con `getAdminQuiz` → `GET /admin/lessons/{id}/quiz`,
+  que devuelve `404 QUIZ_NOT_FOUND` para una lección sin preguntas; el guard
+  `if (error != null && data == null) return <ErrorState/>` mostraba el error en vez de un
+  formulario vacío editable.
+- **Fix:** tratar **solo** `ApiError.code === 'QUIZ_NOT_FOUND'` como quiz vacío editable
+  (`pass_threshold: 0.6`, `questions: []`); cualquier otro error (`LESSON_NOT_FOUND`, 401,
+  500, red) sigue en `ErrorState`. Además, se corrigió un bloqueo latente: una pregunta nueva
+  nacía con `id: ''` y el contrato §10.6 exige `id` no vacío (`^[A-Za-z0-9._-]{1,80}$`) →
+  `toQuestions` usa la clave estable `_cid` como id provisional, de modo que **crear y
+  guardar** el quiz funciona por UI.
+- **Verificación:** Vitest **206/206** (+4 tests: forma vacía en `QUIZ_NOT_FOUND`, `ErrorState`
+  en `LESSON_NOT_FOUND` y `500`, crear+guardar con id válido), `tsc` limpio, y **E2E 15/15**
+  con ADM4 reescrito a camino feliz (crear el quiz enteramente por la UI → SaveBar "Todo
+  guardado"; el quiz público sigue sin `correct_key`).
+
 ## Verificación
 
 - **Backend**: 267 tests pytest verdes (205 de Fase 3 intactos + 62 nuevos), incluidos
@@ -77,6 +99,6 @@ todos corregidos** con tests de regresión:
   estudiante con el quiz público SIN `correct_key` → corre en el simulador con el
   código del admin → sin sesión, `/admin/*` = 401).
 - **`python -m app.tools.seed_content --check`**: fixtures ≡ DB.
-- **Frontend**: 202 tests Vitest verdes (Fase 3 + admin), `tsc --noEmit` limpio.
-- Pendiente (manual, como en Fase 3): verificación E2E con el stack real
-  (`docker compose up`) y navegador/Playwright — no automatizable en WSL2 headless.
+- **Frontend**: **206 tests Vitest verdes** (Fase 3 + admin + 4 de BUG-01), `tsc --noEmit` limpio.
+- **E2E (stack real + Chromium/Playwright)**: **15/15 verdes**, incluida ADM4 (crear el primer
+  quiz por UI) tras la resolución de BUG-01. Ver [`e2e-visual-report.md`](e2e-visual-report.md).

@@ -1,6 +1,6 @@
-// MetricCard — port del handoff (§5.6): icono 32×32 orange-50, label mono
-// uppercase, value Fraunces 22, hint mono-small y barra .metric-progress
-// opcional (transición width .6s var(--ease)).
+// MetricCard — "stat tile" del rediseño 2026-07 (antes handoff §5.6): icono
+// en tile suave, label sans 600, value grande con tabular-nums, hint
+// mono-small y barra .metric-progress opcional (width .6s var(--ease)).
 import type { ReactNode } from 'react'
 
 export interface MetricCardProps {

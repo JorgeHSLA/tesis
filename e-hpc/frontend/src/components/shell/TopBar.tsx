@@ -1,4 +1,4 @@
-// TopBar — port del handoff §3.3: crumbs mono / título Fraunces / spacer /
+// TopBar — layout del handoff §3.3 (rediseño 2026-07): crumbs / título sans / spacer /
 // variant-switch (§2.8, persistencia 'ehpc-variant' vía themeStore) / botones
 // Buscar y Ayuda / divisor / usuario `ES · estudiante` (frontend-spec §6.0).
 // Títulos y crumbs por ruta: tabla de frontend-spec §2.
@@ -25,8 +25,8 @@ export function routeMeta(pathname: string): RouteMeta {
 }
 
 const VARIANTS: ReadonlyArray<{ id: Variant; label: string }> = [
-  { id: 'v1', label: 'v1 · cálido' },
-  { id: 'v2', label: 'v2 · local app' },
+  { id: 'v1', label: 'v1 · curso' },
+  { id: 'v2', label: 'v2 · compacto' },
 ]
 
 export function TopBar() {

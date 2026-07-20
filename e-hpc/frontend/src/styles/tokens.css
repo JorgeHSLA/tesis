@@ -1,116 +1,201 @@
-/* tokens.css — port LITERAL del handoff (handoff-design.md §1.2–§1.5).
-   Único cambio autorizado: token nuevo `--success` (fix del bug §14.5).
-   La conmutación de variante es SOLO `data-variant` en <html>
+/* tokens.css — ÚNICA fuente de color/espaciado/tipografía (rediseño 2026-07,
+   supera el handoff cálido; ver docs/architecture/frontend-spec.md §1).
+   Dirección "plataforma de curso" (receta Coursera/Udemy): fondo neutro
+   clarísimo, tarjetas blancas que flotan, UN acento (naranja) para CTAs,
+   teal = progreso/marca, slate para texto secundario.
+   La conmutación de variante sigue siendo SOLO `data-variant` en <html>
    (frontend-spec §5.1); el tema dark se conserva definido, sin toggle en MVP. */
 
-/* ── §1.2 Paleta v1 — "v1 · cálido" ─────────────────────────────────────── */
+/* ── §1.2 Paleta v1 — "v1 · curso" (Teal de progreso + Naranja de logro) ── */
 :root {
-  /* Naranjas */
-  --orange-50: #FFF4EC;
-  --orange-100: #FFE4D1;
-  --orange-200: #FFCFA8;
-  --orange-300: #FFB078;
-  --orange-400: #FF914D;
-  --orange-500: #F57324;
-  --orange-600: #D75A12;
-  --orange-700: #A3430C;
+  /* Teal — marca, progreso, estados positivos */
+  --teal-50: #F0FDFA;
+  --teal-100: #CCFBF1;
+  --teal-200: #99F6E4;
+  --teal-300: #5EEAD4;
+  --teal-400: #2DD4BF;
+  --teal-500: #14B8A6;
+  --teal-600: #0D9488;
+  --teal-700: #0F766E;
+  --teal-800: #115E59;
+  --teal-900: #134E4A;
 
-  /* Cremas */
-  --cream-50: #FDF8EE;
-  --cream-100: #F9EFD9;
-  --cream-200: #F3E3BF;
+  /* Naranja — EL acento: CTAs y momentos de logro (conserva el naranja E-HPC) */
+  --orange-50: #FFF7ED;
+  --orange-100: #FFEDD5;
+  --orange-200: #FED7AA;
+  --orange-300: #FDBA74;
+  --orange-400: #FB923C;
+  --orange-500: #EA580C;
+  --orange-600: #C2410C;
+  --orange-700: #9A3412;
 
-  /* Tintas (marrones/negros cálidos) */
-  --ink-900: #1A1410;
-  --ink-800: #2A2219;
-  --ink-700: #3D3125;
-  --ink-600: #5C4A39;
-  --ink-500: #7A6549;
-  --ink-400: #A08B6E;
+  /* Slate — neutros fríos: bordes, texto atenuado */
+  --slate-50: #F8FAFC;
+  --slate-100: #F1F5F9;
+  --slate-200: #E2E8F0;
+  --slate-300: #CBD5E1;
+  --slate-400: #94A3B8;
+  --slate-500: #64748B;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1E293B;
+  --slate-900: #0F172A;
 
-  /* Verdes */
-  --green-500: #3F7A2E;
-  --green-600: #2F5E21;
-  --green-400: #6BA850;
+  /* Estados */
+  --green-500: #0D9488;      /* éxito = teal (identidad de progreso) */
+  --amber-500: #B45309;      /* warning con contraste AA sobre blanco */
+  --red-500: #DC2626;
+  --blue-500: #0369A1;
 
-  /* Otros */
-  --red-500: #C94A2B;
-  --amber-500: #E8A317;
-  --blue-500: #2E6EA8;
-
-  /* Semánticos */
-  --bg: var(--cream-50);
+  /* Semánticos — superficie y texto */
+  --bg: var(--teal-50);
   --surface: #FFFFFF;
-  --surface-2: var(--cream-100);
-  --border: #E9DFC9;
-  --border-strong: #D4C4A0;
-  --text: var(--ink-900);
-  --text-muted: var(--ink-500);
-  --accent: var(--orange-500);
-  --accent-hover: var(--orange-600);
-  /* NUEVO (fix handoff §14.5): usado por `· Completado` del catálogo. */
+  --surface-2: #E8F1F4;              /* muted: chips neutros, hovers, thumbs */
+  --border: var(--slate-200);
+  --border-strong: var(--slate-300);
+  --border-accent: var(--teal-300);  /* borde de cards/banners destacados */
+  --text: var(--teal-900);
+  --text-muted: var(--slate-500);
+  /* Texto secundario sobre superficies TEÑIDAS (--surface-2, *-soft):
+     --text-muted solo da 4.1-4.3:1 ahí; este llega a 6.6:1+. */
+  --text-muted-strong: var(--slate-600);
+
+  /* Semánticos — acción y marca */
+  /* --accent es AA-seguro en AMBOS sentidos: blanco sobre él 4.61:1 y él
+     como texto sobre blanco 4.61:1. El naranja vivo --orange-500 queda para
+     usos decorativos/UI (3.56:1 ≥ 3:1), nunca texto normal sobre blanco. */
+  --accent: #CC4A0B;                 /* CTA primario (AA 4.61:1 con blanco) */
+  --accent-hover: #A83B08;
+  --accent-soft: var(--orange-100);
+  --on-accent: #FFFFFF;
+  --primary: var(--teal-600);        /* progreso, chips activos, links de marca */
+  --primary-ink: var(--teal-700);    /* texto teal AA sobre blanco/soft */
+  --primary-soft: var(--teal-100);
+  --ring: var(--teal-600);
+
+  /* Semánticos — estados suaves (chips/banners/observaciones) */
   --success: var(--green-500);
+  --success-ink: var(--teal-700);
+  --success-soft: var(--teal-100);
+  --warn: var(--amber-500);
+  --warn-ink: #92400E;
+  --warn-soft: #FEF3C7;
+  --danger: var(--red-500);
+  --danger-ink: #B91C1C;
+  --danger-soft: #FEE2E2;
 
-  /* Tipografía */
-  --font-sans: 'Instrument Sans', 'Inter', system-ui, -apple-system, sans-serif;
-  --font-display: 'Fraunces Variable', 'Fraunces', Georgia, serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Gráficas SVG a mano (components/viz/*) — "de-junkeadas" */
+  --viz-observed: var(--orange-500); /* serie protagonista */
+  --viz-ideal: #7C8BA3;              /* referencia punteada (3.45:1 ≥ 3:1) */
+  --viz-grid: var(--slate-200);
+  --viz-axis: var(--slate-300);
+  --viz-label: var(--slate-500);
+  --viz-cpu: var(--teal-600);
+  --viz-mem: var(--orange-500);
+  --viz-node: var(--teal-600);       /* rombos de hilos */
+  --viz-node-master: var(--teal-800);
+  --viz-node-warn: #D97706;
+  --viz-on-node: #FFFFFF;
+  --viz-packet: var(--orange-500);   /* pulsos fork-join */
 
-  /* §1.3 Radios */
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 14px;
+  /* Terminal — siempre oscuro, en la familia slate (no marrón) */
+  --term-bg: #0B1220;
+  --term-head: #111C2B;
+  --term-border: #1C2A3A;
+  --term-text: #CBD5E1;
+  --term-dim: #7C8DA6;               /* timestamps AA sobre --term-bg (5.54:1) */
+  --term-accent: #5EEAD4;
+
+  /* Tipografía — IBM Plex Sans (UI) + JetBrains Mono (datos/código) */
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: var(--font-sans); /* la jerarquía la dan tamaño y peso */
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* §1.3 Espaciado — escala 4/8pt + semánticos de layout */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+  --sp-9: 48px;
+  --sp-10: 64px;
+  --screen-pad-x: 44px;   /* padding lateral del área de contenido */
+  --screen-pad-y: 40px;
+  --section-gap: 44px;    /* aire entre secciones de una pantalla */
+  --card-pad: 24px;       /* padding interno de tarjeta */
+  --grid-gap: 18px;       /* separación entre tarjetas de una grilla */
+
+  /* §1.3 Radios — generosos, look de plataforma */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
   --r-xl: 20px;
 
-  /* §1.3 Sombras */
-  --shadow-sm: 0 1px 2px rgba(26,20,16,.06), 0 1px 1px rgba(26,20,16,.04);
-  --shadow-md: 0 6px 20px -8px rgba(26,20,16,.18), 0 2px 6px -2px rgba(26,20,16,.08);
-  --shadow-lg: 0 24px 48px -16px rgba(26,20,16,.22), 0 8px 16px -8px rgba(26,20,16,.12);
-  --shadow-inner: inset 0 1px 0 rgba(255,255,255,.6), inset 0 -1px 0 rgba(26,20,16,.04);
+  /* §1.3 Sombras — tarjeta que "flota" sobre el neutro */
+  --shadow-sm: 0 1px 2px rgba(15, 42, 51, .04);
+  --shadow-md: 0 1px 2px rgba(15, 42, 51, .04), 0 14px 34px -22px rgba(15, 42, 51, .16);
+  --shadow-lg: 0 1px 2px rgba(15, 42, 51, .05), 0 30px 60px -34px rgba(15, 42, 51, .22);
+  --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, .6);
+  --shadow-cta: 0 8px 20px -10px rgba(154, 52, 18, .55);
 
   /* §1.3 Motion — easing única de toda la app */
-  --ease: cubic-bezier(.2,.7,.2,1);
+  --ease: cubic-bezier(.2, .7, .2, 1);
 }
 
 /* ── §1.4 Tema oscuro — definido pero SIN toggle en MVP ─────────────────── */
 [data-theme="dark"] {
-  --bg: #14100C;
-  --surface: #1F1913;
-  --surface-2: #2A2219;
-  --border: #3A2E22;
-  --border-strong: #5C4A39;
-  --text: #F9EFD9;
-  --text-muted: #A08B6E;
-  --cream-50: #1F1913;
-  --cream-100: #2A2219;
-  --cream-200: #3A2E22;
-  --orange-50: #3A2416;
-  --orange-100: #4F2F1A;
+  --bg: #0B1512;
+  --surface: #10201C;
+  --surface-2: #16302A;
+  --border: #1E3B34;
+  --border-strong: #2C5048;
+  --border-accent: #134E4A;
+  --text: #E7FDF8;
+  --text-muted: #7FA8A0;
+  --text-muted-strong: #A9C6BF;
+  --accent-soft: #3B2413;
+  --primary-ink: var(--teal-400);
+  --primary-soft: #113B35;
+  --success-ink: var(--teal-300);
+  --success-soft: #113B35;
+  --warn-ink: #FCD34D;
+  --warn-soft: #3A2E14;
+  --danger-ink: #FCA5A5;
+  --danger-soft: #3B1717;
+  --viz-grid: #1E3B34;
+  --viz-axis: #2C5048;
+  --viz-ideal: #4E6E67;
+  --viz-label: #7FA8A0;
+  --shadow-md: 0 14px 34px -22px rgba(0, 0, 0, .5);
+  --shadow-lg: 0 30px 60px -34px rgba(0, 0, 0, .6);
 }
 
-/* ── §1.5 Tokens v2 — "v2 · local app": neutra, densa, naranja de acento ── */
+/* ── §1.5 Tokens v2 — "v2 · compacto": neutro frío, denso, mismos acentos ── */
 :root[data-variant="v2"] {
-  --bg: #F5F3EE;
+  --bg: var(--slate-50);
   --surface: #FFFFFF;
-  --surface-2: #EFECE4;
-  --surface-3: #E6E2D7;
-  --border: #DDD7C8;
-  --border-strong: #C5BDA8;
-  --text: #1A1812;
-  --text-muted: #6E6858;
-  --accent: #D75A12;
-  --accent-hover: #A3430C;
-  --accent-soft: #F5E4D4;
-  --green-500: #3F7A2E;
-  --green-soft: #E4ECD9;
-  --amber-500: #B17A0A;
-  --red-500: #B84226;
-  --success: var(--green-500);
+  --surface-2: #EDF1F5;
+  --surface-3: #E4EAEF;
+  --border: var(--slate-200);
+  --border-strong: var(--slate-300);
+  --text: var(--slate-900);
+  --text-muted: var(--slate-500);
 
-  --r-sm: 4px;
-  --r-md: 6px;
-  --r-lg: 10px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
 
-  --shadow-sm: 0 1px 0 rgba(26,24,18,.04);
-  --shadow-md: 0 4px 12px -4px rgba(26,24,18,.1);
+  --screen-pad-x: 28px;
+  --screen-pad-y: 24px;
+  --section-gap: 28px;
+  --card-pad: 16px;
+  --grid-gap: 12px;
+
+  --shadow-sm: 0 1px 0 rgba(15, 23, 42, .04);
+  --shadow-md: 0 4px 12px -4px rgba(15, 23, 42, .10);
+  --shadow-cta: none;
 }

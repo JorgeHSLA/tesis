@@ -1,8 +1,8 @@
 // LiveMetricsChart — SOLO con la serie en memoria del live (frontend-spec §8.4).
-// Doble serie temporal 520×200: CPU% (#3F7A2E, eje izq 0..maxCpu =
-// threads_effective·100) y memoria (#F57324, eje der 0..límite del contenedor).
-// Grid horizontal #E9DFC9 dash; labels min/max mono 10. Máx ~900 puntos →
-// decimación a 260 (media por bucket, decimate de lib/format).
+// Doble serie temporal 520×200: CPU% (var(--viz-cpu), eje izq 0..maxCpu =
+// threads_effective·100) y memoria (var(--viz-mem), eje der 0..límite del
+// contenedor). Grid horizontal var(--viz-grid) sólido; labels min/max mono 10.
+// Máx ~900 puntos → decimación a 260 (media por bucket, decimate de lib/format).
 // Fuente EXCLUSIVA: jobStore.metrics — el backend no persiste la serie.
 import { decimate } from '../../lib/format'
 import { fmtBytes } from '../../lib/format'
@@ -47,29 +47,29 @@ export function LiveMetricsChart({ samples, maxCpu }: LiveMetricsChartProps) {
   return (
     <div>
       <div className="legend-row">
-        <span className="lg-dot" style={{ background: '#3F7A2E' }} /> CPU %
-        <span className="lg-dot" style={{ background: '#F57324', marginLeft: 14 }} /> memoria
+        <span className="lg-dot" style={{ background: 'var(--viz-cpu)' }} /> CPU %
+        <span className="lg-dot" style={{ background: 'var(--viz-mem)', marginLeft: 14 }} /> memoria
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Serie temporal de CPU y memoria del contenedor" style={{ display: 'block' }}>
         {gridYs.map((gy) => (
-          <line key={gy} x1={PAD.left} y1={gy} x2={W - PAD.right} y2={gy} stroke="#E9DFC9" strokeWidth={1} strokeDasharray="3 4" />
+          <line key={gy} x1={PAD.left} y1={gy} x2={W - PAD.right} y2={gy} stroke="var(--viz-grid)" strokeWidth={1} />
         ))}
         {/* Labels min/max de ambos ejes (mono 10) */}
-        <text x={PAD.left - 6} y={PAD.top + 4} textAnchor="end" fontSize={10} fill="#3F7A2E" fontFamily="var(--font-mono)">
+        <text x={PAD.left - 6} y={PAD.top + 4} textAnchor="end" fontSize={10} fill="var(--viz-cpu)" fontFamily="var(--font-mono)">
           {Math.round(cpuMax)}%
         </text>
-        <text x={PAD.left - 6} y={PAD.top + innerH + 4} textAnchor="end" fontSize={10} fill="#A08B6E" fontFamily="var(--font-mono)">
+        <text x={PAD.left - 6} y={PAD.top + innerH + 4} textAnchor="end" fontSize={10} fill="var(--viz-label)" fontFamily="var(--font-mono)">
           0
         </text>
-        <text x={W - PAD.right + 6} y={PAD.top + 4} fontSize={10} fill="#F57324" fontFamily="var(--font-mono)">
+        <text x={W - PAD.right + 6} y={PAD.top + 4} fontSize={10} fill="var(--viz-mem)" fontFamily="var(--font-mono)">
           {fmtBytes(memMax)}
         </text>
-        <text x={W - PAD.right + 6} y={PAD.top + innerH + 4} fontSize={10} fill="#A08B6E" fontFamily="var(--font-mono)">
+        <text x={W - PAD.right + 6} y={PAD.top + innerH + 4} fontSize={10} fill="var(--viz-label)" fontFamily="var(--font-mono)">
           0
         </text>
-        <polyline points={cpuLine} fill="none" stroke="#3F7A2E" strokeWidth={1.5} />
-        <polyline points={memLine} fill="none" stroke="#F57324" strokeWidth={1.5} />
-        <line x1={PAD.left} y1={PAD.top + innerH} x2={W - PAD.right} y2={PAD.top + innerH} stroke="#D4C4A0" strokeWidth={1} />
+        <polyline points={cpuLine} fill="none" stroke="var(--viz-cpu)" strokeWidth={1.5} />
+        <polyline points={memLine} fill="none" stroke="var(--viz-mem)" strokeWidth={1.5} />
+        <line x1={PAD.left} y1={PAD.top + innerH} x2={W - PAD.right} y2={PAD.top + innerH} stroke="var(--viz-axis)" strokeWidth={1} />
       </svg>
       <div className="mono-small" style={{ marginTop: 6 }}>
         {samples.length} muestras · ~1/s · serie en memoria del live (no se persiste)

@@ -148,7 +148,7 @@ export function QuizRunner({ lessonId, questionCount, progress }: QuizRunnerProp
               </div>
             )}
             {error !== null && (
-              <p className="muted" role="alert" style={{ margin: '8px 0 0', color: '#C94A2B' }}>
+              <p className="muted" role="alert" style={{ margin: '8px 0 0', color: 'var(--danger)' }}>
                 No se pudo cargar el quiz: {error}
               </p>
             )}
@@ -221,7 +221,7 @@ export function QuizRunner({ lessonId, questionCount, progress }: QuizRunnerProp
               respondidas {answered}/{quiz.questions.length}
             </span>
             {error !== null && (
-              <span className="mono-small" role="alert" style={{ color: '#C94A2B' }}>
+              <span className="mono-small" role="alert" style={{ color: 'var(--danger)' }}>
                 {error}
               </span>
             )}
