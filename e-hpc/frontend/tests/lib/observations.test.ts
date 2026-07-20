@@ -6,7 +6,9 @@ import {
   JOB_FAILED,
   JOB_PAIR,
   JOB_SWEEP,
+  TIMINGS_PAIR_BLAS,
   TIMINGS_PAIR_NUMPY_SLOW,
+  TIMINGS_PAIR_SERIAL,
   TIMINGS_SWEEP_SPMD_FLAT,
 } from '../fixtures/rest'
 
@@ -69,6 +71,64 @@ describe('pair', () => {
   it('correct=true → obs ok «Resultado validado»', () => {
     const obs = buildObservations(JOB_PAIR)
     expect(obs.some((o) => o.kind === 'ok' && /validado/i.test(o.title))).toBe(true)
+  })
+})
+
+describe('pair: semántica por parser_id (BL-30)', () => {
+  it('pair_parallel_serial → info con Amdahl y % paralelizable', () => {
+    const obs = buildObservations(JOB_PAIR)
+    const info = obs.find((o) => o.kind === 'info')
+    expect(info?.body).toMatch(/Amdahl/)
+    expect(info?.body).toMatch(/paralelizable/)
+  })
+
+  it('pair_openmp_numpy → sin Amdahl, info honesta «vs numpy»', () => {
+    const job = jobDetail({ parsed_timings: TIMINGS_PAIR_NUMPY_SLOW, threads: 8 })
+    const obs = buildObservations(job)
+    expect(obs.some((o) => /Amdahl|paralelizable/.test(o.body) || /Amdahl|paralelizable/.test(o.title))).toBe(
+      false,
+    )
+    const info = obs.find(
+      (o) => o.kind === 'info' && /implementaciones distintas|SIMD/.test(o.body) && /vs numpy/.test(o.title),
+    )
+    expect(info).toBeDefined()
+    // NumPy elementwise (a+b) sí es mono-hilo: el "1 core" es afirmable aquí.
+    expect(info?.body).toMatch(/1 core/)
+  })
+
+  it('pair_openmp_blas → sin Amdahl, info honesta «vs blas»', () => {
+    const job = jobDetail({ parsed_timings: TIMINGS_PAIR_BLAS, threads: 8 })
+    const obs = buildObservations(job)
+    expect(obs.some((o) => /Amdahl|paralelizable/.test(o.body) || /Amdahl|paralelizable/.test(o.title))).toBe(
+      false,
+    )
+    const info = obs.find(
+      (o) => o.kind === 'info' && /implementaciones distintas|SIMD/.test(o.body) && /vs blas/.test(o.title),
+    )
+    expect(info).toBeDefined()
+    // BLAS (np.dot) puede correr multi-hilo (OMP_NUM_THREADS aplica a todo el
+    // proceso del runner): afirmar "1 core" sería otro dato fabricado.
+    expect(info?.body).not.toMatch(/1 core/)
+    expect(info?.body).toMatch(/varios hilos/)
+  })
+
+  it('pair_parallel_serial con 1 hilo → fallback «Comparación directa» sin Amdahl', () => {
+    const job = jobDetail({ parsed_timings: TIMINGS_PAIR_SERIAL, threads: 1 })
+    const obs = buildObservations(job)
+    const info = obs.find((o) => o.kind === 'info')
+    expect(info?.body).toMatch(/Comparación directa/)
+    expect(info?.body).not.toMatch(/Amdahl|paralelizable/)
+  })
+
+  it('pair_parallel_serial con speedup<1 → warn «más lento» con body de overhead (sin NumPy/BLAS)', () => {
+    const job = jobDetail({
+      parsed_timings: { ...TIMINGS_PAIR_SERIAL, speedup_vs_reference: 0.8, parallel_time_s: 1.2, reference_time_s: 0.96 },
+    })
+    const obs = buildObservations(job)
+    const warn = obs.find((o) => o.kind === 'warn' && /más lento/i.test(o.title))
+    expect(warn).toBeDefined()
+    expect(warn?.body).not.toMatch(/NumPy|BLAS/)
+    expect(warn?.body).toMatch(/overhead/)
   })
 })
 

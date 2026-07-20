@@ -225,6 +225,17 @@ export const TIMINGS_PAIR_NUMPY_SLOW: ParsedTimingsPairDto = {
   correct: true,
 }
 
+/** pair_openmp_blas: referencia es BLAS (1 core + SIMD), no t(1) del mismo código (BL-30). */
+export const TIMINGS_PAIR_BLAS: ParsedTimingsPairDto = {
+  parser_id: 'pair_openmp_blas',
+  kind: 'pair',
+  parallel_time_s: 0.7,
+  reference_time_s: 0.98,
+  reference_label: 'blas',
+  speedup_vs_reference: 1.4,
+  correct: true,
+}
+
 // ─────────────────────── §7.4 GET /jobs/{id} detalle ─────────────────────────
 
 const JOB_BASE: JobDetailDto = {

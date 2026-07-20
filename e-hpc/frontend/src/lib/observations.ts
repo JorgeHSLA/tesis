@@ -71,29 +71,56 @@ function sweepObservations(timings: ParsedTimingsSweepDto, exampleId: string | n
   return out
 }
 
+/**
+ * BL-30: la inversión de la Ley de Amdahl (speedup → % paralelizable) solo es
+ * válida con parser_id 'pair_parallel_serial', donde la referencia es una
+ * versión serial equivalente del MISMO algoritmo (sin paralelizar). Para
+ * 'pair_openmp_numpy'/'pair_openmp_blas' la referencia es OTRA implementación:
+ * el ratio no mide el escalado t(1)/t(n) y "% paralelizable" sería un dato
+ * fabricado. Solo NumPy elementwise es afirmable como mono-hilo; BLAS (np.dot)
+ * puede usar varios hilos (OMP_NUM_THREADS aplica a todo el proceso del runner).
+ */
 function pairObservations(timings: ParsedTimingsPairDto, threads: number): Observation[] {
   const out: Observation[] = []
   const s = timings.speedup_vs_reference
+  const isSerialReference = timings.parser_id === 'pair_parallel_serial'
   if (Number.isFinite(s)) {
     if (s < 1) {
       out.push({
         kind: 'warn',
         title: `OpenMP fue ${fmtX(1 / s)} más lento que ${timings.reference_label}.`,
-        body:
-          'Las bibliotecas optimizadas (NumPy/BLAS) ya usan SIMD y memoria contigua: ' +
-          'batir a una implementación madura requiere mucho más que paralelizar el bucle.',
+        body: isSerialReference
+          ? 'Con esta carga el overhead de crear y sincronizar el equipo de hilos supera la ganancia ' +
+            'del reparto. Prueba con un tamaño de problema mayor.'
+          : 'Las bibliotecas optimizadas (NumPy/BLAS) ya usan SIMD y memoria contigua: ' +
+            'batir a una implementación madura requiere mucho más que paralelizar el bucle.',
       })
     }
-    const p = amdahlParallelFraction(s, threads)
-    out.push({
-      kind: 'info',
-      title: `Speedup ${fmtX(s)} vs ${timings.reference_label} con ${threads} hilos.`,
-      body:
-        p != null
-          ? `La ley de Amdahl predice ~${fmtX(amdahlPredictedSpeedup(p, threads))} para un código con ` +
-            `${Math.round(p * 100)}% paralelizable.`
-          : `Comparación directa contra la referencia ${timings.reference_label} medida en la misma corrida.`,
-    })
+    if (isSerialReference) {
+      const p = amdahlParallelFraction(s, threads)
+      out.push({
+        kind: 'info',
+        title: `Speedup ${fmtX(s)} vs ${timings.reference_label} con ${threads} hilos.`,
+        body:
+          p != null
+            ? `La ley de Amdahl predice ~${fmtX(amdahlPredictedSpeedup(p, threads))} para un código con ` +
+              `${Math.round(p * 100)}% paralelizable.`
+            : `Comparación directa contra la referencia ${timings.reference_label} medida en la misma corrida.`,
+      })
+    } else {
+      const refIntro =
+        timings.parser_id === 'pair_openmp_numpy'
+          ? `la referencia (${timings.reference_label}) corre en 1 core con SIMD y memoria contigua`
+          : `la referencia (${timings.reference_label}) es una biblioteca con décadas de optimización ` +
+            '(SIMD, bloqueo de caché) que además puede usar varios hilos internamente'
+      out.push({
+        kind: 'info',
+        title: `Speedup ${fmtX(s)} vs ${timings.reference_label} con ${threads} hilos.`,
+        body:
+          `Comparación entre implementaciones distintas: ${refIntro}. Este ratio no mide el escalado ` +
+          't(1)/t(n) del mismo código, así que no dice qué porción del cómputo se beneficia de más hilos.',
+      })
+    }
   }
   return out
 }
