@@ -256,12 +256,19 @@ por hallazgo (TDD RED→GREEN). Contratos congelados (`schemas.py`,
   `begin()`) confiando en que el backlog re-poblara, pero `JobSocket` nunca
   reseteaba `lastLogSeq`: el backlog llegaba con los `seq` originales y el
   filtro lo descartaba todo (job `lost` → «Reintentar conexión» → pantalla sin
-  ninguna línea). `connect()` pasa a resetear todo el estado de sesión del
-  socket junto con el store: `lastLogSeq`, `sawEof`, `lastPhase`,
-  `sawActivePhase` y el buffer pendiente. Con `sawEof`/`lastPhase` se corrigen
-  dos efectos colaterales de la misma familia: el `eof` de una sesión anterior
-  ya no suprime el backoff de la nueva, y un replay terminal tras `retry()`
-  vuelve a disparar `onReplayTerminal`.
+  ninguna línea). `connect()` pasa a resetear —vía un `resetSession()` privado,
+  autocontenido— todo el estado que vive UNA conexión: `lastLogSeq`, `sawEof`,
+  `lastPhase`, el buffer pendiente, el `rafId` y el backoff (`retries` +
+  temporizador). Con `sawEof` se corrige un efecto colateral de la misma
+  familia: el `eof` de una sesión anterior ya no suprime el backoff de la nueva.
+  `sawActivePhase` queda **deliberadamente fuera** del reset: su ámbito es la
+  instancia del socket (= una visita a la pantalla del job), que es lo que
+  distingue «aterricé en un job ya terminado» —F5/historial ⇒ redirigir a
+  resultados— de «lo vi correr y se completó mientras reconectaba» ⇒ quedarse
+  en el live ya re-poblado. Resetearlo hacía que un job terminado durante la
+  desconexión expulsara al usuario del live al pulsar «Reintentar conexión»,
+  cuando el mismo job terminando sin caída de conexión lo dejaba ahí con el
+  botón «Ver resultados»: dos conductas para el mismo estado final.
 
 ### Decisiones de zonas grises (documentación deliberada)
 
