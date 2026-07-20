@@ -60,3 +60,78 @@ defectuoso.
   fakes), cobertura ≥ 80 % mantenida.
 - `docker compose -f desktop/resources/compose/compose.yaml config` parsea
   sin errores tras el fix.
+
+## Sesión 2 (2026-07-19) — Integridad de progreso y quiz (backend) · rama `fix/auditoria-s2-progreso`
+
+Los seis hallazgos de integridad de datos de progreso/quiz del backend
+(§3 y zonas grises 1, 4 y 7 de la auditoría). Todos con TDD: test RED que
+reproduce el escenario del reporte → implementación mínima → suite completa
+en verde (289 tests, cobertura 91.0%, goldens de GET públicos intactos).
+
+### BL-04 (high) — `submit_attempt` no era atómico
+
+- **Causa:** `QuizAttemptRepository.create()` y `ProgressRepository.upsert()`
+  comiteaban cada uno por su cuenta; el `rollback()` del servicio era un no-op
+  para el primer paso ya confirmado. Un fallo entre ambos commits dejaba el
+  intento persistido sin actualizar jamás `best_quiz_score`/`completed`.
+- **Fix:** variantes `create_no_commit`/`upsert_no_commit` en los repos (las
+  firmas congeladas `create`/`upsert` las reutilizan y conservan su semántica)
+  y un ÚNICO `commit()`/`rollback()` en `QuizService.submit_attempt` dentro de
+  `write_lock` (patrón build-then-commit de `content_writer._persist`).
+
+### BL-01 (critical) — borrar lección dejaba progreso/intentos huérfanos
+
+- **Causa:** `lesson_progress`/`quiz_attempts` no tienen FK a `lessons`;
+  `delete_lesson` no las tocaba. Reutilizar el id resucitaba `completed:true`
+  y `best_quiz_score` ajenos, irreparables por el MAX/COALESCE del upsert.
+- **Decisión (zona gris 1):** PURGA en la misma transacción del DELETE (no
+  tombstone). Documentado como extensión deliberada en api-contract §10.1.
+
+### BL-06 (high) — editar/borrar el quiz no reconciliaba el progreso
+
+- **Causa:** `replace_quiz`/`delete_quiz` no tocaban `lesson_progress`:
+  `best_quiz_score` podía superar el `quiz_total` vigente y `completed`
+  quedaba evaluado contra un quiz que ya no existe.
+- **Decisión:** si cambia el nº de preguntas o el `pass_threshold` (y siempre
+  al borrar el quiz) se resetea `best_quiz_score=NULL`/`completed=false` en la
+  misma transacción; las ediciones cosméticas no tocan el progreso y `viewed`
+  se conserva. Documentado como extensión deliberada en api-contract §10.5.
+  El estado previo se lee ANTES del reemplazo, dentro del `write_lock`.
+
+### BL-05 (high) — `lesson_progress.last_job_id` nunca se escribía
+
+- **Causa:** regla explícita de api-contract §7.1 sin implementar (anomalía
+  conocida WP9-02 en `test_anomalies.py`); `JobRunner` no conocía el
+  `lesson_id` ni tenía acceso a `ProgressRepository`.
+- **Decisión (zona gris 7):** implementar la regla tal cual está escrita.
+  `JobRunner` recibe el repo de progreso; al derivar `completed` en un job con
+  `lesson_id` hace `upsert(last_job_id)` bajo `write_lock` ANTES del finish
+  terminal (quien observa `completed` ya ve `last_job_id`). Jobs
+  failed/timeout/cancelled no escriben. `test_ANOMALIA_WP9_02` invertido a
+  test de comportamiento correcto.
+
+### BL-21 (medium) — el auto-seed re-sembraba un catálogo vaciado a propósito
+
+- **Causa:** la condición era `COUNT(*) FROM lessons == 0`, que no distingue
+  "nunca sembrada" de "vaciada por el admin".
+- **Decisión (zona gris 4):** marcador persistente `content_seeded_at` en la
+  nueva tabla `app_meta` (migración 3) como condición del auto-seed. El seeder
+  escribe el marcador en su misma transacción; DBs pobladas pre-migración
+  reciben backfill del marcador sin tocar su contenido.
+
+### BL-38 (low) — `lessons_completed` no filtraba lecciones deshabilitadas
+
+- **Causa:** `GET /modules` y `GET /progress` contaban lecciones completadas
+  aunque estuvieran deshabilitadas: `lessons_completed` podía superar
+  `lessons_enabled`.
+- **Fix:** ambas métricas filtran por `lesson.enabled`; el registro de
+  progreso del estudiante se conserva (reaparece al rehabilitar la lección).
+
+### Notas de alcance
+
+- `schemas.py` y los DTOs congelados: SIN cambios. Los GET públicos §3–§5
+  siguen byte-idénticos (goldens verificados).
+- `api-contract.md` solo ganó las dos reglas nuevas de §10.1/§10.5 como
+  extensión deliberada (este changelog es su registro).
+- Nuevos tests: `test_quiz_atomicity.py` (3), `test_admin_content.py` (+6),
+  `test_job_runner.py` (+4), `test_app_lifespan.py` (+3), WP9-02 invertido.

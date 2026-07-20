@@ -977,6 +977,16 @@ deshabilitado. `POST /api/v1/admin/logout` (Bearer) → `200 {"revoked": true}`.
   lección. `POST /admin/lessons` crea, en una sola transacción, la fila de la
   lección + la del ejemplo pareado (con `source_code`); `DELETE /admin/lessons/{id}`
   borra lección + ejemplo + quiz (CASCADE) y limpia `recommended` colgantes.
+- **Purga del estado del estudiante al borrar una lección** *(extensión
+  deliberada — fixes de auditoría S2, BL-01)*: `DELETE /admin/lessons/{id}`
+  elimina además las filas de `lesson_progress` y `quiz_attempts` de ese
+  `lesson_id`, **en la misma transacción** del DELETE. Razón: esas tablas no
+  tienen FK a `lessons` (schema v1); sin purga, un id reutilizado heredaría
+  `completed`/`best_quiz_score` de un contenido que el estudiante nunca vio
+  (irreversible por el MAX/COALESCE del upsert). Borrar una lección es por
+  tanto destructivo también para el progreso/historial de quiz de esa
+  lección; las filas de `jobs` (con su `lesson_id` textual) se conservan como
+  telemetría histórica.
 - **`module.lessons` es derivado** (no se envía en el create/update de módulo):
   la pertenencia es `lessons.module_id` y el orden intra-módulo se deriva del
   `order` global de las lecciones.
@@ -1053,6 +1063,16 @@ correct_key, explanation }`. `AdminQuiz` = upsert + `{ lesson_id, question_count
 El `id` de pregunta lo provee el cliente (patrón `^[A-Za-z0-9._-]{1,80}$`) o el
 servidor autogenera `{lesson_id}-q{n}`. **Este es el único endpoint que expone
 `correct_key`/`explanation`** — el GET público §5.1 los sigue omitiendo.
+
+> **Reconciliación del progreso** *(extensión deliberada — fixes de auditoría
+> S2, BL-06)*: si el `PUT` cambia el **número de preguntas** o el
+> **`pass_threshold`** respecto al quiz persistido — y siempre en el `DELETE`
+> del quiz — el backend resetea `lesson_progress.best_quiz_score = NULL` y
+> `completed = false` de esa lección **en la misma transacción**. Un reemplazo
+> con igual conteo y umbral (edición cosmética de textos/explicaciones) NO
+> toca el progreso; `viewed` se conserva siempre. Razón: un `best_quiz_score`
+> sobre un total distinto, o un «aprobado» evaluado con otro umbral, es una
+> nota imposible que ni la UI ni el estudiante pueden interpretar.
 
 ### 10.6 Reglas de validación de contenido (runtime)
 
