@@ -66,7 +66,8 @@ defectuoso.
 Los seis hallazgos de integridad de datos de progreso/quiz del backend
 (§3 y zonas grises 1, 4 y 7 de la auditoría). Todos con TDD: test RED que
 reproduce el escenario del reporte → implementación mínima → suite completa
-en verde (289 tests, cobertura 91.0%, goldens de GET públicos intactos).
+en verde (293 tests tras la ronda de review, cobertura 91.0%, goldens de GET
+públicos intactos).
 
 ### BL-04 (high) — `submit_attempt` no era atómico
 
@@ -133,8 +134,10 @@ en verde (289 tests, cobertura 91.0%, goldens de GET públicos intactos).
   siguen byte-idénticos (goldens verificados).
 - `api-contract.md` solo ganó las dos reglas nuevas de §10.1/§10.5 como
   extensión deliberada (este changelog es su registro).
-- Nuevos tests: `test_quiz_atomicity.py` (3), `test_admin_content.py` (+6),
-  `test_job_runner.py` (+4), `test_app_lifespan.py` (+3), WP9-02 invertido.
+- Nuevos tests: `test_quiz_atomicity.py` (6: 3 de atomicidad + 3 de carrera
+  F1), `test_admin_content.py` (+6), `test_job_runner.py` (+4),
+  `test_app_lifespan.py` (+3), `test_seed_content.py` (+1 rollback F3),
+  WP9-02 invertido. Total suite: 293.
 
 ### Ronda de review de la Sesión 2 (python-reviewer + database-reviewer)
 
