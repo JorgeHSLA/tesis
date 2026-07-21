@@ -97,3 +97,75 @@ Mockup (3 pantallas, 3 paletas conmutables) → aprobación de paleta #1 → tok
 (lead) → workflow de 5 agentes con propiedad exclusiva de archivos (components / home+catalog /
 learn+results / simulator+admin / viz-TSX) → barrido de restos → verificación central →
 auditoría AA renderizada con fixes → E2E final.
+
+---
+
+# Refactor de la lección — feedback de usuario (2026-07-20)
+
+Seis ajustes concretos sobre la pantalla de lección (`/#/cursos/:leccionId`) tras revisión
+del usuario, más el cierre del sistema de variantes. **Solo capa visual/UI**: contratos
+congelados (`api/types.ts`, `ws/messages.ts`, `ehpc.d.ts`, `schemas.py`) intactos.
+
+## Qué cambió
+1. **Switch v1/v2 retirado; app fija en v2.** `TopBar.tsx` sin el `variant-switch`;
+   `themeStore.ts` pasó de store zustand persistido a módulo plano (`FIXED_VARIANT`/
+   `applyFixedVariant`) que siempre aplica `data-variant="v2"` e **ignora un `'v1'` heredado**
+   en localStorage. `index.html` → `data-variant="v2"`. CSS `.variant-switch`/`.vs-btn`
+   eliminado. **Auditoría v2:** el hero de Home recuperó su diagrama fork-join (los overrides
+   `[data-variant="v2"]` lo ocultaban en v2 y dejaban medio hero vacío).
+2. **Responsive — sin hueco muerto a la derecha.** `.screen.learn` ensanchado (max-width
+   1680px); `.learn-grid` a **una columna por defecto** (contenido a ancho completo), dos
+   columnas solo con el drawer abierto. `.code-screen` con `max-height` para no gigantizar a
+   ancho completo.
+3. **Descripción colapsada por defecto** (`LessonInfo` `useState(false)`); conserva
+   `aria-expanded` y labels (de lo que dependen los E2E).
+4. **"Recomendado para ti" eliminado** del render de la lección (en un path de aprendizaje la
+   recomendación es la siguiente lección, ya cubierta por "Siguiente"). El componente queda sin
+   uso.
+5. **Panel "módulo + progreso" como drawer a la derecha, OCULTO por defecto**, con botón
+   toggle (`aria-expanded`/`aria-controls`, chevron animado, entrada suave respetando
+   `prefers-reduced-motion`), estado persistido en `localStorage['ehpc-learn-side']`. Al
+   ocultarse, el contenido ocupa el ancho completo.
+6. **Botones neutros con subtono azul claro** (tokens `--btn-neutral-*` ~ `#EEF4FF`) en
+   `.btn`/`.btn-outline`; texto slate oscuro (contraste AA holgado). Los CTA (`.btn-primary`/
+   `.btn-accent`) siguen naranja. Equivalentes dark definidos.
+
+## Verificación
+| Check | Resultado |
+| --- | --- |
+| `tsc --noEmit` | limpio |
+| `vitest run` | **224/224** (26 archivos; +3 `LessonInfo.test.tsx`, `themeStore.test.ts` reescrito) |
+| `npm run build` (web + Electron) | OK; dist con `data-variant="v2"` |
+| E2E Playwright (stack Docker real) | **15/15** (`b-learn` B1/B4 y `d-admin` ADM5 expanden la descripción vía helper `LearnPage.expandDescription`; `c-home` sigue viendo el diagrama fork-join) |
+| Capturas 1440/768 (Home, lección, drawer abierto, descripción) | OK |
+| Code review (typescript-reviewer) | HIGH (guard localStorage en `readSidePref`) + MEDIUM (skeleton refleja drawer, test de colapso) aplicados |
+
+## Video de la lección (queja #3, frontend-only)
+
+El bloque grande de la lección deja de ser el preview de código y pasa a ser un
+**reproductor de video** (`LessonMedia`, sustituye a `CodeShowcase`). Se resolvió
+en **frontend, sin tocar contratos congelados**.
+
+- **Dos formas de fuente** (`src/features/learn/lessonVideos.ts`, keyed por
+  `example_id`): (1) **URL externa** con esquema (`https://…`); (2) **.mp4 en
+  disco** — ruta relativa a `public/` (bundleada en `dist/`), servida por nginx
+  en web y por `file://` en Electron. `resolveVideoSrc` devuelve la URL tal cual
+  o resuelve la ruta contra `BASE_URL` (base `./`). El `.mp4` se coloca en
+  `frontend/public/media/videos/` y se referencia desde el mapa.
+- **Placeholder "Video próximamente"** cuando la lección no tiene fuente (el mapa
+  arranca vacío → todas las lecciones lo muestran hasta que haya videos).
+- **CTA secundario chico** "Ejecutar en el simulador" debajo del reproductor →
+  `/simulador?ejemplo=<exampleId>`. El CTA primario naranja "Probar en el
+  simulador" sigue **intacto** en `LessonInfo` (lo usa el E2E B4).
+- **Reproductor**: `<video controls preload="metadata" playsInline>`, **sin
+  autoplay** (nunca con sonido), `aria-label`, marco 16:9 que llena el ancho
+  (letterbox). Captions (`<track>`, WCAG 1.2.2) quedan como TODO para cuando haya
+  videos reales (el valor del mapa puede evolucionar sin tocar contratos).
+- `highlightDirectives` (tab "Código") se extrajo a `codeHighlight.tsx` al
+  eliminar `CodeShowcase`.
+
+Verificación: `tsc` limpio, **vitest 232/232** (+`LessonMedia.test.tsx`: resolver
++ placeholder/video/CTA/navegación), build OK (`media/` en `dist/`), **E2E 16/16**
+(nuevo `b-learn` B5: placeholder + CTA al simulador). Review typescript-reviewer:
+sin CRITICAL/HIGH; MEDIUM aplicados (footgun del doble slash, aserciones de
+atributos del `<video>` y de navegación del CTA, nota de captions).

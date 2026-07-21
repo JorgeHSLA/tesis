@@ -1,9 +1,8 @@
 // TopBar — layout del handoff §3.3 (rediseño 2026-07): crumbs / título sans / spacer /
-// variant-switch (§2.8, persistencia 'ehpc-variant' vía themeStore) / botones
-// Buscar y Ayuda / divisor / usuario `ES · estudiante` (frontend-spec §6.0).
+// botones Buscar y Ayuda / divisor / usuario `ES · estudiante` (frontend-spec §6.0).
+// El switch v1/v2 (§2.8) se retiró: la app quedó fija en la variante v2.
 // Títulos y crumbs por ruta: tabla de frontend-spec §2.
 import { useLocation } from 'react-router-dom'
-import { useThemeStore, type Variant } from '../../stores/themeStore'
 import { IconHelp, IconSearch } from '../icons/icons'
 
 interface RouteMeta {
@@ -24,36 +23,15 @@ export function routeMeta(pathname: string): RouteMeta {
   return { title: 'Inicio', crumbs: ['E-HPC'] }
 }
 
-const VARIANTS: ReadonlyArray<{ id: Variant; label: string }> = [
-  { id: 'v1', label: 'v1 · curso' },
-  { id: 'v2', label: 'v2 · compacto' },
-]
-
 export function TopBar() {
   const { pathname } = useLocation()
   const meta = routeMeta(pathname)
-  const variant = useThemeStore((s) => s.variant)
-  const setVariant = useThemeStore((s) => s.setVariant)
 
   return (
     <header className="topbar" role="banner">
       <span className="topbar-crumb">{meta.crumbs.join(' / ')}</span>
       <span className="topbar-title">{meta.title}</span>
       <span className="topbar-spacer" />
-
-      <div className="variant-switch" role="group" aria-label="Variante de interfaz">
-        {VARIANTS.map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            className={'vs-btn' + (variant === v.id ? ' active' : '')}
-            aria-pressed={variant === v.id}
-            onClick={() => setVariant(v.id)}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
 
       <button type="button" className="btn btn-ghost btn-sm">
         <IconSearch size={14} /> Buscar
