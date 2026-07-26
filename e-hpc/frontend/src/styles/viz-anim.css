@@ -83,45 +83,184 @@
   background: var(--surface);
 }
 
-/* ═══════════ Animación de resultado del quiz (canvas) ═══════════ */
+/* ═══════════ Overlay de resultado del quiz (pantalla completa) ═══════════
+   La tarjeta y el rótulo son DOM (texto real, tokens, accesibles); solo las
+   partículas van a <canvas>. Con prefers-reduced-motion la regla global de
+   base.css deja cada @keyframes en su fotograma final, que es exactamente la
+   pose de reposo: la tarjeta aparece entera y quieta, sin cierre por tiempo. */
 
-.quiz-result-anim {
-  position: relative;
-  margin: 0 0 var(--sp-4);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface-2);
-  overflow: hidden;
+.quiz-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5);
+  /* Velo con la tinta de sombra de la marca: cálido en claro, negro en oscuro. */
+  background: rgba(var(--shadow-rgb), .78);
+  backdrop-filter: blur(3px);
+  animation: qr-overlay-in .28s var(--ease);
 }
-.quiz-result-anim canvas {
-  display: block;
-  width: 100%;
-  height: auto;
-  image-rendering: pixelated;
-}
-/* El veredicto va SOBRE la animación, nunca al revés: la banda decorativa no
-   puede tapar el puntaje ni el chip, que viven fuera de este bloque.
-   La placa sólida garantiza el contraste AA del rótulo aunque le pase confeti
-   justo por detrás (el halo de text-shadow no bastaba). */
-.quiz-result-banner {
+.quiz-overlay.is-closing { animation: qr-overlay-out .42s var(--ease) forwards; }
+
+.quiz-overlay-fx {
   position: absolute;
-  left: 50%;
-  bottom: var(--sp-3);
-  transform: translateX(-50%);
-  margin: 0;
-  padding: var(--sp-2) var(--sp-4);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.quiz-overlay-stage {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: 100%;
+}
+
+/* ── Tarjeta de puntaje ─────────────────────────────────────────────────── */
+.qr-card {
+  width: min(92vw, 620px);
   background: var(--surface);
-  box-shadow: var(--elevation-1);
+  border: 6px solid var(--text);
+  /* Sombra DURA y desplazada (sin blur): es el lenguaje del pixel-art. */
+  box-shadow: 14px 14px 0 rgba(var(--shadow-rgb), .30);
+  padding: clamp(16px, 2.4vw, 28px);
   font-family: var(--font-mono);
-  font-size: var(--fs-lg);
+  animation: qr-card-in .55s cubic-bezier(.34, 1.56, .64, 1) backwards;
+}
+
+.qr-card-head {
+  margin: 0 0 var(--sp-3);
+  padding-bottom: var(--sp-3);
+  border-bottom: 4px solid var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qr-rows {
+  display: grid;
+  grid-template-columns: repeat(var(--qr-cols, 1), minmax(0, 1fr));
+  gap: var(--sp-2) var(--sp-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.qr-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  animation: qr-row-in .34s var(--ease) backwards;
+}
+.qr-mark {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--text);
+}
+.qr-glyph { display: block; width: 17px; height: 15px; }
+.qr-bar { height: 10px; flex: 1; min-width: 0; }
+
+.qr-row.is-ok .qr-mark { background: var(--success-soft); }
+.qr-row.is-ok .qr-glyph { fill: var(--success-ink); }
+.qr-row.is-ok .qr-bar { background: var(--border-accent); }
+.qr-row.is-bad .qr-mark { background: var(--danger-soft); }
+.qr-row.is-bad .qr-glyph { fill: var(--danger-ink); }
+.qr-row.is-bad .qr-bar { background: var(--surface-3); }
+
+.qr-score {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin: var(--sp-5) 0 0;
+  padding-top: var(--sp-3);
+  border-top: 4px solid var(--text);
+}
+.qr-score-label {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-muted-strong);
+}
+.qr-score-value {
+  font-size: clamp(30px, 4.6vw, 46px);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.qr-score-total { color: var(--text-muted); }
+
+/* ── Rótulo estampado ───────────────────────────────────────────────────── */
+.quiz-overlay-banner {
+  margin: calc(var(--sp-5) * -1) 0 0;
+  padding: .45em .8em;
+  background: var(--surface);
+  border: 6px solid var(--text);
+  box-shadow: 10px 10px 0 rgba(var(--shadow-rgb), .30);
+  transform: rotate(-3deg);
+  font-family: var(--font-mono);
+  font-size: clamp(19px, 3.2vw, 36px);
   font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--text);
+  animation: qr-stamp .5s cubic-bezier(.34, 1.56, .64, 1) var(--qr-banner-delay, 900ms) backwards;
 }
-.quiz-result-anim[data-variant='celebration'] .quiz-result-banner { color: var(--success-ink); }
-.quiz-result-anim[data-variant='regular'] .quiz-result-banner { color: var(--warn-ink); }
-.quiz-result-anim[data-variant='bad'] .quiz-result-banner { color: var(--danger-ink); }
+.quiz-overlay[data-variant='celebration'] .quiz-overlay-banner { color: var(--success-ink); }
+.quiz-overlay[data-variant='regular'] .quiz-overlay-banner { color: var(--warn-ink); }
+.quiz-overlay[data-variant='bad'] .quiz-overlay-banner { color: var(--danger-ink); }
+
+/* ── Saltar / Cerrar ────────────────────────────────────────────────────── */
+.quiz-overlay-skip {
+  position: absolute;
+  top: var(--sp-5);
+  right: var(--sp-5);
+  z-index: 2;
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s var(--ease), border-color .15s var(--ease);
+}
+.quiz-overlay-skip:hover { background: var(--surface-2); border-color: var(--text); }
+
+@keyframes qr-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes qr-overlay-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes qr-card-in {
+  0% { opacity: 0; transform: translateY(48px) scale(.94); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes qr-row-in {
+  0% { opacity: 0; transform: translateX(-14px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes qr-stamp {
+  0% { opacity: 0; transform: rotate(-3deg) scale(2.6); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: rotate(-3deg) scale(1); }
+}
+
+/* Pantallas cortas: la tarjeta puede desbordar, que haga scroll ella sola. */
+@media (max-height: 620px) {
+  .quiz-overlay-stage { overflow-y: auto; }
+  .qr-score-value { font-size: clamp(24px, 4vw, 32px); }
+}

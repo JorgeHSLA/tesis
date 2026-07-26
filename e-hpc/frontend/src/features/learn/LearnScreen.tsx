@@ -238,6 +238,7 @@ export default function LearnScreen() {
             <QuizRunner
               key={lesson.id}
               lessonId={lesson.id}
+              lessonTitle={lesson.title}
               questionCount={lesson.quiz_question_count}
               progress={cachedProgress}
             />

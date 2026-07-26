@@ -5,12 +5,13 @@
 //     `results[]` con correct_key + explanation: SOLO entonces se pinta el
 //     feedback por pregunta y el resumen (aria-live).
 //  4. progressStore.applyAttemptResult() actualiza la caché.
-//  5. QuizResultAnimation corona el resultado con una banda según el puntaje
-//     (celebración / ánimo / reintento). Es DECORATIVA: va antes del resumen
-//     y nunca lo tapa.
+//  5. QuizResultOverlay celebra el resultado A PANTALLA COMPLETA según el
+//     puntaje (celebración / ánimo / reintento), con la tarjeta de aciertos
+//     alimentada por `results[]`. Se desvanece sola y se puede saltar; al
+//     cerrarse, el foco aterriza en el resumen, que sigue debajo intacto.
 // No hay botón `Comprobar` por pregunta: la clave jamás viaja antes del
 // intento (invariante del contrato).
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { getQuiz, postQuizAttempt } from '../../api/content'
 import type {
   LessonProgressDto,
@@ -24,13 +25,15 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Chip } from '../../components/ui/Chip'
 import { Skeleton } from '../../components/ui/Skeleton'
-import { QuizResultAnimation } from '../../components/viz/QuizResultAnimation'
+import { QuizResultOverlay } from '../../components/viz/QuizResultOverlay'
 import { useProgressStore } from '../../stores/progressStore'
 
 type Stage = 'teaser' | 'loading' | 'answering' | 'submitting' | 'result'
 
 export interface QuizRunnerProps {
   lessonId: string
+  /** Título de la lección: encabeza la tarjeta del overlay de resultado. */
+  lessonTitle: string
   questionCount: number
   progress: LessonProgressDto
 }
@@ -88,18 +91,22 @@ function Question({ question, selected, onSelect, result, disabled }: QuestionPr
   )
 }
 
-export function QuizRunner({ lessonId, questionCount, progress }: QuizRunnerProps) {
+export function QuizRunner({ lessonId, lessonTitle, questionCount, progress }: QuizRunnerProps) {
   const applyAttemptResult = useProgressStore((s) => s.applyAttemptResult)
   const [stage, setStage] = useState<Stage>('teaser')
   const [quiz, setQuiz] = useState<QuizDto | null>(null)
   const [answers, setAnswers] = useState<Record<string, QuizOptionKey>>({})
   const [result, setResult] = useState<QuizAttemptResultDto | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [celebrating, setCelebrating] = useState(false)
+  // Al cerrarse el overlay el foco vuelve aquí: el resumen del intento.
+  const summaryRef = useRef<HTMLDivElement | null>(null)
 
   const start = () => {
     setStage('loading')
     setError(null)
     setResult(null)
+    setCelebrating(false)
     setAnswers({})
     getQuiz(lessonId)
       .then((q) => {
@@ -120,6 +127,7 @@ export function QuizRunner({ lessonId, questionCount, progress }: QuizRunnerProp
       .then((r) => {
         setResult(r)
         setStage('result')
+        setCelebrating(true)
         applyAttemptResult(r)
       })
       .catch((err: unknown) => {
@@ -201,17 +209,30 @@ export function QuizRunner({ lessonId, questionCount, progress }: QuizRunnerProp
           />
         ))}
 
-        {/* Banda decorativa según el puntaje. Va FUERA del aria-live y ANTES
-            del resumen: no puede tapar el puntaje, el chip ni la nota de
-            "corregido por el servidor", que se pintan debajo. */}
-        {stage === 'result' && result !== null && (
-          <QuizResultAnimation score={result.score} total={result.total} passed={result.passed} />
+        {/* Celebración a pantalla completa. Vive en un portal, así que NO
+            desplaza ni tapa el resumen: cuando se cierra, el puntaje, el chip
+            y la nota siguen exactamente donde estaban. */}
+        {celebrating && result !== null && (
+          <QuizResultOverlay
+            score={result.score}
+            total={result.total}
+            passed={result.passed}
+            lessonTitle={lessonTitle}
+            marks={quiz.questions.map(
+              (question) =>
+                result.results.find((r) => r.question_id === question.id)?.correct === true,
+            )}
+            onClose={() => {
+              setCelebrating(false)
+              summaryRef.current?.focus()
+            }}
+          />
         )}
 
         {/* Feedback del intento — aria-live para lectores de pantalla (§6.6) */}
         <div aria-live="polite">
           {stage === 'result' && result !== null && (
-            <div className="quiz-summary">
+            <div className="quiz-summary" ref={summaryRef} tabIndex={-1}>
               <span className="quiz-summary-score">
                 {result.score}/{result.total}
               </span>

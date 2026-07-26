@@ -100,12 +100,46 @@ El aprobado/suspenso lo dicta **`passed`**, que corrige el servidor y es la
 fuente de verdad del umbral; el ratio solo separa el aprobado holgado del justo.
 `total === 0` no divide por cero.
 
-**Se descartó la tarjeta de puntaje ficticia** que traían los tres bundles
-(«QUIZ · UNIDAD 04», 7/10, 02:14). El puntaje real ya lo pinta `QuizRunner`;
-mostrar cifras inventadas al lado habría sido incorrecto. La banda va **antes**
-del resumen y **fuera** del `aria-live`, así que no tapa ni duplica el puntaje,
-el chip ni «corregido por el servidor». El rótulo se apoya en una placa sólida
-para mantener AA aunque le pase confeti por detrás.
+### La tarjeta de puntaje: descartada primero, recuperada con datos reales
+
+En la primera entrega se **descartó** la tarjeta que traían los tres bundles,
+porque sus cifras eran inventadas («QUIZ · UNIDAD 04», 7/10, cronómetro 02:14) y
+habrían contradicho el puntaje real que ya pinta `QuizRunner`.
+
+Fue una mala decisión de producto: la tarjeta era justo lo que daba carácter a la
+celebración. **Corregido (2026-07-26, segunda iteración):** vuelve con el MISMO
+lenguaje visual (marco grueso, sombra dura desplazada, casillas ✓/✗ pixeladas
+calcadas del bundle) pero **alimentada por el intento real**:
+
+| Elemento del bundle | Antes (inventado) | Ahora (real) |
+|---|---|---|
+| Encabezado | «QUIZ · UNIDAD 04» | `Quiz · {título de la lección}` |
+| Filas | 10 fijas, patrón fijo | una por pregunta, ✓/✗ según `results[].correct` |
+| Puntaje | `7/10` constante | `score/total` del servidor |
+| Cronómetro | `02:14` | **eliminado** (no existe ese dato) |
+
+### Presentación: overlay a pantalla completa
+
+También a petición del autor, la celebración dejó de ser una banda dentro de la
+página y pasa a ser un **overlay modal a pantalla completa** (`createPortal` a
+`document.body`), que es como se veían los bundles originales. El lienzo de
+diseño vuelve a ser el original **1280×720**, escalado a «cover» del viewport con
+`setTransform`, así que las partículas están tuneadas como en el HTML de origen.
+
+Comportamiento acordado: **se desvanece solo** al acabar la animación (~5,9 s) y
+hay un botón **«Saltar»** visible desde el primer instante para los reintentos.
+También cierra con `Escape` o clic fuera de la tarjeta.
+
+Accesibilidad del modal: `role="dialog"` + `aria-modal` + nombre accesible con el
+resultado («Resultado del quiz: 4 de 4. Aprobado.»), el foco entra en «Saltar» al
+abrir y **vuelve al resumen** al cerrar, `Tab` no se escapa del overlay y el
+scroll del fondo queda bloqueado mientras está abierto. Con
+`prefers-reduced-motion` no hay partículas **ni cierre por tiempo**: la tarjeta se
+muestra quieta y el botón pasa a decir «Cerrar», para no hacer desaparecer
+contenido sin que el usuario lo controle.
+
+El resumen (`4/4`, chip «Aprobado», «corregido por el servidor») **no se toca**:
+vive debajo y, como el overlay está en un portal, ni se desplaza ni se recorta.
 
 ## 7. Verificación
 

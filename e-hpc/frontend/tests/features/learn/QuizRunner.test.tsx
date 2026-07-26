@@ -32,7 +32,9 @@ beforeEach(() => {
 })
 
 function renderRunner() {
-  return render(<QuizRunner lessonId="spmd" questionCount={2} progress={PROGRESS} />)
+  return render(
+    <QuizRunner lessonId="spmd" lessonTitle="SPMD" questionCount={2} progress={PROGRESS} />,
+  )
 }
 
 describe('flujo completo servidor', () => {

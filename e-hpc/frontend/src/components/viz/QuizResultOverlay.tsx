@@ -1,26 +1,26 @@
-// QuizResultAnimation — banda decorativa que corona el resultado del quiz.
-// Port a <canvas> + rAF de «Quiz Celebration / Regular / Mal» (un único
-// componente DC con `window.QUIZ_VARIANT`; aquí la variante la decide el
-// puntaje real del intento).
+// QuizResultOverlay — celebración del resultado del quiz A PANTALLA COMPLETA.
+// Port de «Quiz Celebration / Regular / Mal» (un único componente DC con
+// `window.QUIZ_VARIANT`; aquí la variante la decide el puntaje real).
 //
-// QUÉ SE PORTA Y QUÉ NO: los tres bundles pintaban además una TARJETA DE
-// PUNTAJE ficticia («QUIZ · UNIDAD 04», 7/10, 02:14). Se descarta a propósito:
-// el puntaje real ya lo muestra QuizRunner, y duplicarlo con cifras inventadas
-// sería incorrecto. Se portan los EFECTOS (fuegos, confeti, globos,
-// serpentinas, nube de lluvia) y el rótulo, que sí acompañan al veredicto.
+// LA TARJETA DE PUNTAJE ES REAL. Los bundles originales pintaban cifras
+// inventadas («QUIZ · UNIDAD 04», 7/10, cronómetro 02:14). Aquí se conserva el
+// MISMO lenguaje visual (marco grueso, sombra dura, casillas ✓/✗ pixeladas)
+// pero alimentado por el intento: una fila por pregunta real y el puntaje que
+// devolvió el servidor. Nada inventado, ni el cronómetro (se elimina).
 //
-// COLOR: cero hex; todo sale de tokens.css en runtime (useThemeColors).
-// MOTION: con prefers-reduced-motion se pinta un único fotograma (póster).
-import { useEffect, useRef } from 'react'
+// COLOR: cero hex. La tarjeta es DOM y usa var(--token); solo las partículas
+// van a <canvas>, que no resuelve var() y por eso lee los tokens en runtime.
+// MOTION: con prefers-reduced-motion no hay partículas ni cierre automático —
+// se muestra la tarjeta quieta y el usuario cierra cuando quiere.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { useThemeColors } from '../../hooks/useThemeColors'
 import { withAlpha } from '../../lib/themeColors'
 
-/** Espacio de diseño de la banda (el original era 1280×720 a pantalla completa). */
+/** Espacio de diseño del original (1280×720), escalado a «cover» del viewport. */
 const W = 1280
-const H = 260
-/** Factor para reescalar a la banda las constantes verticales del original. */
-const S = H / 720
+const H = 720
 
 export type QuizResultVariant = 'celebration' | 'regular' | 'bad'
 
@@ -44,16 +44,15 @@ const BANNERS: Record<QuizResultVariant, string> = {
   bad: '¡Otra vez!',
 }
 
-const LABELS: Record<QuizResultVariant, string> = {
-  celebration: 'Animación de celebración: fuegos artificiales y confeti por un puntaje sobresaliente',
-  regular: 'Animación de ánimo: confeti suave por un quiz aprobado',
-  bad: 'Animación de ánimo: una nube de lluvia que invita a reintentar el quiz',
-}
-
-/** Duración de la animación por variante, en segundos. */
-const DURATION: Record<QuizResultVariant, number> = { celebration: 4.4, regular: 4, bad: 3.6 }
-/** Fotograma del póster con reduced-motion (mitad de la animación). */
-const POSTER_P = 0.45
+/* ── Guion temporal (ms desde que se abre el overlay) ──────────────────────── */
+/** La tarjeta entra y sus filas se revelan escalonadas antes de los efectos. */
+const ROW_STAGGER_MS = 110
+const ROWS_START_MS = 340
+const BANNER_LEAD_MS = 180
+/** Duración de las partículas por variante. */
+const FX_MS: Record<QuizResultVariant, number> = { celebration: 4000, regular: 3600, bad: 3400 }
+/** Desvanecido final antes de cerrar. */
+const FADE_MS = 420
 
 const QUIZ_TOKENS = {
   success: '--success',
@@ -112,6 +111,29 @@ const BALLOON = [
 /** Sprite de la nube (14×5). */
 const CLOUD = ['    ccccc     ', '  ccccccccc   ', ' ccccccccccc  ', 'cccccccccccccc', ' dddddddddddd '] as const
 
+/** Marcas pixeladas de la tarjeta, calcadas del bundle (9×8). */
+const CHECK = [
+  '       oo',
+  '      ooo',
+  '     ooo ',
+  'o   ooo  ',
+  'oo ooo   ',
+  ' ooooo   ',
+  '  ooo    ',
+  '   o     ',
+] as const
+
+const CROSS = [
+  'oo     oo',
+  ' oo   oo ',
+  '  oo oo  ',
+  '   ooo   ',
+  '   ooo   ',
+  '  oo oo  ',
+  ' oo   oo ',
+  'oo     oo',
+] as const
+
 type SpritePalette = Readonly<Record<string, string | undefined>>
 
 function drawSprite(
@@ -133,15 +155,15 @@ function drawSprite(
   }
 }
 
-/** Posiciones/instantes de los estallidos; las `y` ya vienen escaladas a la banda. */
+/** Instantes y posiciones de los estallidos (espacio 1280×720 del original). */
 const BURSTS = [
-  { t: 0.02, x: 250, y: 170 * S },
-  { t: 0.14, x: 1010, y: 130 * S },
-  { t: 0.3, x: 600, y: 90 * S },
-  { t: 0.44, x: 160, y: 300 * S },
-  { t: 0.55, x: 1120, y: 300 * S },
-  { t: 0.66, x: 430, y: 150 * S },
-  { t: 0.76, x: 880, y: 210 * S },
+  { t: 0.02, x: 250, y: 170 },
+  { t: 0.14, x: 1010, y: 130 },
+  { t: 0.3, x: 600, y: 90 },
+  { t: 0.44, x: 160, y: 300 },
+  { t: 0.55, x: 1120, y: 300 },
+  { t: 0.66, x: 430, y: 150 },
+  { t: 0.76, x: 880, y: 210 },
 ] as const
 
 function drawFireworks(
@@ -160,7 +182,7 @@ function drawFireworks(
 
     const lt = (p - b.t) / launch
     if (lt > 0 && lt < 1) {
-      const y = lerp(H - 130 * S, b.y, ease(lt))
+      const y = lerp(H - 130, b.y, ease(lt))
       for (let k = 0; k < 4; k++) {
         cx.globalAlpha = (1 - k * 0.24) * (1 - lt * 0.3)
         cx.fillStyle = k === 0 ? ink : colA
@@ -187,7 +209,7 @@ function drawFireworks(
       const speed = 210 + r() * 190
       const d = speed * ease(et)
       const px = b.x + Math.cos(angle) * d
-      const py = b.y + Math.sin(angle) * d * 0.85 * S + 260 * S * et * et
+      const py = b.y + Math.sin(angle) * d * 0.85 + 260 * et * et
       const color = i % 3 === 0 ? colB : colA
       const fade = clamp((1 - et) * 1.6, 0, 1)
       const size = et < 0.4 ? 10 : 8
@@ -283,23 +305,23 @@ function drawStreamers(cx: CanvasRenderingContext2D, p: number, palette: readonl
   }
 }
 
-function drawRainCloud(cx: CanvasRenderingContext2D, p: number, c: QuizColors, exitY: number): void {
-  const px = 10
+function drawRainCloud(cx: CanvasRenderingContext2D, p: number, c: QuizColors): void {
+  const px = 14
   const cxPos = W / 2 - (14 * px) / 2
-  const cyPos = lerp(-160, 46, ease(clamp(p / 0.16, 0, 1))) + exitY
+  const cyPos = lerp(-220, 70, ease(clamp(p / 0.16, 0, 1)))
   const r = rnd(71)
   const active = clamp((p - 0.14) / 0.08, 0, 1) * clamp((0.98 - p) / 0.1, 0, 1)
 
   drawSprite(cx, CLOUD, { c: c.border, d: c.borderStrong }, px, cxPos, cyPos)
 
   cx.fillStyle = c.vizMem
-  for (let i = 0; i < 22; i++) {
+  for (let i = 0; i < 30; i++) {
     const dx = r() * 12 * px
     const phase = r()
     const speed = 2 + r() * 1.6
     const cycle = (p * speed + phase) % 1
     cx.globalAlpha = 0.85 * (1 - cycle * 0.6) * active
-    cx.fillRect(q(cxPos + px + dx), q(cyPos + 5 * px + 14 + cycle * 150), 6, 14)
+    cx.fillRect(q(cxPos + px + dx), q(cyPos + 5 * px + 14 + cycle * 420), 6, 16)
   }
   cx.globalAlpha = 1
 }
@@ -308,7 +330,7 @@ function drawSadBalloon(cx: CanvasRenderingContext2D, p: number, c: QuizColors):
   if (p <= 0.06 || p >= 0.92) return
   const up = clamp(p / 0.4, 0, 1)
   const down = clamp((p - 0.45) / 0.42, 0, 1)
-  const restY = 300 * S
+  const restY = 300
   const y = down > 0 ? lerp(restY, H + 160, easeIn(down)) : lerp(H + 120, restY, ease(up))
   const x = 190 + Math.sin(p * 9) * 26 * (down > 0 ? 2 : 1)
   drawSprite(
@@ -335,7 +357,6 @@ function drawFrame(
   c: QuizColors,
   intensity = 1,
 ): void {
-  cx.clearRect(0, 0, W, H)
   cx.globalAlpha = 1
   const palette = paletteFor(variant, c)
 
@@ -354,77 +375,229 @@ function drawFrame(
     return
   }
 
-  const exitY = p > 0.78 ? lerp(0, 780 * S, easeIn((p - 0.78) / 0.22)) : 0
-  drawRainCloud(cx, p, c, exitY)
+  drawRainCloud(cx, p, c)
   drawSadBalloon(cx, p, c)
 }
 
-export interface QuizResultAnimationProps {
+/* ── Tarjeta de puntaje (DOM: texto real, tokens, accesible) ──────────────── */
+
+/** Dibuja una marca pixelada del bundle como SVG de 1×1 por píxel. */
+function PixGlyph({ rows, className }: { rows: readonly string[]; className: string }) {
+  const cells: { x: number; y: number }[] = []
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) if (row[x] !== ' ') cells.push({ x, y })
+  })
+  return (
+    <svg className={className} viewBox={`0 0 ${rows[0].length} ${rows.length}`} aria-hidden="true">
+      {cells.map((c) => (
+        <rect key={`${c.x}:${c.y}`} x={c.x} y={c.y} width={1.02} height={1.02} />
+      ))}
+    </svg>
+  )
+}
+
+interface ScoreCardProps {
+  lessonTitle: string
+  marks: readonly boolean[]
+  score: number
+  total: number
+  animate: boolean
+}
+
+function ScoreCard({ lessonTitle, marks, score, total, animate }: ScoreCardProps) {
+  // Dos columnas solo cuando hay bastantes preguntas; si no, una sola lee mejor.
+  const columns = marks.length > 6 ? 2 : 1
+  return (
+    <div className="qr-card">
+      <p className="qr-card-head">Quiz · {lessonTitle}</p>
+      <ul className="qr-rows" style={{ ['--qr-cols' as string]: String(columns) }}>
+        {marks.map((ok, i) => (
+          <li
+            key={i}
+            className={`qr-row ${ok ? 'is-ok' : 'is-bad'}`}
+            style={animate ? { animationDelay: `${ROWS_START_MS + i * ROW_STAGGER_MS}ms` } : undefined}
+          >
+            <span className="qr-mark">
+              <PixGlyph rows={ok ? CHECK : CROSS} className="qr-glyph" />
+            </span>
+            <span className="qr-bar" />
+          </li>
+        ))}
+      </ul>
+      <p className="qr-score">
+        <span className="qr-score-label">Puntaje</span>
+        <span className="qr-score-value">
+          {score}
+          <span className="qr-score-total">/{total}</span>
+        </span>
+      </p>
+    </div>
+  )
+}
+
+/* ── Overlay ──────────────────────────────────────────────────────────────── */
+
+export interface QuizResultOverlayProps {
   score: number
   total: number
   passed: boolean
+  lessonTitle: string
+  /** Aciertos por pregunta, EN EL ORDEN del quiz. */
+  marks: readonly boolean[]
+  /** Se llama al desvanecerse solo, al pulsar Saltar o al pulsar Escape. */
+  onClose: () => void
 }
 
-export function QuizResultAnimation({ score, total, passed }: QuizResultAnimationProps) {
+export function QuizResultOverlay({
+  score,
+  total,
+  passed,
+  lessonTitle,
+  marks,
+  onClose,
+}: QuizResultOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const skipRef = useRef<HTMLButtonElement | null>(null)
   const reduced = useReducedMotion()
   const colors = useThemeColors(QUIZ_TOKENS)
   const variant = resolveQuizVariant(score, total, passed)
+  const [closing, setClosing] = useState(false)
 
+  // Un solo cierre, venga de donde venga (auto, Saltar o Escape).
+  const closedRef = useRef(false)
+  const close = useCallback(() => {
+    if (closedRef.current) return
+    closedRef.current = true
+    setClosing(true)
+    window.setTimeout(onClose, FADE_MS)
+  }, [onClose])
+
+  // El rótulo se estampa cuando ya se revelaron todas las filas; las
+  // partículas arrancan justo después.
+  const bannerDelayMs = useMemo(
+    () => ROWS_START_MS + marks.length * ROW_STAGGER_MS + BANNER_LEAD_MS,
+    [marks.length],
+  )
+  const fxStartMs = bannerDelayMs + 320
+
+  // Escape cierra; Tab no escapa del overlay (solo hay un control).
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        close()
+      } else if (e.key === 'Tab') {
+        e.preventDefault()
+        skipRef.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [close])
+
+  // El foco entra al overlay al abrirse (es modal).
+  useEffect(() => {
+    skipRef.current?.focus()
+  }, [])
+
+  // Bloquea el scroll del fondo mientras está abierto.
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
+
+  // Partículas + cierre automático.
+  useEffect(() => {
+    // Con reduced-motion no hay partículas NI cierre por tiempo: el usuario
+    // decide cuándo cerrar (nada desaparece solo sin que pueda controlarlo).
+    if (reduced) return
+
     const canvas = canvasRef.current
     if (canvas === null) return
     const cx = canvas.getContext('2d')
     if (cx === null) return
 
-    if (reduced) {
-      drawFrame(cx, POSTER_P, variant, colors)
-      return
-    }
-
+    const fxMs = FX_MS[variant]
     let raf = 0
     let start: number | null = null
-    const duration = DURATION[variant]
+
+    /** Escala «cover»: el lienzo de diseño 1280×720 cubre todo el viewport. */
+    const fit = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+      canvas.width = Math.round(vw * dpr)
+      canvas.height = Math.round(vh * dpr)
+      canvas.style.width = `${vw}px`
+      canvas.style.height = `${vh}px`
+      const scale = Math.max(vw / W, vh / H) * dpr
+      cx.setTransform(scale, 0, 0, scale, (vw * dpr - W * scale) / 2, (vh * dpr - H * scale) / 2)
+    }
 
     const tick = (now: number) => {
       start ??= now
-      const p = (now - start) / 1000 / duration
+      const elapsed = now - start
+      const p = (elapsed - fxStartMs) / fxMs
+      // Limpiar en coordenadas de dispositivo: la transformada es de «cover».
+      cx.save()
+      cx.setTransform(1, 0, 0, 1, 0, 0)
+      cx.clearRect(0, 0, canvas.width, canvas.height)
+      cx.restore()
+      if (p > 0) drawFrame(cx, Math.min(p, 1), variant, colors)
       if (p >= 1) {
-        // Se reproduce UNA vez: al terminar la banda queda limpia y el
-        // rótulo (que es HTML, no canvas) permanece.
-        cx.clearRect(0, 0, W, H)
+        close()
         return
       }
-      drawFrame(cx, p, variant, colors)
       raf = requestAnimationFrame(tick)
     }
 
+    fit()
+    window.addEventListener('resize', fit)
     raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [colors, reduced, variant])
 
-  return (
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('resize', fit)
+    }
+  }, [colors, reduced, variant, fxStartMs, close])
+
+  const verdict = passed ? 'Aprobado' : 'No aprobado'
+  const overlay = (
     <div
-      className="quiz-result-anim"
+      className={`quiz-overlay${closing ? ' is-closing' : ''}`}
       data-variant={variant}
-      data-testid="quiz-result-anim"
-      role="img"
-      aria-label={LABELS[variant]}
+      data-testid="quiz-result-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Resultado del quiz: ${score} de ${total}. ${verdict}.`}
+      onClick={close}
     >
-      {/* El nombre accesible lo da el aria-label del contenedor. Marcar los
-          hijos como decorativos NO depende de que el lector de pantalla
-          aplane el subárbol de un role="img": así el veredicto se anuncia
-          una sola vez, desde el resumen de QuizRunner. */}
-      <canvas
-        ref={canvasRef}
-        width={W}
-        height={H}
-        aria-hidden="true"
-        style={{ aspectRatio: `${W} / ${H}` }}
-      />
-      <p className="quiz-result-banner" aria-hidden="true">
-        {BANNERS[variant]}
-      </p>
+      {!reduced && <canvas ref={canvasRef} className="quiz-overlay-fx" aria-hidden="true" />}
+
+      {/* stopPropagation: hacer clic EN la tarjeta no cierra, hacer clic fuera sí. */}
+      <div
+        className="quiz-overlay-stage"
+        style={{ ['--qr-banner-delay' as string]: `${bannerDelayMs}ms` }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ScoreCard
+          lessonTitle={lessonTitle}
+          marks={marks}
+          score={score}
+          total={total}
+          animate={!reduced}
+        />
+        <p className="quiz-overlay-banner">{BANNERS[variant]}</p>
+      </div>
+
+      <button ref={skipRef} type="button" className="quiz-overlay-skip" onClick={close}>
+        {reduced ? 'Cerrar' : 'Saltar'}
+      </button>
     </div>
   )
+
+  return createPortal(overlay, document.body)
 }
