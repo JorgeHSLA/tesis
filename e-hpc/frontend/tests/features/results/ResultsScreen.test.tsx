@@ -14,13 +14,10 @@ vi.mock('@/api/jobs', () => ({
   getJob: vi.fn(),
   jobOutputUrl: (id: string) => `/api/v1/jobs/${id}/output`,
 }))
-vi.mock('@/api/content', () => ({ getLesson: vi.fn() }))
 
 import { getJob } from '@/api/jobs'
-import { getLesson } from '@/api/content'
 
 const getJobMock = getJob as Mock
-const getLessonMock = getLesson as Mock
 
 function renderAt(jobId: string) {
   return render(
@@ -47,7 +44,6 @@ function metric(i: number): MetricSample {
 
 beforeEach(() => {
   getJobMock.mockReset()
-  getLessonMock.mockReset().mockResolvedValue({ next_lesson_id: null })
   useJobStore.getState().reset()
 })
 

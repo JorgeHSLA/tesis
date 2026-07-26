@@ -6,7 +6,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../api/client'
-import { getLesson } from '../../api/content'
 import { getJob, jobOutputUrl } from '../../api/jobs'
 import type { JobDetailDto } from '../../api/types'
 import { Button } from '../../components/ui/Button'
@@ -15,7 +14,6 @@ import { ErrorState } from '../../components/ui/ErrorState'
 import { MetricCard } from '../../components/ui/MetricCard'
 import { Skeleton } from '../../components/ui/Skeleton'
 import {
-  IconArrowRight,
   IconCheck,
   IconClock,
   IconCpu,
@@ -55,7 +53,6 @@ export default function ResultsScreen() {
   const navigate = useNavigate()
   const [job, setJob] = useState<JobDetailDto | null>(null)
   const [error, setError] = useState<ApiError | null>(null)
-  const [nextLessonId, setNextLessonId] = useState<string | null>(null)
 
   const load = useCallback(() => {
     if (jobId == null) return
@@ -72,24 +69,6 @@ export default function ResultsScreen() {
       .catch((err: unknown) => setError(err instanceof ApiError ? err : new ApiError('NETWORK_ERROR', String(err), 0)))
   }, [jobId, navigate])
   useEffect(load, [load])
-
-  // Siguiente lección: solo si el job tiene lección asociada (§6.4).
-  const lessonId = job?.lesson_id ?? null
-  useEffect(() => {
-    if (lessonId == null) {
-      setNextLessonId(null)
-      return
-    }
-    let alive = true
-    getLesson(lessonId)
-      .then((l) => {
-        if (alive) setNextLessonId(l.next_lesson_id)
-      })
-      .catch(() => undefined) // botón opcional: sin lección no se muestra
-    return () => {
-      alive = false
-    }
-  }, [lessonId])
 
   const observations = useMemo(() => (job != null ? buildObservations(job) : []), [job])
 
@@ -181,11 +160,6 @@ export default function ResultsScreen() {
           <Button variant="outline" onClick={rerun}>
             Re-ejecutar
           </Button>
-          {nextLessonId != null && (
-            <Link className="btn btn-primary" to={`/cursos/${nextLessonId}`}>
-              Siguiente lección <IconArrowRight size={14} />
-            </Link>
-          )}
         </div>
       </header>
 
