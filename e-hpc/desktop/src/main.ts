@@ -7,6 +7,12 @@ import { registerDockerIpc } from './ipc-docker'
 import { hardenSession, attachNavigationGuards } from './security'
 import { DEV_SERVER_URL, PACKAGED_FRONTEND_SUBDIR, WINDOW_BACKGROUND_COLOR } from './constants'
 
+// Render por CPU (software) en TODAS las plataformas: la UI es ligera (texto +
+// SVG, sin 3D), así la app es portable y no depende de la GPU. Evita el
+// 'WebGL1 blocklisted' y la pantalla en blanco bajo WSLg / entornos sin GPU
+// utilizable, sin coste visual perceptible. Debe invocarse antes de 'ready'.
+app.disableHardwareAcceleration()
+
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1280,
@@ -27,7 +33,8 @@ function createWindow(): BrowserWindow {
   attachNavigationGuards(win) // §7.2
   if (!app.isPackaged && DEV_SERVER_URL) {
     void win.loadURL(DEV_SERVER_URL)
-    win.webContents.openDevTools({ mode: 'detach' })
+    // DevTools solo si se pide con EHPC_DEVTOOLS=1; por defecto, ventana limpia.
+    if (process.env.EHPC_DEVTOOLS === '1') win.webContents.openDevTools({ mode: 'detach' })
   } else {
     void win.loadFile(path.join(process.resourcesPath, PACKAGED_FRONTEND_SUBDIR, 'index.html'))
     // HashRouter ⇒ las rutas viven tras '#', loadFile no necesita ajustes por ruta

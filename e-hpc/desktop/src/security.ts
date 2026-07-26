@@ -7,7 +7,10 @@ import { API_ORIGIN, WS_ORIGIN, DEV_SERVER_ORIGIN, DEV_SERVER_URL } from './cons
 // en la sesión — solo en la app de escritorio, sin tocar el build web (§7.1).
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  // Prod: estricto ('self'). Dev: Vite/@vitejs/plugin-react inyecta un preámbulo
+  // de HMR inline (y a veces usa eval) que la CSP estricta bloquea → 'can't
+  // detect preamble' y React no monta. Se relaja SOLO en dev (DEV_SERVER_URL).
+  `script-src 'self'` + (DEV_SERVER_URL ? " 'unsafe-inline' 'unsafe-eval'" : ''),
   "style-src 'self' 'unsafe-inline'", // estilos inline puntuales (SVG/anchos dinámicos)
   "img-src 'self' data:",
   // @fontsource = self-hosted, sin red. `data:` es necesario porque Vite
