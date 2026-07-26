@@ -437,7 +437,7 @@
 }
 .chip .status-dot { width: 8px; height: 8px; box-shadow: none; }
 .chip-green { background: var(--success-soft); color: var(--success-ink); border-color: color-mix(in srgb, var(--success) 28%, transparent); }
-.chip-orange { background: var(--accent-soft); color: var(--accent-hover); border-color: color-mix(in srgb, var(--accent) 28%, transparent); }
+.chip-orange { background: var(--accent-soft); color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 28%, transparent); }
 .chip-red { background: var(--danger-soft); color: var(--danger-ink); border-color: color-mix(in srgb, var(--danger) 28%, transparent); }
 .chip-amber { background: var(--warn-soft); color: var(--warn-ink); border-color: color-mix(in srgb, var(--warn) 28%, transparent); }
 .chip-blue {

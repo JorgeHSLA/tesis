@@ -249,7 +249,7 @@
   width: 48px; height: 48px;
   border-radius: var(--r-md);
   background: var(--surface);
-  color: var(--accent);
+  color: var(--accent-ink);
   display: grid; place-items: center;
   box-shadow: var(--elevation-1);
   flex-shrink: 0;
@@ -455,13 +455,13 @@
 .lesson-side.current .lesson-num-badge {
   background: var(--primary-ink); /* blanco encima: 7.25:1 AA */
   border-color: var(--primary-ink);
-  color: var(--on-accent);
+  color: var(--on-inverse); /* --primary-ink se aclara en oscuro */
 }
 /* done con --success-ink (blanco encima AA; el handoff usaba un verde literal) */
 .lesson-side.done .lesson-num-badge {
   background: var(--success-ink);
   border-color: var(--success-ink);
-  color: var(--on-accent);
+  color: var(--on-inverse); /* --success-ink se aclara en oscuro */
 }
 
 .lesson-side-title {

@@ -139,7 +139,7 @@
 /* FIX handoff §14.4: `var(--ink)` no existía → `var(--text)`. */
 .fpill.active {
   background: var(--text);
-  color: var(--on-accent);
+  color: var(--on-inverse); /* --text se aclara en oscuro: tinta inversa */
   border-color: var(--text);
 }
 .fpill-n {
@@ -344,7 +344,7 @@
 .num-badge.current {
   background: var(--primary-ink); /* blanco encima: 7.25:1 AA */
   border-color: var(--primary-ink);
-  color: var(--on-accent);
+  color: var(--on-inverse); /* --primary-ink se aclara en oscuro */
 }
 /* el hijo .mono-small trae color propio de base.css → heredar el del badge */
 .num-badge .mono-small { color: inherit; }
@@ -359,7 +359,7 @@
 /* `.video` del handoff → `.example` (no hay videos: el ejemplo es la lección).
    Ejemplo (play) en el tinte de marca; quiz en arena (momento de logro). */
 .cat-lesson-icon.example { background: var(--primary-soft); color: var(--primary-ink); border-color: var(--border-accent); }
-.cat-lesson-icon.quiz  { background: var(--accent-soft); color: var(--accent-hover); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
+.cat-lesson-icon.quiz  { background: var(--accent-soft); color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
 
 .cat-lesson-title {
   font-size: var(--fs-sm);

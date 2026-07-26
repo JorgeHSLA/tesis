@@ -32,7 +32,9 @@
        para que se distingan en escala de grises y no solo por matiz.
      · Cada valor lleva su ratio medido al lado. Ninguno se eligió «a ojo».
 
-   Tabla completa de contrastes: docs/architecture/frontend-spec.md §1.3.
+   Tabla completa de contrastes y justificación de cada desviación:
+   docs/architecture/frontend-spec.md §5.0.2. La auditoría es reproducible:
+   docs/assets/paleta-calida-2026-07-25/audit-tokens.mjs (una pasada por tema).
 
    VARIANTE: la app quedó fija en v2 (el switch v1/v2 se retiró). El atributo
    `data-variant="v2"` sigue en <html> porque el resto del CSS lo usa como
@@ -48,6 +50,8 @@
   --sand-200: #E5DED6;   /* 1.33:1 — pozos y tracks                            */
   --sand-300: #DCD3CA;   /* 1.48:1 — borde estructural                         */
   --sand-400: #CCBEB1;   /* 1.82:1 — ★ MARCA taupe: superficie/borde decorativo */
+  --sand-450: #7F7062;   /* referencia de gráfica en oscuro: la MÁS tenue de las
+                            tres series y aun así ≥3:1 (3.17:1)                */
   --sand-500: #997E67;   /* 3.79:1 — ★ MARCA medio: bordes-affordance y UI      */
   --sand-600: #82664E;   /* 5.30:1 — texto atenuado (AA sobre lienzo: 4.51:1)  */
   --sand-700: #6E5540;   /* 6.92:1 — texto atenuado sobre superficies teñidas  */
@@ -85,11 +89,17 @@
   --ochre-100: #F9EED2;  /* chip warn                                          */
   --ochre-300: #F2D17E;  /* tinta warn en tema oscuro                          */
   --ochre-500: #AD7F0C;  /* 3.61:1 — warn (dot/icono, ≥3:1)                    */
+  --ochre-550: #926E10;  /* nodo de aviso en oscuro: misma banda doble que
+                            --brick-400 (3.22:1 oscuro / 4.71:1 blanco encima) */
   --ochre-600: #8A650A;  /* 5.32:1 — tinta warn                                */
   --ochre-900: #3A2E10;  /* chip warn en tema oscuro                           */
 
   --brick-100: #F5D9DB;  /* chip danger                                        */
   --brick-300: #F3A2A9;  /* tinta danger en tema oscuro                        */
+  --brick-400: #CF3E4A;  /* danger del tema oscuro: BANDA DOBLE — ≥3:1 sobre las
+                            4 superficies oscuras (3.20:1) Y blanco encima
+                            (4.73:1), porque --danger es a la vez dot y fondo
+                            del botón/toast destructivo.                      */
   --brick-500: #A52B35;  /* 7.01:1 — danger (blanco encima 7.01:1: botón/toast)*/
   --brick-600: #85222A;  /* 9.29:1 — tinta danger                              */
   --brick-900: #3A1A1D;  /* chip danger en tema oscuro                         */
@@ -169,8 +179,21 @@
                                 (#A8501E sobre él da 4.20:1 e incumpliría AA). */
   --accent: var(--clay-600);
   --accent-hover: var(--clay-700);
+  /* Tinta de acento para TEXTO/ICONO. Separada de --accent (que es un RELLENO
+     con blanco encima): un solo token no puede cumplir las dos cosas en oscuro
+     —texto ≥4.5:1 sobre la superficie pide luminancia ≥0.226 y blanco encima
+     ≥4.5:1 pide ≤0.183—. Claro 7.25:1 sobre tarjeta y 5.56:1 sobre
+     --accent-soft; oscuro 8.26:1 y 7.20:1. */
+  --accent-ink: var(--clay-700);
   --accent-soft: var(--clay-200);
   --on-accent: #FFFFFF;
+  /* Tinta para los rellenos que usan un token que se INVIERTE con el tema
+     (--text, --primary-ink, --success-ink como fondo de badge/pill). En claro
+     es blanco —idéntico a --on-accent, cero cambio visual—; en oscuro esos
+     fondos se vuelven claros y la tinta debe oscurecerse o el texto
+     desaparece. --on-accent NO sirve aquí: --accent y --danger siguen siendo
+     oscuros en ambos temas y conservan blanco encima. */
+  --on-inverse: #FFFFFF;
   --primary: var(--sand-500);
   --primary-ink: var(--clay-700);
   --primary-soft: var(--sand-75);
@@ -392,11 +415,20 @@
   --text-muted: var(--sand-400);
   --text-muted-strong: var(--sand-300);
   --accent: var(--clay-500);             /* blanco encima 4.59:1 (AA) */
-  --accent-hover: var(--clay-400);
+  --ring: var(--clay-500);               /* el clay-600 claro daba 2.76:1 aquí */
+  --on-inverse: var(--sand-975);
+  --accent-hover: var(--clay-600);       /* clay-400 dejaba el blanco en 3.43:1 */
+  --accent-ink: var(--clay-300);
   --accent-soft: var(--clay-900);
   --primary: var(--sand-400);
   --primary-ink: var(--clay-300);
   --primary-soft: var(--sand-850);
+  /* Los tokens BASE de estado también se redefinen: en claro son tonos medios
+     (5.21 / 3.61 / 7.01 vs blanco) que sobre fondo oscuro caían a 2.91 y 2.16.
+     --warn NO se redefine porque el ocre ya da 4.20:1 sobre el oscuro.
+     Separación en gris entre los tres en oscuro: 1.35 / 1.77 / 1.31. */
+  --success: var(--moss-400);            /* 5.65:1 peor caso (era 2.91:1) */
+  --danger: var(--brick-400);            /* 3.20:1 peor caso (era 2.16:1) */
   --success-ink: var(--moss-400);
   --success-soft: var(--moss-900);
   --warn-ink: var(--ochre-300);
@@ -409,8 +441,13 @@
   --btn-neutral-hover-border: #5C4636;
   --viz-grid: var(--sand-850);
   --viz-axis: var(--sand-700);
-  --viz-ideal: var(--sand-500);
+  --viz-ideal: var(--sand-450);          /* sand-500 solo separaba 1.11:1 de la serie 1 */
   --viz-label: var(--sand-400);
+  /* Serie 1 y paquetes: el clay-600 claro daba 2.76:1 sobre el oscuro. */
+  --viz-observed: var(--clay-400);       /* 4.41:1 */
+  --viz-cpu: var(--clay-400);
+  --viz-packet: var(--clay-400);
+  --viz-node-warn: var(--ochre-550);     /* 3.22:1 y blanco encima 4.71:1 */
   --viz-mem: var(--steel-300);
   --viz-node: var(--sand-500);
   --viz-node-master: var(--sand-400);

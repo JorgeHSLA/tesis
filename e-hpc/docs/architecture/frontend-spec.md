@@ -485,7 +485,9 @@ por color (1.66:1 de luminancia contra la observada) **y** por estilo (punteada 
 frente a sólida 2.3 px con puntos).
 
 **Auditoría de contraste** — medida sobre los valores **renderizados** en la app servida
-(`audit-tokens.mjs`), no sobre el archivo:
+(`audit-tokens.mjs`), no sobre el archivo. El script comprueba **41 pares por tema**; la tabla
+recoge los del tema claro (los 10 restantes son los del foco, los rellenos que se invierten y
+las variantes sobre `--surface-2`, relevantes sobre todo en oscuro — ver más abajo):
 
 | Par | Frente | Fondo | Ratio | Umbral | AA |
 |---|---|---|---|---|---|
@@ -529,19 +531,46 @@ Serie observada vs ideal: 1.66:1.
 teal). El acento de la terminal se mantiene **verde** (`--moss-400`, 7.09:1) porque en un log el
 verde es semántico, no decorativo: lo cálido es el panel, no el prompt.
 
+#### Tokens que se DESDOBLARON por el tema oscuro
+
+El bloque `[data-theme="dark"]` no tiene *toggle* en el MVP, así que ningún E2E lo cubre: es
+donde más fácil se cuela un fallo. Auditarlo (`audit-tokens.mjs … dark`) destapó que **un mismo
+token no puede servir a la vez de RELLENO con blanco encima y de TINTA de texto** cuando el tema
+invierte las luminancias. Es aritmético: en oscuro, texto ≥4.5:1 sobre `--surface` exige
+luminancia ≥0.226 y blanco encima ≥4.5:1 exige ≤0.183 — bandas disjuntas. De ahí dos tokens
+nuevos, ambos **sin efecto visual en claro**:
+
+| Token | Claro | Oscuro | Por qué existe |
+|---|---|---|---|
+| `--accent-ink` | `--clay-700` | `--clay-300` | Texto/icono de acento. `--accent` queda como RELLENO (CTA, con blanco encima) |
+| `--on-inverse` | `#FFFFFF` | `--sand-975` | Tinta de los rellenos cuyo fondo se invierte con el tema (`--text`, `--primary-ink`, `--success-ink` como fondo de badge/pill) |
+
+Además se redefinen en oscuro los tokens que caían por debajo de 3:1 contra las superficies
+oscuras: `--ring` (2.76 → 3.30), `--success` (2.91 → 5.65), `--danger` (2.16 → 3.20, con
+`--brick-400` elegido en la *banda doble* que además mantiene blanco encima a 4.73:1),
+`--viz-observed`/`--viz-cpu`/`--viz-packet` (2.76 → 4.41), `--viz-node-warn` (2.85 → 3.22) y
+`--viz-ideal` (que con `--sand-500` solo separaba 1.11:1 de la serie 1 → `--sand-450`, 1.39:1 y
+la más tenue de las tres series). `--warn` **no** se redefine: el ocre ya da 4.20:1 en oscuro.
+
 **Electron**: `WINDOW_BACKGROUND_COLOR` pasa de `#E8EDF4` a `#F0ECE8` para seguir a `--bg`.
 
-**Verificación medida**:
+**Verificación medida** (`docs/assets/paleta-calida-2026-07-25/audit-tokens.mjs`, que mide los
+valores **renderizados** en la app servida y se ejecuta una vez por tema):
 
 | Criterio | Resultado |
 |---|---|
-| Tokens declarados que resuelven en el navegador | **164/164** (0 vacíos) |
-| Pares de contraste auditados sobre la app servida | **31/31 AA**, 0 incumplimientos |
+| Tokens declarados que resuelven en el navegador | **169/169** (0 vacíos), en ambos temas |
+| Pares de contraste auditados — tema **claro** | **41/41 AA** |
+| Pares de contraste auditados — tema **oscuro** | **41/41 AA** |
+| Separación en gris de los estados (claro / oscuro) | ≥1.31:1 / ≥1.31:1 |
 | Validador `dataviz` del par de series categóricas | **6/6 checks PASS** |
 | Hex sueltos fuera de `tokens.css` | **0** (los dots mac pasan a `--term-dot-*`) |
 | Referencias a primitivas retiradas (teal/naranja/slate) | **0** |
 | E2E Playwright | **16/16** · Vitest **235/235** · `tsc` limpio (frontend y desktop) |
 | Electron (WSLg) | `--bg #F0ECE8`, `--accent #A8501E`; 0 requests de red externas |
+
+Capturas antes/después de las 6 pantallas —incluida una **ejecución en vivo** del simulador— y
+de Electron en `docs/assets/paleta-calida-2026-07-25/`.
 
 ### 5.1 Port de tokens y variantes *(histórico — superado por §5.0/§5.0.1 en lo visual)*
 

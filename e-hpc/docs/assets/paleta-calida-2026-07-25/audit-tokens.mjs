@@ -15,8 +15,13 @@ const declared = [...new Set([...src.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gim)].map(
 
 const b = await chromium.launch()
 const p = await b.newPage()
+const THEME = process.argv[4] || 'light'   // 'light' | 'dark'
 await p.goto(`${BASE}/#/`, { waitUntil: 'networkidle' })
+if (THEME === 'dark') {
+  await p.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
+}
 await p.waitForTimeout(500)
+console.log(`TEMA: ${THEME}`)
 
 const resolved = await p.evaluate((names) => {
   const s = getComputedStyle(document.documentElement)
@@ -54,12 +59,12 @@ const PAIRS = [
   ['texto atenuado fuerte sobre pozo', '--text-muted-strong', '--surface-3', 4.5],
   ['blanco sobre CTA', '--on-accent', '--accent', 4.5],
   ['blanco sobre CTA hover', '--on-accent', '--accent-hover', 4.5],
-  ['CTA como texto sobre tarjeta', '--accent', '--surface', 4.5],
+  ['tinta de acento como texto sobre tarjeta', '--accent-ink', '--surface', 4.5],
   ['enlace (primary-ink) sobre lienzo', '--primary-ink', '--bg', 4.5],
   ['enlace (primary-ink) sobre tarjeta', '--primary-ink', '--surface', 4.5],
-  ['blanco sobre primary-ink (badge)', '--on-accent', '--primary-ink', 4.5],
+  ['tinta del badge sobre --primary-ink', '--on-inverse', '--primary-ink', 4.5],
   ['tinta de marca sobre primary-soft', '--primary-ink', '--primary-soft', 4.5],
-  ['tinta de acento sobre accent-soft', '--accent-hover', '--accent-soft', 4.5],
+  ['tinta de acento sobre accent-soft', '--accent-ink', '--accent-soft', 4.5],
   ['borde-affordance sobre tarjeta', '--border-strong', '--surface', 3.0],
   ['borde-affordance sobre lienzo', '--border-strong', '--bg', 3.0],
   ['marca (--primary) como icono', '--primary', '--surface', 3.0],
@@ -75,6 +80,16 @@ const PAIRS = [
   ['serie 2 de gráfica sobre tarjeta', '--viz-mem', '--surface', 3.0],
   ['referencia ideal sobre tarjeta', '--viz-ideal', '--surface', 3.0],
   ['etiqueta de eje (texto)', '--viz-label', '--surface', 4.5],
+  ['tinta inversa sobre relleno --text', '--on-inverse', '--text', 4.5],
+  ['tinta inversa sobre relleno --primary-ink', '--on-inverse', '--primary-ink', 4.5],
+  ['tinta inversa sobre relleno --success-ink', '--on-inverse', '--success-ink', 4.5],
+  ['foco (--ring) sobre tarjeta', '--ring', '--surface', 3.0],
+  ['foco (--ring) sobre sub-superficie', '--ring', '--surface-2', 3.0],
+  ['foco (--ring) sobre lienzo', '--ring', '--bg', 3.0],
+  ['serie 1 de gráfica sobre sub-superficie', '--viz-observed', '--surface-2', 3.0],
+  ['dot danger sobre sub-superficie', '--danger', '--surface-2', 3.0],
+  ['dot success sobre sub-superficie', '--success', '--surface-2', 3.0],
+  ['dot warn sobre sub-superficie', '--warn', '--surface-2', 3.0],
   ['texto de terminal', '--term-text', '--term-bg', 4.5],
   ['texto atenuado de terminal', '--term-dim', '--term-bg', 4.5],
   ['acento de terminal', '--term-accent', '--term-bg', 4.5],

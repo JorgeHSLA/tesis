@@ -83,7 +83,7 @@
   display: grid; place-items: center;
   color: var(--primary-ink);
 }
-.qcard[data-accent="orange"] .qcard-icon { background: var(--accent-soft); color: var(--accent-hover); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
+.qcard[data-accent="orange"] .qcard-icon { background: var(--accent-soft); color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
 /* green y blue convergen en el tinte neutro de marca: el ÚNICO acento
    fuerte de la UI es la terracota, reservada al logro y al CTA. */
 .qcard[data-accent="green"]  .qcard-icon { background: var(--primary-soft); color: var(--primary-ink); border-color: var(--border-accent); }
@@ -107,7 +107,7 @@
   padding-top: var(--sp-2);
   border-top: 1px solid var(--border);
 }
-.qcard[data-accent="orange"] .qcard-cta { color: var(--accent); }
+.qcard[data-accent="orange"] .qcard-cta { color: var(--accent-ink); }
 /* La flecha del CTA se desplaza 3px al hover (antes se abría el gap). */
 .qcard-cta svg { transition: transform .2s var(--ease); }
 .qcard:hover .qcard-cta svg { transform: translateX(3px); }
