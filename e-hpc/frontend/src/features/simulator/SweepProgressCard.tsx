@@ -42,7 +42,7 @@ export function SweepProgressCard({ logs, parserId, phase }: SweepProgressCardPr
                     <span className="sweep-check">✓</span> {t.toFixed(3)} s
                   </>
                 ) : isCurrent ? (
-                  // Medición en curso = progreso → teal (el naranja queda para CTAs/logro).
+                  // Medición en curso = progreso → --primary (la terracota, para CTAs/logro).
                   <Chip tone="green" dot="var(--primary)">
                     midiendo…
                   </Chip>

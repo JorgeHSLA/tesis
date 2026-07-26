@@ -1,11 +1,15 @@
 // Terminal — marco del handoff (§2.6): SIEMPRE oscuro (tokens --term-* en
-// components.css) en ambas variantes; header con los 3 dots mac icónicos
-// (única excepción hex permitida). El cuerpo expone `bodyRef` para el
-// auto-scroll de WP6 y usa role="log" (a11y).
+// components.css) en ambas variantes; header con los 3 dots mac icónicos.
+// El cuerpo expone `bodyRef` para el auto-scroll de WP6 y usa role="log" (a11y).
 import { forwardRef, type CSSProperties, type ReactNode } from 'react'
 
-// Dots mac (rojo/amarillo/verde) — icónicos, se mantienen en hex.
-const DOT_COLORS = ['#FF6058', '#FEBC2E', '#28C840'] as const
+// Dots mac (rojo/ámbar/verde) — icónicos del sistema, pero definidos en
+// tokens.css (--term-dot-*) para que ningún componente lleve hex suelto.
+const DOT_COLORS = [
+  'var(--term-dot-red)',
+  'var(--term-dot-amber)',
+  'var(--term-dot-green)',
+] as const
 
 export interface TerminalProps {
   /** Título del header (p. ej. `docker logs -f ehpc-job-…`). */

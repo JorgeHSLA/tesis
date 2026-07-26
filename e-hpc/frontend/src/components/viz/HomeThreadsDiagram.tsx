@@ -21,7 +21,7 @@ export function HomeThreadsDiagram() {
   // contenedor tuviera alto propio).
   return (
     <svg viewBox="0 0 440 260" width="100%" role="img" aria-label="Modelo fork-join: un hilo maestro reparte trabajo a 4 hilos" style={{ display: 'block', height: 'auto' }}>
-      {/* Hilo maestro (rombo teal oscuro superior) */}
+      {/* Hilo maestro (rombo marrón oscuro superior) */}
       <text x={220} y={35} textAnchor="middle" fontFamily="var(--font-mono)" fontSize={10} fill="var(--viz-label)">
         master
       </text>

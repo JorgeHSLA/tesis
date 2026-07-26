@@ -172,7 +172,7 @@
 /* La grilla de métricas ya es auto-fit en components.css: aquí solo el ritmo. */
 .simulator-screen .metrics-row { margin-bottom: var(--sp-5); }
 
-/* Banner informativo (threads_note): clave teal, texto --text con <b> teal */
+/* Banner informativo (threads_note): clave de marca, <b> en --primary-ink */
 .threads-note {
   margin-bottom: var(--sp-4);
   padding: var(--sp-3) var(--sp-4);
@@ -308,7 +308,7 @@
   }
 }
 
-/* SweepProgressCard — el caso «en curso» se marca en teal (progreso) */
+/* SweepProgressCard — el caso «en curso» se marca con --primary (progreso) */
 .sweep-progress {
   padding: var(--sp-3) var(--card-pad) var(--sp-5);
   display: flex;

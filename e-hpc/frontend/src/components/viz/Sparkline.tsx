@@ -1,6 +1,6 @@
 // Sparkline — hint de la MetricCard CPU en el live (frontend-spec §8.1).
 // Polilínea de las últimas 60 muestras, 120×28, stroke var(--viz-cpu) 1.5,
-// área teal suave (mismo token con fillOpacity .12). SIN ejes ni labels.
+// área suave del mismo token (fillOpacity .12). SIN ejes ni labels.
 // Escala: max = threads_effective·100 (fallback online_cpus·100) —
 // cpu_percent puede superar 100, JAMÁS max=100 fijo.
 

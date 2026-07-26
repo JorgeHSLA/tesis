@@ -241,7 +241,7 @@
 /* Teaser = invitación a un momento de logro → toque de --accent-soft */
 .quiz-teaser {
   background: linear-gradient(135deg, var(--accent-soft), var(--surface) 62%);
-  border-color: var(--orange-200);
+  border-color: var(--clay-300);
   box-shadow: var(--elevation-2);
   padding: var(--card-pad);
 }
@@ -397,7 +397,7 @@
 .module-progress-row {
   display: flex; align-items: center; gap: 10px;
 }
-/* Barra de progreso del módulo: teal sobre el pozo --surface-3. */
+/* Barra de progreso del módulo: --primary sobre el pozo --surface-3. */
 .module-progress-bar {
   flex: 1; height: 6px; border-radius: 999px;
   background: var(--surface-3); overflow: hidden;
@@ -453,7 +453,7 @@
   transition: background .15s var(--ease), color .15s var(--ease);
 }
 .lesson-side.current .lesson-num-badge {
-  background: var(--primary-ink); /* blanco encima: 5.47:1 AA */
+  background: var(--primary-ink); /* blanco encima: 7.25:1 AA */
   border-color: var(--primary-ink);
   color: var(--on-accent);
 }

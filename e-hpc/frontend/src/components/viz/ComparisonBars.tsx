@@ -1,7 +1,7 @@
 // ComparisonBars — resultados de ejemplos kind "pair" (frontend-spec §8.3).
 // Reutiliza el layout del WorkDistributionChart del handoff (§6.3): filas
 // grid label+track, track 26px radius 4, barras con transition width .4s
-// var(--ease). Paleta de tokens.css: OpenMP var(--viz-cpu) (teal),
+// var(--ease). Paleta de tokens.css: OpenMP var(--viz-cpu) (terracota),
 // referencia var(--viz-mem) (naranja).
 import { useEffect, useState } from 'react'
 

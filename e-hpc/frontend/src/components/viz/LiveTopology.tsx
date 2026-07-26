@@ -1,7 +1,7 @@
 // LiveTopology — reinterpretada (frontend-spec §5.4): misma geometría SVG del
 // handoff §5.7 (viewBox 800×280, rombos, codos, dashes), nueva semántica OpenMP:
 // - rombo superior = HILO MAESTRO (`master`); fila inferior = t0..t{N-1}.
-// - paquetes naranjas ida (var(--viz-packet)) / teal vuelta (var(--viz-node)) =
+// - paquetes terracota ida (var(--viz-packet)) / marrón vuelta (var(--viz-node)) =
 //   accesos a memoria compartida / sincronizaciones — DECORATIVOS (la card
 //   lleva la sub-etiqueta `representación didáctica del fork-join`).
 // - etiqueta bajo cada hilo: `t{i} · activo` (useSimulation) — SIN % de CPU
@@ -49,7 +49,7 @@ export function LiveTopology({ nodes, running, reducedMotion }: LiveTopologyProp
         return (
           <g key={t.id}>
             <path d={elbow} fill="none" stroke="var(--viz-grid)" strokeWidth={1.5} strokeDasharray="3 4" />
-            {/* Paquetes ida (naranja) / vuelta (teal): memoria compartida /
+            {/* Paquetes ida (terracota) / vuelta (marrón): memoria compartida /
                 sincronizaciones — decorativos (§5.4). */}
             {animate && (
               <>

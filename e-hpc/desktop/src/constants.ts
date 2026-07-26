@@ -34,6 +34,6 @@ export const STDERR_MAX_CHARS = 500
 
 /** Color de fondo de la ventana ANTES del primer paint (evita el flash blanco).
  *  Debe seguir a `--bg` de frontend/src/styles/tokens.css §2 (lienzo hundido).
- *  Antes era '#FDF8EE' (--cream-50 de la variante v1, retirada): la ventana
- *  abría en crema y saltaba a azul-gris al pintar. */
-export const WINDOW_BACKGROUND_COLOR = '#E8EDF4'
+ *  Sigue a la paleta cálida de tierra (--sand-100, mezcla blanco→#CCBEB1 al
+ *  30%); antes era '#E8EDF4' (lienzo azul-gris de la paleta teal retirada). */
+export const WINDOW_BACKGROUND_COLOR = '#F0ECE8'

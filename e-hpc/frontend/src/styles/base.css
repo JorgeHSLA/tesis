@@ -50,7 +50,7 @@ img, svg, video, canvas { max-width: 100%; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--slate-500); }
+::-webkit-scrollbar-thumb:hover { background: var(--sand-600); }
 
 /* ── Utilidades ─────────────────────────────────────────────────────────── */
 /* `.row` envuelve por defecto: sin `flex-wrap: wrap` sus hijos (texto + CTA)

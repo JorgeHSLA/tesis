@@ -15,7 +15,7 @@
   margin-bottom: var(--section-gap);
 }
 
-/* ── ContinueCard — tarjeta destacada: borde teal + NIVEL 2 ─────────────── */
+/* ── ContinueCard — tarjeta destacada: borde de marca + NIVEL 2 ─────────── */
 .catalog-continue {
   min-width: min(100%, 280px);
   padding: var(--sp-5);
@@ -161,7 +161,7 @@
   .fpill { min-height: 44px; }
 }
 
-/* ── Acordeones de módulo — tarjetas, progreso teal ─────────────────────── */
+/* ── Acordeones de módulo — tarjetas, progreso en el tinte de marca ─────── */
 .catalog-modules {
   display: flex;
   flex-direction: column;
@@ -270,7 +270,7 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-/* Progreso TEAL: barra --primary sobre el pozo --surface-3. */
+/* Progreso: barra --primary sobre el pozo --surface-3. */
 .cat-prog-bar {
   margin-top: var(--sp-2);
   height: 6px;
@@ -342,7 +342,7 @@
   color: var(--success-ink);
 }
 .num-badge.current {
-  background: var(--primary-ink); /* blanco encima: 5.47:1 AA */
+  background: var(--primary-ink); /* blanco encima: 7.25:1 AA */
   border-color: var(--primary-ink);
   color: var(--on-accent);
 }
@@ -357,9 +357,9 @@
   border: 1px solid transparent;
 }
 /* `.video` del handoff → `.example` (no hay videos: el ejemplo es la lección).
-   Ejemplo (play) en teal de marca; quiz en naranja suave (momento de logro). */
+   Ejemplo (play) en el tinte de marca; quiz en arena (momento de logro). */
 .cat-lesson-icon.example { background: var(--primary-soft); color: var(--primary-ink); border-color: var(--border-accent); }
-.cat-lesson-icon.quiz  { background: var(--accent-soft); color: var(--orange-600); border-color: color-mix(in srgb, var(--orange-500) 25%, transparent); }
+.cat-lesson-icon.quiz  { background: var(--accent-soft); color: var(--accent-hover); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
 
 .cat-lesson-title {
   font-size: var(--fs-sm);

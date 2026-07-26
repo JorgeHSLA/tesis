@@ -333,9 +333,10 @@ cambiar de job. Idempotente ante StrictMode (guarda instancia en ref y cierra la
 
 ### 5.0 Rediseño visual 2026-07 — dirección de MARCA (paleta y tono)
 
-> **Superado en superficie/elevación/layout por §5.0.1 (2026-07-25).** La paleta de marca
-> (teal + naranja), la tipografía y el criterio de "un solo acento" siguen VIGENTES; los
-> valores concretos de `--bg`, bordes, sombras, espaciado y tipografía los fija §5.0.1.
+> **Superado en superficie/elevación/layout por §5.0.1 y en COLOR por §5.0.2 (2026-07-25).**
+> La paleta teal + naranja de esta sección es **histórica**: la marca vigente es la paleta
+> cálida de tierra de §5.0.2. Siguen vigentes la tipografía y el criterio de "un solo acento";
+> los valores concretos de `--bg`, bordes, sombras, espaciado y tipografía los fija §5.0.1.
 
 Aprobada por mockup (paleta "Teal de progreso + Naranja de logro"). Receta Coursera/Udemy:
 
@@ -367,7 +368,8 @@ Corrige dos defectos **sistémicos** que afectaban a todas las pantallas. La sol
 `styles/tokens.css` (capa *semantic*); los componentes consumen tokens, nunca literales.
 
 **Arquitectura de tokens en 3 capas** (skill `design-system`):
-`primitive` (rampas teal/naranja/slate, tinta de sombra) → `semantic` (§2-§6 de tokens.css:
+`primitive` (rampas de color — hoy sand/clay/estado, §5.0.2 — y tinta de sombra) → `semantic`
+(§2-§6 de tokens.css:
 superficies, elevación, layout fluido, tipografía fluida, breakpoints) → `component`
 (components.css / screens/*.css).
 
@@ -433,6 +435,113 @@ para seguir a `--bg`, y `minWidth` de la ventana baja de 980 a 640 (= `--bp-sm`)
 | Contraste AA del texto renderizado | **508 nodos, 0 incumplimientos** |
 | E2E Playwright | **16/16** · Vitest **235/235** · `tsc` limpio |
 | Electron (WSLg) | app **1908×972 = viewport exacto**, 0 requests de red externas |
+
+### 5.0.2 PALETA CÁLIDA DE TIERRA (2026-07-25) — VIGENTE en color
+
+Sustituye la marca «teal + naranja» de §5.0 por una paleta de tierra. **Solo cambia el color**:
+la arquitectura de tokens de 3 capas, la escala de elevación, el layout fluido y los
+breakpoints de §5.0.1 siguen intactos; únicamente cambian los VALORES.
+
+**Los cuatro colores de marca y el papel que puede jugar cada uno** (contraste vs blanco):
+
+| Color | Ratio | Papel permitido |
+|---|---|---|
+| `#FFDBBB` arena | 1.30:1 | SOLO superficie suave / *highlight*. Nunca texto ni borde con significado |
+| `#CCBEB1` taupe | 1.82:1 | SOLO superficie / borde decorativo |
+| `#997E67` marrón medio | 3.79:1 | Bordes-*affordance* y UI (≥3:1) y texto GRANDE. **Nunca texto de cuerpo** |
+| `#664930` marrón oscuro | 8.20:1 | Texto principal ✅ |
+
+**Primitivas nuevas** (capa *primitive*): rampa `--sand-50…--sand-990` (neutro cálido:
+superficies, bordes, texto), rampa `--clay-50…--clay-900` (terracota = extensión saturada de
+`#FFDBBB`; es el *hue* interactivo), y las familias de estado `--moss-*` / `--ochre-*` /
+`--brick-*` más `--stone-500` / `--steel-*` para gráficas. Las rampas teal/naranja/slate se
+retiraron y **no queda ninguna referencia** a ellas.
+
+**Decisiones que exigieron desviarse del mapeo ingenuo** (cada una medida, no estimada):
+
+1. **CTA = terracota `#A8501E`, no `#664930`.** Con el marrón de texto el CTA sería idéntico al
+   cuerpo y dejaría de ser el elemento más llamativo. La terracota es el mismo matiz que
+   `#FFDBBB` con más croma → armoniza por construcción y es lo único saturado de la pantalla.
+2. **`--border-strong` = `#997E67` (3.79:1), no `#CCBEB1` (1.82:1).** Los seis sitios que
+   consumen ese token son *affordances* (input, dropzone, `kbd`, thumb de scroll, bordes de
+   hover), no decoración: WCAG 1.4.11 exige ≥3:1. `#CCBEB1` vive en `--border-accent`, que sí
+   es decorativo (equivale al `--teal-400` anterior, 1.86:1 → 1.82:1).
+3. **Enlaces de prosa subrayados.** `--primary-ink` no puede ser `#664930` porque `.markdown a`
+   no llevaba subrayado y el enlace quedaría indistinguible del cuerpo. Además, en una paleta
+   cálida monocroma **es imposible** cumplir WCAG G183 (3:1 entre enlace y texto) manteniendo
+   ambos AA: un enlace con ≥3:1 contra `#664930` necesita luminancia ≥0.334, y entonces baja a
+   2.32:1 contra el lienzo. Se añade `text-decoration: underline` como indicador no cromático
+   (WCAG 1.4.1). Antes la separación la daba el matiz teal vs slate (~3.2:1).
+4. **Estados escalonados por LUMINANCIA**, no solo por matiz: `danger` 7.01 < `success` 5.21 <
+   `warn` 3.61 (vs blanco), de forma que se distinguen ≥1.31:1 **entre sí en escala de grises**.
+   Matices repartidos: 355° carmín · 43° ocre · 100° oliva (el acento vive en 22°).
+5. **Foco al 80 % del acento** (antes `--primary-soft`, 1.15:1 = invisible): el halo efectivo da
+   3.71:1 sobre tarjeta, 3.50:1 sobre `--surface-2` y 3.28:1 sobre el lienzo (WCAG 2.4.11).
+
+**Gráficas** (siguen SVG a mano, cero librerías): serie 1 terracota `#A8501E` vs serie 2 azul
+acero `#4A83C3`. El par pasa los seis checks del validador de la skill `dataviz`: **ΔE 22.1 en
+deuteranopía, 26.9 en tritanopía, 24.9 en visión normal**. La referencia «ideal» se distingue
+por color (1.66:1 de luminancia contra la observada) **y** por estilo (punteada 1.6 px `3 4`
+frente a sólida 2.3 px con puntos).
+
+**Auditoría de contraste** — medida sobre los valores **renderizados** en la app servida
+(`audit-tokens.mjs`), no sobre el archivo:
+
+| Par | Frente | Fondo | Ratio | Umbral | AA |
+|---|---|---|---|---|---|
+| Texto de cuerpo sobre lienzo | `#664930` | `#F0ECE8` | 6.98:1 | 4.5 | ✅ |
+| Texto de cuerpo sobre tarjeta | `#664930` | `#FFFFFF` | 8.20:1 | 4.5 | ✅ |
+| Texto atenuado sobre lienzo | `#82664E` | `#F0ECE8` | 4.51:1 | 4.5 | ✅ |
+| Texto atenuado sobre tarjeta | `#82664E` | `#FFFFFF` | 5.30:1 | 4.5 | ✅ |
+| Texto atenuado fuerte sobre pozo | `#6E5540` | `#E5DED6` | 5.19:1 | 4.5 | ✅ |
+| Blanco sobre CTA | `#FFFFFF` | `#A8501E` | 5.48:1 | 4.5 | ✅ |
+| Blanco sobre CTA hover | `#FFFFFF` | `#8A431A` | 7.25:1 | 4.5 | ✅ |
+| CTA como texto sobre tarjeta | `#A8501E` | `#FFFFFF` | 5.48:1 | 4.5 | ✅ |
+| Enlace (`--primary-ink`) sobre lienzo | `#8A431A` | `#F0ECE8` | 6.16:1 | 4.5 | ✅ |
+| Enlace (`--primary-ink`) sobre tarjeta | `#8A431A` | `#FFFFFF` | 7.25:1 | 4.5 | ✅ |
+| Blanco sobre `--primary-ink` (badge) | `#FFFFFF` | `#8A431A` | 7.25:1 | 4.5 | ✅ |
+| Tinta de marca sobre `--primary-soft` | `#8A431A` | `#EDE4DA` | 5.77:1 | 4.5 | ✅ |
+| Tinta de acento sobre `--accent-soft` | `#8A431A` | `#FFDBBB` | 5.56:1 | 4.5 | ✅ |
+| Borde-*affordance* sobre tarjeta | `#997E67` | `#FFFFFF` | 3.79:1 | 3.0 | ✅ |
+| Borde-*affordance* sobre lienzo | `#997E67` | `#F0ECE8` | 3.23:1 | 3.0 | ✅ |
+| `--primary` como icono | `#997E67` | `#FFFFFF` | 3.79:1 | 3.0 | ✅ |
+| Dot *success* sobre tarjeta | `#4F773B` | `#FFFFFF` | 5.21:1 | 3.0 | ✅ |
+| Dot *warn* sobre tarjeta | `#AD7F0C` | `#FFFFFF` | 3.61:1 | 3.0 | ✅ |
+| Dot *danger* sobre tarjeta | `#A52B35` | `#FFFFFF` | 7.01:1 | 3.0 | ✅ |
+| Blanco sobre *danger* (botón/toast) | `#FFFFFF` | `#A52B35` | 7.01:1 | 4.5 | ✅ |
+| Tinta *success* sobre su chip | `#406130` | `#E1EDDB` | 5.84:1 | 4.5 | ✅ |
+| Tinta *warn* sobre su chip | `#8A650A` | `#F9EED2` | 4.61:1 | 4.5 | ✅ |
+| Tinta *danger* sobre su chip | `#85222A` | `#F5D9DB` | 7.01:1 | 4.5 | ✅ |
+| Icono *warn* sobre su chip | `#AD7F0C` | `#F9EED2` | 3.13:1 | 3.0 | ✅ |
+| Serie 1 de gráfica sobre tarjeta | `#A8501E` | `#FFFFFF` | 5.48:1 | 3.0 | ✅ |
+| Serie 2 de gráfica sobre tarjeta | `#4A83C3` | `#FFFFFF` | 3.94:1 | 3.0 | ✅ |
+| Referencia «ideal» sobre tarjeta | `#998B7E` | `#FFFFFF` | 3.31:1 | 3.0 | ✅ |
+| Etiqueta de eje (es texto) | `#6E5540` | `#FFFFFF` | 6.92:1 | 4.5 | ✅ |
+| Texto de terminal | `#EDE2D6` | `#150F0C` | 14.88:1 | 4.5 | ✅ |
+| Texto atenuado de terminal | `#B29B85` | `#150F0C` | 7.16:1 | 4.5 | ✅ |
+| Acento de terminal (verde de log) | `#6AAF48` | `#150F0C` | 7.09:1 | 4.5 | ✅ |
+
+Separación en **escala de grises** entre estados (objetivo ≥1.30:1): *success* vs *warn*
+1.44 base / 1.33 tinta · *success* vs *danger* 1.35 / 1.31 · *warn* vs *danger* 1.94 / 1.75.
+Serie observada vs ideal: 1.66:1.
+
+**Terminal y modo oscuro** reescritos en clave cálida (marrón carbón `--sand-975`, sin restos
+teal). El acento de la terminal se mantiene **verde** (`--moss-400`, 7.09:1) porque en un log el
+verde es semántico, no decorativo: lo cálido es el panel, no el prompt.
+
+**Electron**: `WINDOW_BACKGROUND_COLOR` pasa de `#E8EDF4` a `#F0ECE8` para seguir a `--bg`.
+
+**Verificación medida**:
+
+| Criterio | Resultado |
+|---|---|
+| Tokens declarados que resuelven en el navegador | **164/164** (0 vacíos) |
+| Pares de contraste auditados sobre la app servida | **31/31 AA**, 0 incumplimientos |
+| Validador `dataviz` del par de series categóricas | **6/6 checks PASS** |
+| Hex sueltos fuera de `tokens.css` | **0** (los dots mac pasan a `--term-dot-*`) |
+| Referencias a primitivas retiradas (teal/naranja/slate) | **0** |
+| E2E Playwright | **16/16** · Vitest **235/235** · `tsc` limpio (frontend y desktop) |
+| Electron (WSLg) | `--bg #F0ECE8`, `--accent #A8501E`; 0 requests de red externas |
 
 ### 5.1 Port de tokens y variantes *(histórico — superado por §5.0/§5.0.1 en lo visual)*
 

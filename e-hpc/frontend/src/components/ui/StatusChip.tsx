@@ -14,7 +14,7 @@ interface PhaseSpec {
 }
 
 // Paleta de fases del rediseño: preparación → neutral (el naranja se reserva
-// a CTAs/logro), running → teal (progreso), completed → success,
+// a CTAs/logro), running → --primary (progreso), completed → success,
 // failed/timeout/lost → danger, cancelled → warn.
 const PHASE_CHIP: Record<UiPhase, PhaseSpec> = {
   idle: { label: 'Conectando…', tone: 'neutral' },

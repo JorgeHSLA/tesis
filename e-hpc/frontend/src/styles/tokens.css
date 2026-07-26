@@ -3,137 +3,199 @@
 
    Arquitectura de 3 capas (skill `design-system`, "Token Architecture"):
 
-       PRIMITIVE  (§1)  valores crudos: rampas teal/naranja/slate, tinta de sombra
+       PRIMITIVE  (§1)  valores crudos: rampas sand/clay/estado, tinta de sombra
             ↓
        SEMANTIC   (§2-§6)  propósito: superficies, elevación, layout fluido,
                            escala tipográfica fluida, breakpoints
             ↓
        COMPONENT  (components.css / screens/*.css) consumen SOLO var(--token)
 
-   Rediseño 2026-07-25 — dos defectos sistémicos corregidos AQUÍ, no por pantalla:
-     D1 «todo se ve blanco»: --bg era --slate-50 (#F8FAFC) contra --surface
-        #FFFFFF ⇒ 1.23:1, --shadow-sm era `0 1px 0 rgba(15,23,42,.04)`
-        (invisible) y --shadow-cta estaba en `none`. Ahora hay 4 niveles de
-        superficie separables a simple vista SIN usar el naranja de acento (§2)
-        y una escala de elevación semántica de 5 pasos (§3).
-     D2 «no llena la pantalla»: el layout vivía con UN breakpoint (980px) y un
-        cap duro de 1280px (+ el parche `.screen.learn: 1680px`). Ahora:
-        contenedor fluido (§4), espaciado y tipografía con clamp() (§4-§5) y un
-        set único de breakpoints (§6).
+   ── Rediseño 2026-07-25 (a) responsive + elevación ────────────────────────
+     D1 «todo se ve blanco»: 4 niveles de superficie separables a simple vista
+        (§2) + escala de elevación semántica de 5 pasos (§3).
+     D2 «no llena la pantalla»: contenedor fluido (§4), espaciado y tipografía
+        con clamp() (§4-§5) y un set único de breakpoints (§6).
 
-   VARIANTE: la app quedó fija en v2 (el switch v1/v2 se retiró). Los dos bloques
-   de tokens duplicados (`:root` cálido + `:root[data-variant="v2"]`) se
-   CONSOLIDARON en este único `:root`. El atributo `data-variant="v2"` sigue en
-   <html> (lo fijan index.html + stores/themeStore) porque el resto del CSS lo
-   usa como selector de densidad ([data-variant="v2"] .x); no se toca. */
+   ── Rediseño 2026-07-25 (b) PALETA CÁLIDA DE TIERRA ───────────────────────
+   La marca pasa de «teal + naranja» a una paleta de tierra construida sobre
+   los cuatro colores de marca:
+
+       #FFDBBB arena claro  1.30:1 vs blanco → SOLO superficie suave/highlight
+       #CCBEB1 taupe        1.82:1 vs blanco → SOLO superficie / borde decorativo
+       #997E67 marrón medio 3.79:1 vs blanco → bordes y UI (≥3:1). NUNCA cuerpo
+       #664930 marrón osc.  8.20:1 vs blanco → texto principal ✅
+
+   Reglas que gobiernan cada elección de este archivo:
+     · Texto ≥ 4.5:1 sobre SU fondo real (no sobre blanco «en abstracto»).
+     · UI no textual (bordes-affordance, dots, iconos, marcas de gráfica) ≥ 3:1.
+     · Los estados (success/warn/danger) se escalonan también por LUMINANCIA,
+       para que se distingan en escala de grises y no solo por matiz.
+     · Cada valor lleva su ratio medido al lado. Ninguno se eligió «a ojo».
+
+   Tabla completa de contrastes: docs/architecture/frontend-spec.md §1.3.
+
+   VARIANTE: la app quedó fija en v2 (el switch v1/v2 se retiró). El atributo
+   `data-variant="v2"` sigue en <html> porque el resto del CSS lo usa como
+   selector de densidad ([data-variant="v2"] .x); no se toca. */
 
 /* ═══════════════════════ §1 · PRIMITIVE — valores crudos ═══════════════════ */
 :root {
-  /* Teal — marca, progreso, estados positivos */
-  --teal-50: #F0FDFA;
-  --teal-100: #CCFBF1;
-  --teal-200: #99F6E4;
-  --teal-300: #5EEAD4;
-  --teal-400: #2DD4BF;
-  --teal-500: #14B8A6;
-  --teal-600: #0D9488;
-  --teal-700: #0F766E;
-  --teal-800: #115E59;
-  --teal-900: #134E4A;
+  /* ── Sand — neutro CÁLIDO. Es la rampa de superficies, bordes y texto.
+       Derivada de los tres colores neutros de marca (400/500/800 = marca). */
+  --sand-50: #F8F5F2;    /* 1.09:1 vs blanco — sub-superficie dentro de tarjeta */
+  --sand-75: #EDE4DA;    /* 1.26:1 — tinte de marca (chips, opción elegida)    */
+  --sand-100: #F0ECE8;   /* 1.18:1 — lienzo (blanco→#CCBEB1 al 30%)            */
+  --sand-200: #E5DED6;   /* 1.33:1 — pozos y tracks                            */
+  --sand-300: #DCD3CA;   /* 1.48:1 — borde estructural                         */
+  --sand-400: #CCBEB1;   /* 1.82:1 — ★ MARCA taupe: superficie/borde decorativo */
+  --sand-500: #997E67;   /* 3.79:1 — ★ MARCA medio: bordes-affordance y UI      */
+  --sand-600: #82664E;   /* 5.30:1 — texto atenuado (AA sobre lienzo: 4.51:1)  */
+  --sand-700: #6E5540;   /* 6.92:1 — texto atenuado sobre superficies teñidas  */
+  --sand-800: #664930;   /* 8.20:1 — ★ MARCA oscuro: TEXTO principal            */
+  --sand-850: #3E2E20;   /* bordes del tema oscuro                             */
+  --sand-900: #2E241D;   /* superficie-2 del tema oscuro                       */
+  --sand-950: #221A15;   /* superficie del tema oscuro                         */
+  --sand-975: #150F0C;   /* lienzo del tema oscuro / fondo de terminal         */
+  --sand-990: #0F0B09;   /* pozos del tema oscuro                              */
 
-  /* Naranja — EL acento: CTAs y momentos de logro (naranja E-HPC) */
-  --orange-50: #FFF7ED;
-  --orange-100: #FFEDD5;
-  --orange-200: #FED7AA;
-  --orange-300: #FDBA74;
-  --orange-400: #FB923C;
-  --orange-500: #EA580C;
-  --orange-600: #C2410C;
-  --orange-700: #9A3412;
+  /* ── Clay — terracota: la extensión SATURADA de #FFDBBB (mismo matiz ~22-28°).
+       Es el hue INTERACTIVO: CTA, enlaces, estado activo, serie 1 de gráficas.
+       Existe para que la única cosa cromática de la pantalla sea la acción. */
+  --clay-50: #FFF3E9;    /* 1.13:1 — fondo suave de banner/chip de acento      */
+  --clay-100: #FFE4CC;   /* 1.22:1 — highlight                                 */
+  --clay-200: #FFDBBB;   /* 1.30:1 — ★ MARCA arena: superficie suave/selección  */
+  --clay-300: #E7A76A;   /* acento sobre fondos oscuros (terminal, dark)       */
+  --clay-400: #D2703A;   /* paso intermedio                                    */
+  --clay-500: #B25F2F;   /* 4.59:1 — acento del tema oscuro (blanco encima AA) */
+  --clay-600: #A8501E;   /* 5.48:1 — ★ ACENTO CTA (blanco encima 5.48:1)        */
+  --clay-700: #8A431A;   /* 7.25:1 — tinta de marca: enlaces, activo, hover CTA*/
+  --clay-800: #6E3512;   /* 9.55:1 — paso más oscuro                           */
+  --clay-900: #3A2113;   /* fondo suave de acento en tema oscuro               */
 
-  /* Slate — neutros fríos: superficies, bordes, texto atenuado */
-  --slate-50: #F8FAFC;
-  --slate-100: #F1F5F9;
-  --slate-200: #E2E8F0;
-  --slate-300: #CBD5E1;
-  --slate-400: #94A3B8;
-  --slate-500: #64748B;
-  --slate-600: #475569;
-  --slate-700: #334155;
-  --slate-800: #1E293B;
-  --slate-900: #0F172A;
+  /* ── Estados TOSTADOS. Escalonados por luminancia a propósito:
+       danger (7.01) < success (5.21) < warn (3.61) contra blanco, de modo que
+       los tres se separan ≥1.3:1 ENTRE SÍ también en escala de grises.
+       Matices bien repartidos: 355° carmín · 43° ocre · 100° oliva.          */
+  --moss-100: #E1EDDB;   /* chip success                                       */
+  --moss-400: #6AAF48;   /* tinta success en tema oscuro                       */
+  --moss-500: #4F773B;   /* 5.21:1 — success (dot/icono)                       */
+  --moss-600: #406130;   /* 7.07:1 — tinta success                             */
+  --moss-900: #24331C;   /* chip success en tema oscuro                        */
 
-  /* Estados */
-  --green-500: #0D9488;      /* éxito = teal (identidad de progreso) */
-  --amber-500: #B45309;      /* warning con contraste AA sobre blanco */
-  --red-500: #DC2626;
-  --blue-500: #0369A1;
+  --ochre-100: #F9EED2;  /* chip warn                                          */
+  --ochre-300: #F2D17E;  /* tinta warn en tema oscuro                          */
+  --ochre-500: #AD7F0C;  /* 3.61:1 — warn (dot/icono, ≥3:1)                    */
+  --ochre-600: #8A650A;  /* 5.32:1 — tinta warn                                */
+  --ochre-900: #3A2E10;  /* chip warn en tema oscuro                           */
 
-  /* Tinta de las sombras: slate-900. Una sola familia para toda la escala. */
-  --shadow-rgb: 15, 23, 42;
-  --shadow-cta-rgb: 124, 45, 18;   /* naranja quemado: sombra del CTA */
+  --brick-100: #F5D9DB;  /* chip danger                                        */
+  --brick-300: #F3A2A9;  /* tinta danger en tema oscuro                        */
+  --brick-500: #A52B35;  /* 7.01:1 — danger (blanco encima 7.01:1: botón/toast)*/
+  --brick-600: #85222A;  /* 9.29:1 — tinta danger                              */
+  --brick-900: #3A1A1D;  /* chip danger en tema oscuro                         */
+
+  /* ── Neutros de gráfica (§ series categóricas, ver §5 --viz-*) ──
+       --steel-500 es el compañero CVD-safe de --clay-600: el par naranja/azul
+       da ΔE 22.1 en deuteranopía y 24.9 en visión normal (validador dataviz). */
+  --stone-500: #998B7E;  /* 3.31:1 — línea de referencia (punteada, recesiva)  */
+  --steel-500: #4A83C3;  /* 3.95:1 — serie 2 de barras/líneas                  */
+  --steel-600: #336399;  /* 6.20:1 — tinta del chip «info» (es TEXTO: ≥4.5:1)  */
+  --steel-300: #9CC0E8;  /* serie 2 y log azul en tema oscuro                  */
+
+  /* Tinta de las sombras: marrón cálido (antes slate). Una sola familia. */
+  --shadow-rgb: 74, 52, 34;
+  --shadow-cta-rgb: 110, 53, 18;   /* terracota quemada: sombra del CTA */
 
   /* ═════════════════ §2 · SEMANTIC — superficies (4 niveles) ═══════════════
      Escalonadas por LUMINANCIA, sin recurrir al acento. Contraste medido
      contra --surface (blanco):
        --surface   #FFFFFF  1.00     ← tarjeta / chrome (sidebar, topbar)
-       --surface-2 #EFF3F8  1.09:1   ← sub-superficie DENTRO de una tarjeta
-       --bg        #E8EDF4  1.18:1   ← lienzo hundido (área de contenido)
-       --surface-3 #DFE6EE  1.26:1   ← pozos: tracks de progreso, separadores
-     Antes la página (#F8FAFC) daba 1.05:1 contra la tarjeta blanca: el ojo no
-     distinguía dónde empezaba una caja. Ahora el lienzo es claramente más
-     oscuro que la tarjeta y el orden de lectura es inequívoco. */
-  --bg: #E8EDF4;                 /* lienzo: .main, área de contenido */
-  --surface: #FFFFFF;            /* tarjetas y chrome */
-  --surface-2: #EFF3F8;          /* card-head, hovers, chips neutros */
-  --surface-3: #DFE6EE;          /* tracks/pozos: barras, thumbs, wells */
-  --surface-overlay: #FFFFFF;    /* modales, dropdowns, toasts claros */
+       --surface-2 #F8F5F2  1.09:1   ← sub-superficie DENTRO de una tarjeta
+       --bg        #F0ECE8  1.18:1   ← lienzo hundido (área de contenido)
+       --surface-3 #E5DED6  1.33:1   ← pozos: tracks de progreso, separadores
+     El lienzo es la mezcla blanco→#CCBEB1 al 30%: suficientemente cálido para
+     leerse como «papel» y suficientemente oscuro para que la tarjeta blanca
+     flote (1.18:1). Texto principal sobre él: 6.98:1. */
+  --bg: var(--sand-100);
+  --surface: #FFFFFF;
+  --surface-2: var(--sand-50);
+  --surface-3: var(--sand-200);
+  --surface-overlay: #FFFFFF;
 
-  /* Bordes — dos pesos con propósito distinto:
-       --border         estructural (tarjeta, separador): 1.44:1 vs blanco.
-                        Antes era --slate-200 (1.23:1), ilegible al 100% zoom.
-       --border-strong  el borde ES la affordance (inputs, select, dropzone):
-                        3.10:1 vs blanco ⇒ cumple WCAG 1.4.11 (UI ≥ 3:1). */
-  --border: #CFD8E3;
-  --border-strong: #8294AA;
+  /* Bordes — tres pesos con propósito distinto:
+       --border         estructural (tarjeta, separador): 1.48:1 vs blanco.
+       --border-strong  el borde ES la affordance (inputs, select, dropzone,
+                        kbd, thumb de scroll): 3.79:1 ⇒ WCAG 1.4.11 (UI ≥3:1).
+                        NOTA: aquí NO va #CCBEB1 (1.82:1). Los seis sitios que
+                        consumen este token son affordances, no decoración;
+                        #CCBEB1 vive en --border-accent, que sí es decorativo.
+       --border-accent  tarjeta/banner destacado (1.82:1, decorativo — mismo
+                        papel que el teal-400 anterior, que daba 1.86:1). */
+  --border: var(--sand-300);
+  --border-strong: var(--sand-500);
   --border-input: var(--border-strong);
-  --border-accent: var(--teal-400);   /* tarjeta/banner destacado (1.86:1) */
+  --border-accent: var(--sand-400);
 
-  /* Texto — --text-muted sube a slate-600: sobre el lienzo --bg da 6.44:1;
-     el slate-500 anterior solo llegaba a 4.05:1 ⇒ incumplía AA al oscurecer
-     la página. Sobre --surface blanco da 7.58:1. */
-  --text: var(--slate-900);
-  --text-muted: var(--slate-600);
-  --text-muted-strong: var(--slate-700);   /* sobre superficies teñidas */
+  /* Texto — los tres tonos verificados contra sus DOS fondos reales:
+       --text               6.98:1 sobre --bg   · 8.20:1 sobre --surface
+       --text-muted         4.51:1 sobre --bg   · 5.30:1 sobre --surface
+       --text-muted-strong  5.88:1 sobre --bg   · 6.92:1 sobre --surface
+     #997E67 queda EXCLUIDO como texto de cuerpo (3.79:1 sobre blanco, 3.23:1
+     sobre el lienzo: incumple AA). Sobre superficies teñidas o --surface-3 se
+     usa --text-muted-strong, no --text-muted (4.5:1 es imposible ahí). */
+  --text: var(--sand-800);
+  --text-muted: var(--sand-600);
+  --text-muted-strong: var(--sand-700);
 
-  /* Acción y marca — sin cambios de paleta (teal + naranja de marca).
-     --accent es AA en ambos sentidos: blanco sobre él 4.61:1 y él como texto
-     sobre blanco 4.61:1. --orange-500 queda para uso decorativo/UI (3.56:1). */
-  --accent: #CC4A0B;
-  --accent-hover: #A83B08;
-  --accent-soft: var(--orange-100);
+  /* Acción y marca.
+     --accent (CTA) = terracota #A8501E, NO el marrón de texto. Justificación:
+     si el CTA fuese #664930 sería idéntico al color del cuerpo y dejaría de
+     ser el elemento más llamativo de la pantalla. La terracota es el mismo
+     matiz que #FFDBBB con más croma, así que armoniza por construcción y es
+     lo ÚNICO saturado de la interfaz. Blanco encima: 5.48:1 (AA).
+     --primary = #997E67: marca/progreso/UI no textual (3.79:1 ≥ 3:1).
+     --primary-ink = #8A431A: enlaces y estado activo. NO puede ser #664930
+     porque `.markdown a` no lleva subrayado y el enlace quedaría indistinguible
+     del cuerpo. Aun así, en una paleta cálida monocroma es IMPOSIBLE separar
+     enlace y texto por 3:1 (WCAG G183) manteniendo ambos AA sobre el lienzo:
+     por eso los enlaces de prosa llevan subrayado (components.css).
+
+     Los dos tintes suaves se reparten los papeles y NO son intercambiables:
+       --primary-soft  #EDE4DA  tinte NEUTRO de marca (opción de quiz elegida,
+                                iconos de lección, tabs). Tinta encima: 5.77:1.
+       --accent-soft   #FFDBBB  ★ el arena de marca en su papel de «superficie
+                                suave / momento de logro» (quiz, chip naranja).
+                                Encima va --accent-hover (5.56:1), NO --accent
+                                (#A8501E sobre él da 4.20:1 e incumpliría AA). */
+  --accent: var(--clay-600);
+  --accent-hover: var(--clay-700);
+  --accent-soft: var(--clay-200);
   --on-accent: #FFFFFF;
-  --primary: var(--teal-600);
-  --primary-ink: var(--teal-700);
-  --primary-soft: var(--teal-100);
-  --ring: var(--teal-600);
+  --primary: var(--sand-500);
+  --primary-ink: var(--clay-700);
+  --primary-soft: var(--sand-75);
+  --ring: var(--clay-600);
 
-  /* Botones NEUTROS — subtono azul claro (sin él se leen como "blancos"). */
-  --btn-neutral-bg: #EEF4FF;
-  --btn-neutral-border: #C9D6EC;
-  --btn-neutral-hover: #E1EAFB;
-  --btn-neutral-hover-border: #B4C6E6;
+  /* Botones NEUTROS — subtono cálido (sin él se leen como "blancos"). */
+  --btn-neutral-bg: #F5EFE8;
+  --btn-neutral-border: #DDD0BE;
+  --btn-neutral-hover: #EDE4D8;
+  --btn-neutral-hover-border: #CFBFA9;
 
-  /* Estados suaves (chips / banners / observaciones) */
-  --success: var(--green-500);
-  --success-ink: var(--teal-700);
-  --success-soft: var(--teal-100);
-  --warn: var(--amber-500);
-  --warn-ink: #92400E;
-  --warn-soft: #FEF3C7;
-  --danger: var(--red-500);
-  --danger-ink: #B91C1C;
-  --danger-soft: #FEE2E2;
+  /* Estados suaves (chips / banners / observaciones). Cada terna verificada:
+       success  dot 5.21:1 · ink sobre chip 5.84:1 · blanco sobre ink 7.07:1
+       warn     dot 3.61:1 · ink sobre chip 4.61:1 · blanco sobre ink 5.32:1
+       danger   dot 7.01:1 · ink sobre chip 7.01:1 · blanco sobre danger 7.01:1
+     Separación en escala de grises entre estados: ≥1.31:1 en base y en tinta. */
+  --success: var(--moss-500);
+  --success-ink: var(--moss-600);
+  --success-soft: var(--moss-100);
+  --warn: var(--ochre-500);
+  --warn-ink: var(--ochre-600);
+  --warn-soft: var(--ochre-100);
+  --danger: var(--brick-500);
+  --danger-ink: var(--brick-600);
+  --danger-soft: var(--brick-100);
 
   /* ═══════════════ §3 · SEMANTIC — ESCALA DE ELEVACIÓN (0-4) ═══════════════
      Estilo "Dimensional Layering": cada nivel combina SUPERFICIE + BORDE +
@@ -143,8 +205,8 @@
        2  tarjeta elevada hover / destacada / flotante: .card.open, savebar
        3  overlay         diálogos, dropdowns, toasts
        4  máximo          elemento flotante sobre backdrop a pantalla completa
-     Las sombras vuelven a ser PERCEPTIBLES (la anterior --shadow-sm era
-     `0 1px 0 rgba(15,23,42,.04)`, literalmente invisible sobre --slate-50). */
+     La tinta ahora es marrón cálido (--shadow-rgb), no slate: sobre un lienzo
+     cálido una sombra azulada se lee sucia. */
   --elevation-0: none;
   --elevation-1:
     0 1px 1px rgba(var(--shadow-rgb), .04),
@@ -161,8 +223,7 @@
     0 4px 10px rgba(var(--shadow-rgb), .10),
     0 24px 56px -16px rgba(var(--shadow-rgb), .28);
 
-  /* Sombra del CTA — RECUPERADA (v2 la había puesto en `none`, el botón
-     primario perdía su elevación y se leía plano). */
+  /* Sombra del CTA — tinta terracota quemada, coherente con --accent. */
   --shadow-cta:
     0 1px 2px rgba(var(--shadow-cta-rgb), .30),
     0 6px 14px -6px rgba(var(--shadow-cta-rgb), .55);
@@ -171,8 +232,11 @@
     0 10px 20px -6px rgba(var(--shadow-cta-rgb), .55);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, .65);
   /* Anillo de foco de los controles (NO es elevación: es un halo de estado).
-     Un único token para que inputs, buscador y pills enfoquen igual. */
-  --focus-ring: 0 0 0 3px var(--primary-soft);
+     Va al 80% del acento para que el halo efectivo supere 3:1 contra las TRES
+     superficies claras (surface 3.71:1 · surface-2 3.50:1 · bg 3.28:1, WCAG
+     2.4.11); el --primary-soft anterior se quedaba en 1.15:1 y el foco era
+     prácticamente invisible. */
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--ring) 80%, transparent);
 
   /* Alias de compatibilidad: el CSS histórico usa --shadow-sm/md/lg. Apuntan a
      la escala semántica para que exista UNA sola definición de elevación. */
@@ -191,10 +255,9 @@
 
   /* ═════════════ §4 · SEMANTIC — LAYOUT FLUIDO (contenedor + ritmo) ════════
      El contenedor CRECE con la ventana: nada de `max-width: 1280px` global ni
-     de parches por pantalla (el viejo `.screen.learn { max-width: 1680px }`).
-     El tope solo existe para que en pantallas enormes el layout no se estire
-     sin fin; la MEDIDA DE LECTURA se acota aparte, en `ch`, sobre las columnas
-     de texto (--measure), nunca sobre el layout entero. */
+     de parches por pantalla. El tope solo existe para que en pantallas enormes
+     el layout no se estire sin fin; la MEDIDA DE LECTURA se acota aparte, en
+     `ch`, sobre las columnas de texto (--measure), nunca sobre el layout. */
   --screen-max: 2040px;
   --measure: 70ch;          /* prosa larga (markdown de la lección) */
   --measure-narrow: 46ch;   /* subtítulos / entradillas */
@@ -226,8 +289,7 @@
   --col-min-card: 260px;     /* tarjetas de acción (qcards, pasos) */
   --col-min-panel: 340px;    /* paneles de dos columnas */
 
-  /* Anchos de contenedores acotados por LEGIBILIDAD, no por layout (diálogos,
-     tarjeta de login). Antes eran literales sueltos en screens/admin.css. */
+  /* Anchos de contenedores acotados por LEGIBILIDAD, no por layout. */
   --dialog-w-sm: 440px;      /* confirmación */
   --dialog-w-md: 520px;      /* formulario de módulo */
   --auth-card-w: 420px;      /* login de autoría */
@@ -256,27 +318,41 @@
   --font-display: var(--font-sans); /* la jerarquía la dan tamaño y peso */
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Terminal — siempre oscuro, familia slate (no marrón) */
-  --term-bg: #0B1220;
-  --term-head: #111C2B;
-  --term-border: #1C2A3A;
-  --term-text: #CBD5E1;
-  --term-dim: #7C8DA6;               /* AA sobre --term-bg (5.54:1) */
-  --term-accent: #5EEAD4;
+  /* Terminal — siempre oscura, ahora en clave CÁLIDA (marrón carbón).
+     Contraste sobre --term-bg: texto 15.0:1 · atenuado 7.2:1 · acento 9.2:1. */
+  --term-bg: var(--sand-975);
+  --term-head: var(--sand-950);
+  --term-border: var(--sand-850);
+  --term-text: #EDE2D6;
+  --term-dim: #B29B85;
+  /* El acento de la terminal sigue siendo VERDE (prompt / línea de éxito), como
+     el teal-300 anterior: en un log el verde es semántico, no decorativo. Lo
+     cálido aquí es el PANEL, no el prompt. 7.09:1 sobre --term-bg. */
+  --term-accent: var(--moss-400);
+  /* Dots mac del header de Terminal (icónicos: rojo/ámbar/verde del sistema).
+     Viven aquí para que NINGÚN componente lleve hex suelto. */
+  --term-dot-red: #FF6058;
+  --term-dot-amber: #FEBC2E;
+  --term-dot-green: #28C840;
 
-  /* Gráficas SVG a mano (components/viz/*) — sin librerías */
-  --viz-observed: var(--orange-500);
-  --viz-ideal: #7C8BA3;              /* referencia punteada (3.45:1 ≥ 3:1) */
-  --viz-grid: var(--slate-200);
-  --viz-axis: var(--slate-300);
-  --viz-label: var(--slate-500);
-  --viz-cpu: var(--teal-600);
-  --viz-mem: var(--orange-500);
-  --viz-node: var(--teal-600);
-  --viz-node-master: var(--teal-800);
-  --viz-node-warn: #D97706;
+  /* Gráficas SVG a mano (components/viz/*) — sin librerías.
+     Series categóricas: --viz-observed/--viz-cpu (terracota) vs --viz-mem
+     (azul acero). El par pasa los seis checks del validador `dataviz`:
+     ΔE 22.1 deuteranopía / 26.9 tritanopía / 24.9 visión normal.
+     La referencia «ideal» se distingue por COLOR (1.66:1 de luminancia contra
+     la serie observada) Y por ESTILO (punteada 1.6px "3 4" vs sólida 2.3px). */
+  --viz-observed: var(--clay-600);        /* 5.48:1 */
+  --viz-ideal: var(--stone-500);          /* 3.31:1 — recesiva, punteada */
+  --viz-grid: var(--sand-200);            /* 1.33:1 — rejilla discreta */
+  --viz-axis: var(--sand-400);            /* 1.82:1 */
+  --viz-label: var(--sand-700);           /* 6.92:1 — es TEXTO: ≥4.5:1 */
+  --viz-cpu: var(--clay-600);             /* 5.48:1 — serie 1 */
+  --viz-mem: var(--steel-500);            /* 3.95:1 — serie 2 (CVD-safe) */
+  --viz-node: var(--sand-600);            /* 5.30:1 */
+  --viz-node-master: var(--sand-800);     /* 8.20:1 */
+  --viz-node-warn: var(--ochre-600);      /* 5.32:1 — blanco encima AA */
   --viz-on-node: #FFFFFF;
-  --viz-packet: var(--orange-500);
+  --viz-packet: var(--clay-600);
 
   /* Motion — easing única de toda la app */
   --ease: cubic-bezier(.2, .7, .2, 1);
@@ -284,8 +360,7 @@
   /* ═══════════════════════ §6 · BREAKPOINTS (set ÚNICO) ════════════════════
      CSS no admite var() dentro de @media, así que estos tokens son la
      DOCUMENTACIÓN normativa y los literales del resto de hojas deben coincidir
-     con ellos. Los valores sueltos previos (980 / 900 / 800 / 720) quedaron
-     migrados a este set. Enfoque MOBILE-FIRST: se usa `min-width`.
+     con ellos. Enfoque MOBILE-FIRST: se usa `min-width`.
 
          --bp-sm   640px   móvil grande: la primera columna extra
          --bp-md   768px   tablet vertical
@@ -300,37 +375,45 @@
 }
 
 /* ── §7 · Tema oscuro — definido, SIN toggle en el MVP ──────────────────────
-   Coherente con la escala nueva: superficies tonales (más claras según suben
-   de nivel, como manda MD3) y sombras más densas. */
+   Reescrito en clave CÁLIDA (marrones oscuros; cero restos teal). Superficies
+   tonales: más claras según suben de nivel, como manda MD3. Todos los textos
+   verificados sobre --surface oscuro: --text 15.7:1 · --text-muted 9.4:1 ·
+   tintas de estado ≥6.4:1 y escalonadas ≥1.35:1 entre sí en escala de grises. */
 [data-theme="dark"] {
-  --bg: #0B1512;
-  --surface: #10201C;
-  --surface-2: #16302A;
-  --surface-3: #0E1B18;
-  --surface-overlay: #16302A;
-  --border: #24463E;
-  --border-strong: #4A7A70;      /* ≥3:1 sobre --surface oscuro */
-  --border-accent: #134E4A;
-  --text: #E7FDF8;
-  --text-muted: #A9C6BF;
-  --text-muted-strong: #C7DDD8;
-  --accent-soft: #3B2413;
-  --primary-ink: var(--teal-400);
-  --primary-soft: #113B35;
-  --success-ink: var(--teal-300);
-  --success-soft: #113B35;
-  --warn-ink: #FCD34D;
-  --warn-soft: #3A2E14;
-  --danger-ink: #FCA5A5;
-  --danger-soft: #3B1717;
-  --btn-neutral-bg: #1B2A44;
-  --btn-neutral-border: #2A3B5A;
-  --btn-neutral-hover: #223353;
-  --btn-neutral-hover-border: #35496D;
-  --viz-grid: #1E3B34;
-  --viz-axis: #2C5048;
-  --viz-ideal: #4E6E67;
-  --viz-label: #7FA8A0;
+  --bg: var(--sand-975);
+  --surface: var(--sand-950);
+  --surface-2: var(--sand-900);
+  --surface-3: var(--sand-990);
+  --surface-overlay: var(--sand-900);
+  --border: var(--sand-850);
+  --border-strong: var(--sand-500);      /* 4.51:1 sobre --surface oscuro ≥3:1 */
+  --border-accent: var(--sand-700);
+  --text: var(--sand-50);
+  --text-muted: var(--sand-400);
+  --text-muted-strong: var(--sand-300);
+  --accent: var(--clay-500);             /* blanco encima 4.59:1 (AA) */
+  --accent-hover: var(--clay-400);
+  --accent-soft: var(--clay-900);
+  --primary: var(--sand-400);
+  --primary-ink: var(--clay-300);
+  --primary-soft: var(--sand-850);
+  --success-ink: var(--moss-400);
+  --success-soft: var(--moss-900);
+  --warn-ink: var(--ochre-300);
+  --warn-soft: var(--ochre-900);
+  --danger-ink: var(--brick-300);
+  --danger-soft: var(--brick-900);
+  --btn-neutral-bg: #322620;
+  --btn-neutral-border: #4A382C;
+  --btn-neutral-hover: #3D2F26;
+  --btn-neutral-hover-border: #5C4636;
+  --viz-grid: var(--sand-850);
+  --viz-axis: var(--sand-700);
+  --viz-ideal: var(--sand-500);
+  --viz-label: var(--sand-400);
+  --viz-mem: var(--steel-300);
+  --viz-node: var(--sand-500);
+  --viz-node-master: var(--sand-400);
   --shadow-rgb: 0, 0, 0;
   --elevation-1: 0 1px 2px rgba(0, 0, 0, .35);
   --elevation-2: 0 2px 6px rgba(0, 0, 0, .40), 0 12px 24px -10px rgba(0, 0, 0, .55);

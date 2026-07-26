@@ -89,7 +89,7 @@
   margin-bottom: var(--sp-2);
   width: 100%;
 }
-/* Marca = tile naranja del mockup aprobado (blanco encima: 4.61:1 AA). */
+/* Marca = tile de acento terracota (blanco encima: 5.48:1 AA). */
 .sidebar-brand-mark {
   width: 32px; height: 32px;
   border-radius: 7px;
@@ -125,7 +125,7 @@
               border-color .15s var(--ease), box-shadow .15s var(--ease);
 }
 .nav-item:hover { background: var(--surface-2); }
-/* Activo = tarjeta de nivel 1 recortada sobre el chrome + barra teal. */
+/* Activo = tarjeta de nivel 1 recortada sobre el chrome + barra de marca. */
 .nav-item.active {
   background: var(--surface);
   border-color: var(--border);
@@ -148,15 +148,15 @@
 }
 .nav-item.active .nav-icon { color: var(--primary-ink); }
 
-/* Tooltip del rail (::after con attr(data-tip)) — overlay slate oscuro. */
+/* Tooltip del rail (::after con attr(data-tip)) — overlay marrón oscuro. */
 .nav-item::after {
   content: attr(data-tip);
   position: absolute;
   left: calc(100% + 10px);
   top: 50%;
   transform: translateY(-50%) translateX(-4px);
-  background: var(--slate-800);
-  color: var(--slate-50);
+  background: var(--sand-900);
+  color: var(--sand-50);
   padding: 5px 9px;
   border-radius: var(--r-sm);
   font-size: var(--fs-xs);
@@ -404,7 +404,7 @@
   display: flex; align-items: center; gap: var(--sp-3);
   flex-wrap: wrap;
 }
-/* Icono del head en "tile" teal */
+/* Icono del head en "tile" con el tinte de marca */
 .card-head > svg {
   box-sizing: content-box;
   width: 16px; height: 16px;
@@ -437,17 +437,17 @@
 }
 .chip .status-dot { width: 8px; height: 8px; box-shadow: none; }
 .chip-green { background: var(--success-soft); color: var(--success-ink); border-color: color-mix(in srgb, var(--success) 28%, transparent); }
-.chip-orange { background: var(--accent-soft); color: var(--orange-600); border-color: color-mix(in srgb, var(--orange-500) 28%, transparent); }
+.chip-orange { background: var(--accent-soft); color: var(--accent-hover); border-color: color-mix(in srgb, var(--accent) 28%, transparent); }
 .chip-red { background: var(--danger-soft); color: var(--danger-ink); border-color: color-mix(in srgb, var(--danger) 28%, transparent); }
 .chip-amber { background: var(--warn-soft); color: var(--warn-ink); border-color: color-mix(in srgb, var(--warn) 28%, transparent); }
 .chip-blue {
-  background: color-mix(in srgb, var(--blue-500) 10%, var(--surface));
-  color: var(--blue-500);
-  border-color: color-mix(in srgb, var(--blue-500) 28%, transparent);
+  background: color-mix(in srgb, var(--steel-500) 10%, var(--surface));
+  color: var(--steel-600); /* 5.62:1 sobre su fondo: es texto */
+  border-color: color-mix(in srgb, var(--steel-500) 28%, transparent);
 }
 
 /* ═══════════════════════ Inputs (handoff §2.5) ═════════════════════════
-   El borde ES la affordance → --border-input (3.10:1, WCAG 1.4.11). */
+   El borde ES la affordance → --border-input (3.79:1, WCAG 1.4.11). */
 .field-label {
   display: block;
   font-size: var(--fs-sm);
@@ -540,11 +540,12 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
 .term-line { white-space: pre-wrap; overflow-wrap: anywhere; }
 .term-dim { color: var(--term-dim); }
 .term-green { color: var(--term-accent); }
-.term-orange { color: var(--orange-400); }
-.term-amber { color: var(--orange-300); }
-/* Rojo/azul aclarados sobre el fondo oscuro sin salir de la paleta */
-.term-red { color: color-mix(in srgb, var(--red-500) 60%, var(--slate-50)); }
-.term-blue { color: color-mix(in srgb, var(--blue-500) 55%, var(--slate-50)); }
+/* Los cuatro son los pasos «300» de cada familia: pensados para leerse
+   sobre el panel oscuro (todos ≥9:1 contra --term-bg). */
+.term-orange { color: var(--clay-300); }
+.term-amber { color: var(--ochre-300); }
+.term-red { color: var(--brick-300); }
+.term-blue { color: var(--steel-300); }
 
 /* El switch de variante (handoff §2.8) se retiró: la app quedó fija en v2. */
 
@@ -740,7 +741,17 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
   margin: 0 0 12px;
 }
 .markdown pre code { background: transparent; border: none; padding: 0; color: inherit; }
-.markdown a { color: var(--primary-ink); }
+/* Enlaces de prosa — subrayados A PROPÓSITO. En la paleta cálida es
+   imposible separar enlace y cuerpo por 3:1 (WCAG G183) manteniendo ambos AA
+   sobre el lienzo: cualquier tono ≥3:1 contra --text baja a 2.3:1 contra --bg.
+   El subrayado es el indicador NO cromático que exige WCAG 1.4.1. */
+.markdown a {
+  color: var(--primary-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+.markdown a:hover { text-decoration-thickness: 2px; }
 /* Tabla ancha: scroll DENTRO de su caja, nunca scroll horizontal de página. */
 .markdown .md-table { overflow-x: auto; margin: 0 0 12px; }
 .markdown table { border-collapse: collapse; font-size: var(--fs-sm); }

@@ -39,7 +39,7 @@
   padding-top: var(--sp-4);
   border-top: 1px solid var(--border);
 }
-/* El chip del caption pasa a teal de marca (el naranja queda para CTAs). */
+/* El chip del caption usa el tinte de marca (la terracota queda para CTAs). */
 .hero-diagram-caption .chip {
   background: var(--primary-soft);
   color: var(--primary-ink);
@@ -83,8 +83,9 @@
   display: grid; place-items: center;
   color: var(--primary-ink);
 }
-.qcard[data-accent="orange"] .qcard-icon { background: var(--accent-soft); color: var(--orange-600); border-color: color-mix(in srgb, var(--orange-500) 25%, transparent); }
-/* green y blue convergen en teal: UN solo acento fuerte (naranja) en la UI. */
+.qcard[data-accent="orange"] .qcard-icon { background: var(--accent-soft); color: var(--accent-hover); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
+/* green y blue convergen en el tinte neutro de marca: el ÚNICO acento
+   fuerte de la UI es la terracota, reservada al logro y al CTA. */
 .qcard[data-accent="green"]  .qcard-icon { background: var(--primary-soft); color: var(--primary-ink); border-color: var(--border-accent); }
 .qcard[data-accent="blue"]   .qcard-icon { background: var(--primary-soft); color: var(--primary-ink); border-color: var(--border-accent); }
 .qcard-title {
@@ -106,7 +107,7 @@
   padding-top: var(--sp-2);
   border-top: 1px solid var(--border);
 }
-.qcard[data-accent="orange"] .qcard-cta { color: var(--orange-600); }
+.qcard[data-accent="orange"] .qcard-cta { color: var(--accent); }
 /* La flecha del CTA se desplaza 3px al hover (antes se abría el gap). */
 .qcard-cta svg { transition: transform .2s var(--ease); }
 .qcard:hover .qcard-cta svg { transform: translateX(3px); }
@@ -171,7 +172,7 @@
   text-align: left;
 }
 .lesson-row:hover { background: var(--surface-2); }
-/* Tile de play en teal suave (antes miniatura degradada naranja). */
+/* Tile de play con el tinte suave de marca. */
 .lesson-thumb {
   width: 34px; height: 34px;
   border-radius: var(--r-sm);
@@ -254,7 +255,7 @@
 .tut-tab-title { font-size: var(--fs-lg); font-weight: 600; }
 .tut-tab-short { font-size: var(--fs-sm); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ── Callout "¿Primera vez aquí?" — tarjeta con borde teal (nivel 1) ────── */
+/* ── Callout "¿Primera vez aquí?" — tarjeta con borde de marca (nivel 1) ── */
 .tutorial-callout {
   display: flex; align-items: center; gap: var(--sp-4);
   flex-wrap: wrap;
