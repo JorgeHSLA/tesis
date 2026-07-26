@@ -70,7 +70,7 @@ const QUIZ_TOKENS = {
   onNode: '--viz-on-node',
 } as const
 
-type QuizColors = Record<keyof typeof QUIZ_TOKENS, string>
+type QuizColors = Readonly<Record<keyof typeof QUIZ_TOKENS, string>>
 
 /* ── utilidades del sketch original ───────────────────────────────────────── */
 const TAU = Math.PI * 2
@@ -411,8 +411,20 @@ export function QuizResultAnimation({ score, total, passed }: QuizResultAnimatio
       role="img"
       aria-label={LABELS[variant]}
     >
-      <canvas ref={canvasRef} width={W} height={H} style={{ aspectRatio: `${W} / ${H}` }} />
-      <p className="quiz-result-banner">{BANNERS[variant]}</p>
+      {/* El nombre accesible lo da el aria-label del contenedor. Marcar los
+          hijos como decorativos NO depende de que el lector de pantalla
+          aplane el subárbol de un role="img": así el veredicto se anuncia
+          una sola vez, desde el resumen de QuizRunner. */}
+      <canvas
+        ref={canvasRef}
+        width={W}
+        height={H}
+        aria-hidden="true"
+        style={{ aspectRatio: `${W} / ${H}` }}
+      />
+      <p className="quiz-result-banner" aria-hidden="true">
+        {BANNERS[variant]}
+      </p>
     </div>
   )
 }

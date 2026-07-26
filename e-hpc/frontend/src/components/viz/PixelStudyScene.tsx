@@ -47,7 +47,7 @@ const SCENE_TOKENS = {
   screen: '--scene-screen',
 } as const
 
-type SceneColors = Record<keyof typeof SCENE_TOKENS, string>
+type SceneColors = Readonly<Record<keyof typeof SCENE_TOKENS, string>>
 
 /** Paleta completa: tokens + las variantes de cada material. */
 interface Palette {
@@ -184,121 +184,130 @@ function buildPalette(c: SceneColors): Palette {
 const TAU = Math.PI * 2
 const RAIN_DROPS: Record<RainIntensity, number> = { suave: 8, normal: 16, fuerte: 26 }
 
-/**
- * Pinta un fotograma. Port literal del `draw(t, rain)` original: la geometría
- * (coordenadas y tamaños) se conserva tal cual; SOLO cambian los colores, que
- * ahora vienen de la paleta de la app.
- */
-function draw(cx: CanvasRenderingContext2D, t: number, rain: RainIntensity, p: Palette): void {
-  const R = (color: string, x: number, y: number, w = 1, h = 1) => {
-    cx.fillStyle = color
-    cx.fillRect(x, y, w, h)
-  }
-  const A = (alpha: number) => {
-    cx.globalAlpha = alpha
-  }
+/* ── Primitivas de dibujo ────────────────────────────────────────────────────
+   El original trabajaba con dos helpers, `R(color,x,y,w,h)` (rectángulo) y
+   `A(alpha)`. Se conservan con ese papel, pero recibiendo el contexto, para
+   poder trocear la escena en funciones por zona sin cambiar ni una coordenada. */
+type Ctx = CanvasRenderingContext2D
 
-  cx.globalAlpha = 1
+const rect = (cx: Ctx, color: string, x: number, y: number, w = 1, h = 1): void => {
+  cx.fillStyle = color
+  cx.fillRect(x, y, w, h)
+}
+const alpha = (cx: Ctx, a: number): void => {
+  cx.globalAlpha = a
+}
 
-  // ── pared / rodapié / suelo ──────────────────────────────────────────────
-  R(p.wall, 0, 0, W, H)
-  R(p.baseboard, 0, 96, W, 8)
-  R(p.floor, 0, 104, W, 31)
-  R(p.floorEdge, 0, 104, W, 1)
-  R(p.floorLine, 0, 114, W, 1)
-  R(p.floorLine, 0, 126, W, 1)
-  A(0.5)
-  R(p.seam, 0, 96, W, 1)
-  A(1)
+/** Pared, rodapié y suelo. */
+function drawRoom(cx: Ctx, p: Palette): void {
+  rect(cx, p.wall, 0, 0, W, H)
+  rect(cx, p.baseboard, 0, 96, W, 8)
+  rect(cx, p.floor, 0, 104, W, 31)
+  rect(cx, p.floorEdge, 0, 104, W, 1)
+  rect(cx, p.floorLine, 0, 114, W, 1)
+  rect(cx, p.floorLine, 0, 126, W, 1)
+  alpha(cx, 0.5)
+  rect(cx, p.seam, 0, 96, W, 1)
+  alpha(cx, 1)
+}
 
-  // ── ventana con lluvia ───────────────────────────────────────────────────
+/** Ventana: cielo nocturno, edificios, luces parpadeantes y lluvia. */
+function drawWindow(cx: Ctx, t: number, rain: RainIntensity, p: Palette): void {
   const wx = 26
   const wy = 12
   const ww = 48
   const wh = 50
-  R(p.frame, wx - 3, wy - 3, ww + 6, wh + 6)
-  R(p.frameLit, wx - 3, wy - 3, ww + 6, 1)
-  R(p.night, wx, wy, ww, wh)
-  R(p.buildingFar, wx + 33, wy + 5, 8, 7)
-  R(p.windowLit, wx + 35, wy + 6, 4, 3)
-  R(p.building, wx + 2, wy + 38, 10, 12)
-  R(p.building, wx + 15, wy + 34, 8, 16)
-  R(p.building, wx + 26, wy + 40, 9, 10)
-  R(p.building, wx + 38, wy + 36, 8, 14)
-  R(p.cityLightDim, wx + 5, wy + 41, 1, 1)
-  R(p.cityLight, wx + 17, wy + 37, 1, 1)
-  if (Math.sin((TAU * t) / 2.5) > 0) R(p.cityLight, wx + 40, wy + 39, 1, 1)
+  rect(cx, p.frame, wx - 3, wy - 3, ww + 6, wh + 6)
+  rect(cx, p.frameLit, wx - 3, wy - 3, ww + 6, 1)
+  rect(cx, p.night, wx, wy, ww, wh)
+  rect(cx, p.buildingFar, wx + 33, wy + 5, 8, 7)
+  rect(cx, p.windowLit, wx + 35, wy + 6, 4, 3)
+  rect(cx, p.building, wx + 2, wy + 38, 10, 12)
+  rect(cx, p.building, wx + 15, wy + 34, 8, 16)
+  rect(cx, p.building, wx + 26, wy + 40, 9, 10)
+  rect(cx, p.building, wx + 38, wy + 36, 8, 14)
+  rect(cx, p.cityLightDim, wx + 5, wy + 41, 1, 1)
+  rect(cx, p.cityLight, wx + 17, wy + 37, 1, 1)
+  if (Math.sin((TAU * t) / 2.5) > 0) rect(cx, p.cityLight, wx + 40, wy + 39, 1, 1)
 
   const drops = RAIN_DROPS[rain]
   for (let i = 0; i < drops; i++) {
     const dx = wx + 2 + ((i * 37) % (ww - 5))
     const n = 12 + (i % 6)
     const y = (((i * 13) % wh) + t * ((n * wh) / 10)) % wh
-    R(p.rain, dx, wy + y, 1, Math.min(3, wh - y))
+    rect(cx, p.rain, dx, wy + y, 1, Math.min(3, wh - y))
   }
-  R(p.frame, wx + ww / 2 - 1, wy, 2, wh)
-  R(p.frame, wx, wy + wh / 2 - 1, ww, 2)
-  R(p.sill, wx - 6, wy + wh + 3, ww + 12, 4)
-  R(p.sillDark, wx - 6, wy + wh + 7, ww + 12, 2)
+  rect(cx, p.frame, wx + ww / 2 - 1, wy, 2, wh)
+  rect(cx, p.frame, wx, wy + wh / 2 - 1, ww, 2)
+  rect(cx, p.sill, wx - 6, wy + wh + 3, ww + 12, 4)
+  rect(cx, p.sillDark, wx - 6, wy + wh + 7, ww + 12, 2)
+}
 
-  // ── póster ───────────────────────────────────────────────────────────────
-  R(p.posterFrame, 190, 8, 28, 30)
-  R(p.posterPaper, 191, 9, 26, 28)
-  R(p.posterRed, 195, 14, 18, 3)
-  R(p.posterBlue, 195, 20, 12, 3)
-  R(p.posterBlue, 195, 26, 16, 3)
-  R(p.posterPin, 203, 10, 2, 2)
-  A(0.12)
-  R(p.ink, 190, 38, 29, 2)
-  A(1)
+/** Póster de la pared. */
+function drawPoster(cx: Ctx, p: Palette): void {
+  rect(cx, p.posterFrame, 190, 8, 28, 30)
+  rect(cx, p.posterPaper, 191, 9, 26, 28)
+  rect(cx, p.posterRed, 195, 14, 18, 3)
+  rect(cx, p.posterBlue, 195, 20, 12, 3)
+  rect(cx, p.posterBlue, 195, 26, 16, 3)
+  rect(cx, p.posterPin, 203, 10, 2, 2)
+  alpha(cx, 0.12)
+  rect(cx, p.ink, 190, 38, 29, 2)
+  alpha(cx, 1)
+}
 
-  // ── estudiante ───────────────────────────────────────────────────────────
+/** Estudiante: torso, brazos que alternan, cabeza, parpadeo y reflejo azulado. */
+function drawStudent(cx: Ctx, t: number, glow: number, p: Palette): void {
   const bob = Math.round(Math.sin((TAU * t) / 2))
-  const a = Math.floor(t / 0.2) % 2
+  const armPhase = Math.floor(t / 0.2) % 2
   const blink = (t > 2 && t < 2.18) || (t > 5.4 && t < 5.58) || (t > 8.2 && t < 8.38)
-  R(p.shirt, 110, 63, 20, 4)
-  R(p.shirt, 108, 67, 24, 25)
-  R(p.shirtDark, 108, 85, 24, 7)
-  const ly = 69 + a
-  const ry = 69 + (1 - a)
-  R(p.shirt, 102, ly, 6, 21)
-  R(p.shirtDark, 102, ly + 15, 6, 6)
-  R(p.shirt, 132, ry, 6, 21)
-  R(p.shirtDark, 132, ry + 15, 6, 6)
-  R(p.skinDark, 117, 59 + bob, 7, 5)
+
+  rect(cx, p.shirt, 110, 63, 20, 4)
+  rect(cx, p.shirt, 108, 67, 24, 25)
+  rect(cx, p.shirtDark, 108, 85, 24, 7)
+  const ly = 69 + armPhase
+  const ry = 69 + (1 - armPhase)
+  rect(cx, p.shirt, 102, ly, 6, 21)
+  rect(cx, p.shirtDark, 102, ly + 15, 6, 6)
+  rect(cx, p.shirt, 132, ry, 6, 21)
+  rect(cx, p.shirtDark, 132, ry + 15, 6, 6)
+  rect(cx, p.skinDark, 117, 59 + bob, 7, 5)
+
   const y0 = 43 + bob
-  R(p.skin, 114, y0 + 8, 12, 12)
-  R(p.hair, 113, y0 + 5, 15, 3)
-  R(p.hairLit, 114, y0 + 5, 13, 1)
-  R(p.hair, 113, y0 + 8, 2, 4)
-  R(p.hair, 126, y0 + 8, 2, 4)
-  R(p.hair, 115, y0 + 8, 11, 1)
+  rect(cx, p.skin, 114, y0 + 8, 12, 12)
+  rect(cx, p.hair, 113, y0 + 5, 15, 3)
+  rect(cx, p.hairLit, 114, y0 + 5, 13, 1)
+  rect(cx, p.hair, 113, y0 + 8, 2, 4)
+  rect(cx, p.hair, 126, y0 + 8, 2, 4)
+  rect(cx, p.hair, 115, y0 + 8, 11, 1)
   if (!blink) {
-    R(p.eyes, 115, y0 + 13, 2, 2)
-    R(p.eyes, 121, y0 + 13, 2, 2)
+    rect(cx, p.eyes, 115, y0 + 13, 2, 2)
+    rect(cx, p.eyes, 121, y0 + 13, 2, 2)
   } else {
-    R(p.skinShut, 115, y0 + 14, 3, 1)
-    R(p.skinShut, 120, y0 + 14, 3, 1)
+    rect(cx, p.skinShut, 115, y0 + 14, 3, 1)
+    rect(cx, p.skinShut, 120, y0 + 14, 3, 1)
   }
-  R(p.mouth, 118, y0 + 18, 3, 1)
-  // Reflejo azulado de la pantalla en la cara.
-  const glow = 0.1 + 0.04 * Math.sin(TAU * 0.5 * t)
-  A(glow)
-  R(p.screen, 114, y0 + 12, 12, 8)
-  A(1)
+  rect(cx, p.mouth, 118, y0 + 18, 3, 1)
+  alpha(cx, glow)
+  rect(cx, p.screen, 114, y0 + 12, 12, 8)
+  alpha(cx, 1)
+}
 
-  // ── mesa ─────────────────────────────────────────────────────────────────
-  R(p.deskTop, 22, 87, 200, 6)
-  R(p.deskLit, 22, 87, 200, 1)
-  R(p.deskFront, 22, 93, 200, 30)
-  R(p.deskEdge, 22, 93, 200, 2)
-  R(p.deskLeg, 30, 123, 6, 12)
-  R(p.deskLeg, 208, 123, 6, 12)
-  A(0.18)
-  R(p.ink, 20, 123, 204, 4)
-  A(1)
+/** Mesa y su sombra proyectada. */
+function drawDesk(cx: Ctx, p: Palette): void {
+  rect(cx, p.deskTop, 22, 87, 200, 6)
+  rect(cx, p.deskLit, 22, 87, 200, 1)
+  rect(cx, p.deskFront, 22, 93, 200, 30)
+  rect(cx, p.deskEdge, 22, 93, 200, 2)
+  rect(cx, p.deskLeg, 30, 123, 6, 12)
+  rect(cx, p.deskLeg, 208, 123, 6, 12)
+  alpha(cx, 0.18)
+  rect(cx, p.ink, 20, 123, 204, 4)
+  alpha(cx, 1)
+}
 
-  // ── cuadernos ────────────────────────────────────────────────────────────
+/** Las dos pilas de cuadernos. Los lomos son la serie categórica de la app. */
+function drawBooks(cx: Ctx, p: Palette): void {
   const stack: readonly [string, number, number, number][] = [
     [p.books[0], 34, 83, 34],
     [p.books[1], 36, 79, 31],
@@ -306,116 +315,146 @@ function draw(cx: CanvasRenderingContext2D, t: number, rain: RainIntensity, p: P
     [p.books[3], 37, 71, 29],
   ]
   for (const [color, x, y, w] of stack) {
-    R(color, x, y, w, 4)
-    A(0.3)
-    R(p.ink, x, y + 3, w, 1)
-    A(1)
-    R(p.pageMark, x + w - 2, y + 1, 2, 2)
+    rect(cx, color, x, y, w, 4)
+    alpha(cx, 0.3)
+    rect(cx, p.ink, x, y + 3, w, 1)
+    alpha(cx, 1)
+    rect(cx, p.pageMark, x + w - 2, y + 1, 2, 2)
   }
-  R(p.books[1], 186, 83, 22, 4)
-  A(0.3)
-  R(p.ink, 186, 86, 22, 1)
-  A(1)
-  R(p.pageMark, 206, 84, 2, 2)
-  R(p.books[0], 188, 79, 19, 4)
-  A(0.3)
-  R(p.ink, 188, 82, 19, 1)
-  A(1)
-  R(p.pageMark, 204, 80, 2, 2)
+  rect(cx, p.books[1], 186, 83, 22, 4)
+  alpha(cx, 0.3)
+  rect(cx, p.ink, 186, 86, 22, 1)
+  alpha(cx, 1)
+  rect(cx, p.pageMark, 206, 84, 2, 2)
+  rect(cx, p.books[0], 188, 79, 19, 4)
+  alpha(cx, 0.3)
+  rect(cx, p.ink, 188, 82, 19, 1)
+  alpha(cx, 1)
+  rect(cx, p.pageMark, 204, 80, 2, 2)
+}
 
-  // ── taza + vapor ─────────────────────────────────────────────────────────
-  R(p.cup, 78, 78, 11, 9)
-  R(p.cupBase, 78, 85, 11, 2)
-  R(p.coffee, 79, 79, 9, 2)
-  R(p.coffeeLit, 80, 79, 3, 1)
-  R(p.cup, 89, 80, 3, 1)
-  R(p.cup, 91, 81, 1, 3)
-  R(p.cup, 89, 84, 3, 1)
+/** Taza de café con su hilo de vapor. */
+function drawCoffee(cx: Ctx, t: number, p: Palette): void {
+  rect(cx, p.cup, 78, 78, 11, 9)
+  rect(cx, p.cupBase, 78, 85, 11, 2)
+  rect(cx, p.coffee, 79, 79, 9, 2)
+  rect(cx, p.coffeeLit, 80, 79, 3, 1)
+  rect(cx, p.cup, 89, 80, 3, 1)
+  rect(cx, p.cup, 91, 81, 1, 3)
+  rect(cx, p.cup, 89, 84, 3, 1)
   for (let k = 0; k < 3; k++) {
     const phase = (t * 0.7 + k / 3) % 1
-    A(0.4 * (1 - phase))
-    R(p.steam, 82 + Math.round(Math.sin((phase + k) * 6) * 2), 78 - phase * 12, 1, 2)
+    alpha(cx, 0.4 * (1 - phase))
+    rect(cx, p.steam, 82 + Math.round(Math.sin((phase + k) * 6) * 2), 78 - phase * 12, 1, 2)
   }
-  A(1)
+  alpha(cx, 1)
+}
 
-  // ── portátil ─────────────────────────────────────────────────────────────
-  R(p.device, 106, 71, 30, 17)
-  R(p.deviceLit, 106, 71, 30, 1)
-  R(p.deviceLit, 106, 71, 1, 17)
-  R(p.deviceDark, 135, 71, 1, 17)
-  A(0.45 + glow)
-  R(p.screen, 119, 78, 4, 4)
-  A(1)
-  A(0.3 + glow)
-  R(p.screenSoft, 105, 70, 32, 1)
-  A(1)
+/** Portátil abierto delante del estudiante. */
+function drawLaptop(cx: Ctx, glow: number, p: Palette): void {
+  rect(cx, p.device, 106, 71, 30, 17)
+  rect(cx, p.deviceLit, 106, 71, 30, 1)
+  rect(cx, p.deviceLit, 106, 71, 1, 17)
+  rect(cx, p.deviceDark, 135, 71, 1, 17)
+  alpha(cx, 0.45 + glow)
+  rect(cx, p.screen, 119, 78, 4, 4)
+  alpha(cx, 1)
+  alpha(cx, 0.3 + glow)
+  rect(cx, p.screenSoft, 105, 70, 32, 1)
+  alpha(cx, 1)
+}
 
-  // ── segundo monitor (se ve por detrás) ───────────────────────────────────
-  R(p.lampBase, 152, 84, 16, 3)
-  R(p.lampArm, 158, 74, 4, 10)
-  R(p.device, 141, 52, 40, 24)
-  R(p.deviceLit, 141, 52, 40, 1)
-  R(p.deviceDark, 141, 75, 40, 1)
-  R(p.deviceDark, 180, 52, 1, 24)
-  R(p.vent, 156, 62, 12, 8)
-  R(p.ventDark, 157, 63, 10, 6)
-  for (let i = 0; i < 5; i++) R(p.ventDark, 145, 56 + i * 2, 8, 1)
-  for (let i = 0; i < 5; i++) R(p.ventDark, 170, 56 + i * 2, 7, 1)
-  R(p.deviceDark, 168, 70, 10, 1)
-  // Luz que escapa por los bordes del monitor hacia la pared.
-  A(0.1 + glow * 0.4)
-  R(p.screen, 140, 51, 42, 1)
-  R(p.screen, 139, 52, 1, 24)
-  R(p.screen, 182, 52, 1, 24)
-  A(1)
+/** Segundo monitor: se ve por detrás, y su luz escapa por los bordes. */
+function drawMonitor(cx: Ctx, glow: number, p: Palette): void {
+  rect(cx, p.lampBase, 152, 84, 16, 3)
+  rect(cx, p.lampArm, 158, 74, 4, 10)
+  rect(cx, p.device, 141, 52, 40, 24)
+  rect(cx, p.deviceLit, 141, 52, 40, 1)
+  rect(cx, p.deviceDark, 141, 75, 40, 1)
+  rect(cx, p.deviceDark, 180, 52, 1, 24)
+  rect(cx, p.vent, 156, 62, 12, 8)
+  rect(cx, p.ventDark, 157, 63, 10, 6)
+  for (let i = 0; i < 5; i++) rect(cx, p.ventDark, 145, 56 + i * 2, 8, 1)
+  for (let i = 0; i < 5; i++) rect(cx, p.ventDark, 170, 56 + i * 2, 7, 1)
+  rect(cx, p.deviceDark, 168, 70, 10, 1)
+
+  alpha(cx, 0.1 + glow * 0.4)
+  rect(cx, p.screen, 140, 51, 42, 1)
+  rect(cx, p.screen, 139, 52, 1, 24)
+  rect(cx, p.screen, 182, 52, 1, 24)
+  alpha(cx, 1)
+
   // Resplandor difuso escalonado (sin bordes rectos sobre la pared).
   for (let y = 76; y < 88; y += 2) {
     const k = (y - 76) / 12
-    A((0.05 + glow * 0.35) * (1 - k * 0.7))
-    const x0 = Math.round(146 - k * 8)
-    const x1 = Math.round(176 + k * 8)
-    R(p.screen, x0, y, x1 - x0, 2)
+    alpha(cx, (0.05 + glow * 0.35) * (1 - k * 0.7))
+    rect(cx, p.screen, Math.round(146 - k * 8), y, Math.round(176 + k * 8) - Math.round(146 - k * 8), 2)
   }
   for (let y = 74; y < 88; y += 2) {
     const k = (y - 74) / 14
-    A((0.06 + glow * 0.4) * (1 - k * 0.6))
-    const x0 = Math.round(108 - k * 10)
-    const x1 = Math.round(134 + k * 10)
-    R(p.screen, x0, y, x1 - x0, 2)
+    alpha(cx, (0.06 + glow * 0.4) * (1 - k * 0.6))
+    rect(cx, p.screen, Math.round(108 - k * 10), y, Math.round(134 + k * 10) - Math.round(108 - k * 10), 2)
   }
-  A(1)
+  alpha(cx, 1)
+}
 
-  // ── lámpara ──────────────────────────────────────────────────────────────
-  R(p.lampBase, 196, 83, 22, 4)
-  R(p.lampArm, 198, 82, 18, 1)
-  R(p.lampArm, 210, 52, 3, 31)
-  R(p.lampArm, 200, 48, 13, 3)
-  R(p.lampShade, 188, 46, 18, 4)
-  R(p.lampShade, 183, 50, 18, 4)
-  R(p.lampShadeDark, 183, 53, 18, 1)
-  R(p.lampShadeLit, 182, 52, 5, 3)
+/** Flexo: pantalla, cono de luz parpadeante y charco sobre la mesa. */
+function drawLamp(cx: Ctx, t: number, p: Palette): void {
+  rect(cx, p.lampBase, 196, 83, 22, 4)
+  rect(cx, p.lampArm, 198, 82, 18, 1)
+  rect(cx, p.lampArm, 210, 52, 3, 31)
+  rect(cx, p.lampArm, 200, 48, 13, 3)
+  rect(cx, p.lampShade, 188, 46, 18, 4)
+  rect(cx, p.lampShade, 183, 50, 18, 4)
+  rect(cx, p.lampShadeDark, 183, 53, 18, 1)
+  rect(cx, p.lampShadeLit, 182, 52, 5, 3)
+
   const flicker = 0.1 + 0.02 * Math.sin(TAU * 0.8 * t) + 0.015 * Math.sin(TAU * 1.3 * t)
   for (let y = 58; y < 88; y += 2) {
     const k = (y - 58) / 30
-    A(Math.max(0.02, flicker) * (1 - k) * 0.85)
-    const x0 = Math.round(192 - k * 44)
-    const x1 = Math.round(206 + k * 10)
-    R(p.lampGlow, x0, y, x1 - x0, 2)
+    alpha(cx, Math.max(0.02, flicker) * (1 - k) * 0.85)
+    rect(cx, p.lampGlow, Math.round(192 - k * 44), y, Math.round(206 + k * 10) - Math.round(192 - k * 44), 2)
   }
-  A(1)
+  alpha(cx, 1)
   // Charco de luz sobre la mesa.
   for (let i = 0; i < 6; i++) {
-    A(Math.max(0.05, flicker * 1.4) * (1 - i / 7))
+    alpha(cx, Math.max(0.05, flicker * 1.4) * (1 - i / 7))
     const x0 = Math.max(34, 152 - i * 8)
     const x1 = Math.min(220, 214 + i * 2)
-    R(p.lampGlow, x0, 87 + i, x1 - x0, 1)
+    rect(cx, p.lampGlow, x0, 87 + i, x1 - x0, 1)
   }
-  A(1)
-  // Viñeta cálida sobre las esquinas: ata la escena a la paleta de la app.
-  A(1)
+  alpha(cx, 1)
+}
+
+/** Viñeta cálida arriba y abajo: ata la escena a la paleta de la app. */
+function drawVignette(cx: Ctx, p: Palette): void {
+  alpha(cx, 1)
   cx.fillStyle = withAlpha(p.ink, 0.06)
   cx.fillRect(0, 0, W, 6)
   cx.fillRect(0, H - 4, W, 4)
+}
+
+/**
+ * Pinta un fotograma completo. Port del `draw(t, rain)` original: la geometría
+ * (coordenadas y tamaños) se conserva tal cual y en el MISMO orden de pintado;
+ * SOLO cambian los colores, que ahora vienen de la paleta de la app.
+ */
+function draw(cx: Ctx, t: number, rain: RainIntensity, p: Palette): void {
+  cx.globalAlpha = 1
+  // Latido del reflejo de pantalla: lo comparten cara, portátil y monitor.
+  const glow = 0.1 + 0.04 * Math.sin(TAU * 0.5 * t)
+
+  drawRoom(cx, p)
+  drawWindow(cx, t, rain, p)
+  drawPoster(cx, p)
+  drawStudent(cx, t, glow, p)
+  drawDesk(cx, p)
+  drawBooks(cx, p)
+  drawCoffee(cx, t, p)
+  drawLaptop(cx, glow, p)
+  drawMonitor(cx, glow, p)
+  drawLamp(cx, t, p)
+  drawVignette(cx, p)
 }
 
 export interface PixelStudySceneProps {
@@ -449,28 +488,46 @@ export function PixelStudyScene({
     }
 
     let raf = 0
-    let start: number | null = null
+    let resumedAt = 0
+    // Segundos ya reproducidos antes de la última pausa: al reanudar, el bucle
+    // continúa donde iba en vez de saltar al principio.
+    let playedSeconds = 0
     let lastFrame = -1
-    let visible = true
 
     const tick = (now: number) => {
-      raf = requestAnimationFrame(tick)
-      if (!visible) return
-      start ??= now
-      const elapsed = (now - start) / 1000
+      const elapsed = playedSeconds + (now - resumedAt) / 1000
       // Cuantizar a 30 fps: el pixel art no gana nada a 60 y ahorra CPU.
       const frame = Math.round(elapsed * FPS)
-      if (frame === lastFrame) return
-      lastFrame = frame
-      draw(cx, (frame / FPS) % LOOP_SECONDS, rain, palette)
+      if (frame !== lastFrame) {
+        lastFrame = frame
+        draw(cx, (frame / FPS) % LOOP_SECONDS, rain, palette)
+      }
+      raf = requestAnimationFrame(tick)
     }
 
-    // Pausar fuera de pantalla: es decoración, no debe quemar CPU en Electron.
+    const play = () => {
+      if (raf !== 0) return
+      resumedAt = performance.now()
+      raf = requestAnimationFrame(tick)
+    }
+
+    /** Detiene el bucle DE VERDAD (no basta con saltarse el pintado). */
+    const pause = () => {
+      if (raf === 0) return
+      playedSeconds += (performance.now() - resumedAt) / 1000
+      cancelAnimationFrame(raf)
+      raf = 0
+    }
+
+    // Fuera de pantalla no se anima: es decoración y no debe quemar CPU en
+    // Electron. El observer notifica el estado inicial en cuanto se observa,
+    // así que arrancar aquí y dejar que él pause es correcto.
     let observer: IntersectionObserver | undefined
     if (typeof IntersectionObserver === 'function') {
       observer = new IntersectionObserver(
         (entries) => {
-          visible = entries.some((e) => e.isIntersecting)
+          if (entries.some((e) => e.isIntersecting)) play()
+          else pause()
         },
         { threshold: 0 },
       )
@@ -478,11 +535,11 @@ export function PixelStudyScene({
     }
 
     draw(cx, 0, rain, palette)
-    raf = requestAnimationFrame(tick)
+    play()
 
     return () => {
-      cancelAnimationFrame(raf)
       observer?.disconnect()
+      pause()
     }
   }, [colors, rain, reduced])
 
