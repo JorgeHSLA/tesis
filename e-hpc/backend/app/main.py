@@ -8,8 +8,10 @@ Lifespan (orden congelado):
 4. auto-seed condicional del contenido (gobernado por el marcador persistente
    ``content_seeded_at`` de ``app_meta``, BL-21) y carga del snapshot desde la
    DB (``ContentRepository.load`` es la fuente de Fase 4),
-5. registro de jobs en memoria ``app.state.jobs`` (1 worker uvicorn) + estado
-   de auth admin (``admin_sessions``/``admin_throttle``, Fase 4).
+5. registro de jobs en memoria ``app.state.jobs`` (1 worker uvicorn).
+
+El modo autoría (admin) es una variante de despliegue gateada por
+``EHPC_ADMIN_MODE`` (``settings.admin_enabled``): sin token ni sesión.
 
 CORS: lista de §10.5 con ``allow_credentials=False`` (incluye ``"null"`` por
 Electron ``file://`` — riesgo residual documentado en api-contract).
@@ -33,7 +35,6 @@ from app.repositories.quiz_attempts import QuizAttemptRepository
 from app.repositories.content import ContentRepository
 from app.routers import system as system_router
 from app.routers.system import BACKEND_VERSION
-from app.services.admin_auth import AdminSessionStore, LoginThrottle
 from app.services.job_runner import JobRunner
 from app.tools.seed_content import (
     backfill_seed_marker,
@@ -111,9 +112,6 @@ def create_app(
         app.state.db = db_conn
         app.state.settings = cfg
         app.state.jobs = {}  # registro en memoria por job (architecture §3.3)
-        # Estado de auth admin (Fase 4, design §5.5) — en memoria, proceso único.
-        app.state.admin_sessions = AdminSessionStore()
-        app.state.admin_throttle = LoginThrottle()
 
         docker = docker_service
         if docker is None:
@@ -178,7 +176,6 @@ def _include_routers(app: FastAPI) -> None:
     ``prefix``."""
     from app.routers import (
         admin,
-        admin_auth,
         examples,
         jobs,
         lessons,
@@ -196,8 +193,7 @@ def _include_routers(app: FastAPI) -> None:
     app.include_router(progress.router)
     app.include_router(jobs.router)
     app.include_router(ws.router)
-    app.include_router(admin_auth.router)  # §10.0 auth admin (Fase 4)
-    app.include_router(admin.router)  # §10.2-§10.6 CRUD de contenido admin
+    app.include_router(admin.router)  # §10.2-§10.6 CRUD de contenido admin (gate por EHPC_ADMIN_MODE)
 
 
 app = create_app()

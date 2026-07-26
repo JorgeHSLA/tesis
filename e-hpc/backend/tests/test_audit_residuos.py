@@ -27,7 +27,7 @@ from test_routers_jobs import assert_error_envelope, assert_ok_envelope
 
 def test_bl22_post_jobs_422_no_refleja_input_crudo(client):
     """El 422 de validación de ``POST /jobs`` NO debe reflejar el valor crudo
-    rechazado en ``details[].input`` (paridad con ``/admin/login`` y admin JSON).
+    rechazado en ``details[].input`` (paridad con el saneo del handler admin JSON).
 
     Se envía un ``filename`` inválido con un centinela reconocible: antes del fix
     su valor literal viajaba en ``error.details[].input``; tras el saneo se

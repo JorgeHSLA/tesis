@@ -1,9 +1,10 @@
 """Tests de los endpoints de contenido admin (Fase 4, PAQUETE D).
 
 Monta una app de integración reusando ``conftest.build_app`` (routers públicos +
-estado real sobre ``:memory:`` sembrada desde los fixtures) y le AÑADE el wiring
-mínimo de admin (routers ``admin_auth`` + ``admin`` y
-``app.state.admin_sessions``/``admin_throttle``). No edita ``conftest`` (es de A).
+estado real sobre ``:memory:`` sembrada desde los fixtures) y le AÑADE el router
+``admin``. El modo admin es una variante de DESPLIEGUE gateada por
+``EHPC_ADMIN_MODE`` (``Settings(admin_mode=True)``): sin login ni token. No edita
+``conftest`` (es de A).
 
 Cubre api-contract §10.2-§10.6:
 - CRUD feliz de módulo / lección(+ejemplo) / quiz / ejemplo.
@@ -13,7 +14,7 @@ Cubre api-contract §10.2-§10.6:
 - Subida ``.py``: ``413`` / ``415`` / ``422``.
 - Backward-compat / reload: tras crear vía admin, los GET públicos reflejan el
   contenido nuevo y el quiz público NO trae ``correct_key``.
-- Sin Bearer, ``/admin/*`` → ``401``.
+- En modo estudiante (sin ``EHPC_ADMIN_MODE``), ``/admin/*`` → ``401``.
 """
 
 from __future__ import annotations
@@ -22,19 +23,16 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.config import Settings
-from app.routers import admin, admin_auth
-from app.services.admin_auth import AdminSessionStore, LoginThrottle
+from app.routers import admin
 
 from conftest import build_app
 from fakes.fake_docker import FakeDockerService
-
-ADMIN_PASSWORD = "test-admin-pw"
 
 
 # ─────────────────────────────── app + fixtures ─────────────────────────────
 
 
-def _make_app(tmp_path):
+def _make_app(tmp_path, *, admin_mode: bool = True):
     settings = Settings(
         db_path=str(tmp_path / "ehpc.db"),
         jobs_dir=str(tmp_path / "jobs"),
@@ -45,13 +43,10 @@ def _make_app(tmp_path):
         max_concurrent_jobs=2,
         max_code_bytes=262144,
         max_output_bytes=262144,
-        admin_password=ADMIN_PASSWORD,
+        admin_mode=admin_mode,
     )
     app = build_app(settings=settings, docker=FakeDockerService())
-    app.include_router(admin_auth.router)
     app.include_router(admin.router)
-    app.state.admin_sessions = AdminSessionStore()
-    app.state.admin_throttle = LoginThrottle(step_s=0.0, max_s=0.0)
     return app
 
 
@@ -68,8 +63,8 @@ def client(app):
 
 @pytest.fixture
 def auth(client):
-    token = client.app.state.admin_sessions.create().token
-    return {"Authorization": f"Bearer {token}"}
+    """Modo admin habilitado por despliegue ⇒ no hay header de autorización."""
+    return {}
 
 
 # ─────────────────────────────── payload builders ───────────────────────────
@@ -168,28 +163,27 @@ def _create_lesson(client, auth, **over):
 # ───────────────────────────────── auth gate ────────────────────────────────
 
 
-def test_sin_bearer_todos_los_admin_401(client):
-    for method, path in [
-        ("get", "/api/v1/admin/modules"),
-        ("post", "/api/v1/admin/modules"),
-        ("put", "/api/v1/admin/modules/mX"),
-        ("delete", "/api/v1/admin/modules/mX"),
-        ("get", "/api/v1/admin/lessons/lX"),
-        ("post", "/api/v1/admin/lessons"),
-        ("get", "/api/v1/admin/lessons/lX/quiz"),
-        ("get", "/api/v1/admin/examples/eX"),
-    ]:
-        response = getattr(client, method)(path)
-        _err(response, 401, "UNAUTHORIZED")
+def test_modo_estudiante_todos_los_admin_401(tmp_path):
+    """Despliegue "estudiante" (sin ``EHPC_ADMIN_MODE``): todo ``/admin/*`` → 401."""
+    app = _make_app(tmp_path, admin_mode=False)
+    with TestClient(app) as client:
+        for method, path in [
+            ("get", "/api/v1/admin/modules"),
+            ("post", "/api/v1/admin/modules"),
+            ("put", "/api/v1/admin/modules/mX"),
+            ("delete", "/api/v1/admin/modules/mX"),
+            ("get", "/api/v1/admin/lessons/lX"),
+            ("post", "/api/v1/admin/lessons"),
+            ("get", "/api/v1/admin/lessons/lX/quiz"),
+            ("get", "/api/v1/admin/examples/eX"),
+        ]:
+            response = getattr(client, method)(path)
+            _err(response, 401, "UNAUTHORIZED")
 
 
-def test_login_y_uso_del_token(client):
-    login = client.post("/api/v1/admin/login", json={"password": ADMIN_PASSWORD})
-    assert login.status_code == 200
-    token = login.json()["data"]["token"]
-    response = client.get(
-        "/api/v1/admin/modules", headers={"Authorization": f"Bearer {token}"}
-    )
+def test_modo_admin_habilitado_permite_acceso(client):
+    """Con ``EHPC_ADMIN_MODE`` habilitado, ``/admin/*`` responde sin token."""
+    response = client.get("/api/v1/admin/modules")
     assert response.status_code == 200
 
 

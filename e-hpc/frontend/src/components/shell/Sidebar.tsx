@@ -9,9 +9,10 @@
 //
 // Arriba, junto a la marca, va el conmutador de tema claro ⇄ oscuro.
 import { NavLink, useLocation } from 'react-router-dom'
-import { IconBook, IconCluster, IconHome, IconResults, type IconProps } from '../icons/icons'
+import { IconBook, IconCluster, IconHome, IconLayers, IconResults, type IconProps } from '../icons/icons'
 import { RuntimeFooter } from './RuntimeFooter'
 import { ThemeToggle } from './ThemeToggle'
+import { ADMIN_BUILD } from '../../config'
 
 interface NavItem {
   to: string
@@ -42,6 +43,20 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Aprendizaje',
     items: [{ to: '/cursos', label: 'Aprender (ZINE)', icon: IconBook, match: (p) => p.startsWith('/cursos') }],
   },
+  // Autoría (admin) — SOLO en el build admin (VITE_ADMIN → ADMIN_BUILD). En el
+  // build estudiante ADMIN_BUILD es una constante falsa y el bundler descarta
+  // esta sección por tree-shaking. Es la única vía de acceso a /admin (no hay
+  // login): el admin llega aquí y «ve el modo estudiante» con el resto del rail.
+  ...(ADMIN_BUILD
+    ? [
+        {
+          label: 'Autoría',
+          items: [
+            { to: '/admin', label: 'Autoría', icon: IconLayers, match: (p: string) => p.startsWith('/admin') },
+          ],
+        },
+      ]
+    : []),
 ]
 
 export function Sidebar() {

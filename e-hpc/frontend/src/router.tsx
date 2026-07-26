@@ -1,13 +1,17 @@
 // router.tsx — router DEFINITIVO (frontend-spec §2): createHashRouter con las
-// 7 rutas, React.lazy por pantalla y <Suspense fallback={<ScreenSkeleton/>}>.
-// Un chunk por pantalla; ui/icons/shell van al chunk principal.
-// `*` vuelve a `/` (frontend-spec §2).
+// rutas del estudiante + autoría, React.lazy por pantalla y <Suspense
+// fallback={<ScreenSkeleton/>}>. Un chunk por pantalla; ui/icons/shell van al
+// chunk principal. `*` vuelve a `/` (frontend-spec §2).
+// Autoría (admin): /admin/* anidado en el MISMO AppShell (opción B — misma
+// shell), SOLO en el build admin (VITE_ADMIN → ADMIN_BUILD). Ya no hay login ni
+// guard: el acceso es por el item «Autoría» del Sidebar. En el build estudiante
+// esas rutas ni se registran (y sus chunks caen por tree-shaking) → /admin/*
+// termina en el catch-all → Home.
 import { lazy, Suspense, type ComponentType } from 'react'
-import { createHashRouter, Navigate } from 'react-router-dom'
+import { createHashRouter, Navigate, type RouteObject } from 'react-router-dom'
 import { AppShell } from './components/shell/AppShell'
-import { AdminGuard } from './components/admin/AdminGuard'
-import { AdminShell } from './components/admin/AdminShell'
 import { ScreenSkeleton } from './components/ui/Skeleton'
+import { ADMIN_BUILD } from './config'
 
 const HomeScreen = lazy(() => import('./features/home/HomeScreen'))
 const SimulatorScreen = lazy(() => import('./features/simulator/SimulatorScreen'))
@@ -16,19 +20,41 @@ const ResultsScreen = lazy(() => import('./features/results/ResultsScreen'))
 const CatalogScreen = lazy(() => import('./features/catalog/CatalogScreen'))
 const LearnScreen = lazy(() => import('./features/learn/LearnScreen'))
 
-// Área de autoría (admin) — chunks lazy, fuera del bundle del estudiante.
-const AdminLoginScreen = lazy(() => import('./features/admin/AdminLoginScreen'))
-const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard'))
-const AdminLessonEditor = lazy(() => import('./features/admin/lesson/AdminLessonEditor'))
-const AdminQuizEditor = lazy(() => import('./features/admin/quiz/AdminQuizEditor'))
-const AdminExampleEditor = lazy(() => import('./features/admin/example/AdminExampleEditor'))
-
 function screen(Component: ComponentType) {
   return (
     <Suspense fallback={<ScreenSkeleton />}>
       <Component />
     </Suspense>
   )
+}
+
+// Rutas de autoría (admin), SOLO en el build admin. Las llamadas
+// `lazy(() => import('./features/admin/...'))` viven DENTRO de este branch: en el
+// build estudiante `ADMIN_BUILD` es una constante falsa, así que el bundler
+// elimina toda la rama (rutas + imports dinámicos) por tree-shaking y no emite
+// los chunks de `features/admin/*`.
+function adminRoutes(): RouteObject[] {
+  if (!ADMIN_BUILD) return []
+  const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard'))
+  const AdminLessonEditor = lazy(() => import('./features/admin/lesson/AdminLessonEditor'))
+  const AdminQuizEditor = lazy(() => import('./features/admin/quiz/AdminQuizEditor'))
+  const AdminExampleEditor = lazy(() => import('./features/admin/example/AdminExampleEditor'))
+  return [
+    {
+      // MISMA shell que el estudiante (topbar + sidebar): no hay app aparte.
+      // Sus pantallas usan `.screen`, igual que las del estudiante, así que
+      // encajan en el Outlet del AppShell.
+      path: 'admin',
+      children: [
+        { index: true, element: screen(AdminDashboard) },
+        { path: 'lecciones/nueva', element: screen(AdminLessonEditor) },
+        { path: 'lecciones/:lessonId', element: screen(AdminLessonEditor) },
+        { path: 'quiz/:lessonId', element: screen(AdminQuizEditor) },
+        { path: 'ejemplos/:exampleId', element: screen(AdminExampleEditor) },
+        { path: '*', element: <Navigate to="/admin" replace /> },
+      ],
+    },
+  ]
 }
 
 export const router = createHashRouter([
@@ -43,29 +69,10 @@ export const router = createHashRouter([
       { path: 'resultados/:jobId', element: screen(ResultsScreen) },
       { path: 'cursos', element: screen(CatalogScreen) },
       { path: 'cursos/:leccionId', element: screen(LearnScreen) },
+
+      ...adminRoutes(),
+
       { path: '*', element: <Navigate to="/" replace /> },
-    ],
-  },
-  {
-    // Rama hermana top-level (NO anidada bajo AppShell): shell propio de autoría.
-    path: '/admin',
-    children: [
-      { path: 'login', element: screen(AdminLoginScreen) },
-      {
-        element: (
-          <AdminGuard>
-            <AdminShell />
-          </AdminGuard>
-        ),
-        children: [
-          { index: true, element: screen(AdminDashboard) },
-          { path: 'lecciones/nueva', element: screen(AdminLessonEditor) },
-          { path: 'lecciones/:lessonId', element: screen(AdminLessonEditor) },
-          { path: 'quiz/:lessonId', element: screen(AdminQuizEditor) },
-          { path: 'ejemplos/:exampleId', element: screen(AdminExampleEditor) },
-          { path: '*', element: <Navigate to="/admin" replace /> },
-        ],
-      },
     ],
   },
 ])

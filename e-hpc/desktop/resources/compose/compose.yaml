@@ -10,6 +10,10 @@ services:
     ports: ["127.0.0.1:8000:8000"]
     environment:
       EHPC_DB_PATH: /app/data/ehpc.db
+      # Despliegue por defecto = ESTUDIANTE: el modo autoría (admin) está
+      # APAGADO y /api/v1/admin/* responde 401. Un despliegue admin añade
+      # `EHPC_ADMIN_MODE: "1"` a este servicio backend (app local en loopback
+      # distribuida solo a administradores; sin login/token).
       # Idéntica al compose raíz: el navegador manda Origin http://127.0.0.1:8080
       # (no localhost); 'null' es para Electron (file://).
       EHPC_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null"
@@ -37,7 +41,10 @@ services:
     entrypoint: ["true"]
 
 volumes:
+  # name: explícito para compartir el MISMO volumen de datos entre despliegues
+  # (estudiante / admin) y desactivar el prefijo del proyecto ('name: ehpc').
   ehpc_data:
+    name: ehpc_data
   # name: explícito para DESACTIVAR el prefijo del proyecto ('name: ehpc'
   # arriba): sin él, Compose crea 'ehpc_ehpc_submissions' mientras el runner
   # monta el literal EHPC_SUBMISSIONS_VOLUME → volumen vacío → todos los jobs

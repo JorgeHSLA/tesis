@@ -3,32 +3,27 @@
 Cubre los fixes S4: BL-11 (carve-out GPU en coherencia de hilos), BL-17
 (``max_code_bytes`` en runtime también por la vía JSON), BL-18 (id de pregunta
 autogenerado), BL-19 (GET admin con lock de lectura dedicado, no el ``write_lock``
-transversal), BL-20 (reorden por lote), BL-22 (la contraseña nunca vuelve en el
-422), BL-23 (throttle no evadible en concurrencia), BL-35 (filename inválido → 415
-también en JSON) y BL-36 (``stream`` inválido → 422 documentado).
+transversal), BL-20 (reorden por lote), BL-35 (filename inválido → 415 también en
+JSON) y BL-36 (``stream`` inválido → 422 documentado).
 
 Reutiliza los builders/fixtures de ``test_admin_content`` (app admin real sobre
-``:memory:``) y ``test_admin_auth`` (app de login aislada).
+``:memory:``, modo admin habilitado por ``EHPC_ADMIN_MODE``).
 """
 
 from __future__ import annotations
 
 import asyncio
-import time
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from app.config import Settings
-from app.routers import admin, admin_auth
-from app.services.admin_auth import AdminSessionStore, LoginThrottle
+from app.routers import admin
 
 from conftest import build_app
 from fakes.fake_docker import FakeDockerService
-from test_admin_auth import _build_app as _build_login_app
 from test_admin_content import (
-    ADMIN_PASSWORD,
     _create_lesson,
     _create_module,
     _example_base,
@@ -50,8 +45,8 @@ def client(app):
 
 @pytest.fixture
 def auth(client):
-    token = client.app.state.admin_sessions.create().token
-    return {"Authorization": f"Bearer {token}"}
+    """Modo admin habilitado por despliegue ⇒ no hay header de autorización."""
+    return {}
 
 
 def _make_app_code_limit(tmp_path, max_code_bytes: int):
@@ -66,13 +61,10 @@ def _make_app_code_limit(tmp_path, max_code_bytes: int):
         max_concurrent_jobs=2,
         max_code_bytes=max_code_bytes,
         max_output_bytes=262144,
-        admin_password=ADMIN_PASSWORD,
+        admin_mode=True,
     )
     app = build_app(settings=settings, docker=FakeDockerService())
-    app.include_router(admin_auth.router)
     app.include_router(admin.router)
-    app.state.admin_sessions = AdminSessionStore()
-    app.state.admin_throttle = LoginThrottle(step_s=0.0, max_s=0.0)
     return app
 
 
@@ -138,7 +130,7 @@ def test_bl17_json_honra_max_code_bytes_bajo(tmp_path):
     """Con ``EHPC_MAX_CODE_BYTES`` bajo, la vía JSON también rechaza (413)."""
     app = _make_app_code_limit(tmp_path, max_code_bytes=64)
     with TestClient(app) as client:
-        auth = {"Authorization": f"Bearer {app.state.admin_sessions.create().token}"}
+        auth = {}
         big_code = "print('x')\n" * 50  # ~550 bytes > 64
         # Lección (source_code por JSON)
         r1 = client.post(
@@ -161,7 +153,7 @@ def test_bl17_json_honra_max_code_bytes_alto(tmp_path):
     (el límite es 100% runtime, sin cap estático de pydantic)."""
     app = _make_app_code_limit(tmp_path, max_code_bytes=400_000)
     with TestClient(app) as client:
-        auth = {"Authorization": f"Bearer {app.state.admin_sessions.create().token}"}
+        auth = {}
         _create_module(client, auth, mid="mBig", order=79)
         big_code = "x = 1\n" + "y = 2\n" * 50_000  # ~306 KB, > 262144, < 400000
         assert len(big_code.encode()) > 262144
@@ -276,7 +268,7 @@ async def test_bl19_get_admin_no_espera_el_write_lock(tmp_path):
     responde igual (usa el ``content_read_lock`` dedicado, no el transversal)."""
     app = _make_app(tmp_path)
     async with app.router.lifespan_context(app):
-        auth = {"Authorization": f"Bearer {app.state.admin_sessions.create().token}"}
+        auth = {}
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://t") as ac:
             held = asyncio.Event()
@@ -304,7 +296,7 @@ async def test_bl19_content_read_lock_evita_dirty_reads(tmp_path):
     (así sigue sin observar una mutación admin a medias — CW-04)."""
     app = _make_app(tmp_path)
     async with app.router.lifespan_context(app):
-        auth = {"Authorization": f"Bearer {app.state.admin_sessions.create().token}"}
+        auth = {}
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://t") as ac:
             held = asyncio.Event()
@@ -389,54 +381,6 @@ def test_bl20_reorder_lecciones_swap(client, auth):
     assert resp.status_code == 200, resp.text
     detail = client.get("/api/v1/admin/lessons/lA", headers=auth)
     assert detail.json()["data"]["order"] == 71
-
-
-# ─────────────────────── BL-22 · password no reflejada ──────────────────────
-
-
-def test_bl22_password_no_vuelve_en_el_422():
-    """Un password > 256 chars da 422 SIN reflejar el valor ni ``input``."""
-    with TestClient(_build_login_app()) as client:
-        secret = "P" * 300
-        resp = client.post("/api/v1/admin/login", json={"password": secret})
-        assert resp.status_code == 422, resp.text
-        assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
-        assert secret not in resp.text  # el valor NO viaja
-        details = resp.json()["error"]["details"]
-        assert details, "se conservan type/loc/msg"
-        for item in details:
-            assert "input" not in item and "ctx" not in item and "url" not in item
-
-
-# ─────────────────────── BL-23 · throttle concurrente ───────────────────────
-
-
-async def test_bl23_throttle_serializa_fallos_concurrentes():
-    """N register_failure concurrentes NO leen el mismo contador bajo: se
-    serializan y el backoff crece de verdad."""
-    throttle = LoginThrottle(step_s=0.05, max_s=5.0)
-    start = time.monotonic()
-    await asyncio.gather(*[throttle.register_failure() for _ in range(5)])
-    elapsed = time.monotonic() - start
-    # 5 fallos registrados (no evadidos por la carrera).
-    assert throttle.delay_s == pytest.approx(0.05 * 5)
-    # Serializado: la espera total ≈ step·(0+1+2+3+4)=0.5s (en paralelo sería ~0).
-    assert elapsed >= 0.05 * (0 + 1 + 2 + 3), elapsed
-
-
-async def test_bl23_reset_espera_al_fallo_en_vuelo():
-    """`reset()` (login correcto) se serializa con `register_failure`: no pisa el
-    contador a mitad de la ventana espera-incremento de un fallo concurrente."""
-    throttle = LoginThrottle(step_s=0.3, max_s=5.0)
-    throttle.record_failure()  # failures=1 → el próximo register_failure duerme 0.3s
-    task = asyncio.create_task(throttle.register_failure())
-    await asyncio.sleep(0.03)  # deja que tome el lock y empiece a dormir
-    start = time.monotonic()
-    await throttle.reset()  # debe ESPERAR a que el fallo en vuelo suelte el lock
-    waited = time.monotonic() - start
-    await task
-    assert waited >= 0.15, waited  # no reseteó al instante
-    assert throttle.delay_s == 0.0  # tras esperar, el reset gana
 
 
 # ─────────────────────── BL-35 · filename inválido 415 ──────────────────────

@@ -117,6 +117,10 @@ no-root, sin escalada de privilegios y con límites de PIDs/memoria/CPU.
 
 ## 5b. Fase 4 — Autoría de cursos (admin)
 
+> **Nota (2026-07-26):** posterior a este informe el "shell propio" se retiró
+> (opción B): el modo autoría vive ahora en la MISMA shell del estudiante, con
+> acceso desde el menú del `TopBar`. Ver `architecture/fase4-autoria-design.md` §9.
+
 Área nueva `/#/admin` (HashRouter, shell propio + login gate; el estudiante nunca la
 ve). Habilitada con `EHPC_ADMIN_PASSWORD`; imágenes backend+frontend **reconstruidas**
 para incluir el código de Fase 4. Journey verificado de punta a punta:

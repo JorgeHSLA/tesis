@@ -5,6 +5,9 @@ interface ImportMetaEnv {
   readonly VITE_API_BASE?: string
   /** Override SOLO de dev (architecture.md §2.3). */
   readonly VITE_WS_BASE?: string
+  /** Gating de BUILD del modo autoría (admin): '1' | 'true' ⇒ build admin.
+   *  Sin definir ⇒ build estudiante (config.ts ADMIN_BUILD). */
+  readonly VITE_ADMIN?: string
 }
 
 interface ImportMeta {

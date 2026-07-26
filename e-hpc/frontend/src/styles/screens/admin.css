@@ -80,50 +80,9 @@
   flex-wrap: wrap;
 }
 
-/* ── Login (#/admin/login) ──────────────────────────────────────────────── */
-.admin-auth {
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  padding: var(--sp-7) var(--screen-pad-x);
-  background: var(--bg);
-  color: var(--text);
-}
-.admin-auth .admin-accent-bar {
-  position: fixed;
-  inset: 0 0 auto 0;
-}
-/* Card centrada — OVERLAY (nivel 3): es el único objeto de la pantalla. */
-.admin-auth-card {
-  width: 100%;
-  max-width: var(--auth-card-w);
-  padding: var(--sp-7);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-5);
-  box-shadow: var(--elevation-3);
-}
-.admin-auth-brand {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-}
-.admin-auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-4);
-}
-.admin-auth-form .btn {
-  justify-content: center;
-}
-.admin-auth-help {
-  margin: 0;
-  line-height: 1.5;
-}
-.admin-auth-help code {
-  font-size: var(--fs-xs);
-}
+/* El login de autoría (#/admin/login) se retiró: ya no hay pantalla de acceso
+   (el modo autoría se decide en build con VITE_ADMIN). Sus estilos `.admin-auth*`
+   se eliminaron por quedar sin uso. */
 
 /* ── Dashboard (#/admin) ────────────────────────────────────────────────── */
 .admin-dashboard-head {

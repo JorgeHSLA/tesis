@@ -60,7 +60,7 @@ usan el envelope:
 | 500 | `INTERNAL_ERROR` | Excepción no controlada (mensaje genérico; detalle solo en logs del servidor) |
 | 503 | `DOCKER_UNAVAILABLE` | El daemon no responde a `ping()` |
 | 503 | `RUNNER_IMAGE_MISSING` | La imagen `ehpc-runner` no existe en el daemon |
-| 401 | `UNAUTHORIZED` | **(Fase 4, §10)** Login con contraseña incorrecta, o endpoint `/admin/*` sin sesión / con Bearer inválido o expirado. También se devuelve cuando el modo admin está deshabilitado (var ausente): indistinguible de una credencial errónea (no se filtra el estado del servidor) |
+| 401 | `UNAUTHORIZED` | **(Fase 4, §10)** Endpoint `/admin/*` con el modo autoría apagado (despliegue "estudiante", sin `EHPC_ADMIN_MODE`). _Nota 2026-07-26: ya no hay login/token; el gate es de despliegue (ver §10.0)_ |
 | 404 | `MODULE_NOT_FOUND` | **(Fase 4, §10)** id de módulo inexistente |
 | 409 | `DUPLICATE_ID` | **(Fase 4, §10)** Crear contenido con un id ya usado (módulo, o lección/ejemplo — comparten namespace) |
 | 409 | `ORDER_CONFLICT` | **(Fase 4, §10)** `order` de módulo o de lección colisiona con otro existente |
@@ -937,9 +937,6 @@ C:      GET /api/v1/jobs/01a2…   → parsed_timings (curva de speedup)
 | POST | `/api/v1/jobs/{id}/cancel` | Cancelar | 202 | 404, 409 |
 | GET | `/api/v1/jobs/{id}/output` | Descargar salida (text/plain) | 200 | 404, 409, 422 |
 | WS | `/ws/jobs/{id}` | Stream multiplexado del job | — | close 4404 |
-| POST | `/api/v1/admin/login` | Login admin → Bearer (§10) | 200 | 401, 422 |
-| POST | `/api/v1/admin/logout` | Invalidar sesión (§10) | 200 | 401 |
-| GET | `/api/v1/admin/session` | Estado de la sesión (§10) | 200 | 401 |
 | GET | `/api/v1/admin/modules` | Módulos con detalle admin (§10) | 200 | 401 |
 | POST | `/api/v1/admin/modules` | Crear módulo (§10) | 201 | 401, 409, 422 |
 | PUT | `/api/v1/admin/modules/reorder` | Reordenar módulos por lote (§10) | 200 | 401, 404, 409, 422 |
@@ -969,43 +966,32 @@ C:      GET /api/v1/jobs/01a2…   → parsed_timings (curva de speedup)
 > interna. Estos endpoints permiten a un administrador editar ese contenido.
 > DTOs: `backend/app/schemas.py` §10 · `frontend/src/api/admin-types.ts`.
 
-### 10.0 Autenticación (Bearer + sesión en memoria)
+### 10.0 Autorización (variante de despliegue, sin login)
 
-- **Admin único por contraseña** vía `EHPC_ADMIN_PASSWORD` (una env var; sin
-  default). **Sin la variable, el modo admin queda deshabilitado**: `login` y
-  todo `/admin/*` responden `401 UNAUTHORIZED`, **indistinguible** de una
-  credencial errónea o un token inválido (no se filtra si la var está o no
-  puesta). El README documenta que hay que definir la variable para habilitarlo.
-- **Esquema Bearer, no cookie** (decisión registrada): la CORS de §0 es
-  `allow_credentials=False` y Electron carga `file://` (`Origin: null`), por lo
-  que una cookie httpOnly **no llegaría** al backend desde el desktop. El token
-  viaja en `Authorization: Bearer <token>` (permitido por `allow_headers=["*"]`),
-  idéntico en web y Electron, y al no ser una credencial *ambient* elimina el
-  vector CSRF (sin token anti-CSRF). Riesgo residual (robo por XSS) mitigado por
-  CSP estricta, TTL corto, `logout` revocable y ámbito loopback mono-usuario.
-- **Sesiones server-side en memoria** (`app.state.admin_sessions`, patrón de
-  `app.state.jobs`): token opaco `secrets.token_urlsafe(32)`, TTL fijo (8 h, sin
-  renovación deslizante), revocable por `logout`. Un reinicio del backend
-  invalida todas las sesiones (aceptado: herramienta local).
-- **Comparación de contraseña en tiempo constante** (`secrets.compare_digest`),
-  con *dummy compare* cuando el modo está deshabilitado (mismo perfil temporal).
-  El backend **nunca** logea la contraseña ni su longitud.
-- **Guard `require_admin`**: todo endpoint de contenido admin lo aplica; sin
-  Bearer válido → `401 UNAUTHORIZED`. Sin `WWW-Authenticate` (no dispara el
-  diálogo nativo del navegador).
+> **Nota 2026-07-26 — cambio de modelo.** La capa de autenticación de Fase 4
+> (contraseña `EHPC_ADMIN_PASSWORD`, login/logout/session, token Bearer y
+> sesiones en memoria) **se eliminó**. El modo autoría (admin) pasa a ser una
+> **variante de despliegue**, no un login. Ya **no existen** los endpoints
+> `POST /admin/login`, `POST /admin/logout` ni `GET /admin/session`, ni el
+> esquema `Authorization: Bearer`.
 
-`POST /api/v1/admin/login` — request `{ "password": "…" }`; `200`:
+- **El modo admin se enciende con la env var `EHPC_ADMIN_MODE`** (`config.py`;
+  pydantic castea `"1"`/`"true"`/`"yes"` y variantes a `bool`). Es una decisión
+  de despliegue:
+  - **Sin la variable** → despliegue **"estudiante"** (el por defecto de los dos
+    `compose.yaml`): todo `/api/v1/admin/*` responde `401 UNAUTHORIZED`.
+  - **Con `EHPC_ADMIN_MODE`** → despliegue **admin**: los `/api/v1/admin/*`
+    quedan habilitados **sin token**. Es seguro porque la app es **local, en
+    loopback** (todos los puertos ligados a `127.0.0.1`) y el despliegue con el
+    modo admin se distribuye **solo a administradores**.
+- **Guard `require_admin`**: todo endpoint de contenido admin lo aplica y gatea
+  **solo por `settings.admin_enabled`** (== `EHPC_ADMIN_MODE`). No parsea ningún
+  header ni valida tokens. Sin `WWW-Authenticate` (no dispara el diálogo nativo
+  del navegador).
 
-```json
-{ "success": true,
-  "data": { "token": "kQ8…opaco…", "expires_at": "2026-07-13T23:04:05.123Z" },
-  "error": null, "meta": null }
-```
-
-`401 UNAUTHORIZED` si la contraseña es incorrecta **o** el modo está
-deshabilitado. `POST /api/v1/admin/logout` (Bearer) → `200 {"revoked": true}`.
-`GET /api/v1/admin/session` (Bearer) → `200 {"authenticated": true,
-"expires_at": "…"}` (no renueva el TTL); `401` si el token es inválido/expirado.
+No hay endpoints de autenticación. El cliente admin usa directamente los CRUD de
+§10.2-§10.6; si el despliegue es "estudiante" recibe `401 UNAUTHORIZED` en todos
+ellos.
 
 ### 10.1 Invariantes de contenido
 

@@ -3,7 +3,10 @@
 // El switch v1/v2 (§2.8) se retiró: la app quedó fija en la variante v2.
 // Títulos y crumbs por ruta: tabla de frontend-spec §2.
 //
-// 2026-07-26 — los dos botones DEJAN DE SER MAQUETA y llevan a algo real:
+// 2026-07-26 — el modo autoría YA NO usa login: se decide en BUILD (VITE_ADMIN →
+// config.ts ADMIN_BUILD). Por eso este TopBar vuelve a la etiqueta de usuario
+// ESTÁTICA (sin menú ni sesión): `ES · estudiante` en el build estudiante y
+// `AD · autor` en el build admin. Los dos botones NO son maqueta:
 //   · Buscar → navega al catálogo y le pone el foco a SU buscador (el de
 //     'Buscar lección, quiz o tema'). Se reutiliza ese buscador en vez de
 //     duplicar la lógica de filtrado en una paleta de comandos aparte.
@@ -12,6 +15,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { IconHelp, IconSearch } from '../icons/icons'
 import { AboutDialog } from './AboutDialog'
+import { ADMIN_BUILD } from '../../config'
 
 interface RouteMeta {
   title: string
@@ -20,7 +24,9 @@ interface RouteMeta {
 
 /** Tabla título/crumbs por ruta (frontend-spec §2). Más específica primero.
  *  Para /cursos/:leccionId los crumbs dinámicos (módulo/lección) los aporta
- *  WP7 dentro de la pantalla; el topbar usa el literal del handoff §0.4. */
+ *  WP7 dentro de la pantalla; el topbar usa el literal del handoff §0.4.
+ *  Las entradas «Autoría · …» solo se ejercitan en el build admin (las rutas
+ *  /admin/* únicamente existen ahí), pero se dejan siempre en la tabla. */
 export function routeMeta(pathname: string): RouteMeta {
   if (pathname === '/') return { title: 'Inicio', crumbs: ['E-HPC'] }
   if (/^\/simulador\/.+/.test(pathname)) return { title: 'Simulador · En vivo', crumbs: ['Simulador', 'En vivo'] }
@@ -28,6 +34,10 @@ export function routeMeta(pathname: string): RouteMeta {
   if (pathname.startsWith('/resultados')) return { title: 'Resultados', crumbs: ['Simulador', 'Resultados'] }
   if (/^\/cursos\/.+/.test(pathname)) return { title: 'ZINE · Aprender', crumbs: ['Aprendizaje', 'Módulo', 'Lección'] }
   if (pathname.startsWith('/cursos')) return { title: 'Aprendizaje · Catálogo', crumbs: ['Aprendizaje', 'Catálogo'] }
+  if (/^\/admin\/lecciones\b/.test(pathname)) return { title: 'Autoría · Lección', crumbs: ['Autoría', 'Lección'] }
+  if (/^\/admin\/quiz\b/.test(pathname)) return { title: 'Autoría · Quiz', crumbs: ['Autoría', 'Quiz'] }
+  if (/^\/admin\/ejemplos\b/.test(pathname)) return { title: 'Autoría · Ejemplo', crumbs: ['Autoría', 'Ejemplo'] }
+  if (pathname.startsWith('/admin')) return { title: 'Autoría · Panel', crumbs: ['Autoría', 'Panel'] }
   return { title: 'Inicio', crumbs: ['E-HPC'] }
 }
 
@@ -77,8 +87,8 @@ export function TopBar() {
         <IconHelp size={14} />
       </button>
       <span className="topbar-divider" aria-hidden="true" />
-      <span className="topbar-avatar" aria-hidden="true">ES</span>
-      <span className="topbar-user">estudiante</span>
+      <span className="topbar-avatar" aria-hidden="true">{ADMIN_BUILD ? 'AD' : 'ES'}</span>
+      <span className="topbar-user">{ADMIN_BUILD ? 'autor' : 'estudiante'}</span>
 
       {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
     </header>

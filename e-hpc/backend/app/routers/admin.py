@@ -2,8 +2,9 @@
 
 CRUD de módulos / lecciones (+ ejemplo pareado) / quiz / ejemplos, más la subida
 del ``.py`` de un ejemplo. Prefijo ``/api/v1/admin`` y guard único a nivel de
-router (``dependencies=[Depends(require_admin)]``): sin Bearer válido ⇒
-``401 UNAUTHORIZED`` para todos.
+router (``dependencies=[Depends(require_admin)]``): con el modo admin apagado
+(``EHPC_ADMIN_MODE`` ausente, despliegue "estudiante") ⇒ ``401 UNAUTHORIZED``
+para todos.
 
 La validación de esquema (pydantic) la reformatea el handler global a
 ``422 VALIDATION_ERROR``; las reglas de negocio (§10.6) y la persistencia atómica

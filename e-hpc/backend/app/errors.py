@@ -58,10 +58,10 @@ _HTTP_FALLBACK_CODE: dict[int, str] = {
 }
 
 #: Claves de cada error de pydantic que NO deben viajar al cliente (BL-22,
-#: security): ``input`` refleja el valor rechazado —p. ej. la contraseña literal
-#: de ``/admin/login`` cuando supera ``max_length``— y ``ctx``/``url`` pueden
-#: arrastrar el mismo dato o rutas internas. Se conservan ``type``/``loc``/``msg``
-#: (suficientes para que la UI posicione el error sin exponer el valor).
+#: security): ``input`` refleja el valor rechazado —p. ej. el ``filename`` o el
+#: código fuente literal de una subida— y ``ctx``/``url`` pueden arrastrar el
+#: mismo dato o rutas internas. Se conservan ``type``/``loc``/``msg`` (suficientes
+#: para que la UI posicione el error sin exponer el valor).
 _REDACTED_VALIDATION_KEYS = frozenset({"input", "ctx", "url"})
 
 

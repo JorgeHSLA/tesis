@@ -44,6 +44,11 @@ estricta). Los contratos se **extendieron** (nunca se rompieron): secciones nuev
 | E | `main.py`: auto-seed condicional + `ContentRepository.load(db)` + `app.state.admin_sessions`/`admin_throttle` + routers admin. |
 | G1/G2 | Rama `/admin` (HashRouter, shell propio + login gate); `api/admin.ts` (Bearer); `stores/adminSessionStore.ts` (sessionStorage); editores de lección (markdown + preview), quiz, y uploader de ejemplo; `lib/pyfile.ts`. |
 
+> **Nota (2026-07-26):** el "shell propio" de G1/G2 se retiró tras Fase 4. El modo
+> autoría pasó a vivir en la MISMA shell del estudiante (opción B): `/admin/*`
+> anidado en `AppShell`, acceso desde el menú del `TopBar`; `AdminShell`/`AdminTopBar`
+> eliminados. Ver `architecture/fase4-autoria-design.md` §9.
+
 ## Review adversarial multi-agente → fixes confirmados
 
 5 dimensiones (seguridad/auth · migración/seed · backward-compat · contrato↔UI ·

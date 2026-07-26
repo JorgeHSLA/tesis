@@ -6,10 +6,10 @@
   compartida; una escritura posterior no relacionada sigue funcionando.
 - **C2**: la incoherencia del ejemplo al crear una lección lleva el campo
   ``example.<campo>`` (el editor de lección ancla el hint bajo el control).
-- **E2E**: login admin → crear módulo + lección (+ejemplo) + quiz + subir ``.py``
-  → aparece en el catálogo del estudiante (GET públicos, con el quiz público SIN
-  ``correct_key``) y corre en el simulador (runner fake) con el código del admin;
-  sin sesión, ``/admin/*`` da 401.
+- **E2E**: modo admin habilitado por despliegue → crear módulo + lección
+  (+ejemplo) + quiz + subir ``.py`` → aparece en el catálogo del estudiante (GET
+  públicos, con el quiz público SIN ``correct_key``) y corre en el simulador
+  (runner fake) con el código del admin.
 """
 
 from __future__ import annotations
@@ -19,7 +19,6 @@ from fastapi.testclient import TestClient
 
 from conftest import wait_terminal
 from test_admin_content import (
-    ADMIN_PASSWORD,
     _create_lesson,
     _create_module,
     _example_base,
@@ -42,8 +41,8 @@ def client(app):
 
 @pytest.fixture
 def auth(client):
-    token = client.app.state.admin_sessions.create().token
-    return {"Authorization": f"Bearer {token}"}
+    """Modo admin habilitado por despliegue ⇒ no hay header de autorización."""
+    return {}
 
 
 # ── CW-02: id de pregunta global colisionando entre lecciones → 422, no 500 ──
@@ -123,13 +122,11 @@ def test_c2_incoherencia_ejemplo_lleva_prefijo_example(client, auth):
     assert "example.fixed_threads" in fields, fields
 
 
-# ── E2E: login → crear contenido → el estudiante lo ve y lo ejecuta ──
+# ── E2E: modo admin → crear contenido → el estudiante lo ve y lo ejecuta ──
 
 
 def test_e2e_admin_crea_estudiante_ve_y_corre(client):
-    login = client.post("/api/v1/admin/login", json={"password": ADMIN_PASSWORD})
-    assert login.status_code == 200, login.text
-    auth = {"Authorization": f"Bearer {login.json()['data']['token']}"}
+    auth = {}  # modo admin habilitado por despliegue (EHPC_ADMIN_MODE)
 
     _create_module(client, auth, mid="mE2E", order=96, title="Módulo E2E")
     code = "# ejemplo creado por el admin\nprint('desde el admin')\n"
@@ -176,6 +173,3 @@ def test_e2e_admin_crea_estudiante_ve_y_corre(client):
     detail = wait_terminal(client, job.json()["data"]["job_id"])
     assert detail["status"] in {"completed", "failed", "timeout", "cancelled"}
     assert detail["source_code"] == code
-
-    # sin sesión, /admin/* → 401
-    assert client.get("/api/v1/admin/modules").status_code == 401

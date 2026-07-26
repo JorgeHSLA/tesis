@@ -277,6 +277,9 @@
   flex-shrink: 0;
 }
 .topbar-user { font-size: var(--fs-sm); }
+/* El menú de usuario sensible a login (`.topbar-user-menu`/`.topbar-menu*`) se
+   retiró: ya no hay login (el modo autoría se decide en build con VITE_ADMIN).
+   El usuario vuelve a ser la etiqueta estática avatar + rol. */
 
 /* ═══════════ Contenedor de pantalla — FLUIDO (handoff §3.4) ═════════════
    Crece con la ventana; el tope --screen-max solo evita el estirado infinito

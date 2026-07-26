@@ -5,25 +5,9 @@
 // viviendo en types.ts y NO se duplican aquí; esto es solo la superficie admin.
 import type { ParserId, QuizOptionKey } from './types'
 
-// ── §10.1 Auth ───────────────────────────────────────────────────────────────
-
-export interface AdminLoginRequestDto {
-  password: string
-}
-
-export interface AdminLoginResultDto {
-  token: string
-  expires_at: string // ISO-8601 UTC
-}
-
-export interface AdminSessionInfoDto {
-  authenticated: boolean
-  expires_at: string | null
-}
-
-export interface AdminLogoutResultDto {
-  revoked: boolean
-}
+// El modo autoría ya NO usa login/token (2026-07-26): se gatea por build
+// (VITE_ADMIN) + config del backend (EHPC_ADMIN_MODE). Los DTOs de auth
+// (AdminLoginRequest/Result, AdminSessionInfo, AdminLogoutResult) se eliminaron.
 
 // ── §10.2 Fragmentos compartidos ─────────────────────────────────────────────
 

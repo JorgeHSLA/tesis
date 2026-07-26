@@ -38,15 +38,17 @@ class Settings(BaseSettings):
     max_code_bytes: int = 262144
     max_output_bytes: int = 262144
 
-    # Autoría (admin) — Fase 4. Secreto inyectado por entorno
-    # (EHPC_ADMIN_PASSWORD). "" ⇒ modo admin DESHABILITADO. NUNCA se logea
-    # (ni su longitud): ver api-contract §10.0 y fase4-autoria-design §5.1.
-    admin_password: str = ""
+    # Autoría (admin). VARIANTE DE DESPLIEGUE, no login: el modo admin se
+    # enciende con EHPC_ADMIN_MODE (app local en loopback distribuida solo a
+    # admins). Sin la var ⇒ despliegue "estudiante": /admin/* apagado (401).
+    # pydantic-settings castea "1"/"true"/"yes" (y variantes) a bool. Ver
+    # api-contract §10.0.
+    admin_mode: bool = False
 
     @property
     def admin_enabled(self) -> bool:
-        """``True`` si hay contraseña configurada (modo admin habilitado)."""
-        return bool(self.admin_password.strip())
+        """``True`` si el modo admin está habilitado por despliegue (EHPC_ADMIN_MODE)."""
+        return self.admin_mode
 
     @property
     def allowed_origins_list(self) -> list[str]:

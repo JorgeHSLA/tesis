@@ -404,7 +404,7 @@ Transcripción de
 | `EHPC_MAX_CONCURRENT_JOBS` | `2` | semáforo del `job_runner` |
 | `EHPC_MAX_CODE_BYTES` | `262144` | validación jobs/upload |
 | `EHPC_MAX_OUTPUT_BYTES` | `262144` | drainer del stream |
-| `EHPC_ADMIN_PASSWORD` | — (**vacío ⇒ modo autoría deshabilitado**) | login admin, Fase 4 (`config.py`) |
+| `EHPC_ADMIN_MODE` | `0` (**apagado ⇒ modo autoría deshabilitado**) | habilita el modo autoría del despliegue, sin login, Fase 4 (`config.py`) |
 | `EHPC_COMPOSE_DIR` | — (**sólo desktop**) | shell de Electron (`electron-spec` §5.3) |
 
 > `EHPC_ALLOWED_ORIGINS` incluye `null` deliberadamente: Electron carga el HTML
@@ -418,23 +418,29 @@ Un administrador puede crear/editar módulos, lecciones, quizzes y subir ejemplo
 (sembrado desde los fixtures de `backend/app/content/`, que quedan como semilla
 versionada); los flujos y las respuestas del estudiante **no cambian**.
 
-- **Habilitar**: define `EHPC_ADMIN_PASSWORD` (no hay default). **Sin la variable,
-  el modo admin queda deshabilitado**: `login` y todos los `/api/v1/admin/*`
-  responden `401 UNAUTHORIZED`, indistinguible de una credencial errónea (no se
-  filtra el estado del servidor). En compose se pasa por `environment:` / un
-  `.env` **no versionado**; nunca se hornea en la imagen ni se commitea.
+> **Actualización 2026-07-26 (sin login):** el modo autoría dejó de usar
+> contraseña/login/token. Ahora es una **variante de despliegue**: se gatea por
+> build del frontend (`VITE_ADMIN`) + config del backend (`EHPC_ADMIN_MODE`). La
+> versión estudiante no incluye la UI admin (tree-shaking) ni habilita los
+> endpoints; solo los administradores usan el build/despliegue admin.
+
+- **Habilitar (backend)**: define `EHPC_ADMIN_MODE=1`. Sin ella, todos los
+  `/api/v1/admin/*` responden `401 UNAUTHORIZED`. Es seguro sin login porque la
+  app corre en loopback y solo los admins reciben el build/despliegue admin.
 
   ```bash
   # dev (backend nativo):
-  EHPC_ADMIN_PASSWORD='una-clave-larga' uvicorn app.main:app
+  EHPC_ADMIN_MODE=1 uvicorn app.main:app
+  # web (compose): añade `EHPC_ADMIN_MODE: "1"` al servicio backend.
   ```
 
-- **Acceder**: navega a `#/admin` (HashRouter) en la web o en el escritorio —
-  el estudiante nunca ve enlaces a esa ruta. Login por contraseña → sesión
-  **Bearer** (token opaco en memoria del backend, TTL 8 h, revocable con logout).
-  Se usa Bearer y **no** cookie porque la CORS congelada (`allow_credentials=False`)
-  y el `file://` de Electron (`Origin: null`) impiden que una cookie llegue al
-  backend desde el desktop (decisión en `docs/architecture/api-contract.md` §10.0).
+- **Habilitar (frontend)**: construye el build admin con `npm run build:admin`
+  (`VITE_ADMIN=1`). El build normal (`npm run build`) es el de estudiante y NO
+  contiene la UI de autoría.
+
+- **Acceder**: en el build admin, entra a autoría por el ítem **"Autoría"** del
+  Sidebar (o `#/admin`). No hay pantalla de login. El admin ve la vista de
+  estudiante navegando el resto del Sidebar (es la misma app).
 
 - **Semilla / migración**: al primer arranque, si las tablas de contenido están
   vacías, el backend siembra automáticamente los 14 ejemplos + 60 preguntas desde

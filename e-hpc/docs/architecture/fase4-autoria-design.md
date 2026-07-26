@@ -284,6 +284,14 @@ vez al inicio del request (patrón `get_content`). **Invariante a documentar**: 
 
 ## 5. Auth
 
+> **OBSOLETO 2026-07-26 — toda esta §5 quedó superada.** El modo autoría ya NO
+> usa login/token/sesión: se gatea por `EHPC_ADMIN_MODE` (backend) + `VITE_ADMIN`
+> (build frontend). Se eliminaron `admin_auth.py` (router y service),
+> `AdminSessionStore`, `LoginThrottle`, `verify_password` y los endpoints
+> `/admin/login|logout|session`. `require_admin` solo comprueba
+> `settings.admin_enabled` (= `admin_mode`). Ver `api-contract.md` §10 y la §9 de
+> este documento. Lo de abajo se conserva como registro histórico del diseño.
+
 > **Corrección del lead — `ADMIN_DISABLED` NO existe (supersede a C2/C3 y a toda
 > mención de `403 ADMIN_DISABLED` en este documento).** El contrato congelado
 > (`api-contract.md` §10.0) y la implementación (`admin_auth.py`,
@@ -673,61 +681,104 @@ Cambios:
 
 ## 9. UI admin (build único web + Electron)
 
-Todo lo del estudiante intacto: `router.tsx` solo gana una rama hermana `/admin`; `client.ts`,
-`types.ts` (salvo la unión `ApiErrorCode`), `messages.ts`, `ehpc.d.ts` no se tocan. Chunks admin
-`lazy` → fuera del bundle del estudiante.
+> **Actualización 2026-07-26 (opción B — una sola app):** el modo autoría ya
+> **no tiene shell propio**. Las rutas `/admin/*` viven anidadas en el MISMO
+> `AppShell` que el estudiante (idéntico `TopBar` + `Sidebar`). Se eliminaron
+> `AdminShell.tsx` y `AdminTopBar.tsx`.
+>
+> **Actualización 2026-07-26 (sin login — gating por BUILD):** además, el modo
+> autoría **ya no usa login**. El gating es doble:
+> - **Frontend, en tiempo de BUILD** con la variable Vite **`VITE_ADMIN`**
+>   (`config.ts` → `ADMIN_BUILD`). Build estudiante (sin `VITE_ADMIN`): la UI y
+>   las rutas de autoría **no existen** (ni por URL) y el bundler las descarta
+>   por tree-shaking. Build admin (`VITE_ADMIN=1`, script `npm run build:admin`):
+>   incluye la autoría.
+> - **Backend, en runtime** con `EHPC_ADMIN_MODE` (los endpoints `/admin/*`
+>   responden o no).
+>
+> El acceso es por un item **«Autoría»** del `Sidebar` (visible solo en el build
+> admin) → `/admin`; el admin «ve el modo estudiante» navegando el resto del
+> rail. Se eliminaron la pantalla de login (`AdminLoginScreen.tsx`), el store de
+> sesión (`adminSessionStore.ts`), el guard (`AdminGuard.tsx`) y el token Bearer.
+> Esto **supersede** las partes de auth de §9.C (login gate), §9.D (`authFetch`),
+> §9.E (store de sesión) y la pantalla «Login» de §9.F: ya no aplican. §9.A y §9.B
+> se actualizan abajo.
 
-### 9.A Routing — rama top-level `/admin` (NO anidada bajo `AppShell`)
+Todo lo del estudiante intacto: `client.ts`, `types.ts` (salvo la unión
+`ApiErrorCode`), `messages.ts`, `ehpc.d.ts` no se tocan. Chunks admin `lazy` →
+fuera del bundle del estudiante (además, ahora la rama entera cuelga de
+`ADMIN_BUILD`, así que en el build estudiante ni se registran).
+
+### 9.A Routing — `/admin/*` anidado bajo `AppShell`, gateado por `ADMIN_BUILD`
+
+Sin ruta `/admin/login` y sin `AdminGuard`: las rutas admin se montan **directas**
+dentro del `AppShell`, y SOLO en el build admin. Las llamadas
+`lazy(() => import('./features/admin/...'))` viven DENTRO del branch `ADMIN_BUILD`,
+de modo que en el build estudiante `ADMIN_BUILD` es una constante falsa y el
+bundler elimina rutas + imports dinámicos por tree-shaking (no emite chunks admin).
+En el build estudiante `/admin/*` cae en el catch-all `*` → Home.
 
 ```ts
-// router.tsx — AÑADIR objeto al array de createHashRouter
-{
-  path: '/admin',
-  children: [
-    { path: 'login', element: screen(AdminLoginScreen) },              // pública
-    { element: <AdminGuard><AdminShell/></AdminGuard>, children: [     // gate + shell propio
+// router.tsx — rutas admin como HIJAS de la ruta '/' (element: <AppShell/>)
+function adminRoutes(): RouteObject[] {
+  if (!ADMIN_BUILD) return []                                        // build estudiante: nada
+  const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard'))
+  // …AdminLessonEditor, AdminQuizEditor, AdminExampleEditor (lazy, dentro del branch)
+  return [{
+    path: 'admin',                                                   // sin guard: montaje directo
+    children: [
       { index: true,                 element: screen(AdminDashboard) },
       { path: 'lecciones/nueva',     element: screen(AdminLessonEditor) },
       { path: 'lecciones/:lessonId', element: screen(AdminLessonEditor) },
       { path: 'quiz/:lessonId',      element: screen(AdminQuizEditor) },
       { path: 'ejemplos/:exampleId', element: screen(AdminExampleEditor) },
       { path: '*',                   element: <Navigate to="/admin" replace/> },
-    ]},
-  ],
+    ],
+  }]
 }
+// children de '/': [ …rutas estudiante, ...adminRoutes(), { path: '*', <Navigate to="/"/> } ]
 ```
-Sin item en `NAV_ITEMS`; el admin llega tecleando `#/admin` (documentado en README). El editor de
-ejemplo NO tiene ruta `/nuevo`: los ejemplos nacen con la lección (C7); se editan en
-`#/admin/ejemplos/:exampleId`.
+El admin llega por el item **«Autoría»** del `Sidebar` (solo en el build admin) o
+tecleando `#/admin`. El editor de ejemplo NO tiene ruta `/nuevo`: los ejemplos
+nacen con la lección (C7); se editan en `#/admin/ejemplos/:exampleId`.
 
 ### 9.B Árbol de archivos (feature-first, <400 líneas c/u)
 
 ```
 frontend/src/
-├─ api/admin.ts                 # authFetch + funciones tipadas (§9.D)
+├─ config.ts                    # ADMIN_BUILD = VITE_ADMIN in {'1','true'} (gating de build)
+├─ api/admin.ts                 # funciones tipadas con fetchJson (sin token) (§9.D superseded)
 ├─ api/admin-types.ts           # DTOs de escritura admin (§7.2)
-├─ stores/adminSessionStore.ts  # Zustand + persist(sessionStorage) (§9.E)
 ├─ hooks/useAdminResource.ts    # fetch genérico {data,loading,error,reload}
 ├─ lib/pyfile.ts                # validatePyFile() extraído de CodePanel (DRY)
-├─ components/admin/{AdminGuard,AdminShell,AdminTopBar,AdminSaveBar,ConfirmDialog}.tsx
-├─ styles/screens/admin.css     # importado en main.tsx; recicla tokens existentes
+├─ components/admin/{AdminSaveBar,ConfirmDialog}.tsx   # AdminShell/AdminTopBar/AdminGuard eliminados
+├─ styles/screens/admin.css     # importado en main.tsx; recicla tokens existentes (sin `.admin-auth*`)
 └─ features/admin/
-   ├─ AdminLoginScreen.tsx  AdminDashboard.tsx
+   ├─ AdminDashboard.tsx        # (AdminLoginScreen.tsx eliminado — ya no hay login)
    ├─ dashboard/{ModuleGroup,LessonAdminRow,ModuleFormDialog}.tsx
    ├─ lesson/{AdminLessonEditor,LessonMetaFields,MarkdownEditor}.tsx
    ├─ quiz/{AdminQuizEditor,QuestionEditorCard}.tsx
    └─ example/{AdminExampleEditor,ExampleMetaFields,CodeDropzone,TakeawaysEditor}.tsx
 ```
-Cero tokens CSS nuevos: reciclar `.card`, `.btn*`, `.field-*`, `.chip*`, `.markdown`, `.code-editor`,
-`.error-state`, `.empty-state`, `.skeleton`. `IconLogOut` se porta a `icons.tsx` si no existe.
+Eliminados frente al diseño original: `stores/adminSessionStore.ts`,
+`components/admin/AdminGuard.tsx`, `features/admin/AdminLoginScreen.tsx`. Cero
+tokens CSS nuevos: reciclar `.card`, `.btn*`, `.field-*`, `.chip*`, `.markdown`,
+`.code-editor`, `.error-state`, `.empty-state`, `.skeleton`.
 
-### 9.C AdminShell + login gate
+### 9.C Acceso por el `Sidebar` (build admin) — sin login gate
 
-- `AdminGuard`: al montar, si no autenticado, `restore()` (verifica contra `GET /admin/session`);
-  `status==='restoring'` → `ScreenSkeleton` (sin flash de login); si no autenticado → `Navigate` a
-  `/admin/login` guardando `state.from`. `/admin/login` queda fuera del guard (evita bucle).
-- `AdminShell`: layout propio (grid header+main), SIN `Sidebar`/`TopBar` del estudiante; borde
-  superior distintivo para que el admin sepa que no está en la vista del alumno; botón "Cerrar sesión".
+- **Sin guard ni login**: no hay `AdminGuard` ni `/admin/login`. El gating del
+  frontend es por BUILD (`ADMIN_BUILD`, §header); el del backend, por runtime
+  (`EHPC_ADMIN_MODE`). En el build estudiante las rutas admin ni existen.
+- **Misma shell**: las pantallas admin renderizan dentro del `AppShell` del
+  estudiante (mismo `TopBar` + `Sidebar`); no hay chrome de "modo aparte".
+- **Acceso por el `Sidebar`**: item **«Autoría»** (icono `IconLayers`) → `/admin`,
+  renderizado SOLO si `ADMIN_BUILD`. El admin «ve el modo estudiante» navegando
+  el resto del rail. No hay «cerrar sesión»: no hay sesión.
+- **`TopBar`**: la etiqueta de usuario es ESTÁTICA (sin menú): `ES · estudiante`
+  en el build estudiante, `AD · autor` en el build admin (`ADMIN_BUILD`). Los
+  títulos/crumbs «Autoría · …» de `routeMeta` se conservan (los usa el build
+  admin); se quitó la entrada `/admin/login`.
 
 ### 9.D `api/admin.ts` — authFetch (sin tocar `client.ts`)
 

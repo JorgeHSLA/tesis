@@ -31,7 +31,7 @@ ApiErrorCode = Literal[
     "DOCKER_UNAVAILABLE",
     "RUNNER_IMAGE_MISSING",
     # ── Autoría (admin) — Fase 4, api-contract §10 ──
-    "UNAUTHORIZED",             # 401 login/credencial o bearer inválido/ausente/expirado
+    "UNAUTHORIZED",             # 401 /admin/* con el modo admin apagado (sin EHPC_ADMIN_MODE)
     "MODULE_NOT_FOUND",         # 404 id de módulo inexistente
     "DUPLICATE_ID",             # 409 crear con un id ya usado (módulo o lección/ejemplo)
     "ORDER_CONFLICT",           # 409 order de módulo o de lección colisiona
@@ -589,42 +589,14 @@ class WsCancelMsg(BaseModel):
 
 # ═══════════════════ §10 Autoría de cursos (admin) — Fase 4 ══════════════════
 # TRANSCRIPCIÓN de api-contract.md §10 (CONGELADO). ADITIVO: no toca nada de
-# Fase 3. Namespace REST /api/v1/admin; auth Bearer + sesiones en memoria.
+# Fase 3. Namespace REST /api/v1/admin; el modo admin es una variante de
+# despliegue gateada por EHPC_ADMIN_MODE (sin login/token).
 # Espejo TS: frontend/src/api/admin-types.ts.
 
 #: §10 — ids estables de contenido (== nombre de carpeta, camelCase o m1..m8).
 ID_PATTERN = r"^[A-Za-z][A-Za-z0-9_-]{0,63}$"
 #: §10 — ids de pregunta de quiz (p. ej. ``spmd-q1``).
 QUESTION_ID_PATTERN = r"^[A-Za-z0-9._-]{1,80}$"
-
-
-# ── §10.1 Auth ───────────────────────────────────────────────────────────────
-
-
-class AdminLoginRequest(BaseModel):
-    """§10.1 ``POST /api/v1/admin/login`` — request."""
-
-    password: str = Field(min_length=1, max_length=256)
-
-
-class AdminLoginResult(BaseModel):
-    """§10.1 — respuesta 200 (bloque ``data``). Token Bearer opaco + expiry."""
-
-    token: str
-    expires_at: str  # ISO-8601 UTC
-
-
-class AdminSessionInfo(BaseModel):
-    """§10.1 ``GET /api/v1/admin/session`` — estado de la sesión Bearer."""
-
-    authenticated: bool
-    expires_at: str | None
-
-
-class AdminLogoutResult(BaseModel):
-    """§10.1 ``POST /api/v1/admin/logout`` — respuesta 200."""
-
-    revoked: bool
 
 
 # ── §10.2 Fragmentos compartidos ─────────────────────────────────────────────
