@@ -56,3 +56,7 @@ export const IconChevronRight = (p: IconProps) => <Icon {...p}><path d="M9 6l6 6
 export const IconChevronLeft = (p: IconProps) => <Icon {...p}><path d="M15 6l-6 6 6 6"/></Icon>
 export const IconHelp = (p: IconProps) => <Icon {...p}><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></Icon>
 export const IconLayers = (p: IconProps) => <Icon {...p}><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5M3 18l9 5 9-5"/></Icon>
+// Luna / sol — añadidos para el toggle de tema (no vienen del handoff, que no
+// contemplaba modo oscuro). Mismo wrapper `Icon`: trazo 1.75, viewBox 24.
+export const IconMoon = (p: IconProps) => <Icon {...p}><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></Icon>
+export const IconSun = (p: IconProps) => <Icon {...p}><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2 12h2.4M19.6 12H22M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></Icon>

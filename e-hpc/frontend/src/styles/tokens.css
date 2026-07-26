@@ -219,6 +219,20 @@
   --danger: var(--brick-500);
   --danger-ink: var(--brick-600);
   --danger-soft: var(--brick-100);
+  /* Hover del relleno destructivo. NO puede ser --danger-ink: en oscuro esa
+     tinta se ACLARA (brick-300) y el blanco de encima desaparecería. */
+  --danger-hover: var(--brick-600);
+  /* Info (chip azul): --info es el RELLENO/borde (≥3:1) y --info-ink el TEXTO
+     sobre el chip (≥4.5:1). Separados porque en oscuro solo la tinta se aclara. */
+  --info: var(--steel-500);
+  --info-ink: var(--steel-600);
+
+  /* Superficie INVERSA (MD3 «inverse surface»): tooltips y toasts, que deben
+     leerse SOBRE el chrome sin confundirse con él. En claro es marrón oscuro;
+     en oscuro se invierte a claro — si no, el tooltip (--sand-900) coincidiría
+     exactamente con --surface-2 del tema oscuro y se volvería invisible. */
+  --inverse-surface: var(--sand-900);
+  --on-inverse-surface: var(--sand-50);
 
   /* ═══════════════ §3 · SEMANTIC — ESCALA DE ELEVACIÓN (0-4) ═══════════════
      Estilo "Dimensional Layering": cada nivel combina SUPERFICIE + BORDE +
@@ -374,8 +388,17 @@
   --viz-node: var(--sand-600);            /* 5.30:1 */
   --viz-node-master: var(--sand-800);     /* 8.20:1 */
   --viz-node-warn: var(--ochre-600);      /* 5.32:1 — blanco encima AA */
+  /* Tinta DENTRO de los rombos. Se invierte en oscuro: allí los rombos son
+     tonos CLAROS (sand-500/sand-400) y el blanco caería a 2.3:1. */
   --viz-on-node: #FFFFFF;
   --viz-packet: var(--clay-600);
+  /* Tinta del valor impreso DENTRO de cada barra de ComparisonBars. Una por
+     serie: el relleno lo decide la serie, así que la tinta también.
+       --viz-cpu-ink   blanco sobre clay-600      5.56:1 ✅
+       --viz-mem-ink   sand-975 sobre steel-500   4.77:1 ✅  (el blanco sobre
+                       el azul acero se queda en 3.99:1 e incumpliría AA) */
+  --viz-cpu-ink: var(--on-accent);
+  --viz-mem-ink: var(--sand-975);
 
   /* ── Escenas pixel-art (components/viz/PixelStudyScene) ──────────────────
      Roles REPRESENTACIONALES que no tienen equivalente semántico: piel, pelo,
@@ -414,8 +437,10 @@
   --bp-2xl: 1536px;
 }
 
-/* ── §7 · Tema oscuro — definido, SIN toggle en el MVP ──────────────────────
-   Reescrito en clave CÁLIDA (marrones oscuros; cero restos teal). Superficies
+/* ── §7 · Tema OSCURO — activo vía el toggle luna/sol del rail ──────────────
+   Lo aplica `stores/themeStore.ts` escribiendo data-theme="dark" en <html>
+   (eje INDEPENDIENTE de data-variant, que sigue fijo en v2).
+   Escrito en clave CÁLIDA (marrones oscuros; cero restos teal). Superficies
    tonales: más claras según suben de nivel, como manda MD3. Todos los textos
    verificados sobre --surface oscuro: --text 15.7:1 · --text-muted 9.4:1 ·
    tintas de estado ≥6.4:1 y escalonadas ≥1.35:1 entre sí en escala de grises. */
@@ -452,6 +477,23 @@
   --warn-soft: var(--ochre-900);
   --danger-ink: var(--brick-300);
   --danger-soft: var(--brick-900);
+  /* El hover no puede ir a --danger-ink (brick-300, casi rosa): el blanco de
+     encima caería a 1.6:1. brick-500 oscurece el botón y conserva 7.01:1. */
+  --danger-hover: var(--brick-500);
+  --info-ink: var(--steel-300);          /* 6.8:1 sobre el chip azul oscuro */
+
+  /* Superficie inversa: se DA LA VUELTA. En claro el tooltip/toast es marrón
+     oscuro; aquí pasa a arena claro con tinta oscura, que es lo único que se
+     separa del chrome (el --sand-900 de claro ES --surface-2 en oscuro). */
+  --inverse-surface: var(--sand-50);
+  --on-inverse-surface: var(--sand-975);
+
+  /* El filo blanco superior de inputs/buscador es un realce pensado para
+     superficies claras; al 65% sobre marrón oscuro se ve como una raya. */
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, .05);
+  /* La sombra del CTA también pasa a tinta negra: una sombra marrón sobre
+     fondo marrón oscuro no separa nada (el resto ya usa --shadow-rgb). */
+  --shadow-cta-rgb: 0, 0, 0;
   --btn-neutral-bg: #322620;
   --btn-neutral-border: #4A382C;
   --btn-neutral-hover: #3D2F26;
@@ -468,6 +510,14 @@
   --viz-mem: var(--steel-300);
   --viz-node: var(--sand-500);
   --viz-node-master: var(--sand-400);
+  /* Los rombos son CLAROS aquí: la tinta de dentro se invierte o el `t0`/
+     `master` desaparece (blanco sobre sand-400 = 1.82:1).
+       sand-975 sobre --viz-node (sand-500)          5.00:1 ✅
+       sand-975 sobre --viz-node-master (sand-400)  10.24:1 ✅ */
+  --viz-on-node: var(--sand-975);
+  /* Serie 1 en oscuro = clay-400: el blanco encima cae a 3.48:1, así que el
+     valor de la barra pasa a tinta oscura (5.46:1). La serie 2 ya la usaba. */
+  --viz-cpu-ink: var(--sand-975);
   /* Escena pixel-art: los roles representacionales que deben SEPARARSE del
      muro (ahora oscuro) suben de luminancia; la tinta baja, porque se dibuja
      ENCIMA de la piel (que sigue siendo clara) y no sobre el fondo. */
@@ -480,4 +530,46 @@
   --elevation-2: 0 2px 6px rgba(0, 0, 0, .40), 0 12px 24px -10px rgba(0, 0, 0, .55);
   --elevation-3: 0 4px 12px rgba(0, 0, 0, .45), 0 24px 44px -18px rgba(0, 0, 0, .65);
   --elevation-4: 0 8px 20px rgba(0, 0, 0, .55), 0 32px 64px -16px rgba(0, 0, 0, .75);
+}
+
+/* ═══════════════ §8 · MECÁNICA DEL EJE CLARO / OSCURO ══════════════════════
+   Todo lo que no es un token: cómo se pinta el cambio de tema.             */
+
+/* `color-scheme` alinea lo que dibuja el NAVEGADOR y no podemos tematizar con
+   tokens: barras de scroll nativas, desplegable de <select>, checkbox/radio,
+   autofill. Sin esto, en oscuro salen widgets blancos. */
+:root { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }
+
+/* Anti-destello. El tema lo aplica JS (la CSP prohíbe scripts inline), así que
+   entre el parseo del HTML y la ejecución del módulo <html> no tiene aún
+   data-theme. Para un usuario con el SO en oscuro eso sería un fogonazo
+   blanco: aquí se pre-tinta el lienzo mientras el atributo no exista. */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]),
+  html:not([data-theme]) body {
+    background: var(--sand-975);
+    color: var(--sand-50);
+  }
+}
+
+/* Transición suave AL CAMBIAR de tema. themeStore marca <html> con
+   `data-theme-transition` durante 240 ms y lo retira: así el cambio se funde
+   pero la app NO arrastra una transición global permanente (que retrasaría
+   cada hover). Va dentro de `no-preference` a propósito — el bloque de
+   prefers-reduced-motion de base.css usa `*` (especificidad 0,0,0) y este
+   selector lo ganaría aunque ambos sean !important. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme-transition],
+  [data-theme-transition] *,
+  [data-theme-transition] *::before,
+  [data-theme-transition] *::after {
+    transition:
+      background-color .22s var(--ease),
+      border-color .22s var(--ease),
+      color .22s var(--ease),
+      fill .22s var(--ease),
+      stroke .22s var(--ease),
+      box-shadow .22s var(--ease) !important;
+  }
 }

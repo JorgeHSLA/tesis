@@ -3,9 +3,11 @@
 // progreso REAL del servidor (progress fusionado de GET /modules, caché en
 // progressStore). Carga → skeleton de 8 cards; error → ErrorState con retry.
 import '../../styles/screens/catalog.css'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import type { ExampleSummaryDto } from '../../api/types'
 import { loadExamplesIndex } from '../../api/content'
+import type { CatalogNavState } from '../../components/shell/TopBar'
 import { ErrorState } from '../../components/ui/ErrorState'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { useSystemInfo } from '../../hooks/useSystemInfo'
@@ -22,16 +24,39 @@ export default function CatalogScreen() {
   const storeError = useProgressStore((s) => s.error)
   const hydrate = useProgressStore((s) => s.hydrate)
   const system = useSystemInfo()
+  const location = useLocation()
+  const navigate = useNavigate()
 
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<CatalogFilter>('all')
   const [examplesIndex, setExamplesIndex] = useState<Map<string, ExampleSummaryDto> | null>(null)
   // Acordeón de UN módulo abierto: default el del lastLessonId, si no M1.
   const [openId, setOpenId] = useState<string | null>(null)
+  // Petición de foco del botón «Buscar» del TopBar. Se guarda en estado porque
+  // la toolbar aún no existe mientras el catálogo carga (skeleton): la bandera
+  // espera y la consume la toolbar al montarse.
+  const [focusSearch, setFocusSearch] = useState(false)
 
   useEffect(() => {
     void hydrate()
   }, [hydrate])
+
+  // location.key cambia en CADA navegación, también /cursos → /cursos: pulsar
+  // «Buscar» estando ya en el catálogo vuelve a enfocar.
+  //
+  // Tras consumirla, la bandera se BORRA del history state. Si no, la entrada
+  // del historial se queda marcada para siempre y volver ATRÁS a esta pantalla
+  // (p. ej. desde una lección) robaría el foco otra vez sin que el usuario haya
+  // pedido nada — un cambio de contexto inesperado (WCAG 3.2.1/3.2.2). El
+  // `replace` no crea entrada nueva y el efecto vuelve a entrar una sola vez,
+  // ya con state null, así que no hay bucle.
+  useEffect(() => {
+    if ((location.state as CatalogNavState | null)?.focusSearch !== true) return
+    setFocusSearch(true)
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.key, location.state, location.pathname, navigate])
+
+  const handleSearchFocused = useCallback(() => setFocusSearch(false), [])
 
   useEffect(() => {
     let alive = true
@@ -116,7 +141,15 @@ export default function CatalogScreen() {
 
       <CatalogStats summary={summary} moduleCount={sorted.length} />
 
-      <CatalogToolbar query={query} onQuery={setQuery} filter={filter} onFilter={setFilter} totals={totals} />
+      <CatalogToolbar
+        query={query}
+        onQuery={setQuery}
+        filter={filter}
+        onFilter={setFilter}
+        totals={totals}
+        autoFocus={focusSearch}
+        onFocused={handleSearchFocused}
+      />
 
       <div className="catalog-modules">
         {sorted.map((mod) => (

@@ -402,7 +402,9 @@
   flex: 1; height: 6px; border-radius: 999px;
   background: var(--surface-3); overflow: hidden;
 }
-.module-progress-bar > div {
+/* `> *`, no `> div`: LessonSidebar pinta el relleno con un <span> y el selector
+   nunca casaba — la barra del módulo salía vacía en los dos temas. */
+.module-progress-bar > * {
   height: 100%;
   background: var(--primary);
   border-radius: 999px;

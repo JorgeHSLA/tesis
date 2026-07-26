@@ -1,7 +1,6 @@
 // AppShell — grid raíz del handoff §3.1: sidebar + main (topbar + Outlet).
-// El colapso 220⇄60px lo dirige sidebarStore vía las clases del <aside>
-// (.app:has(.sidebar.collapsed) en components.css); en v2 el rail fijo de
-// 52px lo impone [data-variant="v2"] .app (fix handoff §14.3).
+// El rail es FIJO (--sidebar-w en components.css): el colapso 220⇄60px del
+// prototipo se retiró junto con su botón (2026-07-26).
 // Conserva el scrollTo top smooth de `.main` al navegar (handoff §0.3);
 // con prefers-reduced-motion → behavior 'auto' (frontend-spec §2).
 import { useEffect, useRef } from 'react'

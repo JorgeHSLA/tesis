@@ -83,6 +83,9 @@
   background: var(--surface-3);
   overflow: hidden;
 }
+/* El valor va impreso DENTRO de la barra, sobre el color de su serie: la tinta
+   la aporta ComparisonBars por serie (--viz-cpu-ink / --viz-mem-ink). El valor
+   de aquí es solo el de reserva si alguien usa `.bar` sin tinta explícita. */
 .bar {
   display: flex;
   align-items: center;
@@ -90,7 +93,7 @@
   font-family: var(--font-mono);
   font-size: var(--fs-2xs);
   font-variant-numeric: tabular-nums;
-  color: var(--on-accent);
+  color: var(--viz-cpu-ink);
   white-space: nowrap;
   min-width: 24px;
   transition: width .4s var(--ease);
@@ -131,6 +134,13 @@
 .obs-info {
   background: var(--primary-soft);
   border-color: var(--border-accent);
+}
+/* Sobre superficie TEÑIDA toca --text-muted-strong (regla de tokens.css §2):
+   --text-muted se queda en 4.22:1 sobre --primary-soft e incumple AA. */
+.obs-warn p,
+.obs-ok p,
+.obs-info p {
+  color: var(--text-muted-strong);
 }
 .obs-icon {
   flex-shrink: 0;

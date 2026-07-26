@@ -69,9 +69,23 @@ export function LiveTopology({ nodes, running, reducedMotion }: LiveTopologyProp
                 </circle>
               </>
             )}
-            {/* Rombo del hilo (36×36) */}
+            {/* Rombo del hilo (36×36). El relleno va SIEMPRE opaco: la
+                actividad se expresa con un anillo terracota. Atenuando el
+                relleno (opacity 0.55→1) la etiqueta `t{i}` de encima caía
+                hasta 3.1:1 en claro y 3.3:1 en oscuro — por debajo de AA. */}
             <g transform={`translate(${wx} ${ROW_Y}) rotate(45)`}>
-              <rect x={-18} y={-18} width={36} height={36} rx={4} fill="var(--viz-node)" opacity={0.55 + t.activity * 0.45} />
+              <rect x={-18} y={-18} width={36} height={36} rx={4} fill="var(--viz-node)" />
+              <rect
+                x={-18}
+                y={-18}
+                width={36}
+                height={36}
+                rx={4}
+                fill="none"
+                stroke="var(--viz-packet)"
+                strokeWidth={2.5}
+                opacity={t.activity}
+              />
             </g>
             <text x={wx} y={ROW_Y + 4} textAnchor="middle" fontSize={9} fill="var(--viz-on-node)" fontFamily="var(--font-mono)">
               {t.id}

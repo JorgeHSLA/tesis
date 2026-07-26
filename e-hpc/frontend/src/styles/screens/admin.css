@@ -352,7 +352,7 @@
   margin-top: var(--sp-1);
 }
 
-/* ── Toast efímero (marrón oscuro en ambas variantes) ───────────────────── */
+/* ── Toast efímero — SUPERFICIE INVERSA (se da la vuelta con el tema) ────── */
 .admin-toast {
   position: fixed;
   z-index: var(--z-toast);
@@ -362,8 +362,8 @@
   max-width: min(90vw, 480px);
   padding: 11px var(--sp-4);
   border-radius: var(--r-md);
-  background: var(--sand-950);
-  color: var(--sand-50);
+  background: var(--inverse-surface);
+  color: var(--on-inverse-surface);
   font-size: var(--fs-sm);
   box-shadow: var(--elevation-4);
   animation: admin-toast-in 0.2s var(--ease);
@@ -379,9 +379,11 @@
   color: var(--on-accent);
   border-color: var(--danger);
 }
+/* --danger-hover, no --danger-ink: esa tinta se ACLARA en oscuro (brick-300) y
+   el blanco del botón se volvería ilegible al pasar el ratón. */
 .admin-btn-danger:hover {
-  background: var(--danger-ink);
-  border-color: var(--danger-ink);
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
 }
 .admin-btn-danger-ghost {
   color: var(--danger-ink);
