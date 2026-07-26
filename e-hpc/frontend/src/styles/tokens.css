@@ -197,6 +197,19 @@
   --primary: var(--sand-500);
   --primary-ink: var(--clay-700);
   --primary-soft: var(--sand-75);
+  /* Relleno de barras de progreso e indicadores de «actual». Existe porque
+     --primary (3.79:1) mide su contraste contra BLANCO, y estas marcas no se
+     pintan sobre blanco sino sobre un pozo o una superficie TEÑIDA, donde cae
+     por debajo del 3:1 que exige WCAG 1.4.11:
+         --primary  sobre --surface-3 (pozo)      2.85:1 ❌
+         --primary  sobre --primary-soft          2.99:1 ❌
+         --progress sobre --surface-3             3.98:1 ✅
+         --progress sobre --primary-soft          4.17:1 ✅
+     Es el mismo escalón que ya se aplica al TEXTO sobre superficies teñidas
+     (--text-muted → --text-muted-strong): un paso más de la rampa sand, no un
+     matiz nuevo — la terracota sigue reservada al CTA y al logro.
+     En oscuro NO hace falta escalón: el pozo es casi negro (10.79:1). */
+  --progress: var(--sand-600);
   --ring: var(--clay-600);
 
   /* Botones NEUTROS — subtono cálido (sin él se leen como "blancos"). */
@@ -465,6 +478,9 @@
   --primary: var(--sand-400);
   --primary-ink: var(--clay-300);
   --primary-soft: var(--sand-850);
+  /* Sobre el pozo casi negro del tema oscuro el taupe ya da 10.79:1: aquí el
+     relleno NO necesita oscurecerse (sand-600 se hundiría en el fondo). */
+  --progress: var(--sand-400);
   /* Los tokens BASE de estado también se redefinen: en claro son tonos medios
      (5.21 / 3.61 / 7.01 vs blanco) que sobre fondo oscuro caían a 2.91 y 2.16.
      --warn NO se redefine porque el ocre ya da 4.20:1 sobre el oscuro.

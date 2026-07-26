@@ -285,7 +285,7 @@
    aunque el porcentaje de al lado dijera 50%. */
 .cat-prog-bar > * {
   height: 100%;
-  background: var(--primary);
+  background: var(--progress);
   border-radius: 999px;
 }
 
