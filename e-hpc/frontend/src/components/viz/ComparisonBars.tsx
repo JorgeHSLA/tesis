@@ -17,6 +17,9 @@ interface Row {
   label: string
   time: number
   color: string
+  /** Tinta del valor impreso DENTRO de la barra: depende del relleno de la
+   *  serie, no del tema (los tokens ya se invierten solos). */
+  ink: string
 }
 
 export function ComparisonBars({ parallel_time_s, reference_time_s, reference_label }: ComparisonBarsProps) {
@@ -28,8 +31,8 @@ export function ComparisonBars({ parallel_time_s, reference_time_s, reference_la
   }, [])
 
   const rows: Row[] = [
-    { label: 'openmp', time: parallel_time_s, color: 'var(--viz-cpu)' },
-    { label: reference_label, time: reference_time_s, color: 'var(--viz-mem)' },
+    { label: 'openmp', time: parallel_time_s, color: 'var(--viz-cpu)', ink: 'var(--viz-cpu-ink)' },
+    { label: reference_label, time: reference_time_s, color: 'var(--viz-mem)', ink: 'var(--viz-mem-ink)' },
   ]
   const maxTime = Math.max(...rows.map((r) => r.time), 1e-9)
 
@@ -46,7 +49,7 @@ export function ComparisonBars({ parallel_time_s, reference_time_s, reference_la
             <div className="bar-track">
               <div
                 className="bar"
-                style={{ width: grown ? `${(r.time / maxTime) * 100}%` : '0%', background: r.color }}
+                style={{ width: grown ? `${(r.time / maxTime) * 100}%` : '0%', background: r.color, color: r.ink }}
               >
                 {r.time.toFixed(3)} s
               </div>

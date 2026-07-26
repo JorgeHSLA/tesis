@@ -1,19 +1,17 @@
-// Sidebar — port literal del shell.jsx del handoff (§3.2), con NavLink en
-// lugar de botones y RuntimeFooter real. Estado de colapso en sidebarStore
-// (persist 'ehpc-sidebar-expanded', default colapsado). Tooltips en colapsado
-// vía ::after + data-tip (CSS). brand-sub adaptado: `v1.0 · local` (§6.0).
+// Sidebar — port del shell.jsx del handoff (§3.2), con NavLink en lugar de
+// botones y RuntimeFooter real. Es un RAIL FIJO de 56px: los textos largos del
+// menú viven en el tooltip (::after + data-tip).
+//
+// 2026-07-26: se retira el botón «Colapsar». El rediseño del rail lo dejó en
+// `display: none` permanente y las clases .expanded/.collapsed que escribía ya
+// no las lee ninguna hoja: era un control muerto. Con él se va sidebarStore,
+// que no tenía más consumidores.
+//
+// Arriba, junto a la marca, va el conmutador de tema claro ⇄ oscuro.
 import { NavLink, useLocation } from 'react-router-dom'
-import { useSidebarStore } from '../../stores/sidebarStore'
-import {
-  IconBook,
-  IconChevronLeft,
-  IconChevronRight,
-  IconCluster,
-  IconHome,
-  IconResults,
-  type IconProps,
-} from '../icons/icons'
+import { IconBook, IconCluster, IconHome, IconResults, type IconProps } from '../icons/icons'
 import { RuntimeFooter } from './RuntimeFooter'
+import { ThemeToggle } from './ThemeToggle'
 
 interface NavItem {
   to: string
@@ -47,12 +45,10 @@ const NAV_SECTIONS: NavSection[] = [
 ]
 
 export function Sidebar() {
-  const expanded = useSidebarStore((s) => s.expanded)
-  const toggle = useSidebarStore((s) => s.toggle)
   const { pathname } = useLocation()
 
   return (
-    <aside className={'sidebar ' + (expanded ? 'expanded' : 'collapsed')}>
+    <aside className="sidebar">
       <div className="sidebar-brand">
         <div className="sidebar-brand-mark" aria-hidden="true">E</div>
         <div className="sidebar-brand-textwrap">
@@ -61,16 +57,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <button
-        className="sidebar-toggle"
-        onClick={toggle}
-        title={expanded ? 'Colapsar menú' : 'Expandir menú'}
-        aria-label={expanded ? 'Colapsar menú' : 'Expandir menú'}
-        aria-expanded={expanded}
-      >
-        {expanded ? <IconChevronLeft size={14} /> : <IconChevronRight size={14} />}
-        <span className="nav-label">Colapsar</span>
-      </button>
+      <ThemeToggle />
 
       <nav className="sidebar-nav" aria-label="Navegación principal">
         {NAV_SECTIONS.map((section) => (

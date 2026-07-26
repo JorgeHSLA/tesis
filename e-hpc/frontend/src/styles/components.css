@@ -62,10 +62,18 @@
 .sidebar-brand-text,
 .sidebar-brand-sub,
 .nav-section-label,
-.sidebar-toggle,
 .sidebar-footer-text {
   display: none;
 }
+
+/* Conmutador de tema: mismo tamaño y afordancia que un .nav-item, pero es una
+   ACCIÓN, no un destino → nunca lleva estado activo ni barra de marca. */
+.theme-toggle {
+  color: var(--text-muted);
+  margin-bottom: var(--sp-2);
+}
+.theme-toggle:hover { color: var(--text); }
+.theme-toggle .nav-icon { color: inherit; }
 
 .sidebar-nav {
   display: flex;
@@ -148,15 +156,17 @@
 }
 .nav-item.active .nav-icon { color: var(--primary-ink); }
 
-/* Tooltip del rail (::after con attr(data-tip)) — overlay marrón oscuro. */
+/* Tooltip del rail (::after con attr(data-tip)) — SUPERFICIE INVERSA: marrón
+   oscuro en claro, arena claro en oscuro. Con --sand-900 fijo el tooltip
+   coincidía exactamente con --surface-2 del tema oscuro y no se veía. */
 .nav-item::after {
   content: attr(data-tip);
   position: absolute;
   left: calc(100% + 10px);
   top: 50%;
   transform: translateY(-50%) translateX(-4px);
-  background: var(--sand-900);
-  color: var(--sand-50);
+  background: var(--inverse-surface);
+  color: var(--on-inverse-surface);
   padding: 5px 9px;
   border-radius: var(--r-sm);
   font-size: var(--fs-xs);
@@ -422,6 +432,88 @@
 }
 .card-sub { font-size: var(--fs-xs); color: var(--text-muted); }
 
+/* ═════════ Diálogo del shell (nivel 3-4 de elevación) ══════════════════
+   Genérico del área de estudiante; el modo autoría tiene el suyo
+   (.admin-modal), con su propia densidad y su savebar. */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-backdrop);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5);
+  /* Scrim ≥40%: aísla el contenido de detrás en los dos temas. */
+  background: color-mix(in srgb, var(--sand-990) 52%, transparent);
+  animation: dialog-fade-in .14s var(--ease);
+}
+.dialog {
+  position: relative;
+  z-index: var(--z-modal);
+  width: 100%;
+  max-width: var(--dialog-w-md);
+  max-height: calc(100dvh - 2 * var(--sp-5));
+  overflow-y: auto;
+  box-shadow: var(--elevation-4);
+}
+.dialog-body {
+  padding: var(--card-pad);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.dialog-lead {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  max-width: var(--measure);
+  line-height: 1.6;
+}
+.dialog-note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.dialog-note b { color: var(--text); }
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: 0 var(--card-pad) var(--card-pad);
+}
+/* Ficha clave/valor del «Acerca de»: una columna en móvil, dos en cuanto cabe. */
+.about-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px var(--sp-4);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+@media (min-width: 640px) {
+  .about-grid { grid-template-columns: auto minmax(0, 1fr); }
+}
+.about-grid dt {
+  font-weight: 600;
+  color: var(--text);
+}
+.about-grid dd {
+  margin: 0 0 var(--sp-2);
+  overflow-wrap: anywhere;
+}
+.about-grid dd code {
+  font-family: var(--font-mono);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+@keyframes dialog-fade-in {
+  from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialog-backdrop { animation: none; }
+}
+
 /* ═══════════════════════ Chips (handoff §2.4) ══════════════════════════ */
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
@@ -440,10 +532,13 @@
 .chip-orange { background: var(--accent-soft); color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 28%, transparent); }
 .chip-red { background: var(--danger-soft); color: var(--danger-ink); border-color: color-mix(in srgb, var(--danger) 28%, transparent); }
 .chip-amber { background: var(--warn-soft); color: var(--warn-ink); border-color: color-mix(in srgb, var(--warn) 28%, transparent); }
+/* El azul es el único estado sin token propio en la rampa cálida: --info /
+   --info-ink lo formalizan (y la tinta se aclara sola en oscuro, donde el
+   steel-600 sobre el mix oscuro se quedaba en 1.6:1). */
 .chip-blue {
-  background: color-mix(in srgb, var(--steel-500) 10%, var(--surface));
-  color: var(--steel-600); /* 5.62:1 sobre su fondo: es texto */
-  border-color: color-mix(in srgb, var(--steel-500) 28%, transparent);
+  background: color-mix(in srgb, var(--info) 10%, var(--surface));
+  color: var(--info-ink); /* 5.62:1 claro · 6.8:1 oscuro sobre su fondo */
+  border-color: color-mix(in srgb, var(--info) 28%, transparent);
 }
 
 /* ═══════════════════════ Inputs (handoff §2.5) ═════════════════════════
@@ -623,9 +718,16 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
   transition: width .6s var(--ease);
   border-radius: 999px;
 }
+/* El % va DENTRO de la barra, así que puede caer sobre el relleno o sobre el
+   pozo según el valor — y el relleno lo elige quien la usa. Se le da una placa
+   translúcida de --surface para que el texto tenga SIEMPRE un fondo conocido:
+   así cumple AA en los dos temas y con cualquier color de relleno. */
 .mini-bar-label {
   position: absolute;
-  right: 8px; top: 50%; transform: translateY(-50%);
+  right: 4px; top: 50%; transform: translateY(-50%);
+  padding: 0 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
   color: var(--text);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;

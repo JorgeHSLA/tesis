@@ -93,6 +93,21 @@ const PAIRS = [
   ['texto de terminal', '--term-text', '--term-bg', 4.5],
   ['texto atenuado de terminal', '--term-dim', '--term-bg', 4.5],
   ['acento de terminal', '--term-accent', '--term-bg', 4.5],
+  ['texto de tooltip/toast sobre superficie inversa', '--on-inverse-surface', '--inverse-surface', 4.5],
+  ['superficie inversa contra el chrome', '--inverse-surface', '--surface', 3.0],
+  ['superficie inversa contra la sub-superficie', '--inverse-surface', '--surface-2', 3.0],
+  ['blanco sobre danger hover', '--on-accent', '--danger-hover', 4.5],
+  ['dot info sobre tarjeta', '--info', '--surface', 3.0],
+  ['tinta del valor sobre la barra CPU', '--viz-cpu-ink', '--viz-cpu', 4.5],
+  ['tinta del valor sobre la barra memoria', '--viz-mem-ink', '--viz-mem', 4.5],
+  ['tinta dentro del rombo de hilo', '--viz-on-node', '--viz-node', 4.5],
+  ['tinta dentro del rombo maestro', '--viz-on-node', '--viz-node-master', 4.5],
+  ['rombo de aviso contra la tarjeta', '--viz-node-warn', '--surface', 3.0],
+  ['rombo de hilo contra la tarjeta', '--viz-node', '--surface', 3.0],
+  ['rombo maestro contra la tarjeta', '--viz-node-master', '--surface', 3.0],
+  ['serie 1 (cpu) contra la tarjeta', '--viz-cpu', '--surface', 3.0],
+  ['dot success sobre el pozo', '--success', '--surface-3', 3.0],
+  ['tinta atenuada sobre sub-superficie', '--text-muted', '--surface-2', 4.5],
 ]
 
 console.log('\n| par | frente | fondo | ratio | umbral | AA |')

@@ -151,10 +151,12 @@
   border-radius: 4px;
   font-variant-numeric: tabular-nums;
 }
-/* Oscurecer (no aclarar): el blanco del contador sigue AA sobre el pill. */
+/* El pill activo se pinta con --text, que SE INVIERTE con el tema: el contador
+   de dentro tiene que usar la misma tinta inversa que el pill (con
+   --on-accent quedaba blanco sobre arena claro en oscuro). */
 .fpill.active .fpill-n {
-  background: color-mix(in srgb, var(--on-accent) 18%, transparent);
-  color: var(--on-accent);
+  background: color-mix(in srgb, var(--on-inverse) 18%, transparent);
+  color: var(--on-inverse);
 }
 
 @media (pointer: coarse) {
@@ -278,7 +280,10 @@
   border-radius: 999px;
   overflow: hidden;
 }
-.cat-prog-bar > div {
+/* `> *`, no `> div`: el relleno que pinta ModuleAccordion es un <span>, así que
+   el selector nunca casaba y la barra salía SIEMPRE vacía (en los dos temas)
+   aunque el porcentaje de al lado dijera 50%. */
+.cat-prog-bar > * {
   height: 100%;
   background: var(--primary);
   border-radius: 999px;
