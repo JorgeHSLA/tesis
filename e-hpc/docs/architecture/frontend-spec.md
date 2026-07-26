@@ -331,7 +331,11 @@ cambiar de job. Idempotente ante StrictMode (guarda instancia en ref y cierra la
 
 ## 5. Sistema de diseño
 
-### 5.0 Rediseño visual 2026-07 — dirección VIGENTE (supera el look del handoff)
+### 5.0 Rediseño visual 2026-07 — dirección de MARCA (paleta y tono)
+
+> **Superado en superficie/elevación/layout por §5.0.1 (2026-07-25).** La paleta de marca
+> (teal + naranja), la tipografía y el criterio de "un solo acento" siguen VIGENTES; los
+> valores concretos de `--bg`, bordes, sombras, espaciado y tipografía los fija §5.0.1.
 
 Aprobada por mockup (paleta "Teal de progreso + Naranja de logro"). Receta Coursera/Udemy:
 
@@ -357,7 +361,80 @@ Aprobada por mockup (paleta "Teal de progreso + Naranja de logro"). Receta Cours
   `prefers-reduced-motion` global, focus visible `--ring`, cero requests de red (fuentes
   self-hosted), semántica accesible intacta (E2E 15/15 sin tocar la suite).
 
-### 5.1 Port de tokens y variantes *(histórico — superado por §5.0 en lo visual)*
+### 5.0.1 Sistema de LAYOUT RESPONSIVE + ELEVACIÓN (2026-07-25) — VIGENTE
+
+Corrige dos defectos **sistémicos** que afectaban a todas las pantallas. La solución vive en
+`styles/tokens.css` (capa *semantic*); los componentes consumen tokens, nunca literales.
+
+**Arquitectura de tokens en 3 capas** (skill `design-system`):
+`primitive` (rampas teal/naranja/slate, tinta de sombra) → `semantic` (§2-§6 de tokens.css:
+superficies, elevación, layout fluido, tipografía fluida, breakpoints) → `component`
+(components.css / screens/*.css).
+
+**D1 · Superficies y elevación** — antes `--bg` era `--slate-50` contra `--surface #FFFFFF`
+(1.05:1, invisible), `--shadow-sm` era `0 1px 0 rgba(15,23,42,.04)` y `--shadow-cta: none`.
+
+| Token | Valor | Rol | Contraste vs blanco |
+|---|---|---|---|
+| `--surface` | `#FFFFFF` | tarjeta y chrome (sidebar, topbar) | — |
+| `--surface-2` | `#EFF3F8` | sub-superficie DENTRO de la tarjeta (card-head, hovers, chips) | 1.11:1 |
+| `--bg` | `#E8EDF4` | lienzo hundido (`.main`) | **1.18:1** |
+| `--surface-3` | `#DFE6EE` | pozos: tracks de progreso, barras | 1.26:1 |
+
+- **Escala de elevación** `--elevation-0..4`: 0 base · 1 tarjeta en reposo · 2 tarjeta
+  elevada/hover/destacada · 3 overlay (diálogo, dropdown, savebar) · 4 sobre backdrop.
+  `--shadow-sm/md/lg` quedan como alias de 1/2/3 (una sola definición de elevación).
+- **`--shadow-cta` RECUPERADA** (estaba en `none`): el botón primario vuelve a elevarse.
+- **Bordes con dos pesos**: `--border #CFD8E3` estructural (1.44:1, antes 1.23:1) y
+  `--border-strong #8294AA` cuando el borde **es** la affordance —inputs, select, buscador,
+  dropzone, opciones de quiz— con **3.10:1 ⇒ WCAG 1.4.11 (UI ≥ 3:1)**.
+- `--text-muted` sube a `--slate-600`: sobre el lienzo más oscuro da 6.44:1 (el `--slate-500`
+  anterior caía a 4.05:1, por debajo de AA).
+
+**D2 · Layout fluido** — antes: un único breakpoint real (980px), `.screen { max-width: 1280px }`
+global y el parche puntual `.screen.learn { max-width: 1680px }`.
+
+- **Contenedor fluido**: `.screen` es `width:100%; max-width: var(--screen-max /*2040px*/);
+  margin-inline:auto`. Desaparecen el cap de 1280 y el parche de learn. La **medida de lectura**
+  se acota aparte y solo sobre columnas de TEXTO (`--measure: 70ch`, `--measure-narrow: 46ch`).
+- **Ritmo y tipografía fluidos con `clamp()`**: `--screen-pad-x/y`, `--section-gap`, `--card-pad`,
+  `--grid-gap` y la escala `--fs-2xs … --fs-3xl` (px+vw, independiente del `font-size` raíz, que
+  también es fluido: 15px → 16.4px).
+- **Grillas adaptativas**: `repeat(auto-fit, minmax(min(100%, var(--col-min-*)), 1fr))` en
+  métricas, qcards, pasos, stats y opciones avanzadas. Los `1fr` son `minmax(0,1fr)` y los hijos
+  de grid llevan `min-width:0` (sin eso el código `white-space:pre` impide encoger la columna).
+- **Container queries** donde el reflow depende del ancho de la PROPIA tarjeta, no del viewport:
+  `.results-table` (760px), `.threads-table` (520px), `.cat-module-head` (620px), `.metric-card`
+  (210px). Sustituyen a los `@media` de viewport, que fallaban con la tarjeta en columna estrecha.
+- **Set único de breakpoints** documentado en tokens.css §6: **640 / 768 / 1024 / 1280 / 1536**,
+  enfoque *mobile-first* (`min-width`). Los sueltos 980 / 900 / 800 / 720 quedaron migrados.
+- **Objetivos táctiles**: `@media (pointer: coarse)` sube botones, nav e inputs a 44px.
+
+**Variante**: la app quedó fija en v2, así que los dos bloques de tokens duplicados
+(`:root` cálido + `:root[data-variant="v2"]`) se **consolidaron en un único `:root`**, y los
+overrides `[data-variant="v2"] .x` que solo repetían densidad se fundieron en la regla base.
+El atributo `data-variant="v2"` **sigue** en `<html>` (index.html + `stores/themeStore`).
+
+**Gráficas** (siguen SVG a mano, cero librerías — §8): `LiveTopology`/`ThreadTopology`/
+`HomeThreadsDiagram` pierden el alto fijo y lo derivan del `viewBox` (con `height` fijo el
+dibujo encogía y dejaba franja vertical vacía); `Sparkline` pasa a `width:100%` con
+`preserveAspectRatio="none"` + `vector-effect="non-scaling-stroke"`.
+
+**Electron**: `WINDOW_BACKGROUND_COLOR` pasa de `#FDF8EE` (crema de la v1 retirada) a `#E8EDF4`
+para seguir a `--bg`, y `minWidth` de la ventana baja de 980 a 640 (= `--bp-sm`).
+
+**Verificación medida** (build en Docker + Playwright):
+
+| Criterio | Resultado |
+|---|---|
+| Franja muerta a la derecha @1920 | **588px → 0px** (learn 188 → 0) |
+| Franja muerta @1440 | **108px → 0px** |
+| Scroll horizontal / desbordes @1920·1440·1280·1024·768·375 | **0** en las 5 pantallas + admin |
+| Contraste AA del texto renderizado | **508 nodos, 0 incumplimientos** |
+| E2E Playwright | **16/16** · Vitest **235/235** · `tsc` limpio |
+| Electron (WSLg) | app **1908×972 = viewport exacto**, 0 requests de red externas |
+
+### 5.1 Port de tokens y variantes *(histórico — superado por §5.0/§5.0.1 en lo visual)*
 
 - `styles/tokens.css` porta **literales** los bloques §1.2 (paleta v1), §1.3 (radios/sombras/
   `--ease`), §1.4 (`[data-theme="dark"]` — se conserva definido, sin toggle en MVP) y §1.5
@@ -371,14 +448,16 @@ Aprobada por mockup (paleta "Teal de progreso + Naranja de logro"). Receta Cours
 
 ### 5.2 Correcciones de los 4 bugs CSS del prototipo (handoff §14)
 
-1. **`.home .hero`**: se implementa el grid intencional `grid-template-columns: 1.15fr 1fr;
-   gap: 48px` (la regla que el comentario `//` inválido mataba). En v2: 1 columna y
-   `.hero-right { display:none }` como especifica el handoff.
+1. **`.home .hero`**: se implementa el grid intencional `grid-template-columns: 1.15fr 1fr`
+   (la regla que el comentario `//` inválido mataba). *(Actualizado en §5.0.1: el hero es
+   mobile-first —1 columna— y pasa a `minmax(0,1.15fr) minmax(0,1fr)` desde `--bp-lg`; el
+   diagrama fork-join NO se oculta, es el visual educativo central.)*
 2. **Bloque huérfano `.hero-stats`**: no se porta (código muerto); se elimina junto con
    `.tutorial-panel`, `.tut-visual`, `TutVisualUpload/Cluster`.
-3. **`.v2 .app { grid-template-columns: 52px 1fr }`**: con la unificación pasa a
-   `[data-variant="v2"] .app { grid-template-columns: 52px 1fr; }` y **sí aplica** → rail v2 de
-   52 px (intención de diseño). Verificación visual contra el prototipo en la primera build.
+3. **`.v2 .app { grid-template-columns: 52px 1fr }`**: con la unificación el rail v2 **sí
+   aplica**. *(Actualizado en §5.0.1: al quedar v2 como única variante, el rail se declara en la
+   regla base `.app { --sidebar-w: 56px }` —56 px, para que el ítem de nav llegue a 40 px— y
+   sube a 44 px de objetivo táctil bajo `@media (pointer: coarse)`.)*
 4. **`var(--ink)`** en `.fpill.active` v2 → `var(--text)`. **`var(--success)`** en `· Completado`
    → token nuevo `--success` (§5.1).
 

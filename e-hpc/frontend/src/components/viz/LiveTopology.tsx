@@ -32,8 +32,12 @@ export function LiveTopology({ nodes, running, reducedMotion }: LiveTopologyProp
   const startX = MASTER.x - ((n - 1) * spacing) / 2
   const animate = running && !reducedMotion
 
+  // Responsive sin librerías: viewBox + width 100% y SIN alto fijo, para que el
+  // alto se derive de la proporción. Con `height={H}` fijo el dibujo se encogía
+  // (preserveAspectRatio "meet") y dejaba franja vertical vacía en contenedores
+  // estrechos.
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={`Hilo maestro y ${n} hilos del equipo (representación didáctica)`} style={{ display: 'block' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`Hilo maestro y ${n} hilos del equipo (representación didáctica)`} style={{ display: 'block', height: 'auto' }}>
       {/* Halo pulsante del maestro (decorativo; sin SMIL con reduced-motion) */}
       <circle cx={MASTER.x} cy={MASTER.y} r={38} fill="var(--viz-node)" fillOpacity={0.08}>
         {animate && <animate attributeName="r" values="30;42;30" dur="2s" repeatCount="indefinite" />}

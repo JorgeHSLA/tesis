@@ -26,9 +26,25 @@ export function Sparkline({ data, max }: SparklineProps) {
   })
   const area = `M0,${H} L${coords.join(' L')} L${W},${H} Z`
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true" style={{ display: 'block' }}>
+    /* Responsive: ocupa el ancho de la MetricCard conservando el alto de 28px.
+       `preserveAspectRatio="none"` estira solo en X y `vector-effect` mantiene
+       el grosor del trazo (evita el engorde al escalar). Cero librerías. */
+    <svg
+      width="100%"
+      height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      style={{ display: 'block' }}
+    >
       <path d={area} fill="var(--viz-cpu)" fillOpacity={0.12} stroke="none" />
-      <polyline points={coords.join(' ')} fill="none" stroke="var(--viz-cpu)" strokeWidth={1.5} />
+      <polyline
+        points={coords.join(' ')}
+        fill="none"
+        stroke="var(--viz-cpu)"
+        strokeWidth={1.5}
+        vectorEffect="non-scaling-stroke"
+      />
     </svg>
   )
 }

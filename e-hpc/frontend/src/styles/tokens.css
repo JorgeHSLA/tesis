@@ -1,12 +1,33 @@
-/* tokens.css — ÚNICA fuente de color/espaciado/tipografía (rediseño 2026-07,
-   supera el handoff cálido; ver docs/architecture/frontend-spec.md §1).
-   Dirección "plataforma de curso" (receta Coursera/Udemy): fondo neutro
-   clarísimo, tarjetas blancas que flotan, UN acento (naranja) para CTAs,
-   teal = progreso/marca, slate para texto secundario.
-   La conmutación de variante sigue siendo SOLO `data-variant` en <html>
-   (frontend-spec §5.1); el tema dark se conserva definido, sin toggle en MVP. */
+/* tokens.css — ÚNICA fuente de color / espaciado / tipografía / ELEVACIÓN /
+   BREAKPOINTS de la app (ver docs/architecture/frontend-spec.md §1).
 
-/* ── §1.2 Paleta v1 — "v1 · curso" (Teal de progreso + Naranja de logro) ── */
+   Arquitectura de 3 capas (skill `design-system`, "Token Architecture"):
+
+       PRIMITIVE  (§1)  valores crudos: rampas teal/naranja/slate, tinta de sombra
+            ↓
+       SEMANTIC   (§2-§6)  propósito: superficies, elevación, layout fluido,
+                           escala tipográfica fluida, breakpoints
+            ↓
+       COMPONENT  (components.css / screens/*.css) consumen SOLO var(--token)
+
+   Rediseño 2026-07-25 — dos defectos sistémicos corregidos AQUÍ, no por pantalla:
+     D1 «todo se ve blanco»: --bg era --slate-50 (#F8FAFC) contra --surface
+        #FFFFFF ⇒ 1.23:1, --shadow-sm era `0 1px 0 rgba(15,23,42,.04)`
+        (invisible) y --shadow-cta estaba en `none`. Ahora hay 4 niveles de
+        superficie separables a simple vista SIN usar el naranja de acento (§2)
+        y una escala de elevación semántica de 5 pasos (§3).
+     D2 «no llena la pantalla»: el layout vivía con UN breakpoint (980px) y un
+        cap duro de 1280px (+ el parche `.screen.learn: 1680px`). Ahora:
+        contenedor fluido (§4), espaciado y tipografía con clamp() (§4-§5) y un
+        set único de breakpoints (§6).
+
+   VARIANTE: la app quedó fija en v2 (el switch v1/v2 se retiró). Los dos bloques
+   de tokens duplicados (`:root` cálido + `:root[data-variant="v2"]`) se
+   CONSOLIDARON en este único `:root`. El atributo `data-variant="v2"` sigue en
+   <html> (lo fijan index.html + stores/themeStore) porque el resto del CSS lo
+   usa como selector de densidad ([data-variant="v2"] .x); no se toca. */
+
+/* ═══════════════════════ §1 · PRIMITIVE — valores crudos ═══════════════════ */
 :root {
   /* Teal — marca, progreso, estados positivos */
   --teal-50: #F0FDFA;
@@ -20,7 +41,7 @@
   --teal-800: #115E59;
   --teal-900: #134E4A;
 
-  /* Naranja — EL acento: CTAs y momentos de logro (conserva el naranja E-HPC) */
+  /* Naranja — EL acento: CTAs y momentos de logro (naranja E-HPC) */
   --orange-50: #FFF7ED;
   --orange-100: #FFEDD5;
   --orange-200: #FED7AA;
@@ -30,7 +51,7 @@
   --orange-600: #C2410C;
   --orange-700: #9A3412;
 
-  /* Slate — neutros fríos: bordes, texto atenuado */
+  /* Slate — neutros fríos: superficies, bordes, texto atenuado */
   --slate-50: #F8FAFC;
   --slate-100: #F1F5F9;
   --slate-200: #E2E8F0;
@@ -48,41 +69,62 @@
   --red-500: #DC2626;
   --blue-500: #0369A1;
 
-  /* Semánticos — superficie y texto */
-  --bg: var(--teal-50);
-  --surface: #FFFFFF;
-  --surface-2: #E8F1F4;              /* muted: chips neutros, hovers, thumbs */
-  --border: var(--slate-200);
-  --border-strong: var(--slate-300);
-  --border-accent: var(--teal-300);  /* borde de cards/banners destacados */
-  --text: var(--teal-900);
-  --text-muted: var(--slate-500);
-  /* Texto secundario sobre superficies TEÑIDAS (--surface-2, *-soft):
-     --text-muted solo da 4.1-4.3:1 ahí; este llega a 6.6:1+. */
-  --text-muted-strong: var(--slate-600);
+  /* Tinta de las sombras: slate-900. Una sola familia para toda la escala. */
+  --shadow-rgb: 15, 23, 42;
+  --shadow-cta-rgb: 124, 45, 18;   /* naranja quemado: sombra del CTA */
 
-  /* Semánticos — acción y marca */
-  /* --accent es AA-seguro en AMBOS sentidos: blanco sobre él 4.61:1 y él
-     como texto sobre blanco 4.61:1. El naranja vivo --orange-500 queda para
-     usos decorativos/UI (3.56:1 ≥ 3:1), nunca texto normal sobre blanco. */
-  --accent: #CC4A0B;                 /* CTA primario (AA 4.61:1 con blanco) */
+  /* ═════════════════ §2 · SEMANTIC — superficies (4 niveles) ═══════════════
+     Escalonadas por LUMINANCIA, sin recurrir al acento. Contraste medido
+     contra --surface (blanco):
+       --surface   #FFFFFF  1.00     ← tarjeta / chrome (sidebar, topbar)
+       --surface-2 #EFF3F8  1.09:1   ← sub-superficie DENTRO de una tarjeta
+       --bg        #E8EDF4  1.18:1   ← lienzo hundido (área de contenido)
+       --surface-3 #DFE6EE  1.26:1   ← pozos: tracks de progreso, separadores
+     Antes la página (#F8FAFC) daba 1.05:1 contra la tarjeta blanca: el ojo no
+     distinguía dónde empezaba una caja. Ahora el lienzo es claramente más
+     oscuro que la tarjeta y el orden de lectura es inequívoco. */
+  --bg: #E8EDF4;                 /* lienzo: .main, área de contenido */
+  --surface: #FFFFFF;            /* tarjetas y chrome */
+  --surface-2: #EFF3F8;          /* card-head, hovers, chips neutros */
+  --surface-3: #DFE6EE;          /* tracks/pozos: barras, thumbs, wells */
+  --surface-overlay: #FFFFFF;    /* modales, dropdowns, toasts claros */
+
+  /* Bordes — dos pesos con propósito distinto:
+       --border         estructural (tarjeta, separador): 1.44:1 vs blanco.
+                        Antes era --slate-200 (1.23:1), ilegible al 100% zoom.
+       --border-strong  el borde ES la affordance (inputs, select, dropzone):
+                        3.10:1 vs blanco ⇒ cumple WCAG 1.4.11 (UI ≥ 3:1). */
+  --border: #CFD8E3;
+  --border-strong: #8294AA;
+  --border-input: var(--border-strong);
+  --border-accent: var(--teal-400);   /* tarjeta/banner destacado (1.86:1) */
+
+  /* Texto — --text-muted sube a slate-600: sobre el lienzo --bg da 6.44:1;
+     el slate-500 anterior solo llegaba a 4.05:1 ⇒ incumplía AA al oscurecer
+     la página. Sobre --surface blanco da 7.58:1. */
+  --text: var(--slate-900);
+  --text-muted: var(--slate-600);
+  --text-muted-strong: var(--slate-700);   /* sobre superficies teñidas */
+
+  /* Acción y marca — sin cambios de paleta (teal + naranja de marca).
+     --accent es AA en ambos sentidos: blanco sobre él 4.61:1 y él como texto
+     sobre blanco 4.61:1. --orange-500 queda para uso decorativo/UI (3.56:1). */
+  --accent: #CC4A0B;
   --accent-hover: #A83B08;
   --accent-soft: var(--orange-100);
   --on-accent: #FFFFFF;
-  --primary: var(--teal-600);        /* progreso, chips activos, links de marca */
-  --primary-ink: var(--teal-700);    /* texto teal AA sobre blanco/soft */
+  --primary: var(--teal-600);
+  --primary-ink: var(--teal-700);
   --primary-soft: var(--teal-100);
   --ring: var(--teal-600);
 
-  /* Botones NEUTROS — subtono azul claro (antes se veían "blancos"). El texto
-     slate oscuro (--text) encima da contraste holgado (>12:1 AA). Los CTA
-     (--accent) siguen naranja: estos tokens solo tocan .btn/.btn-outline. */
+  /* Botones NEUTROS — subtono azul claro (sin él se leen como "blancos"). */
   --btn-neutral-bg: #EEF4FF;
-  --btn-neutral-border: #DBE4F5;
+  --btn-neutral-border: #C9D6EC;
   --btn-neutral-hover: #E1EAFB;
-  --btn-neutral-hover-border: #C7D6F0;
+  --btn-neutral-hover-border: #B4C6E6;
 
-  /* Semánticos — estados suaves (chips/banners/observaciones) */
+  /* Estados suaves (chips / banners / observaciones) */
   --success: var(--green-500);
   --success-ink: var(--teal-700);
   --success-soft: var(--teal-100);
@@ -93,34 +135,71 @@
   --danger-ink: #B91C1C;
   --danger-soft: #FEE2E2;
 
-  /* Gráficas SVG a mano (components/viz/*) — "de-junkeadas" */
-  --viz-observed: var(--orange-500); /* serie protagonista */
-  --viz-ideal: #7C8BA3;              /* referencia punteada (3.45:1 ≥ 3:1) */
-  --viz-grid: var(--slate-200);
-  --viz-axis: var(--slate-300);
-  --viz-label: var(--slate-500);
-  --viz-cpu: var(--teal-600);
-  --viz-mem: var(--orange-500);
-  --viz-node: var(--teal-600);       /* rombos de hilos */
-  --viz-node-master: var(--teal-800);
-  --viz-node-warn: #D97706;
-  --viz-on-node: #FFFFFF;
-  --viz-packet: var(--orange-500);   /* pulsos fork-join */
+  /* ═══════════════ §3 · SEMANTIC — ESCALA DE ELEVACIÓN (0-4) ═══════════════
+     Estilo "Dimensional Layering": cada nivel combina SUPERFICIE + BORDE +
+     SOMBRA. Los componentes consumen el nivel, nunca una sombra suelta.
+       0  base            lienzo hundido, sin sombra
+       1  tarjeta         reposo: .card, .metric-card, .qcard, paneles
+       2  tarjeta elevada hover / destacada / flotante: .card.open, savebar
+       3  overlay         diálogos, dropdowns, toasts
+       4  máximo          elemento flotante sobre backdrop a pantalla completa
+     Las sombras vuelven a ser PERCEPTIBLES (la anterior --shadow-sm era
+     `0 1px 0 rgba(15,23,42,.04)`, literalmente invisible sobre --slate-50). */
+  --elevation-0: none;
+  --elevation-1:
+    0 1px 1px rgba(var(--shadow-rgb), .04),
+    0 2px 4px -1px rgba(var(--shadow-rgb), .08);
+  --elevation-2:
+    0 1px 2px rgba(var(--shadow-rgb), .05),
+    0 4px 8px -2px rgba(var(--shadow-rgb), .10),
+    0 12px 22px -10px rgba(var(--shadow-rgb), .14);
+  --elevation-3:
+    0 2px 4px rgba(var(--shadow-rgb), .06),
+    0 10px 20px -6px rgba(var(--shadow-rgb), .14),
+    0 24px 44px -18px rgba(var(--shadow-rgb), .20);
+  --elevation-4:
+    0 4px 10px rgba(var(--shadow-rgb), .10),
+    0 24px 56px -16px rgba(var(--shadow-rgb), .28);
 
-  /* Terminal — siempre oscuro, en la familia slate (no marrón) */
-  --term-bg: #0B1220;
-  --term-head: #111C2B;
-  --term-border: #1C2A3A;
-  --term-text: #CBD5E1;
-  --term-dim: #7C8DA6;               /* timestamps AA sobre --term-bg (5.54:1) */
-  --term-accent: #5EEAD4;
+  /* Sombra del CTA — RECUPERADA (v2 la había puesto en `none`, el botón
+     primario perdía su elevación y se leía plano). */
+  --shadow-cta:
+    0 1px 2px rgba(var(--shadow-cta-rgb), .30),
+    0 6px 14px -6px rgba(var(--shadow-cta-rgb), .55);
+  --shadow-cta-hover:
+    0 2px 4px rgba(var(--shadow-cta-rgb), .32),
+    0 10px 20px -6px rgba(var(--shadow-cta-rgb), .55);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, .65);
+  /* Anillo de foco de los controles (NO es elevación: es un halo de estado).
+     Un único token para que inputs, buscador y pills enfoquen igual. */
+  --focus-ring: 0 0 0 3px var(--primary-soft);
 
-  /* Tipografía — IBM Plex Sans (UI) + JetBrains Mono (datos/código) */
-  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: var(--font-sans); /* la jerarquía la dan tamaño y peso */
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Alias de compatibilidad: el CSS histórico usa --shadow-sm/md/lg. Apuntan a
+     la escala semántica para que exista UNA sola definición de elevación. */
+  --shadow-sm: var(--elevation-1);
+  --shadow-md: var(--elevation-2);
+  --shadow-lg: var(--elevation-3);
 
-  /* §1.3 Espaciado — escala 4/8pt + semánticos de layout */
+  /* Escala de apilado — un único orden de z-index para toda la app. */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-dropdown: 30;
+  --z-backdrop: 50;
+  --z-modal: 51;
+  --z-toast: 60;
+  --z-tooltip: 100;
+
+  /* ═════════════ §4 · SEMANTIC — LAYOUT FLUIDO (contenedor + ritmo) ════════
+     El contenedor CRECE con la ventana: nada de `max-width: 1280px` global ni
+     de parches por pantalla (el viejo `.screen.learn { max-width: 1680px }`).
+     El tope solo existe para que en pantallas enormes el layout no se estire
+     sin fin; la MEDIDA DE LECTURA se acota aparte, en `ch`, sobre las columnas
+     de texto (--measure), nunca sobre el layout entero. */
+  --screen-max: 2040px;
+  --measure: 70ch;          /* prosa larga (markdown de la lección) */
+  --measure-narrow: 46ch;   /* subtítulos / entradillas */
+
+  /* Espaciado base 4/8pt (fijo) */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
@@ -131,40 +210,110 @@
   --sp-8: 40px;
   --sp-9: 48px;
   --sp-10: 64px;
-  --screen-pad-x: 44px;   /* padding lateral del área de contenido */
-  --screen-pad-y: 40px;
-  --section-gap: 44px;    /* aire entre secciones de una pantalla */
-  --card-pad: 24px;       /* padding interno de tarjeta */
-  --grid-gap: 18px;       /* separación entre tarjetas de una grilla */
 
-  /* §1.3 Radios — generosos, look de plataforma */
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 20px;
+  /* Ritmo FLUIDO — crece con el viewport, sin saltos por breakpoint.
+     px+vw (no rem) para que no dependa del font-size raíz, que también es
+     fluido. Valores resultantes: 375 → 1024 → 1440 → 1920 → 2560 */
+  --screen-pad-x: clamp(16px, 1.4vw + 6px, 56px);   /* 16 → 20 → 26 → 33 → 42 */
+  --screen-pad-y: clamp(16px, 0.9vw + 8px, 36px);   /* 16 → 17 → 21 → 25 → 31 */
+  --section-gap: clamp(20px, 1.2vw + 8px, 44px);    /* 20 → 20 → 25 → 31 → 39 */
+  --card-pad: clamp(14px, 0.5vw + 10px, 24px);      /* 14 → 15 → 17 → 20 → 23 */
+  --grid-gap: clamp(12px, 0.45vw + 7px, 22px);      /* 12 → 12 → 14 → 16 → 19 */
 
-  /* §1.3 Sombras — tarjeta que "flota" sobre el neutro */
-  --shadow-sm: 0 1px 2px rgba(15, 42, 51, .04);
-  --shadow-md: 0 1px 2px rgba(15, 42, 51, .04), 0 14px 34px -22px rgba(15, 42, 51, .16);
-  --shadow-lg: 0 1px 2px rgba(15, 42, 51, .05), 0 30px 60px -34px rgba(15, 42, 51, .22);
-  --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, .6);
-  --shadow-cta: 0 8px 20px -10px rgba(154, 52, 18, .55);
+  /* Anchos mínimos de celda para las grillas auto-fit. Un único sitio donde
+     se decide "cuándo cabe otra columna". */
+  --col-min-metric: 190px;   /* stat tiles / métricas */
+  --col-min-card: 260px;     /* tarjetas de acción (qcards, pasos) */
+  --col-min-panel: 340px;    /* paneles de dos columnas */
 
-  /* §1.3 Motion — easing única de toda la app */
+  /* Anchos de contenedores acotados por LEGIBILIDAD, no por layout (diálogos,
+     tarjeta de login). Antes eran literales sueltos en screens/admin.css. */
+  --dialog-w-sm: 440px;      /* confirmación */
+  --dialog-w-md: 520px;      /* formulario de módulo */
+  --auth-card-w: 420px;      /* login de autoría */
+
+  /* Radios */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+
+  /* ═══════════ §5 · SEMANTIC — ESCALA TIPOGRÁFICA FLUIDA ══════════════════
+     Un solo peldaño por nivel; los componentes NO vuelven a escribir px.
+     Medidas resultantes:      375 →  1024 →  1440 →  1920 */
+  --fs-2xs: clamp(10.5px, .06vw + 10px, 11.5px);  /* 10.5 → 10.6 → 10.9 → 11.2 */
+  --fs-xs: clamp(11.5px, .08vw + 11px, 13px);     /* 11.5 → 11.8 → 12.2 → 12.5 */
+  --fs-sm: clamp(12.5px, .1vw + 12px, 14px);      /* 12.5 → 13.0 → 13.4 → 13.9 */
+  --fs-md: clamp(13.5px, .12vw + 13px, 15.5px);   /* 13.5 → 14.2 → 14.7 → 15.3 */
+  --fs-lg: clamp(15px, .2vw + 14px, 18px);        /* 15   → 16.0 → 16.9 → 17.8 */
+  --fs-xl: clamp(16.5px, .35vw + 15px, 22px);     /* 16.5 → 18.6 → 20.0 → 21.7 */
+  --fs-2xl: clamp(19px, .6vw + 16px, 28px);       /* 19   → 22.1 → 24.6 → 27.5 */
+  --fs-3xl: clamp(26px, 1.5vw + 16px, 52px);      /* 26   → 31.4 → 37.6 → 44.8 */
+
+  /* Tipografía — IBM Plex Sans (UI) + JetBrains Mono (datos/código).
+     Self-hosted vía @fontsource: CERO requests de red (CSP de Electron). */
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: var(--font-sans); /* la jerarquía la dan tamaño y peso */
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Terminal — siempre oscuro, familia slate (no marrón) */
+  --term-bg: #0B1220;
+  --term-head: #111C2B;
+  --term-border: #1C2A3A;
+  --term-text: #CBD5E1;
+  --term-dim: #7C8DA6;               /* AA sobre --term-bg (5.54:1) */
+  --term-accent: #5EEAD4;
+
+  /* Gráficas SVG a mano (components/viz/*) — sin librerías */
+  --viz-observed: var(--orange-500);
+  --viz-ideal: #7C8BA3;              /* referencia punteada (3.45:1 ≥ 3:1) */
+  --viz-grid: var(--slate-200);
+  --viz-axis: var(--slate-300);
+  --viz-label: var(--slate-500);
+  --viz-cpu: var(--teal-600);
+  --viz-mem: var(--orange-500);
+  --viz-node: var(--teal-600);
+  --viz-node-master: var(--teal-800);
+  --viz-node-warn: #D97706;
+  --viz-on-node: #FFFFFF;
+  --viz-packet: var(--orange-500);
+
+  /* Motion — easing única de toda la app */
   --ease: cubic-bezier(.2, .7, .2, 1);
+
+  /* ═══════════════════════ §6 · BREAKPOINTS (set ÚNICO) ════════════════════
+     CSS no admite var() dentro de @media, así que estos tokens son la
+     DOCUMENTACIÓN normativa y los literales del resto de hojas deben coincidir
+     con ellos. Los valores sueltos previos (980 / 900 / 800 / 720) quedaron
+     migrados a este set. Enfoque MOBILE-FIRST: se usa `min-width`.
+
+         --bp-sm   640px   móvil grande: la primera columna extra
+         --bp-md   768px   tablet vertical
+         --bp-lg  1024px   laptop: aparecen las 2 columnas de contenido
+         --bp-xl  1280px   escritorio: paneles laterales a su ancho natural
+         --bp-2xl 1536px   escritorio grande: densidad máxima            */
+  --bp-sm: 640px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+  --bp-2xl: 1536px;
 }
 
-/* ── §1.4 Tema oscuro — definido pero SIN toggle en MVP ─────────────────── */
+/* ── §7 · Tema oscuro — definido, SIN toggle en el MVP ──────────────────────
+   Coherente con la escala nueva: superficies tonales (más claras según suben
+   de nivel, como manda MD3) y sombras más densas. */
 [data-theme="dark"] {
   --bg: #0B1512;
   --surface: #10201C;
   --surface-2: #16302A;
-  --border: #1E3B34;
-  --border-strong: #2C5048;
+  --surface-3: #0E1B18;
+  --surface-overlay: #16302A;
+  --border: #24463E;
+  --border-strong: #4A7A70;      /* ≥3:1 sobre --surface oscuro */
   --border-accent: #134E4A;
   --text: #E7FDF8;
-  --text-muted: #7FA8A0;
-  --text-muted-strong: #A9C6BF;
+  --text-muted: #A9C6BF;
+  --text-muted-strong: #C7DDD8;
   --accent-soft: #3B2413;
   --primary-ink: var(--teal-400);
   --primary-soft: #113B35;
@@ -174,7 +323,6 @@
   --warn-soft: #3A2E14;
   --danger-ink: #FCA5A5;
   --danger-soft: #3B1717;
-  /* Botones neutros en dark: superficie azul-slate oscura, texto claro (--text). */
   --btn-neutral-bg: #1B2A44;
   --btn-neutral-border: #2A3B5A;
   --btn-neutral-hover: #223353;
@@ -183,32 +331,9 @@
   --viz-axis: #2C5048;
   --viz-ideal: #4E6E67;
   --viz-label: #7FA8A0;
-  --shadow-md: 0 14px 34px -22px rgba(0, 0, 0, .5);
-  --shadow-lg: 0 30px 60px -34px rgba(0, 0, 0, .6);
-}
-
-/* ── §1.5 Tokens v2 — "v2 · compacto": neutro frío, denso, mismos acentos ── */
-:root[data-variant="v2"] {
-  --bg: var(--slate-50);
-  --surface: #FFFFFF;
-  --surface-2: #EDF1F5;
-  --surface-3: #E4EAEF;
-  --border: var(--slate-200);
-  --border-strong: var(--slate-300);
-  --text: var(--slate-900);
-  --text-muted: var(--slate-500);
-
-  --r-sm: 6px;
-  --r-md: 8px;
-  --r-lg: 12px;
-
-  --screen-pad-x: 28px;
-  --screen-pad-y: 24px;
-  --section-gap: 28px;
-  --card-pad: 16px;
-  --grid-gap: 12px;
-
-  --shadow-sm: 0 1px 0 rgba(15, 23, 42, .04);
-  --shadow-md: 0 4px 12px -4px rgba(15, 23, 42, .10);
-  --shadow-cta: none;
+  --shadow-rgb: 0, 0, 0;
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, .35);
+  --elevation-2: 0 2px 6px rgba(0, 0, 0, .40), 0 12px 24px -10px rgba(0, 0, 0, .55);
+  --elevation-3: 0 4px 12px rgba(0, 0, 0, .45), 0 24px 44px -18px rgba(0, 0, 0, .65);
+  --elevation-4: 0 8px 20px rgba(0, 0, 0, .55), 0 32px 64px -16px rgba(0, 0, 0, .75);
 }

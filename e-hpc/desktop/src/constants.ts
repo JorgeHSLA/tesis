@@ -32,5 +32,8 @@ export const EXEC_MAX_BUFFER = 4 * 1024 * 1024
 /** stderr saneado y truncado antes de llegar a UI (electron-spec §5.3). */
 export const STDERR_MAX_CHARS = 500
 
-/** --cream-50 (v1) — coherente con la app; evita flash blanco. */
-export const WINDOW_BACKGROUND_COLOR = '#FDF8EE'
+/** Color de fondo de la ventana ANTES del primer paint (evita el flash blanco).
+ *  Debe seguir a `--bg` de frontend/src/styles/tokens.css §2 (lienzo hundido).
+ *  Antes era '#FDF8EE' (--cream-50 de la variante v1, retirada): la ventana
+ *  abría en crema y saltaba a azul-gris al pintar. */
+export const WINDOW_BACKGROUND_COLOR = '#E8EDF4'

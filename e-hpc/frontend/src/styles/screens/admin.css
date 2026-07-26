@@ -1,9 +1,14 @@
-/* screens/admin.css — modo autoría (Fase 4). Rediseño 2026-07 "plataforma de
-   curso": misma familia visual que la shell del estudiante (tarjetas blancas
-   sobre neutro, teal = marca/estado, naranja SOLO en CTAs vía .btn-primary).
-   Recicla ÍNTEGRAMENTE los tokens de tokens.css: cero tokens nuevos. Toda
-   animación tiene alternativa bajo prefers-reduced-motion. z-index semántico:
-   backdrop < modal < toast. */
+/* screens/admin.css — modo autoría (Fase 4). Misma familia visual que la shell
+   del estudiante: tarjetas sobre el lienzo hundido, teal = marca/estado,
+   naranja SOLO en CTAs (vía .btn-primary). Recicla ÍNTEGRAMENTE los tokens de
+   tokens.css: cero tokens nuevos.
+
+   Rediseño 2026-07-25:
+   · elevación por token (savebar/modal/toast = overlay, nivel 3).
+   · z-index desde la escala de tokens (--z-backdrop < --z-modal < --z-toast).
+   · el @media suelto de 720px se migra al set único (--bp-md = 768px) y las
+     grillas pasan a mobile-first / auto-fit.
+   · el contenedor de las pantallas admin es el mismo `.screen` fluido. */
 
 /* ── Barra de acento distintiva del área de autoría ─────────────────────── */
 .admin-accent-bar {
@@ -17,20 +22,24 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
   color: var(--text);
 }
 .admin-main {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
+/* Chrome BLANCO que enmarca el lienzo (igual que la topbar del estudiante). */
 .admin-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-4);
-  padding: var(--sp-3) var(--sp-6);
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-4);
+  padding: var(--sp-3) var(--screen-pad-x);
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -38,6 +47,7 @@
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+  min-width: 0;
 }
 /* Marca del área: teal (marca/progreso), el naranja queda para los CTAs */
 .admin-brand-mark {
@@ -50,13 +60,14 @@
   background: var(--primary-soft);
   color: var(--primary-ink);
   border: 1px solid var(--border-accent);
+  flex-shrink: 0;
 }
 .admin-brand-text {
   min-width: 0;
 }
 .admin-brand-title {
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--fs-md);
   letter-spacing: -0.01em;
 }
 .admin-brand-sub {
@@ -66,14 +77,16 @@
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+  flex-wrap: wrap;
 }
 
 /* ── Login (#/admin/login) ──────────────────────────────────────────────── */
 .admin-auth {
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: var(--sp-7) var(--sp-5);
+  padding: var(--sp-7) var(--screen-pad-x);
   background: var(--bg);
   color: var(--text);
 }
@@ -81,15 +94,15 @@
   position: fixed;
   inset: 0 0 auto 0;
 }
-/* Card centrada que flota sobre el neutro */
+/* Card centrada — OVERLAY (nivel 3): es el único objeto de la pantalla. */
 .admin-auth-card {
   width: 100%;
-  max-width: 420px;
+  max-width: var(--auth-card-w);
   padding: var(--sp-7);
   display: flex;
   flex-direction: column;
   gap: var(--sp-5);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--elevation-3);
 }
 .admin-auth-brand {
   display: flex;
@@ -109,7 +122,7 @@
   line-height: 1.5;
 }
 .admin-auth-help code {
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 /* ── Dashboard (#/admin) ────────────────────────────────────────────────── */
@@ -117,7 +130,8 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--sp-5);
+  flex-wrap: wrap;
+  gap: var(--sp-4) var(--sp-5);
   margin-bottom: var(--sp-6);
   padding-bottom: var(--sp-5);
   border-bottom: 1px solid var(--border);
@@ -128,20 +142,25 @@
   gap: var(--grid-gap);
 }
 
-/* ── Grupo de módulo (colapsable) ───────────────────────────────────────── */
+/* ── Grupo de módulo (colapsable) — tarjeta de nivel 1, hover nivel 2 ────── */
 .admin-module-group {
   padding: 0;
   overflow: hidden;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--elevation-1);
+  transition: box-shadow .2s var(--ease);
 }
+.admin-module-group:hover { box-shadow: var(--elevation-2); }
 .admin-module-head {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  padding: var(--sp-4);
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--card-pad);
+  background: var(--surface-2);
+  border-bottom: 1px solid transparent;
 }
 .admin-module-toggle {
-  flex: 1;
+  flex: 1 1 220px;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -169,7 +188,7 @@
 }
 .admin-module-title {
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--fs-md);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -182,12 +201,14 @@
   align-items: center;
   gap: var(--sp-2);
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 .admin-module-body {
   border-top: 1px solid var(--border);
-  padding: var(--sp-2) var(--sp-4) var(--sp-3);
+  padding: var(--sp-2) var(--card-pad) var(--sp-3);
   display: flex;
   flex-direction: column;
+  background: var(--surface);
 }
 .admin-module-empty {
   padding: var(--sp-3) var(--sp-1);
@@ -198,6 +219,7 @@
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+  flex-wrap: wrap;
   padding: 10px var(--sp-2);
   border-bottom: 1px solid var(--border);
   transition: background 0.15s var(--ease);
@@ -209,7 +231,7 @@
   border-bottom: none;
 }
 .admin-lesson-main {
-  flex: 1;
+  flex: 1 1 240px;
   min-width: 0;
   display: flex;
   align-items: baseline;
@@ -229,28 +251,32 @@
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 .admin-lesson-actions {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
-/* ── Barra de guardado (editores G2) ────────────────────────────────────── */
+/* ── Barra de guardado (editores G2) — flotante ⇒ OVERLAY (nivel 3) ─────── */
 .admin-savebar {
   position: sticky;
   bottom: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-4);
-  padding: var(--sp-3) var(--sp-4);
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-4);
+  padding: var(--sp-3) var(--card-pad);
   margin-top: var(--sp-5);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--r-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-lg);
+  background: var(--surface-overlay);
+  box-shadow: var(--elevation-3);
+  z-index: var(--z-dropdown);
 }
 .admin-savebar-status {
   display: flex;
@@ -265,52 +291,60 @@
   padding: 4px 12px;
   border-radius: 999px;
   background: var(--warn-soft);
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
   color: var(--warn-ink);
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 .admin-savebar-status .mono-small.muted {
   background: var(--success-soft);
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
   color: var(--success-ink);
 }
 .admin-savebar-actions {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
+  flex-wrap: wrap;
 }
 
 /* ── Modales (confirmación y formulario de módulo) ──────────────────────── */
 .admin-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: var(--z-backdrop);
   display: grid;
   place-items: center;
   padding: var(--sp-5);
-  background: color-mix(in srgb, var(--slate-900) 45%, transparent);
+  /* Scrim ≥40% para aislar el contenido de delante (ui-ux-pro-max, contraste). */
+  background: color-mix(in srgb, var(--slate-900) 52%, transparent);
   animation: admin-fade-in 0.14s var(--ease);
 }
 .admin-modal {
   position: relative;
-  z-index: 51;
+  z-index: var(--z-modal);
   width: 100%;
-  max-width: 440px;
+  max-width: var(--dialog-w-sm);
+  max-height: calc(100dvh - 2 * var(--sp-5));
+  overflow-y: auto;
   padding: var(--card-pad);
-  box-shadow: var(--shadow-lg);
+  background: var(--surface-overlay);
+  box-shadow: var(--elevation-4);
 }
 .admin-modal-form {
-  max-width: 520px;
+  max-width: var(--dialog-w-md);
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
 }
 .admin-form-grid {
   display: grid;
-  grid-template-columns: 1fr 120px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   gap: var(--sp-4);
 }
 .admin-modal-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--sp-3);
   margin-top: var(--sp-5);
 }
@@ -321,7 +355,7 @@
 /* ── Toast efímero (oscuro slate en ambas variantes) ────────────────────── */
 .admin-toast {
   position: fixed;
-  z-index: 60;
+  z-index: var(--z-toast);
   bottom: var(--sp-6);
   left: 50%;
   transform: translateX(-50%);
@@ -330,8 +364,8 @@
   border-radius: var(--r-md);
   background: var(--slate-900);
   color: var(--slate-50);
-  font-size: 13.5px;
-  box-shadow: var(--shadow-lg);
+  font-size: var(--fs-sm);
+  box-shadow: var(--elevation-4);
   animation: admin-toast-in 0.2s var(--ease);
 }
 .admin-toast.is-error {
@@ -347,12 +381,14 @@
 }
 .admin-btn-danger:hover {
   background: var(--danger-ink);
+  border-color: var(--danger-ink);
 }
 .admin-btn-danger-ghost {
   color: var(--danger-ink);
 }
 .btn.admin-btn-danger-ghost:hover {
   background: var(--danger-soft);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 
 /* ── Stub de editores (G2) ──────────────────────────────────────────────── */
@@ -381,19 +417,5 @@
   .admin-toast {
     animation: none;
     transition: none;
-  }
-}
-
-/* ── Responsive ─────────────────────────────────────────────────────────── */
-@media (max-width: 720px) {
-  .admin-topbar,
-  .admin-dashboard-head {
-    flex-wrap: wrap;
-  }
-  .admin-lesson-row {
-    flex-wrap: wrap;
-  }
-  .admin-form-grid {
-    grid-template-columns: 1fr;
   }
 }

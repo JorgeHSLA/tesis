@@ -19,12 +19,11 @@ export function ExamplePicker({ modules, value, onChange, compact, disabled }: E
   const select = (
     <select
       id={id}
-      className="select"
+      className={compact ? 'select select-compact' : 'select'}
       value={value}
       disabled={disabled}
       aria-label={compact ? 'Ejemplo del curso' : undefined}
       onChange={(e) => onChange(e.currentTarget.value)}
-      style={compact ? { width: 'auto', minWidth: 210 } : undefined}
     >
       <option value="">Código propio (editor)</option>
       {modules.map((m) => (

@@ -1,50 +1,40 @@
-/* screens/home.css — rediseño 2026-07 "plataforma de curso" (mockup Home
-   APROBADO): fondo neutro --bg, tarjetas blancas que flotan (--surface +
-   --border + sombra suave), teal = marca/progreso, naranja SOLO en CTAs y
-   momentos de logro. `.home .hero`, `.screen-head`, `.section-head` y
-   `.btn-xl` viven en components.css; este chunk (lazy) carga después y solo
-   ajusta su aire. Selectores del prototipo intactos (los .tsx los referencian). */
+/* screens/home.css — Home. Rediseño 2026-07-25:
+   · el padding y el ancho los pone `.screen` (contenedor fluido); esta hoja ya
+     no repite `--screen-pad-*` ni topes de ancho.
+   · las filas de tarjetas usan auto-fit/minmax con --col-min-card, así que
+     llenan la ventana a 1440/1920 sin dejar franja muerta y se apilan solas.
+   · elevación por token: qcard/tut-tab en nivel 1, y nivel 2 al hover.
+   · los overrides `[data-variant="v2"] .x` que solo repetían tamaños en px se
+     eliminaron: la escala tipográfica fluida vive en tokens.css §5. */
 
-/* ── Pantalla: aire generoso, secciones separadas por --section-gap ─────── */
-.screen.home { padding: var(--screen-pad-y) var(--screen-pad-x); }
-
-/* Jerarquía por tamaño/peso: el hero usa el display-xl de 40px/700 aprobado
-   (components.css aún lo sube a 56px; este override llega después). */
-.home .display-xl { font-size: 40px; }
-[data-variant="v2"] .home .display-xl { font-size: 26px; }
-
-.home .hero {
-  gap: var(--sp-10);
-  padding: var(--sp-2) 0 var(--section-gap);
-  margin-bottom: var(--section-gap);
-}
+.home .hero { gap: var(--section-gap); }
 .home .section-head { margin: 0 0 var(--sp-5); }
 
 .hero-sub {
-  font-size: 16.5px;
+  font-size: var(--fs-lg);
   line-height: 1.6;
   color: var(--text-muted);
-  max-width: 46ch;
+  max-width: var(--measure-narrow);
   margin: var(--sp-4) 0 0;
   text-wrap: pretty;
 }
-[data-variant="v2"] .hero-sub { font-size: 15px; }
 
-/* Diagrama del hero: TARJETA BLANCA que flota (antes panel degradado cálido). */
+/* Diagrama del hero: tarjeta destacada → NIVEL 2 de elevación. */
 .hero-right {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
-  box-shadow: var(--shadow-lg);
-  padding: var(--sp-7) var(--card-pad);
+  box-shadow: var(--elevation-2);
+  padding: var(--sp-6) var(--card-pad);
   display: flex; flex-direction: column; justify-content: center;
   position: relative;
   overflow: hidden;
-  min-height: 320px;
+  min-height: clamp(240px, 18vw + 130px, 400px);
 }
-.hero-diagram { position: relative; z-index: 1; }
+.hero-diagram { position: relative; z-index: var(--z-base); }
 .hero-diagram-caption {
   display: flex; align-items: center; gap: var(--sp-3);
+  flex-wrap: wrap;
   margin-top: var(--sp-3);
   padding-top: var(--sp-4);
   border-top: 1px solid var(--border);
@@ -53,13 +43,13 @@
 .hero-diagram-caption .chip {
   background: var(--primary-soft);
   color: var(--primary-ink);
-  border-color: transparent;
+  border-color: var(--border-accent);
 }
 
-/* ── Acciones rápidas (qcards): tarjetas blancas aireadas ───────────────── */
+/* ── Acciones rápidas (qcards) ──────────────────────────────────────────── */
 .quick-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--col-min-card)), 1fr));
   gap: var(--grid-gap);
   margin-bottom: var(--section-gap);
 }
@@ -68,7 +58,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--elevation-1);
   padding: var(--card-pad);
   cursor: pointer;
   transition: transform .2s var(--ease), box-shadow .2s var(--ease),
@@ -81,35 +71,37 @@
 }
 .qcard:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--elevation-2);
   border-color: var(--border-accent);
 }
+.qcard:active { transform: translateY(0); box-shadow: var(--elevation-1); }
 .qcard-icon {
-  width: 44px; height: 44px;
+  width: 40px; height: 40px;
   border-radius: var(--r-md);
   background: var(--surface-2);
+  border: 1px solid var(--border);
   display: grid; place-items: center;
   color: var(--primary-ink);
 }
-.qcard[data-accent="orange"] .qcard-icon { background: var(--accent-soft); color: var(--orange-600); }
+.qcard[data-accent="orange"] .qcard-icon { background: var(--accent-soft); color: var(--orange-600); border-color: color-mix(in srgb, var(--orange-500) 25%, transparent); }
 /* green y blue convergen en teal: UN solo acento fuerte (naranja) en la UI. */
-.qcard[data-accent="green"]  .qcard-icon { background: var(--primary-soft); color: var(--primary-ink); }
-.qcard[data-accent="blue"]   .qcard-icon { background: var(--primary-soft); color: var(--primary-ink); }
+.qcard[data-accent="green"]  .qcard-icon { background: var(--primary-soft); color: var(--primary-ink); border-color: var(--border-accent); }
+.qcard[data-accent="blue"]   .qcard-icon { background: var(--primary-soft); color: var(--primary-ink); border-color: var(--border-accent); }
 .qcard-title {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 17px;
+  font-size: var(--fs-lg);
   letter-spacing: -.01em;
 }
 .qcard-desc {
-  font-size: 14px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   line-height: 1.55;
   flex: 1;
 }
 .qcard-cta {
   display: inline-flex; align-items: center; gap: var(--sp-2);
-  font-size: 13px; font-weight: 600;
+  font-size: var(--fs-xs); font-weight: 600;
   color: var(--primary-ink);
   padding-top: var(--sp-2);
   border-top: 1px solid var(--border);
@@ -119,17 +111,21 @@
 .qcard-cta svg { transition: transform .2s var(--ease); }
 .qcard:hover .qcard-cta svg { transform: translateX(3px); }
 
-/* ── Jobs recientes + Lecciones sugeridas: filas limpias ────────────────── */
+/* ── Jobs recientes + Lecciones sugeridas ───────────────────────────────── */
 .two-col {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--grid-gap);
+}
+.two-col > * { min-width: 0; }
+@media (min-width: 1024px) {
+  .two-col { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
 }
 
 .recent-list, .lesson-list { padding: var(--sp-2); }
 .recent-row {
   display: grid;
-  grid-template-columns: 34px 1.5fr auto auto auto;
+  grid-template-columns: 34px minmax(0, 1.5fr) auto auto auto;
   gap: var(--sp-3);
   align-items: center;
   padding: 10px 12px;
@@ -150,10 +146,11 @@
   border-radius: var(--r-sm);
   display: grid; place-items: center;
   background: var(--surface-2);
+  border: 1px solid var(--border);
   color: var(--text-muted);
 }
 .recent-name {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -179,6 +176,7 @@
   width: 34px; height: 34px;
   border-radius: var(--r-sm);
   background: var(--primary-soft);
+  border: 1px solid var(--border-accent);
   display: grid; place-items: center;
   flex-shrink: 0;
   position: relative;
@@ -191,15 +189,15 @@
   padding-left: 2px;
 }
 .lesson-title {
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* ── Tutorial tabs (3 pasos): tarjetas blancas independientes ───────────── */
+/* ── Tutorial tabs (3 pasos): tarjetas independientes de nivel 1 ─────────── */
 .tutorial-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--col-min-card)), 1fr));
   gap: var(--grid-gap);
   margin-bottom: var(--grid-gap);
   background: transparent;
@@ -212,7 +210,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--elevation-1);
   cursor: pointer;
   text-align: left;
   color: var(--text);
@@ -226,70 +224,59 @@
   background: var(--surface);
   border-color: var(--border);
   color: var(--text);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--elevation-1);
 }
 .tut-tab:hover,
 .tutorial-tabs.static .tut-tab:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--elevation-2);
   border-color: var(--border-accent);
   color: var(--text);
 }
 .tut-tab-num {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--primary-ink);
   font-variant-numeric: tabular-nums;
 }
 .tut-tab.active .tut-tab-num { color: var(--primary-ink); }
 .tut-tab-icon {
-  width: 44px; height: 44px; border-radius: var(--r-md);
+  width: 40px; height: 40px; border-radius: var(--r-md);
   background: var(--primary-soft);
+  border: 1px solid var(--border-accent);
   display: grid; place-items: center;
   color: var(--primary-ink);
   flex-shrink: 0;
 }
 .tut-tab.active .tut-tab-icon { background: var(--primary-soft); color: var(--primary-ink); }
 .tut-tab-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.tut-tab-title { font-size: 16.5px; font-weight: 600; }
-.tut-tab-short { font-size: 14px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tut-tab-title { font-size: var(--fs-lg); font-weight: 600; }
+.tut-tab-short { font-size: var(--fs-sm); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ── Callout "¿Primera vez aquí?" — card blanca con borde teal ──────────── */
+/* ── Callout "¿Primera vez aquí?" — tarjeta con borde teal (nivel 1) ────── */
 .tutorial-callout {
   display: flex; align-items: center; gap: var(--sp-4);
+  flex-wrap: wrap;
   background: var(--surface);
   border: 1px solid var(--border-accent);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
-  padding: var(--sp-4) var(--sp-5);
+  box-shadow: var(--elevation-1);
+  padding: var(--sp-4) var(--card-pad);
   margin-bottom: var(--section-gap);
 }
 .tut-callout-icon {
   width: 40px; height: 40px;
   border-radius: var(--r-md);
   background: var(--primary-soft);
+  border: 1px solid var(--border-accent);
   color: var(--primary-ink);
   display: grid; place-items: center;
   flex-shrink: 0;
 }
-.tut-callout-body { flex: 1; }
+.tut-callout-body { flex: 1; min-width: min(100%, 260px); }
 .tut-callout-body p {
   margin: 2px 0 0;
   color: var(--text-muted);
-  font-size: 13.5px;
-}
-
-/* v2 · compacto: callout plano sobre --surface-2 (misma paleta, sin relieve) */
-[data-variant="v2"] .tutorial-callout {
-  background: var(--surface-2);
-  border-color: var(--border);
-  box-shadow: none;
-}
-
-/* Responsive suave (el prototipo era desktop-first; evita overflow) */
-@media (max-width: 980px) {
-  .quick-grid, .tutorial-tabs { grid-template-columns: 1fr; }
-  .two-col { grid-template-columns: 1fr; }
-  .home .hero { grid-template-columns: 1fr; gap: var(--sp-6); }
+  font-size: var(--fs-sm);
 }

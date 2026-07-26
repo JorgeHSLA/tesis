@@ -17,8 +17,10 @@ function elbowPath(x: number): string {
 export function HomeThreadsDiagram() {
   const reduced = useReducedMotion()
 
+  // Alto derivado del viewBox (antes `height="100%"` dependía de que el
+  // contenedor tuviera alto propio).
   return (
-    <svg viewBox="0 0 440 260" width="100%" height="100%" role="img" aria-label="Modelo fork-join: un hilo maestro reparte trabajo a 4 hilos">
+    <svg viewBox="0 0 440 260" width="100%" role="img" aria-label="Modelo fork-join: un hilo maestro reparte trabajo a 4 hilos" style={{ display: 'block', height: 'auto' }}>
       {/* Hilo maestro (rombo teal oscuro superior) */}
       <text x={220} y={35} textAnchor="middle" fontFamily="var(--font-mono)" fontSize={10} fill="var(--viz-label)">
         master

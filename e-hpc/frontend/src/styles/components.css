@@ -1,187 +1,144 @@
-/* components.css — shell + componentes base. Rediseño 2026-07 "plataforma de
-   curso" (frontend-spec §1, mockup aprobado): fondo neutro clarísimo, tarjetas
-   blancas que flotan (borde --border + --shadow-md), UN acento naranja
-   (--accent) SOLO para CTAs/logro, teal (--primary) = marca/progreso/activo,
-   texto secundario SIEMPRE --text-muted. Se conservan los 4 fixes de bugs CSS
-   (frontend-spec §5.2 / handoff §14):
-     1. `.home .hero` grid 1.15fr 1fr (la regla que el comentario `//` mataba).
-     2. `.hero-stats` / `.tutorial-panel` / `.tut-visual`: NO se portan.
-     3. `.v2 .app` → `[data-variant="v2"] .app` (rail v2 de 52px SÍ aplica).
-     4. `var(--ink)` → `var(--text)` y `var(--success)` (token nuevo).
-   Los overrides v2 quedan reducidos a DENSIDAD (spacing/radios los redefinen
-   los tokens de `[data-variant="v2"]`); misma paleta nueva en ambas variantes. */
+/* components.css — shell + primitivas base.
+
+   Rediseño 2026-07-25 (ver tokens.css para el porqué de cada token):
+
+   · ELEVACIÓN: cada superficie declara su nivel con `box-shadow: var(--elevation-N)`.
+     Cero sombras literales en esta hoja.
+       chrome (sidebar/topbar) → --surface, sin sombra, separado por --border
+       lienzo (.main)          → --bg (nivel 0, hundido)
+       tarjeta                 → --surface + --border + --elevation-1
+       tarjeta elevada/hover   → + --elevation-2
+       overlay                 → + --elevation-3
+
+   · LAYOUT FLUIDO: `.screen` crece con la ventana (max-width --screen-max,
+     centrado). Se eliminan el cap global de 1280px y el parche
+     `.screen.learn { max-width: 1680px }`. Las grillas usan auto-fit/minmax con
+     los anchos mínimos de tokens.css (--col-min-*), y las tablas dentro de una
+     tarjeta se reordenan por CONTAINER QUERY (su propio ancho), no por viewport.
+
+   · VARIANTE ÚNICA: la app quedó fija en v2. Los bloques `[data-variant="v2"] .x`
+     que solo redefinían densidad se CONSOLIDARON en la regla base (una sola
+     fuente de verdad por componente). El atributo sigue en <html>; los
+     selectores que aún lo usan son los que expresan la identidad del rail v2. */
 
 /* ═══════════════════════ App shell (handoff §3.1) ══════════════════════ */
 .app {
   display: grid;
-  grid-template-columns: var(--sidebar-w, 220px) 1fr;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  /* dvh evita que la barra de direcciones móvil recorte el alto; en Electron
+     equivale a 100vh, así que la ventana se llena siempre. */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
+  background: var(--bg);
+  /* Rail fijo (identidad v2): el toggle de colapso no se muestra. */
+  --sidebar-w: 56px;
   transition: grid-template-columns .22s var(--ease);
 }
-.app:has(.sidebar.collapsed) { --sidebar-w: 60px; }
-.app:has(.sidebar.expanded)  { --sidebar-w: 220px; }
 
 .main {
   overflow: auto;
   position: relative;
+  min-width: 0;            /* hijo de grid: puede encogerse por debajo de su contenido */
+  background: var(--bg);   /* lienzo hundido: las tarjetas flotan sobre él */
 }
 
-/* ── Sidebar (handoff §3.2) ─────────────────────────────────────────────── */
+/* ── Sidebar (handoff §3.2) — chrome BLANCO que enmarca el lienzo ───────── */
 .sidebar {
   background: var(--surface);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 20px 10px;
-  gap: 4px;
+  align-items: center;
+  padding: var(--sp-3) var(--sp-2);
+  gap: 2px;
   position: relative;
   overflow: hidden;
 }
-.sidebar.collapsed { padding: 20px 8px; }
 
-.sidebar.collapsed .nav-label,
-.sidebar.collapsed .sidebar-brand-textwrap,
-.sidebar.collapsed .nav-section-label,
-.sidebar.collapsed .sidebar-footer-text {
+/* El rail no expande: los textos largos del menú viven en el tooltip. */
+.nav-label,
+.sidebar-brand-textwrap,
+.sidebar-brand-text,
+.sidebar-brand-sub,
+.nav-section-label,
+.sidebar-toggle,
+.sidebar-footer-text {
   display: none;
 }
-.sidebar.collapsed .sidebar-brand { justify-content: center; padding: 6px 0 14px; }
-.sidebar.collapsed .nav-item { justify-content: center; padding: 10px 0; }
-.sidebar.collapsed .sidebar-toggle { justify-content: center; padding: 6px 0; }
-.sidebar.collapsed .sidebar-footer { justify-content: center; padding: 12px 0; }
-
-/* Tooltip en colapsado (::after con attr(data-tip)) — slate oscuro, no marrón */
-.sidebar.collapsed .nav-item { position: relative; }
-.sidebar.collapsed .nav-item::after {
-  content: attr(data-tip);
-  position: absolute;
-  left: calc(100% + 10px);
-  top: 50%;
-  transform: translateY(-50%) translateX(-4px);
-  background: var(--slate-800);
-  color: var(--slate-50);
-  padding: 5px 9px;
-  border-radius: var(--r-sm);
-  font-size: 12px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .15s var(--ease), transform .15s var(--ease);
-  z-index: 100;
-  box-shadow: var(--shadow-md);
-}
-.sidebar.collapsed .nav-item:hover::after,
-.sidebar.collapsed .nav-item:focus-visible::after {
-  opacity: 1;
-  transform: translateY(-50%) translateX(0);
-}
-
-.sidebar-toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
-  margin: 2px 0 10px;
-  border-radius: var(--r-md);
-  font-size: 12px;
-  color: var(--text-muted);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
-  transition: background .15s var(--ease), color .15s var(--ease);
-}
-.sidebar-toggle:hover { background: var(--surface-2); color: var(--text); }
-.sidebar-toggle svg { flex-shrink: 0; }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 2px;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
   min-height: 0;
+  width: 100%;
 }
 
 .sidebar-brand {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  padding: 6px 8px 18px;
+  padding: var(--sp-1) 0 var(--sp-3);
   border-bottom: 1px solid var(--border);
-  margin-bottom: 12px;
+  margin-bottom: var(--sp-2);
+  width: 100%;
 }
 /* Marca = tile naranja del mockup aprobado (blanco encima: 4.61:1 AA). */
 .sidebar-brand-mark {
   width: 32px; height: 32px;
-  border-radius: 9px;
+  border-radius: 7px;
   background: var(--accent);
   display: grid; place-items: center;
   color: var(--on-accent);
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   letter-spacing: -.02em;
-  box-shadow: var(--shadow-sm);
-}
-.sidebar-brand-text {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 19px;
-  letter-spacing: -.02em;
-}
-.sidebar-brand-sub {
-  font-size: 10.5px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  margin-top: -2px;
-}
-
-/* Etiquetas de sección: palabras → sans 600 (mono solo para datos). */
-.nav-section-label {
-  font-size: 11px;
-  font-family: var(--font-sans);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  color: var(--text-muted);
-  padding: 10px 10px 4px;
+  box-shadow: var(--shadow-cta);
+  flex-shrink: 0;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  padding: 8px 10px;
+  width: 40px; height: 40px;
+  padding: 0;
   border-radius: var(--r-md);
-  font-size: 14px;
+  font-size: var(--fs-sm);
   cursor: pointer;
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text);
   text-align: left;
-  width: 100%;
   text-decoration: none; /* .nav-item es <a> (NavLink) en producción */
   position: relative;
-  transition: background .15s var(--ease), color .15s var(--ease);
+  flex-shrink: 0;
+  transition: background .15s var(--ease), color .15s var(--ease),
+              border-color .15s var(--ease), box-shadow .15s var(--ease);
 }
 .nav-item:hover { background: var(--surface-2); }
+/* Activo = tarjeta de nivel 1 recortada sobre el chrome + barra teal. */
 .nav-item.active {
-  background: var(--primary-soft);
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--elevation-1);
   color: var(--primary-ink);
   font-weight: 600;
 }
-/* Barra indicadora teal del ítem activo */
 .nav-item.active::before {
   content: '';
   position: absolute;
-  left: 0; top: 8px; bottom: 8px;
+  left: -8px; top: 7px; bottom: 7px;
   width: 3px;
-  border-radius: 999px;
+  border-radius: 0 999px 999px 0;
   background: var(--primary);
 }
 .nav-item .nav-icon {
@@ -191,12 +148,41 @@
 }
 .nav-item.active .nav-icon { color: var(--primary-ink); }
 
+/* Tooltip del rail (::after con attr(data-tip)) — overlay slate oscuro. */
+.nav-item::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  background: var(--slate-800);
+  color: var(--slate-50);
+  padding: 5px 9px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s var(--ease), transform .15s var(--ease);
+  z-index: var(--z-tooltip);
+  box-shadow: var(--elevation-3);
+}
+.nav-item:hover::after,
+.nav-item:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
 .sidebar-footer {
   margin-top: auto;
-  padding: 12px 10px;
+  padding: var(--sp-3) 0;
   border-top: 1px solid var(--border);
-  display: flex; align-items: center; gap: 10px;
-  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 .sidebar-footer-text > div:first-child { color: var(--text); font-weight: 500; }
@@ -231,29 +217,40 @@
   flex-shrink: 0;
 }
 
-/* ── Topbar (handoff §3.3) ──────────────────────────────────────────────── */
+/* ── Topbar (handoff §3.3) — chrome BLANCO, pegajoso ───────────────────── */
 .topbar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px var(--sp-7);
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  padding: var(--sp-2) var(--screen-pad-x);
   border-bottom: 1px solid var(--border);
   background: var(--surface);
-  position: sticky; top: 0; z-index: 10;
+  position: sticky; top: 0;
+  z-index: var(--z-sticky);
+  font-size: var(--fs-sm);
 }
 .topbar-title {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 16.5px;
+  font-size: var(--fs-md);
   letter-spacing: -.01em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* Migas = palabras de navegación → sans (mono solo para datos) */
 .topbar-crumb {
   font-family: var(--font-sans);
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.topbar-spacer { flex: 1; }
+.topbar-spacer { flex: 1; min-width: var(--sp-2); }
 .topbar-divider {
   width: 1px; height: 22px;
   background: var(--border);
@@ -264,134 +261,155 @@
   border-radius: 50%;
   background: var(--primary-soft);
   color: var(--primary-ink);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   display: grid; place-items: center;
+  flex-shrink: 0;
 }
-.topbar-user { font-size: 13px; }
+.topbar-user { font-size: var(--fs-sm); }
 
-/* ── Contenedor de pantalla (handoff §3.4) ─────────────────────────────── */
-.screen {
+/* ═══════════ Contenedor de pantalla — FLUIDO (handoff §3.4) ═════════════
+   Crece con la ventana; el tope --screen-max solo evita el estirado infinito
+   en pantallas enormes y va CENTRADO (margin-inline: auto) para que no quede
+   una franja muerta a la derecha. La medida de lectura se acota aparte, por
+   columna de texto, con --measure (en `ch`). */
+.screen,
+.screen-skeleton {
+  width: 100%;
+  max-width: var(--screen-max);
+  margin-inline: auto;
   padding: var(--screen-pad-y) var(--screen-pad-x);
-  max-width: 1280px;
 }
-/* Lección: usa el ancho disponible (el hueco muerto a la derecha venía del cap
-   de 1280px con el contenedor alineado a la izquierda). Con el panel lateral
-   oculto por defecto el contenido ocupa todo el ancho; la medida de lectura la
-   sigue acotando `.learn .markdown` (70ch), así que ensanchar no daña la prosa. */
-.screen.learn { max-width: 1680px; }
 .screen-head {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--sp-5);
+  flex-wrap: wrap;
+  gap: var(--sp-4) var(--sp-5);
   margin-bottom: var(--section-gap);
-  padding-bottom: var(--sp-5);
+  padding-bottom: var(--sp-3);
   border-bottom: 1px solid var(--border);
 }
 .section-head { margin: var(--section-gap) 0 var(--sp-4); }
 
-/* FIX handoff §14.1 — el grid intencional del hero de Home que el comentario
-   `//` inválido descartaba. (El resto del CSS de Home vive en screens/home.css
-   de WP7; esta regla es uno de los 4 fixes asignados a WP5.) */
+/* Hero de Home — mobile-first: una columna y, a partir de --bp-lg, el
+   diagrama fork-join a la derecha (el visual educativo central). */
 .home .hero {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
-  gap: var(--sp-9);
-  padding: var(--sp-8) var(--sp-2) var(--sp-9);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: var(--sp-7);
-}
-.home .display-xl { font-size: 56px; }
-/* v2 es ahora la ÚNICA variante: el hero conserva su diagrama fork-join (el
-   visual educativo central). Antes v2 lo ocultaba y colapsaba el hero a 1
-   columna, dejando medio hero vacío. Se mantiene la grilla base (2 columnas)
-   y solo se baja la densidad (gap/padding). */
-[data-variant="v2"] .home .hero {
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-6);
-  padding: var(--sp-2) 0 var(--sp-6);
-  margin-bottom: var(--sp-6);
+  padding: var(--sp-2) 0 var(--section-gap);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--section-gap);
 }
-[data-variant="v2"] .home .display-xl {
-  font-size: 38px;
-  font-weight: 700;
+@media (min-width: 1024px) {
+  .home .hero { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
 }
+.home .hero > * { min-width: 0; }
+.home .display-xl { font-size: var(--fs-3xl); }
 
 /* ═══════════════════════ Botones (handoff §2.2) ════════════════════════
-   Primario = EL acento naranja (--accent) con --shadow-cta; outline/ghost
-   neutros. Jerarquía por peso (600) y tamaño, radio --r-md. */
+   Primario = EL acento naranja con --shadow-cta RECUPERADA; neutros con
+   subtono azul claro y borde propio para que no se lean "blancos". */
 .btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 10px 16px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 7px 12px;
   border-radius: var(--r-md);
-  font-size: 14px;
+  font-size: var(--fs-sm);
   font-weight: 600;
-  border: 1px solid transparent;
-  /* Neutro = subtono azul claro (los CTA .btn-primary/.btn-accent sobreescriben
-     su propio background naranja; .btn-ghost su transparente). */
+  line-height: 1.3;
+  border: 1px solid var(--btn-neutral-border);
   background: var(--btn-neutral-bg);
   color: var(--text);
+  box-shadow: var(--elevation-1);
   cursor: pointer;
   transition: background .15s var(--ease), border-color .15s var(--ease),
               color .15s var(--ease), box-shadow .2s var(--ease),
               transform .15s var(--ease);
 }
-.btn:hover { background: var(--btn-neutral-hover); }
-.btn:disabled { opacity: .55; cursor: not-allowed; }
-.btn-primary {
-  background: var(--accent);
-  color: var(--on-accent);
-  box-shadow: var(--shadow-cta);
+.btn:hover {
+  background: var(--btn-neutral-hover);
+  border-color: var(--btn-neutral-hover-border);
+  box-shadow: var(--elevation-2);
 }
-.btn-primary:hover {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
+.btn:active { box-shadow: var(--elevation-0); transform: translateY(1px); }
+.btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
-.btn-primary:active { transform: translateY(0); }
-.btn-primary:disabled { transform: none; }
-/* Alias de CTA (mismo acento; existía solo en v2, ahora es global) */
+.btn-primary,
 .btn-accent {
   background: var(--accent);
+  border-color: transparent;
   color: var(--on-accent);
   box-shadow: var(--shadow-cta);
 }
-.btn-accent:hover { background: var(--accent-hover); transform: translateY(-1px); }
-.btn-ghost { background: transparent; color: var(--text-muted); }
-.btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn-primary:hover,
+.btn-accent:hover {
+  background: var(--accent-hover);
+  border-color: transparent;
+  box-shadow: var(--shadow-cta-hover);
+  transform: translateY(-1px);
+}
+.btn-primary:active,
+.btn-accent:active { transform: translateY(0); box-shadow: var(--shadow-cta); }
+.btn-primary:disabled,
+.btn-accent:disabled { transform: none; box-shadow: none; }
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+.btn-ghost:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: none;
+}
 .btn-outline {
-  background: var(--btn-neutral-bg);
-  border-color: var(--btn-neutral-border);
+  background: var(--surface);
+  border-color: var(--border-strong);
 }
 .btn-outline:hover { background: var(--btn-neutral-hover); border-color: var(--btn-neutral-hover-border); }
-.btn-sm { padding: 6px 10px; font-size: 13px; }
-.btn-lg { padding: 12px 20px; font-size: 15px; }
-.btn-xl {
-  padding: 14px 24px;
-  font-size: 16px;
-  font-weight: 600;
-  border-radius: var(--r-md);
+.btn-sm { padding: 5px 10px; font-size: var(--fs-xs); }
+.btn-lg { padding: 9px 15px; font-size: var(--fs-md); }
+.btn-xl { padding: 11px 18px; font-size: var(--fs-lg); }
+
+/* Punteros gruesos (táctil): objetivos de 44px mínimo (ui-ux-pro-max §2). */
+@media (pointer: coarse) {
+  .btn { min-height: 44px; }
+  .nav-item { width: 44px; height: 44px; }
 }
 
-/* ═══════════════════════ Cards (handoff §2.3) ══════════════════════════
-   Tarjeta blanca que "flota" sobre el fondo neutro: borde sutil + shadow-md. */
+/* ═══════════════ Cards — NIVEL 1 de la escala de elevación ═════════════ */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--elevation-1);
 }
+/* Modificador explícito para la tarjeta destacada/flotante (nivel 2). */
+.card-raised { box-shadow: var(--elevation-2); }
 .card-pad { padding: var(--card-pad); }
+/* Cabecera = sub-superficie dentro de la tarjeta (--surface-2): es lo que
+   hace legible dónde empieza cada módulo/apartado. */
 .card-head {
-  padding: 18px 22px;
+  padding: var(--sp-3) var(--card-pad);
+  background: var(--surface-2);
   border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 12px;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  display: flex; align-items: center; gap: var(--sp-3);
+  flex-wrap: wrap;
 }
-/* Icono del head en "tile" teal de 30px (16px de glifo + 7px de aire) */
+/* Icono del head en "tile" teal */
 .card-head > svg {
   box-sizing: content-box;
   width: 16px; height: 16px;
-  padding: 7px;
-  border-radius: 9px;
+  padding: 5px;
+  border-radius: 7px;
   background: var(--primary-soft);
   color: var(--primary-ink);
   flex-shrink: 0;
@@ -399,47 +417,47 @@
 .card-title {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 15.5px;
+  font-size: var(--fs-sm);
   letter-spacing: -.01em;
 }
-.card-sub { font-size: 12.5px; color: var(--text-muted); }
+.card-sub { font-size: var(--fs-xs); color: var(--text-muted); }
 
-/* ═══════════════════════ Chips (handoff §2.4) ══════════════════════════
-   Pills sin borde con fondo suave por tono; sans 600 (los datos puntuales
-   dentro de un chip pueden marcarse con .mono desde el llamador). */
+/* ═══════════════════════ Chips (handoff §2.4) ══════════════════════════ */
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: 3px 8px;
+  border-radius: var(--r-sm);
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   letter-spacing: .01em;
   background: var(--surface-2);
   color: var(--text-muted-strong); /* sobre --surface-2: AA */
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
 }
 .chip .status-dot { width: 8px; height: 8px; box-shadow: none; }
-.chip-green { background: var(--success-soft); color: var(--success-ink); }
-.chip-orange { background: var(--accent-soft); color: var(--orange-600); }
-.chip-red { background: var(--danger-soft); color: var(--danger-ink); }
-.chip-amber { background: var(--warn-soft); color: var(--warn-ink); }
+.chip-green { background: var(--success-soft); color: var(--success-ink); border-color: color-mix(in srgb, var(--success) 28%, transparent); }
+.chip-orange { background: var(--accent-soft); color: var(--orange-600); border-color: color-mix(in srgb, var(--orange-500) 28%, transparent); }
+.chip-red { background: var(--danger-soft); color: var(--danger-ink); border-color: color-mix(in srgb, var(--danger) 28%, transparent); }
+.chip-amber { background: var(--warn-soft); color: var(--warn-ink); border-color: color-mix(in srgb, var(--warn) 28%, transparent); }
 .chip-blue {
   background: color-mix(in srgb, var(--blue-500) 10%, var(--surface));
   color: var(--blue-500);
+  border-color: color-mix(in srgb, var(--blue-500) 28%, transparent);
 }
 
-/* ═══════════════════════ Inputs (handoff §2.5) ═════════════════════════ */
+/* ═══════════════════════ Inputs (handoff §2.5) ═════════════════════════
+   El borde ES la affordance → --border-input (3.10:1, WCAG 1.4.11). */
 .field-label {
   display: block;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   margin-bottom: 6px;
   color: var(--text);
 }
 .field-hint {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
   margin-top: 4px;
@@ -449,53 +467,77 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: var(--sp-3);
   margin-bottom: 6px;
 }
 .input, .select, .textarea {
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 11px;
   border-radius: var(--r-md);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-input);
   background: var(--surface);
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   color: var(--text);
+  box-shadow: var(--shadow-inset);
   transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
+}
+.input:hover:not(:disabled), .select:hover:not(:disabled), .textarea:hover:not(:disabled) {
+  border-color: var(--text-muted);
 }
 .input:focus, .select:focus, .textarea:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-soft);
+  box-shadow: var(--focus-ring);
 }
-.textarea { font-family: var(--font-mono); font-size: 13px; resize: vertical; }
+.input:disabled, .select:disabled, .textarea:disabled {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+/* Variante compacta del <select> de cabecera (antes `minWidth: 210` inline en
+   ExamplePicker.tsx: un ancho mágico que a 375px desbordaba la pantalla).
+   `min()` le da el ancho cómodo cuando cabe y el del contenedor cuando no. */
+.select-compact {
+  width: auto;
+  min-width: min(100%, 210px);
+  max-width: 100%;
+}
+.textarea { font-family: var(--font-mono); font-size: var(--fs-xs); resize: vertical; }
 input[type="range"] { width: 100%; accent-color: var(--primary); }
 input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
 
+@media (pointer: coarse) {
+  .input, .select { min-height: 44px; }
+}
+
 /* ═══════════════════════ Terminal (handoff §2.6, §1.6) ═════════════════
-   Siempre oscuro EN AMBAS VARIANTES, pero slate (tokens --term-*), no marrón.
-   Los 3 dots mac llegan inline desde Terminal.tsx (excepción documentada). */
+   Siempre oscuro (tokens --term-*). Los 3 dots mac llegan inline desde
+   Terminal.tsx (excepción documentada). */
 .terminal {
   background: var(--term-bg);
   color: var(--term-text);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-md);
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   line-height: 1.55;
   overflow: hidden;
   border: 1px solid var(--term-border);
+  box-shadow: var(--elevation-1);
 }
 .terminal-header {
   display: flex; align-items: center; gap: 8px;
-  padding: 10px 14px;
+  padding: 9px var(--sp-3);
   background: var(--term-head);
   border-bottom: 1px solid var(--term-border);
-  font-size: 11.5px;
+  font-size: var(--fs-2xs);
   color: var(--term-dim);
   letter-spacing: .05em;
 }
 .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
-.terminal-body { padding: 14px 16px; max-height: 380px; overflow: auto; }
-.term-line { white-space: pre-wrap; }
+.terminal-body { padding: var(--sp-3) var(--sp-4); max-height: 380px; overflow: auto; }
+.term-line { white-space: pre-wrap; overflow-wrap: anywhere; }
 .term-dim { color: var(--term-dim); }
 .term-green { color: var(--term-accent); }
 .term-orange { color: var(--orange-400); }
@@ -507,24 +549,28 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
 /* El switch de variante (handoff §2.8) se retiró: la app quedó fija en v2. */
 
 /* ═══════════════ MetricCard / MiniBar (handoff §5.6, §5.8) ═════════════
-   "Stat tile" aireado: label sans 13/600 muted, valor 30/700 tabular. */
+   Grilla auto-fit: los 4 tiles llenan la fila a cualquier ancho y bajan de
+   columna cuando dejan de caber; sin @media puntuales. */
 .metrics-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--col-min-metric)), 1fr));
   gap: var(--grid-gap);
   margin-bottom: var(--sp-6);
 }
+.metrics-row > * { min-width: 0; }
 .metric-card {
-  display: flex; gap: 14px;
+  display: flex; gap: var(--sp-3);
   padding: var(--card-pad);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--elevation-1);
+  /* CONTAINER QUERY: el tile se adapta a SU ancho, no al del viewport. */
+  container-type: inline-size;
 }
 .metric-icon {
-  width: 32px; height: 32px;
-  border-radius: 9px;
+  width: 30px; height: 30px;
+  border-radius: 7px;
   background: var(--primary-soft);
   color: var(--primary-ink);
   display: grid; place-items: center;
@@ -532,22 +578,27 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
 }
 .metric-label {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-muted);
 }
 .metric-value {
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   letter-spacing: -.02em;
   line-height: 1.15;
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
 }
+/* Tile estrecho: el icono cede su sitio al dato (que es lo que se lee). */
+@container (max-width: 210px) {
+  .metric-icon { width: 24px; height: 24px; }
+  .metric-value { font-size: var(--fs-xl); }
+}
 .metric-progress {
   height: 6px;
-  background: var(--surface-2);
+  background: var(--surface-3);
   border-radius: 999px;
   overflow: hidden;
   margin-top: 10px;
@@ -561,8 +612,8 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
 
 .mini-bar {
   position: relative;
-  height: 18px;
-  background: var(--surface-2);
+  height: 16px;
+  background: var(--surface-3);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -577,11 +628,10 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
   color: var(--text);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 10.5px;
+  font-size: var(--fs-2xs);
 }
 
-/* ═══════ Estados vacío / error / carga (nuevos, frontend-spec §6) ══════
-   Única forma permitida de estados vacío/error/carga en toda la app. */
+/* ═══════ Estados vacío / error / carga (frontend-spec §6) ══════════════ */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -594,14 +644,15 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
   width: 44px; height: 44px;
   border-radius: var(--r-md);
   background: var(--surface-2);
+  border: 1px solid var(--border);
   color: var(--text-muted);
   display: grid; place-items: center;
 }
-.empty-state-title { font-size: 14.5px; font-weight: 600; }
+.empty-state-title { font-size: var(--fs-md); font-weight: 600; }
 .empty-state-body {
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
-  max-width: 420px;
+  max-width: var(--measure-narrow);
   margin: 0;
 }
 
@@ -611,19 +662,20 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
   gap: 10px;
   padding: var(--sp-5);
   background: var(--danger-soft);
-  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
   border-radius: var(--r-lg);
+  box-shadow: var(--elevation-1);
 }
 .error-state-head {
   display: flex; align-items: center; gap: 10px;
   color: var(--danger-ink);
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 600;
 }
-.error-state-msg { font-size: 13.5px; margin: 0; }
+.error-state-msg { font-size: var(--fs-sm); margin: 0; }
 .error-state details {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
 }
 .error-state summary { cursor: pointer; }
@@ -635,36 +687,35 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
 .error-state-actions { display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
 
 .skeleton {
-  background: var(--surface-2);
+  background: var(--surface-3);
   border-radius: var(--r-md);
   animation: skeleton-pulse 1.4s var(--ease) infinite;
 }
 @keyframes skeleton-pulse { 50% { opacity: .55; } }
 .screen-skeleton {
-  padding: var(--screen-pad-y) var(--screen-pad-x);
-  max-width: 1280px;
   display: flex;
   flex-direction: column;
   gap: var(--sp-5);
 }
 .screen-skeleton .skeleton-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--col-min-card)), 1fr));
   gap: var(--grid-gap);
 }
 
 /* ═══════════════ Markdown (subset de lib/markdown.ts) ══════════════════ */
-.markdown { font-size: 14px; line-height: 1.6; }
+.markdown { font-size: var(--fs-md); line-height: 1.65; }
 .markdown h1, .markdown h2, .markdown h3, .markdown h4 {
   font-family: var(--font-display);
   font-weight: 600;
   letter-spacing: -.01em;
   margin: 18px 0 8px;
+  text-wrap: balance;
 }
-.markdown h1 { font-size: 24px; font-weight: 700; }
-.markdown h2 { font-size: 20px; font-weight: 700; }
-.markdown h3 { font-size: 17px; }
-.markdown h4 { font-size: 15px; }
+.markdown h1 { font-size: var(--fs-2xl); font-weight: 700; }
+.markdown h2 { font-size: var(--fs-xl); font-weight: 700; }
+.markdown h3 { font-size: var(--fs-lg); }
+.markdown h4 { font-size: var(--fs-md); }
 .markdown p { margin: 0 0 10px; }
 .markdown ul, .markdown ol { margin: 0 0 10px; padding-left: 22px; }
 .markdown li { margin: 2px 0; }
@@ -675,6 +726,7 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
   border: 1px solid var(--border);
   padding: 1px 5px;
   border-radius: 4px;
+  overflow-wrap: anywhere;
 }
 .markdown pre {
   background: var(--term-bg);
@@ -683,146 +735,14 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
   border-radius: var(--r-md);
   padding: 12px 14px;
   overflow-x: auto;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   line-height: 1.55;
   margin: 0 0 12px;
 }
 .markdown pre code { background: transparent; border: none; padding: 0; color: inherit; }
 .markdown a { color: var(--primary-ink); }
+/* Tabla ancha: scroll DENTRO de su caja, nunca scroll horizontal de página. */
 .markdown .md-table { overflow-x: auto; margin: 0 0 12px; }
-.markdown table { border-collapse: collapse; font-size: 13px; }
+.markdown table { border-collapse: collapse; font-size: var(--fs-sm); }
 .markdown th, .markdown td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
 .markdown th { background: var(--surface-2); font-weight: 600; }
-
-/* ═══════════════════════ Overrides v2 (densidad) ═══════════════════════
-   FIX handoff §14.3: en el prototipo `.v2 .app` nunca aplicaba (el nodo era
-   `.app.v2`). Con el theming unificado, `[data-variant="v2"] .app` SÍ aplica
-   → rail v2 de 52 px (intención de diseño). Solo cambia la DENSIDAD: la
-   paleta es la misma nueva (los tokens v2 redefinen spacing/radios/sombras). */
-[data-variant="v2"] .app {
-  grid-template-columns: 52px 1fr;
-  background: var(--bg);
-}
-
-[data-variant="v2"] .sidebar {
-  padding: 12px 8px;
-  gap: 2px;
-  border-right: 1px solid var(--border);
-  background: var(--surface-2);
-  align-items: center;
-}
-[data-variant="v2"] .sidebar-brand {
-  padding: 4px 0 14px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 8px;
-  justify-content: center;
-}
-[data-variant="v2"] .sidebar-brand-mark {
-  width: 32px; height: 32px;
-  border-radius: 7px;
-  box-shadow: none;
-}
-[data-variant="v2"] .sidebar-brand-text,
-[data-variant="v2"] .sidebar-brand-sub,
-[data-variant="v2"] .sidebar-brand-textwrap { display: none; }
-
-[data-variant="v2"] .nav-section-label { display: none; }
-/* Rail fijo, sin expandir (handoff §3.2 "Sidebar v2"): el toggle se oculta. */
-[data-variant="v2"] .sidebar-toggle { display: none; }
-
-[data-variant="v2"] .nav-item {
-  width: 36px; height: 36px;
-  padding: 0;
-  justify-content: center;
-  border-radius: 7px;
-  position: relative;
-}
-[data-variant="v2"] .nav-label { display: none; }
-[data-variant="v2"] .nav-item.active {
-  background: var(--surface);
-  color: var(--primary-ink);
-  box-shadow: var(--shadow-sm);
-}
-[data-variant="v2"] .nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: -8px; top: 6px; bottom: 6px;
-  width: 2px; border-radius: 2px;
-  background: var(--primary);
-}
-[data-variant="v2"] .nav-item.active .nav-icon { color: var(--primary-ink); }
-
-/* Tooltip siempre visible al hover (no solo colapsado) */
-[data-variant="v2"] .nav-item::after {
-  content: attr(data-tip);
-  position: absolute;
-  left: calc(100% + 8px);
-  top: 50%; transform: translateY(-50%);
-  background: var(--slate-800); color: var(--slate-50);
-  padding: 4px 8px; border-radius: 4px;
-  font-size: 11.5px; white-space: nowrap;
-  opacity: 0; pointer-events: none;
-  transition: opacity .15s;
-  z-index: 100;
-}
-[data-variant="v2"] .nav-item:hover::after,
-[data-variant="v2"] .nav-item:focus-visible::after { opacity: 1; }
-
-[data-variant="v2"] .sidebar-footer {
-  flex-direction: column; gap: 6px;
-  padding: 10px 0;
-  border-top: 1px solid var(--border);
-  align-items: center;
-}
-[data-variant="v2"] .sidebar-footer > div { display: none; }
-
-[data-variant="v2"] .topbar {
-  padding: 9px 20px;
-  font-size: 13px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-}
-[data-variant="v2"] .topbar-title {
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0;
-}
-[data-variant="v2"] .topbar-crumb { font-size: 12px; }
-
-[data-variant="v2"] .screen-head {
-  padding-bottom: var(--sp-3);
-  margin-bottom: var(--sp-5);
-}
-
-[data-variant="v2"] .card-head {
-  padding: 10px 14px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
-}
-[data-variant="v2"] .card-head > svg {
-  padding: 5px;
-  border-radius: 7px;
-}
-[data-variant="v2"] .card-title {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-[data-variant="v2"] .btn { padding: 6px 11px; font-size: 13px; border-radius: var(--r-md); }
-[data-variant="v2"] .btn-lg { padding: 8px 14px; font-size: 13.5px; }
-[data-variant="v2"] .btn-xl { padding: 10px 16px; font-size: 14px; }
-
-[data-variant="v2"] .chip {
-  padding: 2px 7px;
-  font-size: 10.5px;
-  border-radius: 4px;
-}
-
-[data-variant="v2"] .metric-card { padding: var(--card-pad); gap: 10px; }
-[data-variant="v2"] .metric-icon { width: 28px; height: 28px; border-radius: 6px; }
-[data-variant="v2"] .metric-label { font-size: 11.5px; }
-[data-variant="v2"] .metric-value { font-size: 20px; }
-
-[data-variant="v2"] .mini-bar { height: 14px; }
-[data-variant="v2"] .terminal { border-radius: var(--r-md); }
-[data-variant="v2"] .terminal-body { font-size: 11.5px; max-height: 320px; }

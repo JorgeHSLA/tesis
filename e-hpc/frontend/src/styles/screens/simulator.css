@@ -1,31 +1,40 @@
 /* screens/simulator.css — Simulador idle + live (frontend-spec §6.2-§6.3).
-   Rediseño 2026-07 "plataforma de curso": tarjetas blancas que flotan sobre
-   el neutro, teal = progreso/estado activo, naranja SOLO en el CTA de lanzar
-   (hereda .btn-primary). El código/terminal usa los tokens --term-* (siempre
-   oscuro en ambas variantes). */
+   Rediseño 2026-07-25:
+   · los 4 @media sueltos (980/800/980/980) se migran al set único de
+     breakpoints y se invierten a MOBILE-FIRST (min-width), o desaparecen en
+     favor de auto-fit/minmax.
+   · elevación por token; el código/terminal usa los --term-* (siempre oscuro).
+   · la tabla «Detalle por hilo» se reordena por CONTAINER QUERY: depende del
+     ancho de SU tarjeta, no del viewport (vive en una columna de 1fr). */
 
 /* ── header compartido ─────────────────────────────────────────────────── */
+/* `flex-shrink: 0` + `min-width: auto` hacían que este bloque (select + CTA)
+   se negara a encoger y desbordara la pantalla a 375px. Ahora encoge y envuelve. */
 .screen-actions {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
 }
 .live-head-row {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
+  flex-wrap: wrap;
   margin-top: 6px;
 }
 
 /* ── IDLE: config-grid (§6.2) ──────────────────────────────────────────── */
 .config-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--grid-gap);
 }
-@media (max-width: 980px) {
-  .config-grid { grid-template-columns: 1fr; }
+.config-grid > * { min-width: 0; }
+@media (min-width: 1024px) {
+  .config-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 
 .code-upload-body {
@@ -34,9 +43,11 @@
   gap: var(--sp-4);
   padding: var(--card-pad);
 }
+/* Sin `min-width: 0` el bloque de código (white-space: pre) impide que la
+   columna encoja y empuja el layout fuera del viewport en móvil. */
+.code-upload-body > * { min-width: 0; }
 
-/* Dropzone: interactivo → hover en clave teal (mismo patrón que las
-   opciones seleccionables del quiz: --border-accent + --primary-soft). */
+/* Dropzone: el borde ES la affordance → --border-strong (3:1). */
 .dropzone {
   display: flex;
   flex-direction: column;
@@ -44,7 +55,7 @@
   justify-content: center;
   border: 2px dashed var(--border-strong);
   border-radius: var(--r-md);
-  background: var(--bg);
+  background: var(--surface-2);
   padding: var(--card-pad);
   text-align: center;
   color: var(--text-muted);
@@ -53,12 +64,12 @@
 }
 .dropzone:hover,
 .dropzone.drag-over {
-  border-color: var(--border-accent);
+  border-color: var(--primary);
   background: var(--primary-soft);
   color: var(--primary-ink);
 }
 .dz-title {
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--text);
   margin-top: var(--sp-2);
@@ -73,11 +84,14 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-shadow: var(--elevation-1);
 }
 .code-preview-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
   background: var(--term-head);
   border-bottom: 1px solid var(--term-border);
@@ -86,28 +100,24 @@
 .code-preview-head .mono-small { color: var(--term-dim); }
 .code-editor {
   width: 100%;
-  min-height: 260px;
-  max-height: 340px;
+  /* Alto fluido: en 1920 se ve más código sin que en 768 empuje el layout. */
+  min-height: clamp(200px, 22vh + 60px, 320px);
+  max-height: clamp(260px, 34vh + 60px, 460px);
   border: none;
   outline: none;
   resize: vertical;
   background: var(--term-bg);
   color: var(--term-text);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   line-height: 1.6;
   padding: var(--sp-3) var(--sp-4);
   white-space: pre;
   overflow: auto;
   tab-size: 4;
 }
-/* v2 · compacto: solo densidad (misma paleta --term-*) */
-[data-variant="v2"] .code-editor {
-  min-height: 220px;
-  max-height: 300px;
-}
 
-/* Marco de la topología en idle: blanco limpio, sin degradados */
+/* Marco de la topología en idle */
 .topology-viz {
   padding: var(--sp-5) var(--sp-5) var(--sp-1);
   background: var(--surface);
@@ -117,19 +127,16 @@
   padding: var(--card-pad);
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
+  gap: var(--sp-3);
 }
-[data-variant="v2"] .config-fields { gap: var(--sp-3); }
 
 .sweep-warn { color: var(--warn); }
 
+/* Opciones avanzadas: auto-fit, sin @media puntual. */
 .adv-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
   gap: var(--sp-4);
-}
-@media (max-width: 800px) {
-  .adv-grid { grid-template-columns: 1fr; }
 }
 
 /* Banner de error de lanzamiento (códigos del envelope, §6.2) */
@@ -139,12 +146,13 @@
   align-items: center;
   gap: var(--sp-3);
   margin-bottom: var(--sp-5);
-  padding: 14px 18px;
+  padding: var(--sp-3) var(--sp-4);
   background: var(--danger-soft);
   border: 1px solid var(--danger);
   border-radius: var(--r-md);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text);
+  box-shadow: var(--elevation-1);
 }
 .launch-error b { color: var(--danger-ink); }
 .launch-error-instructions {
@@ -155,30 +163,25 @@
   background: var(--term-bg);
   color: var(--term-text);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   line-height: 1.55;
   overflow-x: auto;
 }
 
 /* ── LIVE ──────────────────────────────────────────────────────────────── */
-/* Grilla de métricas del live: 4 tarjetas, gap de grilla del sistema */
-.simulator-screen .metrics-row {
-  gap: var(--grid-gap);
-  margin-bottom: var(--sp-5);
-}
-@media (max-width: 980px) {
-  .simulator-screen .metrics-row { grid-template-columns: repeat(2, 1fr); }
-}
+/* La grilla de métricas ya es auto-fit en components.css: aquí solo el ritmo. */
+.simulator-screen .metrics-row { margin-bottom: var(--sp-5); }
 
 /* Banner informativo (threads_note): clave teal, texto --text con <b> teal */
 .threads-note {
   margin-bottom: var(--sp-4);
-  padding: 14px 18px;
+  padding: var(--sp-3) var(--sp-4);
   background: var(--primary-soft);
   border: 1px solid var(--border-accent);
   border-radius: var(--r-md);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text);
+  box-shadow: var(--elevation-1);
 }
 .threads-note b { color: var(--primary-ink); }
 
@@ -189,25 +192,27 @@
   gap: var(--sp-3);
   flex-wrap: wrap;
   margin-bottom: var(--sp-4);
-  padding: 14px 18px;
+  padding: var(--sp-3) var(--sp-4);
   background: var(--danger-soft);
   border: 1px solid var(--danger);
   border-radius: var(--r-md);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text);
+  box-shadow: var(--elevation-1);
 }
 .lost-banner b { color: var(--danger-ink); }
 
 .running-grid {
   display: grid;
-  grid-template-columns: 1.3fr 1fr;
-  gap: var(--sp-5);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--grid-gap);
 }
-@media (max-width: 980px) {
-  .running-grid { grid-template-columns: 1fr; }
+.running-grid > * { min-width: 0; }
+@media (min-width: 1024px) {
+  .running-grid { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
 }
 
-/* Topología en vivo: fondo blanco limpio con la SVG centrada */
+/* Topología en vivo: la SVG centrada sobre superficie blanca */
 .live-topology {
   padding: var(--sp-3) var(--sp-4);
   background: var(--surface);
@@ -216,7 +221,7 @@
 }
 .live-topology-foot {
   padding: 0 var(--card-pad) 14px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
@@ -225,13 +230,14 @@
 .terminal-card .terminal {
   border: none;
   border-radius: 0;
+  box-shadow: none;
   height: 100%;
   display: flex;
   flex-direction: column;
 }
 .live-terminal-body {
-  max-height: 340px;
-  min-height: 260px;
+  max-height: clamp(240px, 34vh + 40px, 460px);
+  min-height: clamp(200px, 22vh + 40px, 300px);
   overflow-y: auto;
   flex: 1;
 }
@@ -243,10 +249,11 @@
   background: var(--term-head);
   color: var(--term-text);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   padding: 5px 12px;
   border-radius: 999px;
   cursor: pointer;
+  box-shadow: var(--elevation-2);
   transition: background .15s var(--ease), color .15s var(--ease);
 }
 .follow-btn:hover {
@@ -254,30 +261,33 @@
   color: var(--term-accent);
 }
 
-/* Tabla «Detalle por hilo» (§6.3): aireada, th sans 12/600 uppercase,
-   valores mono tabular-nums, hover de fila en --surface-2 */
+/* Tabla «Detalle por hilo» (§6.3) — CONTAINER QUERY sobre su propio ancho. */
 .threads-table {
   padding-bottom: var(--sp-2);
   font-variant-numeric: tabular-nums;
+  container-type: inline-size;
 }
 .threads-table-head,
 .threads-table-row {
   display: grid;
-  grid-template-columns: 140px 160px 1fr 120px;
-  gap: var(--sp-4);
+  grid-template-columns: minmax(90px, 140px) minmax(100px, 160px) minmax(0, 1fr) minmax(80px, 120px);
+  gap: var(--sp-3);
   align-items: center;
-  padding: var(--sp-3) var(--card-pad);
+  padding: var(--sp-2) var(--card-pad);
 }
 .threads-table-head {
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .06em;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
 }
-.threads-table-row { transition: background .15s var(--ease); }
+.threads-table-row {
+  font-size: var(--fs-sm);
+  transition: background .15s var(--ease);
+}
 .threads-table-row:hover { background: var(--surface-2); }
 .threads-table-sub {
   text-transform: none;
@@ -285,14 +295,22 @@
   font-weight: 500;
   opacity: .75;
 }
-/* v2 · compacto: solo densidad */
-[data-variant="v2"] .threads-table-head,
-[data-variant="v2"] .threads-table-row { padding: 8px 14px; }
-[data-variant="v2"] .threads-table-row { font-size: 13px; }
+/* Tarjeta estrecha: las 4 celdas se reparten en 2×2 en vez de comprimirse.
+   NO se oculta ninguna columna: es una tabla ARIA (role="table"/"columnheader"/
+   "cell") y «Estado» es el dato real de la fila —ocultarlo lo sacaría del árbol
+   de accesibilidad—. Cabecera y filas comparten plantilla, así que siguen
+   alineadas al envolver. */
+@container (max-width: 520px) {
+  .threads-table-head,
+  .threads-table-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--sp-2) var(--sp-3);
+  }
+}
 
 /* SweepProgressCard — el caso «en curso» se marca en teal (progreso) */
 .sweep-progress {
-  padding: 14px var(--card-pad) var(--sp-5);
+  padding: var(--sp-3) var(--card-pad) var(--sp-5);
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
@@ -301,15 +319,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  gap: var(--sp-2);
+  padding: 10px var(--sp-3);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   background: var(--surface);
-  transition: border-color .2s var(--ease), background .2s var(--ease);
+  box-shadow: var(--elevation-1);
+  transition: border-color .2s var(--ease), background .2s var(--ease),
+    box-shadow .2s var(--ease);
 }
 .sweep-case.current {
   border-color: var(--border-accent);
   background: var(--primary-soft);
+  box-shadow: var(--elevation-2);
 }
 .sweep-case-value {
   display: flex;

@@ -17,10 +17,14 @@ function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 980,
-    minHeight: 640,
+    // minWidth sigue el set único de breakpoints del frontend (tokens.css §6):
+    // --bp-sm = 640px. Antes era 980 (el breakpoint único que tenía el CSS
+    // cuando el layout no era responsive) e impedía estrechar la ventana pese
+    // a que la UI ya se adapta hasta 375px.
+    minWidth: 640,
+    minHeight: 560,
     show: false, // evitar flash blanco; show en ready-to-show
-    backgroundColor: WINDOW_BACKGROUND_COLOR, // --cream-50 (v1) — coherente con la app
+    backgroundColor: WINDOW_BACKGROUND_COLOR, // sigue a --bg de tokens.css (ver constants.ts)
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true, // explícito aunque sea default

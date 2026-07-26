@@ -1,11 +1,12 @@
-/* screens/catalog.css — rediseño 2026-07 "plataforma de curso": cabecera de
-   pantalla aireada, ContinueCard destacada (borde teal), stat tiles blancas,
-   acordeones de módulo como tarjetas blancas con progreso TEAL (--primary
-   sobre --surface-2) y filas de lección con hover suave. Se conservan los
-   fixes del handoff: `var(--ink)` → `var(--text)` en `.fpill.active` v2
-   (§14.4) y `· Completado` con el token `--success` (§14.5). */
-
-.screen.catalog { padding: var(--screen-pad-y) var(--screen-pad-x); }
+/* screens/catalog.css — Catálogo (/#/cursos). Rediseño 2026-07-25:
+   · ancho y padding los pone `.screen` (contenedor fluido).
+   · la tira de stats usa auto-fit/minmax → llena la ventana a 1440/1920 y se
+     reparte sola en 2 o 1 columna al estrechar (adiós al @media 980).
+   · elevación por token: módulo cerrado nivel 1, abierto nivel 2.
+   · la cabecera del módulo se reordena por CONTAINER QUERY (su propio ancho),
+     no por el del viewport: dentro de un panel estrecho también funciona.
+   · se conservan los fixes del handoff §14.4 (`var(--ink)` → `var(--text)`) y
+     §14.5 (`· Completado` con el token --success). */
 
 .catalog .screen-head {
   align-items: flex-start;
@@ -14,39 +15,39 @@
   margin-bottom: var(--section-gap);
 }
 
-/* ── ContinueCard — card destacada con borde teal ───────────────────────── */
+/* ── ContinueCard — tarjeta destacada: borde teal + NIVEL 2 ─────────────── */
 .catalog-continue {
-  min-width: 280px;
+  min-width: min(100%, 280px);
   padding: var(--sp-5);
   background: var(--surface);
   border: 1px solid var(--border-accent);
-  box-shadow: var(--shadow-md);
-}
-[data-variant="v2"] .catalog-continue {
-  background: var(--surface-2);
-  border-color: var(--border);
-  box-shadow: none;
+  box-shadow: var(--elevation-2);
 }
 .continue-title {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: var(--fs-lg);
   font-weight: 600;
   letter-spacing: -.01em;
   margin: 4px 0 6px;
   color: var(--text);
   line-height: 1.3;
 }
+/* Bloque (no inline-flex): así el CTA que va detrás cae a su propia línea. Con
+   `inline-flex` el botón —también inline-flex— compartía línea y TAPABA el
+   `~Ns` de la meta (defecto previo, visible en las capturas de referencia). */
 .continue-meta {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   color: var(--text-muted);
 }
+.catalog-continue .btn { align-self: flex-start; }
 
-/* ── Stats strip — stat tiles blancas que flotan ────────────────────────── */
+/* ── Stats strip — stat tiles de nivel 1 ────────────────────────────────── */
 .catalog-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--col-min-metric)), 1fr));
   gap: var(--grid-gap);
   margin-bottom: var(--section-gap);
 }
@@ -54,20 +55,20 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
-  padding: var(--sp-4) var(--sp-5);
+  box-shadow: var(--elevation-1);
+  padding: var(--sp-4) var(--card-pad);
 }
 /* Número = dato → JetBrains Mono con tabular-nums. */
 .cstat-n {
   font-family: var(--font-mono);
-  font-size: 22px;
+  font-size: var(--fs-xl);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text);
   line-height: 1.15;
 }
 .cstat-l {
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   margin-top: var(--sp-1);
 }
@@ -80,64 +81,70 @@
   margin-bottom: var(--grid-gap);
   flex-wrap: wrap;
 }
+/* El buscador ES un control → borde de affordance (--border-input, 3:1). */
 .catalog-search {
-  flex: 1;
-  min-width: 280px;
+  flex: 1 1 260px;
+  min-width: min(100%, 240px);
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: 10px 14px;
+  padding: 8px var(--sp-3);
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-input);
   border-radius: var(--r-md);
   color: var(--text-muted);
+  box-shadow: var(--shadow-inset);
   transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
 }
 .catalog-search:focus-within {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-soft);
+  box-shadow: var(--focus-ring);
 }
 .catalog-search input {
   flex: 1;
+  min-width: 0;
   border: none;
   outline: none;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   color: var(--text);
   background: transparent;
 }
 .catalog-filters {
   display: flex;
   gap: var(--sp-2);
+  flex-wrap: wrap;
 }
 .fpill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 7px var(--sp-3);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   cursor: pointer;
+  box-shadow: var(--elevation-1);
   transition: color .15s var(--ease), border-color .15s var(--ease),
-    background .15s var(--ease);
+    background .15s var(--ease), box-shadow .15s var(--ease);
   font-family: inherit;
 }
-.fpill:hover { color: var(--text); border-color: var(--border-strong); }
-/* Chip activo en teal de marca (el naranja queda para CTAs primarios).
-   --primary-ink de fondo: blanco encima da 5.47:1 (con --primary solo 3.74). */
-.fpill.active {
-  background: var(--primary-ink);
-  color: var(--on-accent);
-  border-color: var(--primary-ink);
+.fpill:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  box-shadow: var(--elevation-2);
 }
 /* FIX handoff §14.4: `var(--ink)` no existía → `var(--text)`. */
-[data-variant="v2"] .fpill.active { background: var(--text); border-color: var(--text); }
+.fpill.active {
+  background: var(--text);
+  color: var(--on-accent);
+  border-color: var(--text);
+}
 .fpill-n {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   padding: 1px 6px;
   background: var(--surface-2);
   color: var(--text-muted-strong); /* sobre --surface-2: AA */
@@ -146,11 +153,15 @@
 }
 /* Oscurecer (no aclarar): el blanco del contador sigue AA sobre el pill. */
 .fpill.active .fpill-n {
-  background: rgba(0, 0, 0, .18);
+  background: color-mix(in srgb, var(--on-accent) 18%, transparent);
   color: var(--on-accent);
 }
 
-/* ── Acordeones de módulo — tarjetas blancas, progreso teal ─────────────── */
+@media (pointer: coarse) {
+  .fpill { min-height: 44px; }
+}
+
+/* ── Acordeones de módulo — tarjetas, progreso teal ─────────────────────── */
 .catalog-modules {
   display: flex;
   flex-direction: column;
@@ -158,20 +169,23 @@
 }
 .cat-module {
   overflow: hidden;
+  container-type: inline-size;
   transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
 }
+.cat-module:hover { box-shadow: var(--elevation-2); }
+/* Abierto = tarjeta elevada (nivel 2) con borde reforzado. */
 .cat-module.open {
-  border-color: var(--border-accent);
-  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+  box-shadow: var(--elevation-2);
 }
-[data-variant="v2"] .cat-module.open { border-color: var(--border-strong); }
 
 .cat-module-head {
   display: flex;
   align-items: center;
-  gap: var(--sp-5);
+  gap: var(--sp-4);
+  flex-wrap: wrap;
   width: 100%;
-  padding: var(--sp-5) var(--card-pad);
+  padding: var(--sp-4) var(--card-pad);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -182,36 +196,32 @@
 }
 .cat-module-head:hover { background: var(--surface-2); }
 .cat-module.open .cat-module-head {
-  background: var(--surface);
+  background: var(--surface-2);
   border-bottom: 1px solid var(--border);
 }
-[data-variant="v2"] .cat-module.open .cat-module-head {
-  background: var(--surface-2);
-}
 
-/* Número de módulo en teal de marca (dato → mono desde el .tsx).
-   --primary-ink: como texto 22px/600 exige 4.5:1 (no cuenta como "grande"). */
+/* Número de módulo (dato → mono desde el .tsx). */
 .cat-module-n {
-  font-size: 22px;
+  font-size: var(--fs-xl);
   font-weight: 600;
-  color: var(--primary-ink);
-  min-width: 44px;
+  color: var(--text-muted);
+  min-width: 40px;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
-[data-variant="v2"] .cat-module-n { color: var(--text-muted); }
 
-.cat-module-info { flex: 1; min-width: 0; }
+.cat-module-info { flex: 1 1 240px; min-width: 0; }
 .cat-module-title {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: var(--fs-lg);
   font-weight: 600;
   letter-spacing: -.01em;
   color: var(--text);
   line-height: 1.25;
+  text-wrap: pretty;
 }
 .cat-module-desc {
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   margin-top: var(--sp-1);
   line-height: 1.5;
@@ -234,31 +244,37 @@
   display: inline-flex;
   padding: 2px 8px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 500;
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  border: 1px solid transparent;
 }
-.level-principiante { background: var(--success-soft); color: var(--success-ink); }
-.level-intermedio { background: var(--warn-soft); color: var(--warn-ink); }
-.level-avanzado { background: var(--danger-soft); color: var(--danger-ink); }
+.level-principiante { background: var(--success-soft); color: var(--success-ink); border-color: color-mix(in srgb, var(--success) 28%, transparent); }
+.level-intermedio { background: var(--warn-soft); color: var(--warn-ink); border-color: color-mix(in srgb, var(--warn) 28%, transparent); }
+.level-avanzado { background: var(--danger-soft); color: var(--danger-ink); border-color: color-mix(in srgb, var(--danger) 28%, transparent); }
 
 .cat-module-progress {
   min-width: 140px;
   text-align: right;
 }
+/* CONTAINER QUERY: en una tarjeta estrecha el progreso pasa a ocupar toda la
+   fila bajo el título en vez de comprimir el texto. */
+@container (max-width: 620px) {
+  .cat-module-progress { flex: 1 1 100%; text-align: left; }
+}
 .cat-prog-n {
-  font-size: 15px;
+  font-size: var(--fs-md);
   color: var(--text);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-/* Progreso TEAL: barra --primary sobre --surface-2. */
+/* Progreso TEAL: barra --primary sobre el pozo --surface-3. */
 .cat-prog-bar {
   margin-top: var(--sp-2);
   height: 6px;
-  background: var(--surface-2);
+  background: var(--surface-3);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -303,20 +319,19 @@
   color: var(--text);
 }
 .cat-lesson:hover { background: var(--surface-2); }
-.cat-lesson.current { background: var(--primary-soft); }
-.cat-lesson:disabled { opacity: .55; cursor: not-allowed; }
-.cat-lesson:disabled:hover { background: transparent; }
-[data-variant="v2"] .cat-lesson.current {
+.cat-lesson.current {
   background: var(--surface-2);
   box-shadow: inset 3px 0 0 var(--primary);
 }
+.cat-lesson:disabled { opacity: .55; cursor: not-allowed; }
+.cat-lesson:disabled:hover { background: transparent; }
 
 .num-badge {
   width: 26px; height: 26px;
   border-radius: 50%;
   display: grid; place-items: center;
   background: var(--surface-2);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   color: var(--text-muted-strong); /* sobre --surface-2: AA */
   flex-shrink: 0;
 }
@@ -339,14 +354,15 @@
   border-radius: var(--r-sm);
   display: grid; place-items: center;
   flex-shrink: 0;
+  border: 1px solid transparent;
 }
 /* `.video` del handoff → `.example` (no hay videos: el ejemplo es la lección).
    Ejemplo (play) en teal de marca; quiz en naranja suave (momento de logro). */
-.cat-lesson-icon.example { background: var(--primary-soft); color: var(--primary-ink); }
-.cat-lesson-icon.quiz  { background: var(--accent-soft); color: var(--orange-600); }
+.cat-lesson-icon.example { background: var(--primary-soft); color: var(--primary-ink); border-color: var(--border-accent); }
+.cat-lesson-icon.quiz  { background: var(--accent-soft); color: var(--orange-600); border-color: color-mix(in srgb, var(--orange-500) 25%, transparent); }
 
 .cat-lesson-title {
-  font-size: 14px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--text);
   line-height: 1.3;
@@ -360,13 +376,13 @@
 /* ── Banner GPU (módulo M8 sin GPU) ─────────────────────────────────────── */
 .gpu-banner {
   display: flex; align-items: flex-start; gap: var(--sp-3);
-  margin: 10px 14px 6px;
+  margin: 10px var(--sp-3) 6px;
   padding: var(--sp-3) var(--sp-4);
   background: var(--warn-soft);
-  border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
   border-radius: var(--r-md);
   color: var(--warn-ink);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .gpu-banner > svg { color: var(--warn); flex-shrink: 0; margin-top: 2px; }
 
@@ -377,7 +393,7 @@
   gap: var(--grid-gap);
 }
 
-@media (max-width: 980px) {
-  .catalog-stats { grid-template-columns: repeat(2, 1fr); }
+/* La cabecera de pantalla apila su ContinueCard bajo el título en estrecho. */
+@media (max-width: 767.98px) {
   .catalog .screen-head { flex-direction: column; align-items: stretch; }
 }

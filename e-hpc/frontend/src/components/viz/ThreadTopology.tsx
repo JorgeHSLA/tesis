@@ -22,8 +22,9 @@ export function ThreadTopology({ threads }: ThreadTopologyProps) {
   const startX = MASTER.x - ((n - 1) * spacing) / 2
   const xs = Array.from({ length: n }, (_, i) => startX + i * spacing)
 
+  // Responsive sin librerías: el alto lo deriva el viewBox (ver LiveTopology).
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={`Hilo maestro y ${n} hilos del equipo`} style={{ display: 'block' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`Hilo maestro y ${n} hilos del equipo`} style={{ display: 'block', height: 'auto' }}>
       {/* Conexiones en codo (handoff §5.4): master → cada hilo */}
       {xs.map((wx) => (
         <path

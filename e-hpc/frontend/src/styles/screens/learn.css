@@ -1,26 +1,36 @@
-/* screens/learn.css — Lección, rediseño 2026-07 "plataforma de curso"
-   (frontend-spec §1, §6.6): tarjetas blancas que flotan sobre el fondo neutro,
-   teal (--primary) para progreso/estados/marca y naranja (--accent) SOLO en
-   CTAs y momentos de logro. El bloque grande es LessonMedia: reproductor de
-   video (marco 16:9 sobre --term-bg) con placeholder "Video próximamente".
-   LessonSidebar tipo playlist: actual --primary-soft, hecha --success,
-   pendiente neutral. v2 = densidad vía tokens; aquí solo quedan los
-   overrides estructurales (cuerpos tipográficos menores). */
+/* screens/learn.css — Lección (frontend-spec §6.6). Rediseño 2026-07-25:
+   · el parche `.screen.learn { max-width: 1680px }` DESAPARECE: el contenedor
+     fluido de `.screen` ya usa todo el ancho. La medida de lectura la sigue
+     acotando la COLUMNA DE TEXTO (`.learn .markdown` → --measure), que es lo
+     único que debe limitarse.
+   · grid mobile-first: el drawer entra a partir de --bp-lg (1024px).
+   · elevación por token; el reproductor mantiene su 16:9 real en pantallas
+     anchas (antes se deformaba a letterbox por el tope de alto). */
 
 .learn-grid {
   display: grid;
-  /* Panel lateral OCULTO por defecto → contenido a ancho completo (Fix 2/5). */
-  grid-template-columns: 1fr;
+  /* Panel lateral OCULTO por defecto → contenido a ancho completo. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-5);
 }
-/* Panel visible: contenido dominante + drawer legible. minmax(0,…) evita que el
-   código con `white-space: pre` desborde la primera columna. */
-.learn-grid.with-side {
-  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+.learn-grid > * { min-width: 0; }
+@media (min-width: 1024px) {
+  /* Panel visible: contenido dominante + drawer legible. minmax(0,…) evita que
+     el código con `white-space: pre` desborde la primera columna. */
+  .learn-grid.with-side {
+    grid-template-columns: minmax(0, 1.6fr) minmax(var(--col-min-panel), 1fr);
+  }
+}
+/* A partir de --bp-2xl el drawer deja de crecer: el contenido se queda el
+   espacio extra en vez de estirar la playlist. */
+@media (min-width: 1536px) {
+  .learn-grid.with-side {
+    grid-template-columns: minmax(0, 1fr) clamp(340px, 22vw, 460px);
+  }
 }
 
-/* Drawer "módulo + progreso" (Fix 5). Oculto = fuera del flujo (contenido a
-   ancho completo). `.learn-side.is-collapsed` (0,2,0) gana a `.col` (0,1,0). */
+/* Drawer "módulo + progreso". Oculto = fuera del flujo (contenido a ancho
+   completo). `.learn-side.is-collapsed` (0,2,0) gana a `.col` (0,1,0). */
 .learn-side.is-collapsed { display: none; }
 /* Entrada suave al abrir (base.css la anula bajo prefers-reduced-motion). */
 @keyframes learn-side-in {
@@ -33,21 +43,24 @@
 .learn-side-toggle-chev { transition: transform .2s var(--ease); }
 .learn-side-toggle.is-open .learn-side-toggle-chev { transform: rotate(90deg); }
 
-/* ── LessonMedia — reproductor de video de la lección (marco 16:9) ───────── */
+/* ── LessonMedia — reproductor de la lección (16:9 real) ─────────────────── */
 .lesson-media {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   overflow: hidden;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--elevation-1);
+  /* Alto máximo del marco; el ancho se deriva de él para conservar el 16:9. */
+  --media-max-h: clamp(200px, 24vw + 60px, 520px);
 }
 .lesson-media-screen {
-  /* Llena el ancho de la tarjeta; el alto se acota (letterbox) para que a ancho
-     completo el 16:9 no crezca demasiado. width:100% evita que aspect-ratio
-     derive el ancho del max-height y deje un hueco a la derecha. */
+  /* Ancho fluido pero acotado por el alto máximo: así el 16:9 se cumple SIEMPRE
+     (antes, a ancho completo, el tope de alto rompía la proporción y el vídeo
+     quedaba con franjas negras enormes a los lados). */
   width: 100%;
+  max-width: calc(var(--media-max-h) * 16 / 9);
+  margin-inline: auto;
   aspect-ratio: 16 / 9;
-  max-height: 480px;
   background: var(--term-bg);
   position: relative;
   display: grid; place-items: center;
@@ -77,17 +90,18 @@
 }
 .lesson-media-placeholder-title {
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 600;
   letter-spacing: .02em;
 }
 .lesson-media-placeholder-sub {
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   color: var(--term-dim);
 }
 /* Pie: nombre de archivo + CTA SECUNDARIO chico al simulador (no el naranja). */
 .lesson-media-foot {
   display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap;
   gap: 10px;
   padding: var(--sp-3) var(--sp-4);
 }
@@ -100,12 +114,13 @@
   border: 1px solid var(--term-border);
   border-radius: var(--r-md);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   line-height: 1.55;
   color: var(--term-text);
   max-height: 460px;
   overflow: auto;
   white-space: pre;
+  box-shadow: var(--elevation-1);
 }
 .expected-output {
   margin: 0;
@@ -114,20 +129,23 @@
   border: 1px solid var(--term-border);
   border-radius: var(--r-md);
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   line-height: 1.6;
   color: var(--term-accent);
   white-space: pre-wrap;
+  overflow-x: auto;
+  box-shadow: var(--elevation-1);
 }
 .expected-output-note {
   margin: 0 0 10px;
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
 /* ── Tabs Descripción / Código / Salida esperada ────────────────────────── */
 .tabs {
   display: flex; gap: 4px;
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
   margin: var(--sp-5) 0 var(--sp-4);
 }
@@ -135,7 +153,7 @@
   padding: var(--sp-2) var(--sp-3);
   border: none;
   background: transparent;
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--text-muted);
   border-bottom: 2px solid transparent;
@@ -150,8 +168,9 @@
 /* ── Card colapsable "De qué va esta lección" ───────────────────────────── */
 .collapse-head {
   display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap;
   width: 100%;
-  padding: var(--sp-4) var(--sp-5);
+  padding: var(--sp-4) var(--card-pad);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -170,10 +189,10 @@
 .collapse-head.open .collapse-chev { transform: rotate(90deg); }
 .collapse-head > .mono-small { margin-left: auto; }
 
-/* ── Contenido markdown: medida de lectura cómoda (frontend-spec §1) ────── */
+/* ── Contenido markdown: MEDIDA DE LECTURA (única cota de ancho) ─────────── */
 .learn .markdown {
-  max-width: 70ch;
-  font-size: 14.5px;
+  max-width: var(--measure);
+  font-size: var(--fs-md);
   line-height: 1.68;
 }
 .learn .markdown h2 { font-weight: 700; margin: var(--sp-7) 0 var(--sp-3); }
@@ -183,7 +202,7 @@
 .learn .markdown p { margin: 0 0 var(--sp-3); }
 .learn .markdown code {
   background: var(--surface-2);
-  border: none;
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 1px 6px;
 }
@@ -192,8 +211,9 @@
   color: var(--term-text);
   border: 1px solid var(--term-border);
   border-radius: var(--r-md);
+  box-shadow: var(--elevation-1);
 }
-.learn .markdown pre code { background: transparent; padding: 0; }
+.learn .markdown pre code { background: transparent; padding: 0; border: none; }
 .learn .markdown a { color: var(--primary-ink); }
 
 /* ── Takeaways "Lo que vas a aprender" ──────────────────────────────────── */
@@ -201,18 +221,18 @@
   background: color-mix(in srgb, var(--primary-soft) 45%, var(--surface));
   border: 1px solid var(--border-accent);
   border-radius: var(--r-md);
-  padding: var(--sp-4) var(--sp-5);
+  padding: var(--sp-4) var(--card-pad);
 }
 .takeaway-title {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .08em;
   color: var(--primary-ink);
   margin-bottom: 10px;
 }
-.takeaways ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); font-size: 13.5px; }
+.takeaways ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--fs-sm); }
 .takeaways li { display: flex; align-items: flex-start; gap: var(--sp-2); }
 .takeaways li svg { color: var(--success); margin-top: 3px; flex-shrink: 0; }
 .takeaways code { background: var(--surface); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border); }
@@ -222,6 +242,7 @@
 .quiz-teaser {
   background: linear-gradient(135deg, var(--accent-soft), var(--surface) 62%);
   border-color: var(--orange-200);
+  box-shadow: var(--elevation-2);
   padding: var(--card-pad);
 }
 .quiz-badge {
@@ -230,7 +251,7 @@
   background: var(--surface);
   color: var(--accent);
   display: grid; place-items: center;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--elevation-1);
   flex-shrink: 0;
 }
 
@@ -241,30 +262,31 @@
   padding: var(--sp-4);
   margin: 0;
   background: var(--surface);
+  box-shadow: var(--elevation-1);
 }
 .quiz-q legend {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-md);
   padding: 0 6px;
   line-height: 1.4;
 }
 .quiz-opts { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); }
-/* Opciones = cards blancas seleccionables (hover teal, seleccionada teal) */
+/* Opciones = tarjetas seleccionables; el borde ES la affordance. */
 .quiz-opt {
   display: flex; align-items: flex-start; gap: 10px;
   padding: var(--sp-3) var(--sp-4);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-input);
   border-radius: var(--r-md);
   background: var(--surface);
   cursor: pointer;
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   line-height: 1.45;
   transition: border-color .15s var(--ease), background .15s var(--ease), box-shadow .15s var(--ease);
 }
-.quiz-opt:hover { border-color: var(--border-accent); box-shadow: var(--shadow-sm); }
+.quiz-opt:hover { border-color: var(--primary); box-shadow: var(--elevation-2); }
 .quiz-opt input[type="radio"] { accent-color: var(--primary); margin-top: 2px; flex-shrink: 0; }
-.quiz-opt.selected { border-color: var(--primary); background: var(--primary-soft); }
-.quiz-opt-key { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text-muted); margin-top: 1px; }
+.quiz-opt.selected { border-color: var(--primary); background: var(--primary-soft); box-shadow: var(--elevation-1); }
+.quiz-opt-key { font-family: var(--font-mono); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; color: var(--text-muted); margin-top: 1px; }
 
 /* Feedback post-intento (con la 201 de attempts) */
 .quiz-q.correct {
@@ -284,7 +306,7 @@
   border-radius: var(--r-md);
   background: var(--surface);
   border: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 .quiz-explanation svg { flex-shrink: 0; margin-top: 2px; }
@@ -293,10 +315,12 @@
 
 .quiz-footer {
   display: flex; align-items: center; gap: var(--sp-3);
+  flex-wrap: wrap;
   padding-top: 4px;
 }
 .quiz-summary {
   display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap;
   padding: var(--sp-3) var(--sp-4);
   border-radius: var(--r-md);
   border: 1px solid var(--border);
@@ -313,7 +337,7 @@
 }
 .quiz-summary-score {
   font-family: var(--font-mono);
-  font-size: 20px;
+  font-size: var(--fs-xl);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text);
@@ -325,9 +349,9 @@
 .module-card, .reco-card { padding: 0; overflow: hidden; }
 
 .module-head {
-  padding: var(--sp-5) var(--sp-5) var(--sp-4);
+  padding: var(--sp-4) var(--card-pad) var(--sp-3);
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-2);
 }
 .module-head-btn {
   display: flex;
@@ -340,8 +364,9 @@
   transition: background .15s var(--ease);
   font: inherit;
   color: var(--text);
+  background: transparent;
 }
-.module-head-btn:hover { background: var(--surface-2); }
+.module-head-btn:hover { background: var(--surface-3); }
 .module-head-btn:not(.open) { border-bottom: none; border-radius: var(--r-lg); }
 .module-chev {
   color: var(--text-muted);
@@ -352,7 +377,7 @@
 .module-eyebrow, .reco-eyebrow {
   display: flex; align-items: center; gap: 6px;
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .08em;
@@ -362,21 +387,20 @@
 .module-eyebrow svg, .reco-eyebrow svg { color: var(--primary); }
 .module-title {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 19px;
+  font-weight: 600;
+  font-size: var(--fs-lg);
   letter-spacing: -.015em;
   margin: 0 0 var(--sp-3);
   line-height: 1.25;
   text-wrap: balance;
 }
-[data-variant="v2"] .module-title { font-weight: 600; font-size: 16px; }
 .module-progress-row {
   display: flex; align-items: center; gap: 10px;
 }
-/* Barra de progreso del módulo: teal = progreso (frontend-spec §1) */
+/* Barra de progreso del módulo: teal sobre el pozo --surface-3. */
 .module-progress-bar {
   flex: 1; height: 6px; border-radius: 999px;
-  background: var(--surface-2); overflow: hidden;
+  background: var(--surface-3); overflow: hidden;
 }
 .module-progress-bar > div {
   height: 100%;
@@ -388,7 +412,7 @@
 .lesson-sidebar {
   padding: var(--sp-2);
   display: flex; flex-direction: column; gap: 2px;
-  max-height: 420px;
+  max-height: clamp(300px, 42vh, 560px);
   overflow-y: auto;
 }
 .lesson-side {
@@ -420,25 +444,28 @@
   width: 28px; height: 28px;
   border-radius: 50%;
   background: var(--surface-2);
+  border: 1px solid var(--border);
   display: grid; place-items: center;
   color: var(--text-muted-strong); /* sobre --surface-2: AA */
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   transition: background .15s var(--ease), color .15s var(--ease);
 }
 .lesson-side.current .lesson-num-badge {
   background: var(--primary-ink); /* blanco encima: 5.47:1 AA */
+  border-color: var(--primary-ink);
   color: var(--on-accent);
 }
 /* done con --success-ink (blanco encima AA; el handoff usaba un verde literal) */
 .lesson-side.done .lesson-num-badge {
   background: var(--success-ink);
+  border-color: var(--success-ink);
   color: var(--on-accent);
 }
 
 .lesson-side-title {
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   line-height: 1.35;
   text-wrap: pretty;
@@ -456,18 +483,18 @@
 
 /* ── Recomendados ───────────────────────────────────────────────────────── */
 .reco-head {
-  padding: var(--sp-5) var(--sp-5) var(--sp-4);
+  padding: var(--sp-4) var(--card-pad) var(--sp-3);
   border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
 }
 .reco-title {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 17px;
+  font-weight: 600;
+  font-size: var(--fs-md);
   letter-spacing: -.01em;
   margin: 0;
   line-height: 1.2;
 }
-[data-variant="v2"] .reco-title { font-weight: 600; font-size: 15px; }
 
 .reco-list {
   padding: var(--sp-2);
@@ -494,10 +521,11 @@
   flex-shrink: 0;
   color: var(--primary-ink);
   background: var(--primary-soft);
+  border: 1px solid var(--border-accent);
 }
 
 .reco-item-title {
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   line-height: 1.3;
   text-wrap: pretty;
@@ -505,32 +533,34 @@
 }
 .reco-item-meta {
   display: flex; align-items: center; gap: 6px;
-  font-size: 11.5px;
+  flex-wrap: wrap;
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
 }
 .reco-tag {
   display: inline-flex;
   font-family: var(--font-sans);
-  font-size: 10.5px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .05em;
   padding: 2px 6px;
   border-radius: 4px;
   background: var(--surface-2);
+  border: 1px solid var(--border);
   color: var(--text-muted-strong); /* sobre --surface-2: AA */
 }
-.reco-tag-intermedio { background: var(--warn-soft); color: var(--warn-ink); }
-.reco-tag-práctica { background: var(--success-soft); color: var(--success-ink); }
-.reco-tag-fundamentos { background: var(--primary-soft); color: var(--primary-ink); }
-.reco-tag-avanzado { background: var(--danger-soft); color: var(--danger-ink); }
+.reco-tag-intermedio { background: var(--warn-soft); color: var(--warn-ink); border-color: color-mix(in srgb, var(--warn) 28%, transparent); }
+.reco-tag-práctica { background: var(--success-soft); color: var(--success-ink); border-color: color-mix(in srgb, var(--success) 28%, transparent); }
+.reco-tag-fundamentos { background: var(--primary-soft); color: var(--primary-ink); border-color: var(--border-accent); }
+.reco-tag-avanzado { background: var(--danger-soft); color: var(--danger-ink); border-color: color-mix(in srgb, var(--danger) 28%, transparent); }
 
 /* ── TracksCard "Tu progreso" ───────────────────────────────────────────── */
 .track-row { padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
 .track-row:last-child { border-bottom: none; }
 .track-bar {
   height: 6px;
-  background: var(--surface-2);
+  background: var(--surface-3);
   border-radius: 999px;
   overflow: hidden;
   margin: 6px 0 4px;
@@ -550,11 +580,6 @@
   border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
   border-radius: var(--r-md);
   color: var(--warn-ink);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .learn .gpu-banner > svg { color: var(--warn); flex-shrink: 0; margin-top: 2px; }
-
-@media (max-width: 980px) {
-  /* En estrecho el drawer, cuando está abierto, se apila bajo el contenido. */
-  .learn-grid.with-side { grid-template-columns: 1fr; }
-}
