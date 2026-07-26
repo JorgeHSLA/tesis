@@ -5,6 +5,9 @@
 //     `results[]` con correct_key + explanation: SOLO entonces se pinta el
 //     feedback por pregunta y el resumen (aria-live).
 //  4. progressStore.applyAttemptResult() actualiza la caché.
+//  5. QuizResultAnimation corona el resultado con una banda según el puntaje
+//     (celebración / ánimo / reintento). Es DECORATIVA: va antes del resumen
+//     y nunca lo tapa.
 // No hay botón `Comprobar` por pregunta: la clave jamás viaja antes del
 // intento (invariante del contrato).
 import { useState } from 'react'
@@ -21,6 +24,7 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Chip } from '../../components/ui/Chip'
 import { Skeleton } from '../../components/ui/Skeleton'
+import { QuizResultAnimation } from '../../components/viz/QuizResultAnimation'
 import { useProgressStore } from '../../stores/progressStore'
 
 type Stage = 'teaser' | 'loading' | 'answering' | 'submitting' | 'result'
@@ -196,6 +200,13 @@ export function QuizRunner({ lessonId, questionCount, progress }: QuizRunnerProp
             disabled={stage === 'submitting' || stage === 'result'}
           />
         ))}
+
+        {/* Banda decorativa según el puntaje. Va FUERA del aria-live y ANTES
+            del resumen: no puede tapar el puntaje, el chip ni la nota de
+            "corregido por el servidor", que se pintan debajo. */}
+        {stage === 'result' && result !== null && (
+          <QuizResultAnimation score={result.score} total={result.total} passed={result.passed} />
+        )}
 
         {/* Feedback del intento — aria-live para lectores de pantalla (§6.6) */}
         <div aria-live="polite">

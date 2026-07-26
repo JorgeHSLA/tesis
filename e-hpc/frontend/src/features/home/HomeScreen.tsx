@@ -1,25 +1,25 @@
-// HomeScreen — pantalla de inicio (frontend-spec §6.1): hero con
-// HomeThreadsDiagram (SMIL), TutorialTabs, TutorialCallout, QuickCards,
-// RecentJobs y SuggestedLessons. Textos EXACTOS de la spec (adaptación
-// MPI→OpenMP §6.0). El progreso viene del progressStore (caché de /modules).
+// HomeScreen — pantalla de inicio (frontend-spec §6.1): hero con la animación
+// fork-join (HomeMasterWorkers), TutorialTabs, TutorialCallout y la viñeta
+// pixel-art de cierre. Textos EXACTOS de la spec (adaptación MPI→OpenMP §6.0).
+//
+// 2026-07: el bloque «¿Qué quieres hacer ahora?» (QuickCards + RecentJobs +
+// SuggestedLessons) se retira de esta pantalla; el catálogo y el historial
+// siguen accesibles desde la navegación lateral. Se conserva `hydrate()`
+// porque calienta la caché de /modules que consumen Catálogo y Lección.
 import '../../styles/screens/home.css'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IconBook, IconZap } from '../../components/icons/icons'
 import { Button } from '../../components/ui/Button'
 import { Chip } from '../../components/ui/Chip'
-import { HomeThreadsDiagram } from '../../components/viz/HomeThreadsDiagram'
+import { HomeMasterWorkers } from '../../components/viz/HomeMasterWorkers'
+import { PixelStudyScene } from '../../components/viz/PixelStudyScene'
 import { useProgressStore } from '../../stores/progressStore'
-import { QuickCards } from './QuickCards'
-import { RecentJobs } from './RecentJobs'
-import { SuggestedLessons } from './SuggestedLessons'
 import { TutorialCallout } from './TutorialCallout'
 import { TutorialTabs } from './TutorialTabs'
 
 export default function HomeScreen() {
   const navigate = useNavigate()
-  const modules = useProgressStore((s) => s.modules)
-  const lastLessonId = useProgressStore((s) => s.lastLessonId)
   const hydrate = useProgressStore((s) => s.hydrate)
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function HomeScreen() {
 
         <div className="hero-right">
           <div className="hero-diagram">
-            <HomeThreadsDiagram />
+            <HomeMasterWorkers />
             <div className="hero-diagram-caption">
               <Chip tone="orange">omp parallel</Chip>
               <span className="mono-small">4 hilos · fork-join</span>
@@ -75,22 +75,9 @@ export default function HomeScreen() {
       <TutorialTabs />
       <TutorialCallout />
 
-      {/* ── Acciones rápidas ─────────────────────────────────────────────── */}
-      <div className="section-head">
-        <div>
-          <div className="eyebrow">Acciones rápidas</div>
-          <h2 className="display-lg" style={{ marginTop: 4 }}>
-            ¿Qué quieres hacer ahora?
-          </h2>
-        </div>
-      </div>
-
-      <QuickCards modules={modules} lastLessonId={lastLessonId} />
-
-      {/* ── Jobs recientes + Lecciones sugeridas ─────────────────────────── */}
-      <div className="two-col">
-        <RecentJobs />
-        <SuggestedLessons modules={modules} />
+      {/* ── Cierre ilustrado ─────────────────────────────────────────────── */}
+      <div className="home-scene">
+        <PixelStudyScene />
       </div>
     </section>
   )

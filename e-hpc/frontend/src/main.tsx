@@ -13,6 +13,7 @@ import '@fontsource/jetbrains-mono/700.css'
 import './styles/tokens.css'
 import './styles/base.css'
 import './styles/components.css'
+import './styles/viz-anim.css'
 import './styles/screens/admin.css'
 
 // Fija data-variant="v2" en <html> ANTES del render (única variante soportada).

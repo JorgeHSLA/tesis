@@ -1,0 +1,127 @@
+/* viz-anim.css — animaciones de components/viz/*.
+   Ningún color vive aquí: los SVG pintan con var(--viz-*) y los <canvas> leen
+   los tokens en runtime (hooks/useThemeColors). Este archivo es SOLO motion +
+   caja. La regla global de base.css §5.3 (prefers-reduced-motion) deja todos
+   estos @keyframes en su fotograma final, que a propósito ES la pose estática
+   correcta: por eso el póster de reducción de movimiento sale gratis. */
+
+/* ═══════════ Hero de Home — «Master y Workers» (SVG) ═══════════ */
+
+.mw {
+  /* Todos los transform CSS de este SVG giran sobre el centro de la propia
+     figura, no sobre el origen del viewBox. */
+  --mw-cycle: 3.6s;
+}
+.mw .mw-float,
+.mw .mw-pop,
+.mw .mw-send,
+.mw .mw-catch,
+.mw .mw-eye,
+.mw .mw-hub,
+.mw .mw-heart {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.mw-float { animation: mw-floaty 6s ease-in-out infinite; }
+.mw-links { animation: mw-dash 1.6s linear infinite, mw-fade .8s ease .5s backwards; }
+.mw-hub { animation: mw-hub-pulse var(--mw-cycle) ease-in-out infinite, mw-fade .6s ease .7s backwards; }
+.mw-pop { animation: mw-popin .7s cubic-bezier(.34, 1.56, .64, 1) backwards; }
+.mw-send { animation: mw-send var(--mw-cycle) ease-in-out infinite; }
+.mw-catch { animation: mw-catch var(--mw-cycle) ease-in-out infinite; }
+.mw-eye { animation: mw-blink 4.4s ease-in-out infinite; }
+.mw-heart { animation: mw-heart var(--mw-cycle) ease-in-out infinite; opacity: 0; }
+
+@keyframes mw-floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes mw-dash { to { stroke-dashoffset: -16; } }
+@keyframes mw-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mw-popin {
+  0% { opacity: 0; transform: scale(.4) translateY(14px); }
+  70% { transform: scale(1.06) translateY(-3px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+/* El maestro «empuja» al inicio del ciclo: squash y stretch. */
+@keyframes mw-send {
+  0% { transform: scale(1, 1); }
+  4% { transform: scale(.92, 1.08); }
+  9% { transform: scale(1.08, .92); }
+  14%, 100% { transform: scale(1, 1); }
+}
+/* …y cada hilo «recibe» cuando el paquete llega (45 % del ciclo). */
+@keyframes mw-catch {
+  0%, 42% { transform: scale(1) translateY(0); }
+  47% { transform: scale(1.14) translateY(-7px); }
+  53% { transform: scale(.95) translateY(2px); }
+  60%, 100% { transform: scale(1) translateY(0); }
+}
+@keyframes mw-hub-pulse {
+  0%, 100% { transform: scale(1); opacity: .75; }
+  50% { transform: scale(1.35); opacity: 1; }
+}
+@keyframes mw-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(.1); }
+}
+@keyframes mw-heart {
+  0%, 55% { opacity: 0; transform: translateY(0) scale(.5); }
+  62% { opacity: .9; transform: translateY(-14px) scale(1); }
+  85%, 100% { opacity: 0; transform: translateY(-46px) scale(1.1); }
+}
+
+/* ═══════════ Escena pixel-art de Home (canvas) ═══════════ */
+
+.pixel-scene {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Pixel art: el escalado NO debe interpolar. */
+  image-rendering: pixelated;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+/* ═══════════ Animación de resultado del quiz (canvas) ═══════════ */
+
+.quiz-result-anim {
+  position: relative;
+  margin: 0 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.quiz-result-anim canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+/* El veredicto va SOBRE la animación, nunca al revés: la banda decorativa no
+   puede tapar el puntaje ni el chip, que viven fuera de este bloque.
+   La placa sólida garantiza el contraste AA del rótulo aunque le pase confeti
+   justo por detrás (el halo de text-shadow no bastaba). */
+.quiz-result-banner {
+  position: absolute;
+  left: 50%;
+  bottom: var(--sp-3);
+  transform: translateX(-50%);
+  margin: 0;
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text);
+}
+.quiz-result-anim[data-variant='celebration'] .quiz-result-banner { color: var(--success-ink); }
+.quiz-result-anim[data-variant='regular'] .quiz-result-banner { color: var(--warn-ink); }
+.quiz-result-anim[data-variant='bad'] .quiz-result-banner { color: var(--danger-ink); }

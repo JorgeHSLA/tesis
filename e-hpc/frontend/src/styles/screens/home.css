@@ -3,9 +3,12 @@
      no repite `--screen-pad-*` ni topes de ancho.
    · las filas de tarjetas usan auto-fit/minmax con --col-min-card, así que
      llenan la ventana a 1440/1920 sin dejar franja muerta y se apilan solas.
-   · elevación por token: qcard/tut-tab en nivel 1, y nivel 2 al hover.
+   · elevación por token: tut-tab en nivel 1, y nivel 2 al hover.
    · los overrides `[data-variant="v2"] .x` que solo repetían tamaños en px se
-     eliminaron: la escala tipográfica fluida vive en tokens.css §5. */
+     eliminaron: la escala tipográfica fluida vive en tokens.css §5.
+   2026-07-26: se retiran las reglas de qcard/recent-*/lesson-* junto con la
+   sección «¿Qué quieres hacer ahora?»; `.two-col` se conserva porque también
+   la usa Resultados. */
 
 .home .hero { gap: var(--section-gap); }
 .home .section-head { margin: 0 0 var(--sp-5); }
@@ -46,73 +49,7 @@
   border-color: var(--border-accent);
 }
 
-/* ── Acciones rápidas (qcards) ──────────────────────────────────────────── */
-.quick-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--col-min-card)), 1fr));
-  gap: var(--grid-gap);
-  margin-bottom: var(--section-gap);
-}
-.qcard {
-  text-align: left;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  box-shadow: var(--elevation-1);
-  padding: var(--card-pad);
-  cursor: pointer;
-  transition: transform .2s var(--ease), box-shadow .2s var(--ease),
-    border-color .2s var(--ease);
-  display: flex; flex-direction: column; gap: var(--sp-3);
-  position: relative;
-  overflow: hidden;
-  font: inherit;
-  color: var(--text);
-}
-.qcard:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--elevation-2);
-  border-color: var(--border-accent);
-}
-.qcard:active { transform: translateY(0); box-shadow: var(--elevation-1); }
-.qcard-icon {
-  width: 40px; height: 40px;
-  border-radius: var(--r-md);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  display: grid; place-items: center;
-  color: var(--primary-ink);
-}
-.qcard[data-accent="orange"] .qcard-icon { background: var(--accent-soft); color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
-/* green y blue convergen en el tinte neutro de marca: el ÚNICO acento
-   fuerte de la UI es la terracota, reservada al logro y al CTA. */
-.qcard[data-accent="green"]  .qcard-icon { background: var(--primary-soft); color: var(--primary-ink); border-color: var(--border-accent); }
-.qcard[data-accent="blue"]   .qcard-icon { background: var(--primary-soft); color: var(--primary-ink); border-color: var(--border-accent); }
-.qcard-title {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--fs-lg);
-  letter-spacing: -.01em;
-}
-.qcard-desc {
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
-  line-height: 1.55;
-  flex: 1;
-}
-.qcard-cta {
-  display: inline-flex; align-items: center; gap: var(--sp-2);
-  font-size: var(--fs-xs); font-weight: 600;
-  color: var(--primary-ink);
-  padding-top: var(--sp-2);
-  border-top: 1px solid var(--border);
-}
-.qcard[data-accent="orange"] .qcard-cta { color: var(--accent-ink); }
-/* La flecha del CTA se desplaza 3px al hover (antes se abría el gap). */
-.qcard-cta svg { transition: transform .2s var(--ease); }
-.qcard:hover .qcard-cta svg { transform: translateX(3px); }
-
-/* ── Jobs recientes + Lecciones sugeridas ───────────────────────────────── */
+/* ── Rejilla de dos columnas (la comparte Resultados) ───────────────────── */
 .two-col {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -123,77 +60,17 @@
   .two-col { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
 }
 
-.recent-list, .lesson-list { padding: var(--sp-2); }
-.recent-row {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1.5fr) auto auto auto;
-  gap: var(--sp-3);
-  align-items: center;
-  padding: 10px 12px;
-  border-radius: var(--r-md);
-  cursor: pointer;
-  transition: background .15s var(--ease);
-  /* reset de <button> (el prototipo usaba <div onClick>) */
-  width: 100%;
-  border: none;
-  background: transparent;
-  font: inherit;
-  color: var(--text);
-  text-align: left;
-}
-.recent-row:hover { background: var(--surface-2); }
-.recent-icon {
-  width: 34px; height: 34px;
-  border-radius: var(--r-sm);
-  display: grid; place-items: center;
-  background: var(--surface-2);
+/* ── Viñeta pixel-art de cierre ─────────────────────────────────────────── */
+.home-scene {
+  margin-top: var(--section-gap);
   border: 1px solid var(--border);
-  color: var(--text-muted);
-}
-.recent-name {
-  font-size: var(--fs-sm);
-  font-weight: 500;
+  border-radius: var(--r-xl);
+  box-shadow: var(--elevation-2);
+  background: var(--surface);
+  padding: var(--sp-3);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-
-.lesson-row {
-  display: flex; align-items: center; gap: var(--sp-3);
-  padding: 10px 12px;
-  border-radius: var(--r-md);
-  cursor: pointer;
-  transition: background .15s var(--ease);
-  width: 100%;
-  border: none;
-  background: transparent;
-  font: inherit;
-  color: var(--text);
-  text-align: left;
-}
-.lesson-row:hover { background: var(--surface-2); }
-/* Tile de play con el tinte suave de marca. */
-.lesson-thumb {
-  width: 34px; height: 34px;
-  border-radius: var(--r-sm);
-  background: var(--primary-soft);
-  border: 1px solid var(--border-accent);
-  display: grid; place-items: center;
-  flex-shrink: 0;
-  position: relative;
-}
-.lesson-thumb-play {
-  width: 22px; height: 22px; border-radius: 50%;
-  background: transparent;
-  color: var(--primary-ink);
-  display: grid; place-items: center;
-  padding-left: 2px;
-}
-.lesson-title {
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+.home-scene .pixel-scene { border-radius: var(--r-lg); }
 
 /* ── Tutorial tabs (3 pasos): tarjetas independientes de nivel 1 ─────────── */
 .tutorial-tabs {
