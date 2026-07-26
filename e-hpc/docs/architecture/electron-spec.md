@@ -395,16 +395,20 @@ linux:
 apuntan a contextos (`./frontend`, `./backend`, `./runner`) que no existen
 bajo `process.resourcesPath` en una máquina con solo el instalador. El
 compose de despliegue empaquetado es un archivo DISTINTO, sin ninguna clave
-`build:`, con referencias `image:` a tags fijos:
+`build:`, con referencias `image:` a tags fijos.
+
+Además, el despliegue de escritorio es **solo Electron**: el compose empaquetado
+**NO** incluye el servicio `frontend`/nginx. Electron carga la UI desde disco
+(`loadFile` sobre el recurso empaquetado `app-frontend` → `file://`, §4/§6) y
+habla directo al backend en `127.0.0.1:8000` (`config.ts` resuelve la base del
+API en runtime, §9), así que un nginx sirviendo estáticos + proxy sería
+redundante. El compose solo levanta `backend`; `runner` queda en el perfil
+`build` (que `up` ignora):
 
 ```yaml
 # desktop/resources/compose/compose.yaml — solo image:, cero build:
 name: ehpc
 services:
-  frontend:
-    image: ghcr.io/jorgesierra/ehpc-frontend:1.0.0   # puertos y healthchecks
-    ports: ["127.0.0.1:8080:80"]                      # idénticos al compose raíz
-    # …
   backend:
     image: ghcr.io/jorgesierra/ehpc-backend:1.0.0
     ports: ["127.0.0.1:8000:8000"]

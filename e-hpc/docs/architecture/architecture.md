@@ -181,6 +181,15 @@ volumes:
     name: ehpc_submissions
 ```
 
+> **Variante empaquetada (escritorio, solo Electron).** El despliegue de
+> escritorio usa un compose DISTINTO
+> (`desktop/resources/compose/compose.yaml`, ver `electron-spec.md` §6.1) que
+> **NO** incluye el servicio `frontend`/nginx: Electron sirve la UI desde disco
+> (`loadFile` sobre el recurso empaquetado `app-frontend` → `file://`) y habla
+> directo al backend en `127.0.0.1:8000`, así que un contenedor nginx (estáticos
+> + proxy) sería redundante. nginx sigue presente solo en el compose web/raíz de
+> arriba.
+
 ### 2.3 nginx.conf (claves)
 
 ```nginx
