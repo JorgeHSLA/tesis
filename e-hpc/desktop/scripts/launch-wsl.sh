@@ -43,8 +43,11 @@ if [ "$ADMIN" = 1 ]; then
   # respondería 404 aunque EHPC_ADMIN_MODE=1.
   ( cd "$EHPC_DIR" && EHPC_ADMIN_BUILD=1 EHPC_ADMIN_MODE=1 docker compose up -d --build backend )
 else
-  # Estudiante: EHPC_ADMIN_BUILD sin definir ⇒ default 0 (imagen sin código admin).
-  ( cd "$EHPC_DIR" && EHPC_ADMIN_MODE=0 docker compose up -d backend )
+  # Estudiante: EHPC_ADMIN_BUILD=0 + --build ⇒ CONSTRUYE la imagen estudiante
+  # (sin código admin). Sin --build, `up -d` reutilizaría una imagen cacheada
+  # que podría ser la ADMIN (de un `telar --admin` previo) → no sería el
+  # artefacto estudiante. Con --build siempre se materializa el build correcto.
+  ( cd "$EHPC_DIR" && EHPC_ADMIN_BUILD=0 EHPC_ADMIN_MODE=0 docker compose up -d --build backend )
 fi
 for _ in $(seq 1 60); do
   if curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1; then
