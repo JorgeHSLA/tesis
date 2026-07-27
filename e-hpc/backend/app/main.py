@@ -175,7 +175,6 @@ def _include_routers(app: FastAPI) -> None:
     completos (incluido el prefijo ``/api/v1`` y ``/ws``): se incluyen sin
     ``prefix``."""
     from app.routers import (
-        admin,
         examples,
         jobs,
         lessons,
@@ -185,6 +184,23 @@ def _include_routers(app: FastAPI) -> None:
         ws,
     )
 
+    # El router admin es OPCIONAL a nivel de ARTEFACTO (Nivel 3, seguridad por
+    # AUSENCIA — ver backend/Dockerfile). En el build "estudiante"
+    # (EHPC_ADMIN_BUILD=0) el módulo admin NO se copia a la imagen: su import
+    # falla y el router NO se registra → /api/v1/admin/* responde 404. En el
+    # build admin (o contra el source, p. ej. los tests) el módulo existe y el
+    # runtime lo sigue gateando EHPC_ADMIN_MODE (api-contract §10.0).
+    #
+    # Se captura ``ImportError`` (NO solo ``ModuleNotFoundError``): cuando el
+    # archivo falta y ``app.routers`` es un paquete, ``from app.routers import
+    # admin`` lanza ``ImportError: cannot import name 'admin' from 'app.routers'``
+    # (verificado construyendo la imagen estudiante). ``ModuleNotFoundError`` es
+    # subclase de ``ImportError``, así que este ``except`` cubre ambos casos.
+    try:
+        from app.routers import admin as _admin
+    except ImportError:
+        _admin = None
+
     app.include_router(system_router.router)
     app.include_router(examples.router)
     app.include_router(modules.router)
@@ -193,7 +209,8 @@ def _include_routers(app: FastAPI) -> None:
     app.include_router(progress.router)
     app.include_router(jobs.router)
     app.include_router(ws.router)
-    app.include_router(admin.router)  # §10.2-§10.6 CRUD de contenido admin (gate por EHPC_ADMIN_MODE)
+    if _admin is not None:
+        app.include_router(_admin.router)  # §10.2-§10.6 CRUD admin (gate runtime EHPC_ADMIN_MODE)
 
 
 app = create_app()

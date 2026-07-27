@@ -993,6 +993,26 @@ No hay endpoints de autenticación. El cliente admin usa directamente los CRUD d
 §10.2-§10.6; si el despliegue es "estudiante" recibe `401 UNAUTHORIZED` en todos
 ellos.
 
+> **Nota 2026-07-26 — Nivel 3 (dos imágenes desde UN codebase; seguridad por
+> AUSENCIA).** El gate `EHPC_ADMIN_MODE` es de *runtime* y presupone que el
+> código admin está en la imagen. A nivel de *artefacto* se añade un `ARG` de
+> Docker **`EHPC_ADMIN_BUILD`** (`backend/Dockerfile`) que produce **dos
+> imágenes** desde el mismo código, como el tree-shaking del frontend:
+> - **`EHPC_ADMIN_BUILD=0`** (default, imagen **ESTUDIANTE**): los módulos
+>   admin-only (`routers/admin.py`, `routers/admin_deps.py`,
+>   `services/content_writer.py`, `services/markdown_validator.py`) **no se
+>   copian** al artefacto; `main.py` detecta la ausencia (`ModuleNotFoundError`)
+>   y **no registra** el router → `/api/v1/admin/*` responde **`404`** (la ruta
+>   no existe), no `401`. **Cero código admin en la imagen.**
+> - **`EHPC_ADMIN_BUILD=1`** (imagen **ADMIN**): los módulos están presentes y el
+>   router se registra; el runtime lo sigue gateando `EHPC_ADMIN_MODE` (con el
+>   modo apagado → `401`, como arriba).
+>
+> `repositories/content_admin.py` permanece en **ambas** imágenes: lo importa el
+> módulo NO-admin `services/quiz_service.py` (§5.2, revalidación atómica del
+> intento). Son helpers de repositorio inertes, sin endpoints ni orquestación de
+> escritura; el residual está documentado en `README.md` §8.1.
+
 ### 10.1 Invariantes de contenido
 
 - **`lesson_id == example_id`** (invariante de dominio de Fase 3) **se mantiene**:

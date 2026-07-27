@@ -19,7 +19,15 @@ services:
     restart: unless-stopped
 
   backend:
-    build: ./backend
+    # Nivel 3 (seguridad por AUSENCIA, ver backend/Dockerfile): EHPC_ADMIN_BUILD
+    # selecciona la imagen desde UN codebase. Por defecto 0 ⇒ build ESTUDIANTE
+    # (sin código admin en el artefacto; /api/v1/admin/* → 404). La imagen ADMIN
+    # se construye con `EHPC_ADMIN_BUILD=1 docker compose build backend` (y el
+    # runtime la sigue gateando EHPC_ADMIN_MODE).
+    build:
+      context: ./backend
+      args:
+        EHPC_ADMIN_BUILD: "${EHPC_ADMIN_BUILD:-0}"
     ports: ["127.0.0.1:8000:8000"]
     environment:
       EHPC_DB_PATH: /app/data/ehpc.db

@@ -6,6 +6,12 @@
 name: ehpc
 services:
   backend:
+    # Compose empaquetado: usa `image:` (no `build:`), así que el ARG
+    # EHPC_ADMIN_BUILD (Nivel 3, ver backend/Dockerfile) NO aplica aquí. La
+    # imagen publicada por defecto es la ESTUDIANTE (sin código admin en el
+    # artefacto; /api/v1/admin/* → 404). Un despliegue admin usa/publica la
+    # imagen construida con `EHPC_ADMIN_BUILD=1` y añade `EHPC_ADMIN_MODE: "1"`
+    # a este servicio backend.
     image: ghcr.io/jorgesierra/ehpc-backend:1.0.0
     ports: ["127.0.0.1:8000:8000"]
     environment:

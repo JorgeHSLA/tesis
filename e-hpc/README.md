@@ -424,6 +424,31 @@ versionada); los flujos y las respuestas del estudiante **no cambian**.
 > versión estudiante no incluye la UI admin (tree-shaking) ni habilita los
 > endpoints; solo los administradores usan el build/despliegue admin.
 
+> **Actualización 2026-07-26 (Nivel 3 — dos imágenes de backend):** además del
+> gate de *runtime* `EHPC_ADMIN_MODE`, el backend se empaqueta como **dos
+> imágenes desde el mismo código** vía el `ARG` de Docker `EHPC_ADMIN_BUILD`
+> (`backend/Dockerfile`), replicando en el backend el tree-shaking del frontend:
+> - **`EHPC_ADMIN_BUILD=0`** (default) → imagen **ESTUDIANTE**: los módulos
+>   admin-only (`routers/admin.py`, `routers/admin_deps.py`,
+>   `services/content_writer.py`, `services/markdown_validator.py`) **no se
+>   copian** al artefacto y el router no se registra, así que `/api/v1/admin/*`
+>   responde **404** (la ruta no existe). **Cero código admin en la imagen**
+>   (seguridad por ausencia).
+> - **`EHPC_ADMIN_BUILD=1`** → imagen **ADMIN**: incluye el código admin; el
+>   runtime lo sigue gateando `EHPC_ADMIN_MODE`.
+>
+> ```bash
+> docker compose build backend                     # estudiante (ARG=0, default)
+> EHPC_ADMIN_BUILD=1 docker compose build backend   # admin
+> ```
+> `desktop/scripts/launch-wsl.sh --admin` ya pasa `EHPC_ADMIN_BUILD=1` al
+> reconstruir. El compose empaquetado del desktop usa `image:` (no `build:`):
+> publica la imagen estudiante por defecto y, para autoría, una imagen construida
+> con `EHPC_ADMIN_BUILD=1`. Excepción: `repositories/content_admin.py` queda en
+> **ambas** imágenes porque lo usa el flujo de quiz del estudiante
+> (`services/quiz_service.py`); son helpers de repositorio inertes, sin endpoints
+> admin.
+
 - **Habilitar (backend)**: define `EHPC_ADMIN_MODE=1`. Sin ella, todos los
   `/api/v1/admin/*` responden `401 UNAUTHORIZED`. Es seguro sin login porque la
   app corre en loopback y solo los admins reciben el build/despliegue admin.

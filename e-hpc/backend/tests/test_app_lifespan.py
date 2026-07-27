@@ -146,6 +146,36 @@ def test_cors_origins_congelados(settings, fake_docker):
         assert "access-control-allow-origin" not in response.headers
 
 
+def test_admin_router_ausente_responde_404(settings, fake_docker, monkeypatch):
+    """Nivel 3 (seguridad por AUSENCIA): en el build "estudiante"
+    (``EHPC_ADMIN_BUILD=0``) el módulo ``app.routers.admin`` NO se copia a la
+    imagen, así que su import falla. ``_include_routers`` debe tolerar esa
+    ausencia y NO registrar el router → cualquier ``/api/v1/admin/*`` responde
+    **404** (ruta inexistente), no 401.
+
+    Reproducimos FIELMENTE el error real observado al construir la imagen
+    estudiante: con ``app.routers`` como paquete y el archivo ausente,
+    ``from app.routers import admin`` lanza ``ImportError: cannot import name
+    'admin' from 'app.routers'`` (NO ``ModuleNotFoundError``). Interceptamos
+    ``__import__`` solo para ese import (fromlist == ['admin']); el resto se
+    delega intacto. Así el test protege contra un ``except`` demasiado estrecho.
+    """
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "app.routers" and fromlist and "admin" in fromlist:
+            raise ImportError("cannot import name 'admin' from 'app.routers'")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    application = create_app(settings=settings, docker_service=fake_docker)
+    with TestClient(application) as client:
+        response = client.get("/api/v1/admin/modules")
+        assert response.status_code == 404
+
+
 def test_internal_error_envelope_generico(settings, fake_docker):
     """Una excepción no controlada responde INTERNAL_ERROR sin detalle."""
     application = create_app(settings=settings, docker_service=fake_docker)

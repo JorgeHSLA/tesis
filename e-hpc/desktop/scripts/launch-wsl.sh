@@ -37,8 +37,13 @@ echo "[E-HPC] Modo: $MODE_LABEL"
 #    una imagen vieja tras editar el backend (el bug de la sesión anterior).
 echo "[E-HPC] Asegurando backend con Docker (la 1ª vez puede tardar unos minutos)…"
 if [ "$ADMIN" = 1 ]; then
-  ( cd "$EHPC_DIR" && EHPC_ADMIN_MODE=1 docker compose up -d --build backend )
+  # EHPC_ADMIN_BUILD=1 (Nivel 3): el rebuild admin CONSTRUYE la imagen que SÍ
+  # incluye el código admin (router /admin + motor de escritura). Sin este arg,
+  # `--build` daría la imagen estudiante (sin código admin) y /api/v1/admin/*
+  # respondería 404 aunque EHPC_ADMIN_MODE=1.
+  ( cd "$EHPC_DIR" && EHPC_ADMIN_BUILD=1 EHPC_ADMIN_MODE=1 docker compose up -d --build backend )
 else
+  # Estudiante: EHPC_ADMIN_BUILD sin definir ⇒ default 0 (imagen sin código admin).
   ( cd "$EHPC_DIR" && EHPC_ADMIN_MODE=0 docker compose up -d backend )
 fi
 for _ in $(seq 1 60); do
