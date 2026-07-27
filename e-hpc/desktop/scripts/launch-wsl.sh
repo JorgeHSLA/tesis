@@ -19,22 +19,42 @@ export NVM_DIR="$HOME/.nvm"
 # shellcheck disable=SC1091
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 
-# 1) Asegurar el backend en :8000 (Electron le habla directo).
-if curl -sf -m 3 http://127.0.0.1:8000/health >/dev/null 2>&1; then
-  echo "[E-HPC] Backend ya está arriba en :8000."
+# ¿Modo autoría? `--admin`/`admin` como 1er argumento enciende el admin. Requiere
+# LAS DOS cosas: backend con EHPC_ADMIN_MODE=1 (habilita /api/v1/admin/*) y vite
+# dev con VITE_ADMIN=1 (incluye la UI de autoría). Por defecto, estudiante.
+ADMIN=0
+case "${1:-}" in
+  --admin|admin) ADMIN=1 ;;
+esac
+export EHPC_ADMIN_MODE="$ADMIN"
+if [ "$ADMIN" = 1 ]; then MODE_LABEL="AUTORÍA (admin)"; else MODE_LABEL="estudiante"; fi
+echo "[E-HPC] Modo: $MODE_LABEL"
+
+# 1) Asegurar el backend en :8000 (Electron le habla directo). `up -d` es
+#    declarativo: recrea el contenedor si cambió EHPC_ADMIN_MODE (alternar
+#    estudiante⇄admin). En modo admin, además, RECONSTRUIMOS la imagen
+#    (`--build`): así el backend toma el código más reciente y nunca se sirve
+#    una imagen vieja tras editar el backend (el bug de la sesión anterior).
+echo "[E-HPC] Asegurando backend con Docker (la 1ª vez puede tardar unos minutos)…"
+if [ "$ADMIN" = 1 ]; then
+  ( cd "$EHPC_DIR" && EHPC_ADMIN_MODE=1 docker compose up -d --build backend )
 else
-  echo "[E-HPC] Levantando backend con Docker (la 1ª vez puede tardar unos minutos)…"
-  ( cd "$EHPC_DIR" && docker compose up -d backend )
-  for _ in $(seq 1 60); do
-    if curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1; then
-      echo "[E-HPC] Backend listo."
-      break
-    fi
-    sleep 1
-  done
+  ( cd "$EHPC_DIR" && EHPC_ADMIN_MODE=0 docker compose up -d backend )
 fi
+for _ in $(seq 1 60); do
+  if curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1; then
+    echo "[E-HPC] Backend listo."
+    break
+  fi
+  sleep 1
+done
 
 # 2) Abrir la ventana de Electron (modo dev: vite + esbuild + electron).
+#    VITE_ADMIN=1 hace que el vite dev incluya la UI de autoría (build admin).
 echo "[E-HPC] Abriendo la aplicación… (cierra esta ventana o la de la app para salir)"
 cd "$DESKTOP_DIR"
-exec npm run dev
+if [ "$ADMIN" = 1 ]; then
+  exec env VITE_ADMIN=1 npm run dev
+else
+  exec npm run dev
+fi

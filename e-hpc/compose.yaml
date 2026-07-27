@@ -23,10 +23,13 @@ services:
     ports: ["127.0.0.1:8000:8000"]
     environment:
       EHPC_DB_PATH: /app/data/ehpc.db
-      # Despliegue por defecto = ESTUDIANTE: el modo autoría (admin) está
-      # APAGADO y /api/v1/admin/* responde 401. Un despliegue admin añade
-      # `EHPC_ADMIN_MODE: "1"` a este servicio backend (app local en loopback
-      # distribuida solo a administradores; sin login/token).
+      # Modo autoría (admin): apagado por defecto (=0 ⇒ ESTUDIANTE, /api/v1/admin/*
+      # responde 401). Se enciende con la env del shell:
+      #   EHPC_ADMIN_MODE=1 docker compose up -d backend
+      # (Compose es declarativo → recrea el contenedor al cambiar el valor, así
+      # `telar` puede alternar estudiante⇄admin). App local en loopback
+      # distribuida solo a administradores; sin login/token.
+      EHPC_ADMIN_MODE: "${EHPC_ADMIN_MODE:-0}"
       # 'null' es necesario para Electron (file://); riesgo residual documentado
       # en api-contract.md §0 — mitigado por el bind a loopback.
       EHPC_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null"
