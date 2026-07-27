@@ -132,6 +132,58 @@
   text-align: left;
   cursor: pointer;
 }
+
+/* ── Reordenar: asa de arrastre (DnD nativo) + botones «Subir»/«Bajar» ────── */
+.admin-module-reorder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.admin-module-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: grab;
+  padding: 2px;
+  border-radius: var(--r-sm);
+  touch-action: none;
+}
+.admin-module-grip:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+.admin-module-grip:active {
+  cursor: grabbing;
+}
+.admin-module-updown {
+  display: inline-flex;
+  gap: 2px;
+}
+/* Botones de reorden compactos: anulan el min-height táctil del `.btn` global,
+   que dejaría la cabecera demasiado alta con dos controles seguidos. */
+.btn.admin-module-move {
+  padding: 3px;
+  min-height: 0;
+  line-height: 0;
+  color: var(--text-muted);
+}
+.btn.admin-module-move:not(:disabled):hover {
+  color: var(--text);
+}
+.btn.admin-module-move:disabled {
+  opacity: 0.35;
+}
+
+/* Estados de arrastre / destino del drop (tinte de marca = orden del curso). */
+.admin-module-group.is-dragging {
+  opacity: 0.5;
+}
+.admin-module-group.is-drop-target {
+  outline: 2px dashed var(--primary);
+  outline-offset: -2px;
+}
 .admin-module-caret {
   display: inline-flex;
   color: var(--text-muted);
@@ -299,6 +351,19 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   gap: var(--sp-4);
+}
+/* Preview del identificador autogenerado (solo en «Nuevo módulo»): discreto,
+   apoyado bajo el título del que se deriva. El `code` reutiliza `.mono-small`. */
+.admin-slug-preview {
+  margin: calc(-1 * var(--sp-2)) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.admin-slug-preview code {
+  padding: 2px 8px;
+  border-radius: var(--r-sm);
+  background: var(--primary-soft);
+  color: var(--primary-ink);
 }
 .admin-modal-actions {
   display: flex;

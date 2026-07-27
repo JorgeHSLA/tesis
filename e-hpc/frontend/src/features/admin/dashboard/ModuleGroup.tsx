@@ -1,8 +1,10 @@
 // ModuleGroup — grupo colapsable de un módulo en el dashboard admin. Cabecera
-// con título/nivel/orden y acciones (editar, borrar, "+ Lección"); cuerpo con
-// las filas de lección. Borrar un módulo con lecciones → 409 MODULE_NOT_EMPTY
-// → toast "Vacía el módulo antes de borrarlo". fase4-autoria-design §9.F(2).
-import { useState } from 'react'
+// con asa de arrastre, título/nivel/orden y acciones (editar, borrar, "+
+// Lección"); cuerpo con las filas de lección. El módulo se reordena
+// arrastrándolo por el asa (DnD nativo del navegador) o con los botones
+// «Subir»/«Bajar» (fallback accesible por teclado). Borrar un módulo con
+// lecciones → 409 MODULE_NOT_EMPTY → toast. fase4-autoria-design §9.F(2).
+import { useRef, useState, type DragEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
 import { deleteModule } from '../../../api/admin'
@@ -10,25 +12,75 @@ import type { ModuleDto } from '../../../api/types'
 import { Button } from '../../../components/ui/Button'
 import { Chip } from '../../../components/ui/Chip'
 import { ConfirmDialog } from '../../../components/admin/ConfirmDialog'
-import { IconChevronRight, IconPlus } from '../../../components/icons/icons'
+import { IconChevronDown, IconChevronRight, IconChevronUp, IconGrip, IconPlus } from '../../../components/icons/icons'
 import { LessonAdminRow } from './LessonAdminRow'
 
 export interface ModuleGroupProps {
   module: ModuleDto
+  /** Posición 0-based dentro de la lista (para el reorden). */
+  index: number
+  /** Total de módulos (para deshabilitar «Subir»/«Bajar» en los bordes). */
+  count: number
+  /** Este módulo se está arrastrando ahora mismo. */
+  isDragging: boolean
+  /** Otro módulo se suelta sobre este (destino del drop). */
+  isDropTarget: boolean
   open: boolean
   onToggle: () => void
   onReload: () => void
   onToast: (message: string, tone?: 'default' | 'error') => void
   onEdit: (module: ModuleDto) => void
+  /** Reordena de `from` a `to` (usado por los botones y por el drop). */
+  onMove: (from: number, to: number) => void
+  onReorderStart: (index: number) => void
+  onReorderEnter: (index: number) => void
+  onReorderDrop: (index: number) => void
+  onReorderEnd: () => void
 }
 
-export function ModuleGroup({ module, open, onToggle, onReload, onToast, onEdit }: ModuleGroupProps) {
+export function ModuleGroup({
+  module,
+  index,
+  count,
+  isDragging,
+  isDropTarget,
+  open,
+  onToggle,
+  onReload,
+  onToast,
+  onEdit,
+  onMove,
+  onReorderStart,
+  onReorderEnter,
+  onReorderDrop,
+  onReorderEnd,
+}: ModuleGroupProps) {
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const cardRef = useRef<HTMLElement>(null)
 
   const lessons = [...module.lessons].sort((a, b) => a.order - b.order)
   const bodyId = `admin-module-body-${module.id}`
+
+  // El asa inicia el arrastre; la tarjeta entera es la imagen de arrastre y el
+  // destino del drop. Así los clics y el texto del resto de la tarjeta quedan
+  // intactos (el DnD nativo solo se dispara desde el asa `draggable`).
+  const handleGripDragStart = (e: DragEvent) => {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(index))
+    if (cardRef.current) e.dataTransfer.setDragImage(cardRef.current, 16, 16)
+    onReorderStart(index)
+  }
+  const handleDragOver = (e: DragEvent) => {
+    e.preventDefault() // habilita el drop
+    e.dataTransfer.dropEffect = 'move'
+    onReorderEnter(index)
+  }
+  const handleDrop = (e: DragEvent) => {
+    e.preventDefault()
+    onReorderDrop(index)
+  }
 
   const remove = async () => {
     setDeleting(true)
@@ -49,9 +101,52 @@ export function ModuleGroup({ module, open, onToggle, onReload, onToast, onEdit 
     }
   }
 
+  const cardClass = ['admin-module-group', 'card', isDragging ? 'is-dragging' : '', isDropTarget ? 'is-drop-target' : '']
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <section className="admin-module-group card">
+    <section
+      ref={cardRef}
+      className={cardClass}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <div className="admin-module-head">
+        <div className="admin-module-reorder">
+          <span
+            className="admin-module-grip"
+            aria-hidden="true"
+            title="Arrastra para reordenar"
+            draggable
+            onDragStart={handleGripDragStart}
+            onDragEnd={onReorderEnd}
+          >
+            <IconGrip size={16} />
+          </span>
+          <span className="admin-module-updown">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="admin-module-move"
+              aria-label={`Subir el módulo ${module.title}`}
+              disabled={index === 0}
+              onClick={() => onMove(index, index - 1)}
+            >
+              <IconChevronUp size={15} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="admin-module-move"
+              aria-label={`Bajar el módulo ${module.title}`}
+              disabled={index === count - 1}
+              onClick={() => onMove(index, index + 1)}
+            >
+              <IconChevronDown size={15} />
+            </Button>
+          </span>
+        </div>
         <button
           type="button"
           className="admin-module-toggle"

@@ -51,6 +51,19 @@ export interface AdminModulesResponseDto {
   modules: AdminModuleDto[]
 }
 
+// ── §10.2 Reorden por lote (PUT /admin/modules/reorder) ──────────────────────
+// Reasigna varios `order` en una sola transacción (evita el 409 del swap
+// directo). Espejo de schemas.py AdminReorderItem/AdminReorderRequest.
+
+export interface AdminReorderItemDto {
+  id: string
+  order: number
+}
+
+export interface AdminReorderRequestDto {
+  items: AdminReorderItemDto[]
+}
+
 // ── §10.4 Ejemplos (faceta; nacen/mueren con la lección) ─────────────────────
 
 export interface AdminExampleBaseDto {

@@ -2,8 +2,8 @@
 // `fetchJson` normal (api/client), SIN cabecera Authorization/Bearer. El modo
 // autoría se decide en build (VITE_ADMIN) + config del backend, no por sesión.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createModule, getAdminModules } from '@/api/admin'
-import type { AdminModuleCreateDto } from '@/api/admin-types'
+import { createModule, getAdminModules, reorderModules } from '@/api/admin'
+import type { AdminModuleCreateDto, AdminReorderRequestDto } from '@/api/admin-types'
 
 const originalFetch = globalThis.fetch
 let fetchMock: ReturnType<typeof vi.fn>
@@ -54,6 +54,21 @@ describe('api/admin (sin login/Bearer)', () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/admin/modules')
     expect(initOf(0).method).toBe('POST')
     expect(initOf(0).body).toBe(JSON.stringify(body))
+    expect(headersOf(0).Authorization).toBeUndefined()
+    expect(headersOf(0)['Content-Type']).toBe('application/json')
+  })
+
+  it('PUT /admin/modules/reorder envía {items:[{id,order}]} por lote', async () => {
+    const items = [
+      { id: 'm2', order: 1 },
+      { id: 'm1', order: 2 },
+    ]
+    fetchMock.mockImplementation(() => Promise.resolve(ok({ modules: [] })))
+    await reorderModules(items)
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/admin/modules/reorder')
+    expect(initOf(0).method).toBe('PUT')
+    const sent = JSON.parse(initOf(0).body as string) as AdminReorderRequestDto
+    expect(sent).toEqual({ items })
     expect(headersOf(0).Authorization).toBeUndefined()
     expect(headersOf(0)['Content-Type']).toBe('application/json')
   })

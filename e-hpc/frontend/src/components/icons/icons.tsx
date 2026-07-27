@@ -54,8 +54,23 @@ export const IconZap = (p: IconProps) => <Icon {...p}><path d="M13 2L4 14h7l-1 8
 export const IconCode = (p: IconProps) => <Icon {...p}><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></Icon>
 export const IconChevronRight = (p: IconProps) => <Icon {...p}><path d="M9 6l6 6-6 6"/></Icon>
 export const IconChevronLeft = (p: IconProps) => <Icon {...p}><path d="M15 6l-6 6 6 6"/></Icon>
+export const IconChevronUp = (p: IconProps) => <Icon {...p}><path d="M6 15l6-6 6 6"/></Icon>
+export const IconChevronDown = (p: IconProps) => <Icon {...p}><path d="M6 9l6 6 6-6"/></Icon>
 export const IconHelp = (p: IconProps) => <Icon {...p}><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></Icon>
 export const IconLayers = (p: IconProps) => <Icon {...p}><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5M3 18l9 5 9-5"/></Icon>
+// Asa de arrastre (drag handle): dos columnas de tres puntos. Los círculos van
+// RELLENOS (fill=currentColor, stroke=none) sobre el wrapper `Icon` que por
+// defecto es fill=none. No viene del handoff (el reorden por DnD es de Fase 4).
+export const IconGrip = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="9" cy="6" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="18" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="6" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="18" r="1.4" fill="currentColor" stroke="none" />
+  </Icon>
+)
 // Luna / sol — añadidos para el toggle de tema (no vienen del handoff, que no
 // contemplaba modo oscuro). Mismo wrapper `Icon`: trazo 1.75, viewBox 24.
 export const IconMoon = (p: IconProps) => <Icon {...p}><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></Icon>

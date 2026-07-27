@@ -20,6 +20,8 @@ import type {
   AdminModuleUpdateDto,
   AdminQuizDto,
   AdminQuizUpsertDto,
+  AdminReorderItemDto,
+  AdminReorderRequestDto,
 } from './admin-types'
 
 const P = '/api/v1/admin'
@@ -41,6 +43,20 @@ export function updateModule(id: string, body: AdminModuleUpdateDto): Promise<Ad
 
 export function deleteModule(id: string): Promise<AdminDeleteResultDto> {
   return fetchJson<AdminDeleteResultDto>(`${P}/modules/${enc(id)}`, { method: 'DELETE' })
+}
+
+/**
+ * §10.2 PUT /admin/modules/reorder — reasigna varios `order` en una sola
+ * transacción (evita el 409 del swap directo). Devuelve el listado admin ya
+ * reordenado. La ruta `reorder` va ANTES del `{id}` en el backend, así que no
+ * colisiona con `updateModule`.
+ */
+export function reorderModules(items: AdminReorderItemDto[]): Promise<AdminModulesResponseDto> {
+  const body: AdminReorderRequestDto = { items }
+  return fetchJson<AdminModulesResponseDto>(`${P}/modules/reorder`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
 }
 
 // ── §10.5 Lecciones (unidad = lección + ejemplo pareado + quiz) ──────────────

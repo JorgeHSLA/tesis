@@ -1,11 +1,15 @@
 // AdminDashboard — pantalla índice del área de autoría (#/admin). Lista los
 // módulos (lectura pública GET /modules reutilizada) en grupos colapsables con
-// CRUD; "+ Nuevo módulo" abre el formulario. Un toast efímero comunica el
-// resultado de las operaciones (incl. 409 MODULE_NOT_EMPTY). §9.F(2).
+// CRUD; "+ Nuevo módulo" abre el formulario. Los módulos se reordenan por
+// drag-and-drop NATIVO (asa de arrastre) o con botones «Subir»/«Bajar»
+// accesibles: reorden OPTIMISTA que revierte ante error. Un toast efímero
+// comunica el resultado de las operaciones (incl. 409 MODULE_NOT_EMPTY). §9.F(2).
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getModules } from '../../api/content'
+import { reorderModules } from '../../api/admin'
 import { ApiError } from '../../api/client'
 import type { ModuleDto } from '../../api/types'
+import { moveItem, resequence, toReorderItems } from '../../lib/reorder'
 import { useAdminResource } from '../../hooks/useAdminResource'
 import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -32,6 +36,16 @@ export default function AdminDashboard() {
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Copia de trabajo local (fuente de verdad del render). Se resiembra desde el
+  // servidor en cada carga; el reorden OPTIMISTA la actualiza al instante.
+  const [items, setItems] = useState<ModuleDto[]>([])
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [overIndex, setOverIndex] = useState<number | null>(null)
+
+  useEffect(() => {
+    setItems(data ? [...data.modules].sort((a, b) => a.order - b.order) : [])
+  }, [data])
+
   const showToast = useCallback((message: string, tone: ToastTone = 'default') => {
     setToast({ message, tone, key: Date.now() })
   }, [])
@@ -53,6 +67,48 @@ export default function AdminDashboard() {
     },
     [reload, showToast],
   )
+
+  // Aplica un nuevo orden de forma optimista y lo persiste; ante error revierte
+  // al estado previo y avisa con un toast (reutiliza el estado de error).
+  const commitReorder = useCallback(
+    async (next: ModuleDto[], prev: ModuleDto[]) => {
+      setItems(next)
+      try {
+        await reorderModules(toReorderItems(next))
+        reload()
+      } catch (err) {
+        setItems(prev)
+        showToast(
+          err instanceof ApiError ? err.message : 'No se pudieron reordenar los módulos.',
+          'error',
+        )
+      }
+    },
+    [reload, showToast],
+  )
+
+  const moveModule = useCallback(
+    (from: number, to: number) => {
+      if (from < 0 || from >= items.length || to < 0 || to >= items.length || from === to) return
+      const next = resequence(moveItem(items, from, to))
+      void commitReorder(next, items)
+    },
+    [items, commitReorder],
+  )
+
+  const onReorderDrop = useCallback(
+    (index: number) => {
+      if (dragIndex != null && dragIndex !== index) moveModule(dragIndex, index)
+      setDragIndex(null)
+      setOverIndex(null)
+    },
+    [dragIndex, moveModule],
+  )
+
+  const onReorderEnd = useCallback(() => {
+    setDragIndex(null)
+    setOverIndex(null)
+  }, [])
 
   if (loading && data == null) {
     return (
@@ -82,7 +138,8 @@ export default function AdminDashboard() {
     )
   }
 
-  const modules = data ? [...data.modules].sort((a, b) => a.order - b.order) : []
+  const existingIds = items.map((m) => m.id)
+  const nextOrder = items.length ? Math.max(...items.map((m) => m.order)) + 1 : 1
 
   return (
     <section className="screen admin-dashboard">
@@ -91,8 +148,9 @@ export default function AdminDashboard() {
           <div className="eyebrow">Autoría · Contenido</div>
           <h2 className="display-lg">Módulos del curso</h2>
           <p className="muted" style={{ margin: '6px 0 0', maxWidth: 560 }}>
-            Crea y edita módulos, lecciones, ejemplos y quizzes. Los cambios se reflejan de inmediato en el
-            catálogo del estudiante.
+            Crea y edita módulos, lecciones, ejemplos y quizzes. Arrastra por el asa (o usa
+            «Subir»/«Bajar») para reordenarlos. Los cambios se reflejan de inmediato en el catálogo
+            del estudiante.
           </p>
         </div>
         <Button variant="primary" size="md" onClick={() => setDialog({ mode: 'create' })}>
@@ -101,7 +159,7 @@ export default function AdminDashboard() {
         </Button>
       </div>
 
-      {modules.length === 0 ? (
+      {items.length === 0 ? (
         <EmptyState
           icon={<IconLayers size={28} />}
           title="Aún no hay módulos"
@@ -115,22 +173,37 @@ export default function AdminDashboard() {
         />
       ) : (
         <div className="admin-dashboard-list">
-          {modules.map((module) => (
+          {items.map((module, index) => (
             <ModuleGroup
               key={module.id}
               module={module}
+              index={index}
+              count={items.length}
+              isDragging={dragIndex === index}
+              isDropTarget={overIndex === index && dragIndex !== null && dragIndex !== index}
               open={openId === module.id}
               onToggle={() => setOpenId(openId === module.id ? null : module.id)}
               onReload={reload}
               onToast={showToast}
               onEdit={(m) => setDialog({ mode: 'edit', module: m })}
+              onMove={moveModule}
+              onReorderStart={setDragIndex}
+              onReorderEnter={setOverIndex}
+              onReorderDrop={onReorderDrop}
+              onReorderEnd={onReorderEnd}
             />
           ))}
         </div>
       )}
 
       {dialog?.mode === 'create' && (
-        <ModuleFormDialog mode="create" onClose={() => setDialog(null)} onSaved={onSaved} />
+        <ModuleFormDialog
+          mode="create"
+          existingIds={existingIds}
+          defaultOrder={nextOrder}
+          onClose={() => setDialog(null)}
+          onSaved={onSaved}
+        />
       )}
       {dialog?.mode === 'edit' && (
         <ModuleFormDialog mode="edit" initial={dialog.module} onClose={() => setDialog(null)} onSaved={onSaved} />
