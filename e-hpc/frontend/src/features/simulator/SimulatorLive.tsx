@@ -210,7 +210,14 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
           icon={<IconCpu size={16} />}
           label="CPU del contenedor"
           value={lastMetric != null ? `${Math.round(lastMetric.cpu_percent)}%` : '—'}
-          hint={cpuSeries.length >= 2 ? <Sparkline data={cpuSeries} max={cpuMax} /> : `hasta ${Math.round(cpuMax)}% (${threads} hilos)`}
+          hint={
+            <>
+              {/* 100% = 1 núcleo; el % es agregado (docker stats), así que con
+                  varios hilos supera 100%. Techo ≈ hilos·100 (--cpus). */}
+              <div>{`100% = 1 núcleo · tope ${Math.round(cpuMax)}%`}</div>
+              {cpuSeries.length >= 2 && <Sparkline data={cpuSeries} max={cpuMax} />}
+            </>
+          }
         />
         <MetricCard
           icon={<IconMemory size={16} />}
