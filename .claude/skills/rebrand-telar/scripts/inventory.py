@@ -70,8 +70,12 @@ LAYER_RULES: list[tuple[str, str, str]] = [
     # mecanismo del bug BL-02, el mismo que C3 existe para blindar.
     ("C3", "nombre de proyecto Compose", r"^\s*name:\s*ehpc\s*$|COMPOSE_PROJECT_NAME\s*=\s*['\"]ehpc['\"]"),
 
-    ("C3", "volumen ehpc_submissions", r"\behpc_submissions\b"),
-    ("C3", "volumen ehpc_data", r"\behpc_data\b"),
+    # SIN \b delante a propósito: en `ehpc_ehpc_submissions` (el nombre
+    # prefijado por Compose que documenta el bug BL-02) el carácter anterior es
+    # `_`, que cuenta como carácter de palabra, así que `\b` no casa y la línea
+    # se caía de TODAS las capas.
+    ("C3", "volumen ehpc_submissions", r"ehpc_submissions"),
+    ("C3", "volumen ehpc_data", r"ehpc_data"),
     ("C3", "SQLite ehpc.db", r"\behpc\.db\b"),
     ("C3", "imagen runner", r"\behpc-runner\b"),
     ("C3", "appId edu.ehpc.*", r"\bedu\.ehpc\b"),
@@ -80,7 +84,13 @@ LAYER_RULES: list[tuple[str, str, str]] = [
     ("C3", "home dir ~/.ehpc*", r"\.ehpc(-build|-verify)?\b(?!\.db)"),
     ("C3", "nombre de contenedor/tarea", r"\behpc-(job|worker|run|head|frontend|backend|desktop|variant|drainer|logs|stats|retain|runner-test)\b"),
 
-    ("C2", "variable de entorno EHPC_*", r"\bEHPC_[A-Z0-9_]+"),
+    # El sufijo va con `*`, no con `+`, A PROPÓSITO: con `+` hacía falta al
+    # menos un carácter detrás del guion bajo, y eso dejaba INVISIBLE la línea
+    # más importante de toda la capa —
+    #   backend/app/config.py:18  model_config = SettingsConfigDict(env_prefix="EHPC_")
+    # — porque detrás del `_` va una comilla. También se perdían los glob de la
+    # documentación (`EHPC_*` en README §8 y README.stub.md).
+    ("C2", "variable de entorno EHPC_*", r"\bEHPC_[A-Z0-9_]*"),
 
     # La marca en prosa se escribe `E-HPC`; en minúscula-con-guion sólo aparece
     # como RUTA o SLUG (`~/dev/e-hpc`, `.../e-hpc/desktop`, la URL del repo).
@@ -89,8 +99,11 @@ LAYER_RULES: list[tuple[str, str, str]] = [
 
     # Marca en prosa / texto de UI. Última: sólo lo que no casó arriba.
     ("C1", "marca en prosa", r"E-HPC"),
-    # Restos que no son ninguno de los anteriores (ids de diagrama, slugs…).
-    ("C1", "resto ehpc/EHPC", r"\bEHPC\b|\behpc\b"),
+    # Red de seguridad final, SIN \b: con `\bEHPC\b|\behpc\b` cualquier marca
+    # pegada a un `_` (`ehpc_ehpc_submissions`, `EHPC_`) no casaba con NADA y
+    # la línea desaparecía del inventario en silencio — para reaparecer en T6
+    # al final, cuando ya se había dado la capa por cerrada.
+    ("C1", "resto ehpc/EHPC", r"EHPC|ehpc"),
 ]
 
 COMPILED = [(layer, name, re.compile(rx)) for layer, name, rx in LAYER_RULES]
@@ -147,6 +160,7 @@ def classify_line(line: str) -> list[tuple[str, str]]:
 
 def build() -> dict:
     excluded_files: list[str] = []
+    sin_clasificar: list[dict] = []
     # capa -> área -> {fichero -> nº ocurrencias}
     layers: dict[str, dict[str, dict[str, int]]] = defaultdict(lambda: defaultdict(dict))
     patterns: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
@@ -173,7 +187,15 @@ def build() -> dict:
         for lineno, line in enumerate(content.splitlines(), 1):
             if not brand.search(line):
                 continue
-            for layer, name in classify_line(line):
+            hits = classify_line(line)
+            if not hits:
+                # Una línea con marca que no cae en NINGUNA capa no se asigna a
+                # ningún agente y reaparece en T6 con la capa ya cerrada. Se
+                # reporta en vez de tragársela.
+                sin_clasificar.append(
+                    {"file": path, "line": lineno, "text": line.strip()[:160]}
+                )
+            for layer, name in hits:
                 per_file[layer] += 1
                 patterns[layer][name] += 1
                 details[layer].append(
@@ -193,6 +215,7 @@ def build() -> dict:
         "details": dict(details),
         "renames": renames,
         "excluded_files": excluded_files,
+        "sin_clasificar": sin_clasificar,
     }
 
 
@@ -230,6 +253,17 @@ def summarize(inv: dict) -> None:
     if inv["excluded_files"]:
         print(f"Excluidos (falsos positivos intencionales): {len(inv['excluded_files'])} ficheros "
               f"bajo {', '.join(DEFAULT_EXCLUDE)}")
+
+    sc = inv["sin_clasificar"]
+    if sc:
+        print(f"\n⚠ {len(sc)} línea(s) con marca SIN CLASIFICAR — nadie las tiene asignadas.")
+        print("  Reaparecerían en T6 con la capa ya cerrada. Añade una regla o justifícalas:")
+        for d in sc[:15]:
+            print(f"    {d['file']}:{d['line']}: {d['text'][:100]}")
+        if len(sc) > 15:
+            print(f"    … y {len(sc) - 15} más.")
+    else:
+        print("\nSin líneas huérfanas: toda ocurrencia de marca cae en alguna capa.")
 
 
 def main() -> int:

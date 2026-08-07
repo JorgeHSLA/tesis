@@ -89,6 +89,39 @@ commitear; si la puerta falla, se arregla la capa, no se sigue.
 contexto. No toques `HPC` a secas: es *high-performance computing*, el término
 genérico del dominio, y aparece legítimamente por todas partes.
 
+⚠️ **Tres cosas de esta capa NO son prosa, aunque lo parezcan:**
+
+**1. `productName: E-HPC`** (`desktop/package.json:3` y
+`desktop/electron-builder.yml:7`). Electron deriva `app.getName()` de ahí, y de
+ahí cuelga `app.getPath('userData')`. Cambiarlo **mueve el perfil de Chromium**
+de `~/.config/E-HPC` a `~/.config/Telar` (en Windows, `%APPDATA%`). Efecto: la
+app de escritorio arranca con **localStorage vacío** — tema por defecto, sidebar
+plegada, sin última lección — aunque las claves de C3 estén perfectas. Si no lo
+sabes, J5 falla en C1 y culpas a C3. Va acoplado a
+`desktopName: E-HPC.desktop` (+ `linux.syncDesktopName`), que asocia la ventana
+por `WM_CLASS`, y a los nombres de artefacto del README
+(`E-HPC-<version>.AppImage`, derivados de `${productName}`).
+
+**2. El literal de truncado** — `backend/app/routers/jobs.py:37`:
+
+```python
+_TRUNCATION_MARK = "\n--- [E-HPC] output truncado a {n} bytes ---\n"
+```
+
+Es **salida observable de `GET /jobs/{id}/output`**, no un comentario, y está
+asertada byte a byte en los tests. Va en el mismo commit que sus asserts.
+
+**3. El comentario de la línea 30 de los dos `.d.ts`** dice `del proyecto E-HPC`
+y los dos ficheros deben ser **byte-idénticos**. Cambiar uno solo —aunque sea
+"sólo un comentario"— hace fallar `npm run check:contract` con exit 1.
+
+Y un punto ciego que **ningún grep ve**: el logotipo es el monograma **`E`**,
+una sola letra, en `frontend/public/favicon.svg`, en `Sidebar.tsx:69` y en los
+~10 iconos binarios de `desktop/resources/`. Cambiar `E` por `T` es un cambio de
+FORMA que T1 marcará como diff (la marca no aparece en la cadena) y que T6 nunca
+verá. **Decisión manual**, fuera del automatismo. Lo mismo con las ~118 capturas
+de `docs/assets/`, que muestran "E-HPC" en la UI.
+
 ### C2 · Variables de entorno — riesgo MEDIO
 `EHPC_*` → `TELAR_*`. **Atómico**: definición y consumo en el MISMO commit, o el
 stack arranca con la configuración por defecto y parece funcionar.
@@ -247,6 +280,29 @@ esta capa es mucho menos peligrosa de lo que sugieren los 518 ficheros.
 
 Usa `git mv` (no `mv`): conserva el historial y deja el índice coherente para
 que T1 case las rutas de los dos árboles.
+
+⚠️ **C5 cambia el nombre de proyecto de Compose sin que aparezca en ningún
+diff.** El `compose.yaml` raíz **no tiene clave `name:`** (verificado): Compose
+lo deriva del NOMBRE DEL DIRECTORIO. Al hacer `git mv e-hpc telar`, el proyecto
+pasa de `e-hpc` a `telar` por el simple hecho de moverse.
+
+Consecuencia: los contenedores que estuvieran levantados quedan fuera del
+alcance del nuevo proyecto. `docker compose down` desde el directorio nuevo **no
+los ve ni los para**, siguen ocupando 8080 y 8000, y el siguiente `up` aborta
+con `Bind for 127.0.0.1:8080 failed: port is already allocated`. El daemon de
+esta máquina ya arrastra la prueba de este mecanismo: los volúmenes
+`e-hpc_ehpc_data` y `repo_ehpc_data` son restos prefijados de despliegues
+anteriores.
+
+**Antes de C5, derriba el stack desde el directorio VIEJO:**
+
+```bash
+cd e-hpc && docker compose down     # con el nombre de proyecto viejo aún vigente
+```
+
+Y luego reconstruye desde `telar/`. Los volúmenes con `name:` explícito
+(`telar_data`, `telar_submissions`) no se ven afectados por el prefijo — para
+eso está el `name:`.
 
 Revisa después: `scripts/`, `compose.yaml`, `.gitignore`, `desktop/scripts/launch-wsl.sh`
 (define `EHPC_DIR`), `Makefile`, y las rutas absolutas `/mnt/d/universidad/tesis/e-hpc/…`
