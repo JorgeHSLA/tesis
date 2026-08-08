@@ -128,7 +128,7 @@ def launch_student_container(execution_id: str, cpus: int = 4) -> "docker.models
 
         # --- Ciclo de vida ---
         auto_remove=False,                            # ¡importante! ver §5 (leer logs/exit code)
-        labels={"app": "e-hpc", "kind": "runner", "execution_id": execution_id},
+        labels={"app": "telar", "kind": "runner", "execution_id": execution_id},
     )
 ```
 
@@ -370,7 +370,7 @@ Docs: [container.wait()](https://docker-py.readthedocs.io/en/stable/containers.h
   no sirve para nuestro flujo detach + streaming.
 - **Decisión para Telar:** `auto_remove=False` siempre; leer logs + exit code; borrar
   explícitamente con `remove(force=True)` en un `finally`. Añadir un *reaper* periódico
-  que borre contenedores viejos con label `app=e-hpc` por si el backend crashea.
+  que borre contenedores viejos con label `app=telar` por si el backend crashea.
 
 ### 5.3 Patrón completo (timeout duro + limpieza garantizada)
 

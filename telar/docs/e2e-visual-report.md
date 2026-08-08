@@ -187,7 +187,7 @@ Ver un trace: `npx playwright show-trace ~/.telar-verify/e2e/artifacts/evidence/
 ```bash
 # 1) Stack — Fase 4 requiere TELAR_ADMIN_PASSWORD (sin ella, admin deshabilitado).
 #    Reconstruir si las imágenes son previas a Fase 4.
-cd /mnt/d/universidad/tesis/e-hpc
+cd /mnt/d/universidad/tesis/telar
 docker compose build backend frontend
 # Habilitar admin: añadir TELAR_ADMIN_PASSWORD al servicio backend (env / override):
 #   docker compose -f compose.yaml -f <override-con-TELAR_ADMIN_PASSWORD> up -d

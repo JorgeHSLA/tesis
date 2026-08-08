@@ -14,7 +14,7 @@
 ## 1. Estructura del paquete
 
 ```
-e-hpc/
+telar/
 ├─ frontend/                        # paquete web (ver frontend-spec.md) — dueño del build del renderer
 │  └─ dist/                         # ÚNICO build; lo consumen nginx y electron-builder
 └─ desktop/
@@ -43,7 +43,7 @@ e-hpc/
   check en CI/test para evitar problemas de symlinks).
 
 **Regla WSL2:** `npm ci` y builds de `desktop/` se ejecutan en el clon de trabajo en ext4
-(`~/dev/e-hpc/desktop`), no en `/mnt/d`. Cachés: `export ELECTRON_CACHE=~/.cache/electron` y
+(`~/dev/telar/desktop`), no en `/mnt/d`. Cachés: `export ELECTRON_CACHE=~/.cache/electron` y
 `ELECTRON_BUILDER_CACHE=~/.cache/electron-builder`.
 
 ---
@@ -445,7 +445,7 @@ Matriz de empaquetado (de electron.md §3):
 Comando Windows desde WSL2 (documentado en README):
 
 ```bash
-docker run --rm -it -v ~/dev/e-hpc:/project -w /project/desktop \
+docker run --rm -it -v ~/dev/telar:/project -w /project/desktop \
   electronuserland/builder:wine \
   /bin/bash -lc "npm ci && npm run build && npx electron-builder --win nsis portable"
 ```

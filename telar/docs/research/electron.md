@@ -275,7 +275,7 @@ const DOCKER_ACTIONS = {
 type DockerAction = keyof typeof DOCKER_ACTIONS
 
 const COMPOSE_CWD = app.isPackaged
-  ? process.resourcesPath          // o ruta configurada del proyecto e-hpc
+  ? process.resourcesPath          // o ruta configurada del proyecto telar
   : process.cwd()
 
 app.whenReady().then(() => {

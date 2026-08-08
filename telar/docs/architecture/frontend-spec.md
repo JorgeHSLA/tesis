@@ -37,9 +37,9 @@
 | @fontsource/ibm-plex-sans, @fontsource/jetbrains-mono | latest | rediseño 2026-07: Plex Sans 400/500/600/700 (UI) + JetBrains Mono 400/500/600/700 (datos/terminal); self-hosted, cero requests de red |
 | vitest + @testing-library/react + @testing-library/user-event + jsdom | latest | plan de tests §10 |
 
-**Regla WSL2 (obligatoria):** el código vive en `/mnt/d/universidad/tesis/e-hpc/frontend/`, pero
+**Regla WSL2 (obligatoria):** el código vive en `/mnt/d/universidad/tesis/telar/frontend/`, pero
 `node_modules`, caché de Vite y builds se hacen en ext4. Estrategia: clonar/worktree de trabajo en
-`~/dev/e-hpc/` para `npm ci` + `npm run build` (I/O 9P de `/mnt/d` es 10-50× más lento y los
+`~/dev/telar/` para `npm ci` + `npm run build` (I/O 9P de `/mnt/d` es 10-50× más lento y los
 symlinks de node_modules fallan en NTFS). **Decisión única de build** (architecture.md §10.2):
 docker-compose construye el frontend DENTRO de Docker (multi-stage node:22 → nginx, con
 `.dockerignore` de node_modules/dist), ejecutando compose desde el clon ext4; electron-builder

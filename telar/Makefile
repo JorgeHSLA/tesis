@@ -7,7 +7,7 @@
 #   compilan allí y copian de vuelta SOLO los artefactos (dist/,
 #   package-lock.json). node_modules jamás se crea en /mnt/d.
 #   Los targets dev-* asumen que se invocan desde un clon de trabajo en
-#   ext4 (~/dev/e-hpc) o desde $(BUILD_ROOT) ya sincronizado.
+#   ext4 (~/dev/telar) o desde $(BUILD_ROOT) ya sincronizado.
 
 SHELL      := /bin/bash
 ROOT       := $(CURDIR)

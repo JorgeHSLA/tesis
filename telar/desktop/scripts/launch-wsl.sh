@@ -6,8 +6,8 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DESKTOP_DIR="$(dirname "$SCRIPT_DIR")"        # .../e-hpc/desktop
-TELAR_DIR="$(dirname "$DESKTOP_DIR")"          # .../e-hpc  (aquí vive compose.yaml)
+DESKTOP_DIR="$(dirname "$SCRIPT_DIR")"        # .../telar/desktop
+TELAR_DIR="$(dirname "$DESKTOP_DIR")"          # .../telar  (aquí vive compose.yaml)
 
 # Display de WSLg (por si el atajo arranca sin heredarlas): sin esto Electron
 # no encontraría el servidor gráfico y no abriría ventana.

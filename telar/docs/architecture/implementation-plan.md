@@ -14,7 +14,7 @@
 
 1. Leer PRIMERO los docs de `docs/architecture/` listados en su paquete.
 2. Entorno WSL2: `npm ci`/builds/pytest se ejecutan en el clon ext4
-   (`~/dev/e-hpc/`), nunca en `/mnt/d`. DB y jobs de dev en `~/.telar/`.
+   (`~/dev/telar/`), nunca en `/mnt/d`. DB y jobs de dev en `~/.telar/`.
 3. Convenciones de código: archivos < 400 líneas (800 máx), funciones
    < 50 líneas, datos inmutables, errores manejados explícitamente, cero
    secretos hardcodeados.

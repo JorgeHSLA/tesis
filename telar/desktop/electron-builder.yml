@@ -12,7 +12,7 @@ files:
   - package.json
 extraMetadata:
   main: dist-electron/main.cjs
-  homepage: https://github.com/jorgesierra/e-hpc
+  homepage: https://github.com/jorgesierra/telar
   desktopName: Telar.desktop
 extraResources:
   - from: ../frontend/dist            # el MISMO build de Vite que sirve nginx

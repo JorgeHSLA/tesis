@@ -100,7 +100,7 @@ Vite dev server :5173  ──►  uvicorn :8000 (nativo WSL)  ──►  docker.
 Electron dev: carga http://localhost:5173 (VITE_DEV_SERVER_URL)
 ```
 
-- Código del proyecto en `/mnt/d/universidad/tesis/e-hpc/`, pero
+- Código del proyecto en `/mnt/d/universidad/tesis/telar/`, pero
   `node_modules`, builds, la BD de dev y el directorio de jobs viven en ext4
   (`~/`): el FS 9p de `/mnt/d` multiplica ~10× los tiempos de I/O
   (medido en `pyomp-runner.md` §6).
@@ -658,7 +658,7 @@ cómputo real; jamás los 3–5 s típicos de un judge.
 ## 9. Estructura de repositorio (destino de Fase 3)
 
 ```
-e-hpc/
+telar/
 ├── compose.yaml
 ├── frontend/          # React+Vite+TS · Dockerfile multi-stage (node:22 → nginx)
 │   └── nginx.conf
@@ -705,7 +705,7 @@ real es §5 (módulo único) + bind a loopback + sandbox del runner.
 
 El compose construye el frontend **dentro de Docker** (multi-stage
 `node:22-slim` → `nginx:alpine`), ejecutando `docker compose build` desde el
-**clon de trabajo en ext4** (`~/dev/e-hpc`) — nunca desde `/mnt/d` (contexto
+**clon de trabajo en ext4** (`~/dev/telar`) — nunca desde `/mnt/d` (contexto
 9p lento). `frontend/.dockerignore` y `backend/.dockerignore` son
 obligatorios (`node_modules`, `dist`, `dist-electron`, `.venv`,
 `__pycache__`, `*.db`). electron-builder consume `frontend/dist/` generado

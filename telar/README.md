@@ -20,7 +20,7 @@ sobre el mismo build de React:
 
 ## Índice
 
-1. [Qué hace Telar](#1-qué-hace-e-hpc)
+1. [Qué hace Telar](#1-qué-hace-telar)
 2. [Arquitectura](#2-arquitectura)
 3. [Prerequisitos](#3-prerequisitos)
 4. [Ejecutar la versión WEB](#4-ejecutar-la-versión-web)
@@ -157,7 +157,7 @@ forma fiable. Por eso:
 
 - **`node_modules`, `npm ci`, `tsc`, `vite build` y `pytest` pesados NUNCA se
   ejecutan sobre `/mnt/d`.** Se sincronizan a una copia en **ext4**
-  (`$HOME/.telar-build/…` o un clon de trabajo en `~/dev/e-hpc`), se compila
+  (`$HOME/.telar-build/…` o un clon de trabajo en `~/dev/telar`), se compila
   allí y sólo se copian de vuelta los artefactos (`dist/`, `package-lock.json`).
 - El `Makefile` encapsula esta regla: `make build-frontend`, `make build-desktop`
   y `make dist` hacen el `rsync` a ext4, compilan y traen los artefactos.
@@ -165,12 +165,12 @@ forma fiable. Por eso:
 
   ```bash
   rsync -a --exclude node_modules --exclude dist --exclude .venv \
-        /mnt/d/universidad/tesis/e-hpc/frontend/ ~/.telar-build/frontend/
+        /mnt/d/universidad/tesis/telar/frontend/ ~/.telar-build/frontend/
   cd ~/.telar-build/frontend && \
     export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh" && nvm use 22 && \
     npm ci && npm run build
   # copia de vuelta el lock regenerado y el dist:
-  cp ~/.telar-build/frontend/package-lock.json /mnt/d/universidad/tesis/e-hpc/frontend/
+  cp ~/.telar-build/frontend/package-lock.json /mnt/d/universidad/tesis/telar/frontend/
   ```
 
 > Los **builds de Docker** no sufren esta regla en el mismo grado (el contexto
@@ -219,7 +219,7 @@ lo instancia el backend por la API, un contenedor efímero por job. Por eso se
 construye aparte con `--profile build`.
 
 > **Nota sobre el nombre del proyecto Compose.** Levantar desde la raíz del repo
-> usa el proyecto `e-hpc`; levantar desde un clon en ext4 usa `repo`. El volumen
+> usa el proyecto `telar`; levantar desde un clon en ext4 usa `repo`. El volumen
 > `telar_submissions` lleva `name:` explícito en `compose.yaml`, así que **es el
 > mismo volumen real en ambos casos** (ver [§10](#10-decisiones-de-diseño-clave)).
 > Compose puede emitir un warning cosmético "volume already exists but was
@@ -249,7 +249,7 @@ esbuild recompila; reinicia Electron a mano (`Ctrl+C` + `npm run dev`).
 # recomendado: usa el Makefile (aplica la regla ext4 automáticamente)
 make dist
 
-# o manualmente, en un clon ext4 (~/dev/e-hpc o ~/.telar-build):
+# o manualmente, en un clon ext4 (~/dev/telar o ~/.telar-build):
 cd desktop && npm run dist:linux   # == npm run build && electron-builder --linux
 ```
 
@@ -269,7 +269,7 @@ El artefacto de Windows se construye de dos formas:
 Comando con la imagen Wine (desde WSL2, con un clon en ext4):
 
 ```bash
-docker run --rm -it -v ~/dev/e-hpc:/project -w /project/desktop \
+docker run --rm -it -v ~/dev/telar:/project -w /project/desktop \
   electronuserland/builder:wine \
   /bin/bash -lc "npm ci && npm run build && npx electron-builder --win nsis portable"
 ```
@@ -313,7 +313,7 @@ rendimiento:
 ```bash
 # sincroniza a ext4 y ejecuta
 rsync -a --exclude .venv --exclude __pycache__ \
-      /mnt/d/universidad/tesis/e-hpc/backend/ ~/.telar-build/backend/
+      /mnt/d/universidad/tesis/telar/backend/ ~/.telar-build/backend/
 cd ~/.telar-build/backend
 python -m pytest --cov=app --cov-fail-under=80
 ```

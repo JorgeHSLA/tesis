@@ -93,7 +93,7 @@ Construido y ejecutado el 2026-07-12; el smoke test compiló y corrió durante e
 Tamaño resultante: **~777 MB** (llvmlite+numba+numpy dominan; slim vs full apenas cambia el total).
 
 ```dockerfile
-# e-hpc/runner/Dockerfile — runner PyOMP de Telar
+# telar/runner/Dockerfile — runner PyOMP de Telar
 # Base: hay wheel cp312 manylinux_2_28 (glibc>=2.28); trixie trae glibc 2.41.
 FROM python:3.12-slim
 
