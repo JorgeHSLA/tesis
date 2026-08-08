@@ -156,9 +156,15 @@ ingenua de T1 (ver `SKILL.md`, sección T1).
    fase de diseño de la tesis, y reescribirlo lo falsearía.
 
 2. **`https://github.com/jorgesierra/e-hpc`** (`desktop/electron-builder.yml:15`)
-   — **sin resolver, y es de Jorge**. Si el repositorio remoto no se renombra, la
-   URL debe quedarse; si se renombra, cambia. `grep-final.py` la reporta como
-   hallazgo a propósito en vez de silenciarla.
+   — **resuelto (D7): el repositorio remoto se renombra**. La URL cambia con él,
+   dentro de C5. `grep-final.py` la sigue reportando como hallazgo, que ahora es
+   exactamente lo correcto. El renombrado en GitHub y el `git remote set-url`
+   quedan fuera del repo.
+
+3. **El monograma `E`** — **resuelto (D6): se rediseña a `T`**. Doce sitios
+   (SVG + `Sidebar.tsx` + 10 iconos binarios), declarados como cambio de forma
+   autorizado en `brand-invariance.py` porque `E`→`T` no es marca y T1 lo
+   tomaría por cambio de forma.
 
 3. **`ghcr.io/python-for-hpc/pyomp`** — imagen de terceros (PyOMP upstream). No
    se toca nunca; está en la allowlist de T6.

@@ -52,10 +52,11 @@ ALLOWED_CONTENT: list[tuple[re.Pattern, str]] = [
         "cita dejaría la documentación apuntando a algo que no existe. "
         "Aparece en docs/analysis/handoff-design.md, fuera de mock/.",
     ),
-    # OJO: no hay regla comodín para URLs. Una URL PROPIA que aún diga `e-hpc`
-    # (p.ej. `github.com/jorgesierra/e-hpc` en electron-builder.yml) NO es un
-    # falso positivo: es una decisión pendiente sobre si se renombra también el
-    # repositorio remoto. Debe aparecer como hallazgo hasta que se decida.
+    # OJO: no hay regla comodín para URLs, y es deliberado. Por D7 el
+    # repositorio remoto SÍ se renombra, así que
+    # `github.com/jorgesierra/e-hpc` (electron-builder.yml:15) tiene que
+    # aparecer como hallazgo hasta que se renombre: no es un falso positivo.
+    # Sólo se exceptúan URLs de TERCEROS, como la de PyOMP de arriba.
 ]
 
 

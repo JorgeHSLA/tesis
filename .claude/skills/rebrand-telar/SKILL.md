@@ -39,6 +39,8 @@ export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"   # Node 22 obligatorio
 | D2 | Romper el estado persistido sin migración, documentando `down -v` | SÍ |
 | D3 | Renombrar `ghcr.io/jorgesierra/ehpc-*` y `edu.ehpc.desktop` | SÍ |
 | D4 | Playwright ad-hoc vía MCP, sin añadir `@playwright/test` al repo | SÍ |
+| D6 | Rediseñar el monograma de marca: `E` → `T` (SVG + 10 iconos binarios) | SÍ |
+| D7 | Renombrar también el repositorio remoto de GitHub | SÍ |
 
 **D5 (decidida al construir esta skill): `mock/e-hpc-handoff/` NO se toca.**
 Es el export literal de claude.ai/design, un artefacto de **procedencia**: el
@@ -56,10 +58,32 @@ vieja — está en los patrones del detector, en la allowlist de T6 y en la pros
 que explica el mapeo. Rebrandearlos dejaría al neutralizador sin reconocer
 `ehpc` y la herramienta se quedaría ciega.
 
-**Decisión pendiente (no la tomes tú):** `electron-builder.yml` publica
-`homepage: https://github.com/jorgesierra/e-hpc`. Si el repositorio remoto no se
-renombra, esa URL debe quedarse como está; si se renombra, cambia. T6 la
-reporta como hallazgo a propósito, para que se decida explícitamente.
+**D6 — el monograma se rediseña.** El logotipo es la letra `E` suelta sobre el
+naranja de marca, y pasa a `T`. Ojo: **`E` → `T` no es un cambio de marca** para
+el neutralizador (ninguna de las dos letras es una grafía de marca), así que T1
+lo vería como cambio de FORMA y tumbaría la capa. Por eso los 12 sitios están
+declarados como **cambio de forma autorizado** en `brand-invariance.py`, con su
+motivo: siguen apareciendo en el informe, pero como `AUTORIZADO`, y `--strict`
+los vuelve a tratar como fallo. Detalle en §C1.
+
+**D7 — el repositorio remoto también se renombra.** En el repo sólo hay **una**
+ocurrencia real: `desktop/electron-builder.yml:15`
+(`homepage: https://github.com/jorgesierra/e-hpc` → `.../telar`). Como es una
+ruta en minúscula, el inventario ya la clasifica en **C5** y no hace falta
+ninguna excepción: T6 la exige renombrada, que es lo correcto ahora.
+
+Lo que **no** hace esta skill, porque no es del repo (lo haces tú en GitHub):
+
+```bash
+# 1. renombrar el repo en la web de GitHub (Settings → Repository name)
+# 2. actualizar el remoto local:
+git remote set-url origin git@github.com:jorgesierra/telar.git
+git remote -v      # comprobar
+```
+
+GitHub deja una redirección desde el nombre viejo, así que los enlaces
+publicados no se rompen de golpe — pero no dependas de ella: es cortesía, no
+contrato, y desaparece si alguien crea otro repo con el nombre viejo.
 
 ## Fase A — inventario (siempre primero)
 
@@ -115,12 +139,34 @@ asertada byte a byte en los tests. Va en el mismo commit que sus asserts.
 y los dos ficheros deben ser **byte-idénticos**. Cambiar uno solo —aunque sea
 "sólo un comentario"— hace fallar `npm run check:contract` con exit 1.
 
-Y un punto ciego que **ningún grep ve**: el logotipo es el monograma **`E`**,
-una sola letra, en `frontend/public/favicon.svg`, en `Sidebar.tsx:69` y en los
-~10 iconos binarios de `desktop/resources/`. Cambiar `E` por `T` es un cambio de
-FORMA que T1 marcará como diff (la marca no aparece en la cadena) y que T6 nunca
-verá. **Decisión manual**, fuera del automatismo. Lo mismo con las ~118 capturas
-de `docs/assets/`, que muestran "E-HPC" en la UI.
+**4. El monograma (D6) — el punto ciego que ningún grep ve.** El logotipo es la
+letra `E` suelta, y pasa a `T`. T6 no lo verá jamás (no hay marca en la cadena) y
+T1 lo marcaría como cambio de forma, así que va por la vía de los **cambios
+autorizados**. Doce sitios, y la fuente de verdad es el SVG:
+
+| Dónde | Qué |
+|-------|-----|
+| `frontend/public/favicon.svg` | `<text …>E</text>` → `T` ← **fuente de verdad** |
+| `frontend/src/components/shell/Sidebar.tsx:68` | `sidebar-brand-mark` `>E<` → `>T<` (`aria-hidden`: decorativo, no cambia el nombre accesible) |
+| `desktop/resources/icons/{16,24,32,48,64,128,256,512}x*.png` + `icon.png` | regenerados |
+| `desktop/resources/icon.ico` | regenerado (multi-resolución, para el instalador Windows) |
+
+Cambia **sólo el SVG** y propaga con:
+
+```bash
+bash .claude/skills/rebrand-telar/scripts/regen-brand-icons.sh <raíz> --check   # ¿hay rasterizador?
+bash .claude/skills/rebrand-telar/scripts/regen-brand-icons.sh <raíz>
+```
+
+⚠️ En este WSL2 **no hay ningún rasterizador instalado** (ni `rsvg-convert`, ni
+ImageMagick, ni Pillow): el script lo detecta y te dice qué instalar en vez de
+generar iconos corruptos en silencio. Sin ImageMagick, el `.ico` de Windows se
+queda con el icono viejo. Mira los tamaños de 16 y 24 px a ojo: es donde una
+letra se empasta.
+
+Y las **~118 capturas PNG** de `docs/assets/` siguen mostrando "E-HPC" en la UI.
+No rompen nada y quedan fuera del rebrand: son evidencia fechada de cómo se veía
+la app. Regenerarlas es trabajo de documentación, no de este rebrand.
 
 ### C2 · Variables de entorno — riesgo MEDIO
 `EHPC_*` → `TELAR_*`. **Atómico**: definición y consumo en el MISMO commit, o el
@@ -307,6 +353,11 @@ eso está el `name:`.
 Revisa después: `scripts/`, `compose.yaml`, `.gitignore`, `desktop/scripts/launch-wsl.sh`
 (define `EHPC_DIR`), `Makefile`, y las rutas absolutas `/mnt/d/universidad/tesis/e-hpc/…`
 que aparecen en la documentación.
+
+**La URL del repositorio (D7)** entra aquí, no en C1: es una ruta en minúscula y
+el inventario la clasifica en C5. Una sola línea —
+`desktop/electron-builder.yml:15` — más la acción en GitHub y el
+`git remote set-url`, que no son del repo (ver §Decisiones).
 
 ## Pruebas de no-regresión
 
@@ -509,3 +560,4 @@ Y en cada capa, un **revisor adversarial** que busca tres cosas:
 | `scripts/selftest-invariance.py` | demuestra que T1 acepta y rechaza lo que debe |
 | `scripts/snapshot-contracts.py` | T2: captura y compara contratos runtime |
 | `scripts/grep-final.py` | T6: restos de marca vieja, con allowlist justificada |
+| `scripts/regen-brand-icons.sh` | D6: propaga el monograma del SVG a los 10 iconos |

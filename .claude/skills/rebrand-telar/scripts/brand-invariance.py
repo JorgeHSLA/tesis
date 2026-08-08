@@ -53,6 +53,35 @@ from brand_invariance_lib import neutralize, neutralize_path  # noqa: E402
 
 WORKTREE = ":worktree"
 
+# ── Cambios de forma AUTORIZADOS ─────────────────────────────────────────────
+# T1 exige que el rebrand sea puramente nominal. El monograma de marca es la
+# excepción decidida a mano (D6): el logotipo es la letra `E` suelta, y `E` -> `T`
+# NO es un cambio de marca para el neutralizador (ninguna de las dos letras es
+# una grafía de marca), así que T1 lo vería como un cambio de forma y haría
+# fallar la capa.
+#
+# Se listan aquí, con su motivo, en vez de relajar la puerta: siguen apareciendo
+# en el informe, pero como "autorizados" y sin tumbar el gate. Cualquier OTRO
+# cambio de forma sigue siendo un fallo.
+#
+# Las rutas se escriben con el nombre VIEJO y se neutralizan al cargarlas, así
+# que casan igual antes y después del `git mv` de C5.
+CAMBIOS_DE_FORMA_AUTORIZADOS: list[tuple[str, str]] = [
+    ("e-hpc/frontend/public/favicon.svg",
+     "D6 monograma: <text>E</text> -> T. El logotipo es la letra suelta."),
+    ("e-hpc/frontend/src/components/shell/Sidebar.tsx",
+     "D6 monograma: sidebar-brand-mark 'E' -> 'T' (aria-hidden, decorativo)."),
+    ("e-hpc/desktop/resources/icon.ico",
+     "D6 monograma: icono binario regenerado desde el SVG."),
+    ("e-hpc/desktop/resources/icons/icon.png",
+     "D6 monograma: icono binario regenerado desde el SVG."),
+    *[(f"e-hpc/desktop/resources/icons/{n}x{n}.png",
+       "D6 monograma: icono binario regenerado desde el SVG.")
+      for n in (16, 24, 32, 48, 64, 128, 256, 512)],
+]
+
+_AUTORIZADOS = {neutralize_path(p): motivo for p, motivo in CAMBIOS_DE_FORMA_AUTORIZADOS}
+
 
 def run(*args: str) -> str:
     return subprocess.run(
@@ -109,6 +138,10 @@ def main() -> int:
     ap.add_argument(
         "--max-report", type=int, default=40, help="máximo de diferencias a listar"
     )
+    ap.add_argument(
+        "--strict", action="store_true",
+        help="no aplicar la lista de cambios de forma autorizados (D6, monograma)",
+    )
     args = ap.parse_args()
 
     old, old_src, old_col = build_index(args.old)
@@ -124,18 +157,29 @@ def main() -> int:
     problems += [f"[añadido] existe en --new y no en --old: {new_src[p]}" for p in only_new]
 
     changed = sorted(p for p in set(old) & set(new) if old[p] != new[p])
+    autorizados: list[str] = []
     for p in changed:
         # Se reporta la ruta REAL de cada lado: tras C5 difieren (e-hpc/ -> telar/).
         where = new_src[p] if new_src[p] == old_src[p] else f"{old_src[p]} -> {new_src[p]}"
-        problems.append(f"[forma alterada] el contenido difiere más allá de la marca: {where}")
+        if not args.strict and p in _AUTORIZADOS:
+            autorizados.append(f"{where}  — {_AUTORIZADOS[p]}")
+        else:
+            problems.append(f"[forma alterada] el contenido difiere más allá de la marca: {where}")
 
     total_old, total_new = len(old), len(new)
     print(f"T1 invariancia de marca:  --old={args.old} ({total_old} ficheros)  "
           f"--new={args.new} ({total_new} ficheros)")
 
+    if autorizados:
+        print(f"  {len(autorizados)} cambio(s) de forma AUTORIZADO(S) (no tumban la puerta):")
+        for line in autorizados:
+            print(f"    · {line}")
+        print("    Revísalos a ojo: son los únicos sitios donde el rebrand cambia algo")
+        print("    que no es el nombre. Con --strict se reportan como fallo.")
+
     if not problems:
-        print(f"  OK — los {total_old} ficheros son idénticos tras neutralizar la marca.")
-        print("  El rebrand es puramente NOMINAL: cero cambios de forma.")
+        print(f"  OK — los {total_old} ficheros son idénticos tras neutralizar la marca")
+        print("  (salvo los cambios autorizados de arriba, si los hay).")
         return 0
 
     print(f"  FALLO — {len(problems)} diferencia(s) que la marca NO explica:\n")
