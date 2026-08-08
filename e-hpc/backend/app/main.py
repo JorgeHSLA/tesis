@@ -1,4 +1,4 @@
-"""Aplicación FastAPI de E-HPC — estado FINAL (architecture §3.4, §9, §10).
+"""Aplicación FastAPI de Telar — estado FINAL (architecture §3.4, §9, §10).
 
 Lifespan (orden congelado):
 1. abre la DB (PRAGMAs) y aplica ``schema.sql`` idempotente,
@@ -157,7 +157,7 @@ def create_app(
                 await runner.shutdown()
             await db_conn.close()
 
-    app = FastAPI(title="E-HPC API", version=BACKEND_VERSION, lifespan=lifespan)
+    app = FastAPI(title="Telar API", version=BACKEND_VERSION, lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cfg.allowed_origins_list,  # incluye "null" (Electron)

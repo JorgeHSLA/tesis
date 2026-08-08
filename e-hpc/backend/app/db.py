@@ -1,4 +1,4 @@
-"""Conexión SQLite (aiosqlite) del backend E-HPC.
+"""Conexión SQLite (aiosqlite) del backend Telar.
 
 Contrato: ``docs/architecture/data-model.md`` §2 (CONGELADO).
 

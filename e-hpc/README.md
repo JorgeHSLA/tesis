@@ -1,6 +1,6 @@
-# E-HPC — Simulador educativo de OpenMP con PyOMP
+# Telar — Simulador educativo de OpenMP con PyOMP
 
-E-HPC es una plataforma educativa para **aprender OpenMP con
+Telar es una plataforma educativa para **aprender OpenMP con
 [PyOMP](https://github.com/Python-for-HPC/PyOMP)**. El estudiante lee lecciones
 derivadas de 14 ejemplos progresivos, **ejecuta código PyOMP real** en
 contenedores Docker efímeros y aislados, observa logs y métricas en vivo por
@@ -20,7 +20,7 @@ sobre el mismo build de React:
 
 ## Índice
 
-1. [Qué hace E-HPC](#1-qué-hace-e-hpc)
+1. [Qué hace Telar](#1-qué-hace-e-hpc)
 2. [Arquitectura](#2-arquitectura)
 3. [Prerequisitos](#3-prerequisitos)
 4. [Ejecutar la versión WEB](#4-ejecutar-la-versión-web)
@@ -35,7 +35,7 @@ sobre el mismo build de React:
 
 ---
 
-## 1. Qué hace E-HPC
+## 1. Qué hace Telar
 
 | Área | Descripción |
 |---|---|
@@ -253,7 +253,7 @@ make dist
 cd desktop && npm run dist:linux   # == npm run build && electron-builder --linux
 ```
 
-Genera `desktop/release/E-HPC-<versión>.AppImage` y `.deb` (target
+Genera `desktop/release/Telar-<versión>.AppImage` y `.deb` (target
 `[AppImage, deb]` en `electron-builder.yml`). La AppImage es portable; el `.deb`
 se instala con `sudo dpkg -i` / `sudo apt install ./…deb`.
 
@@ -274,7 +274,7 @@ docker run --rm -it -v ~/dev/e-hpc:/project -w /project/desktop \
   /bin/bash -lc "npm ci && npm run build && npx electron-builder --win nsis portable"
 ```
 
-Produce un instalador **NSIS** (`E-HPC Setup <versión>.exe`, one-click) y un
+Produce un instalador **NSIS** (`Telar Setup <versión>.exe`, one-click) y un
 ejecutable **portable**.
 
 > **Aviso SmartScreen.** El instalador **no está firmado con un certificado de
@@ -610,7 +610,7 @@ Detalle completo en
 | **`npm warn EBADENGINE … required: node >=22`** | Shell en Node 18 (default del sistema) | `export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh" && nvm use 22` en esa terminal. |
 | **Primera ejecución de un job muy lenta / "compiling" largo** | **JIT de PyOMP/Numba** compila en la primera invocación (segundos). No es un cuelgue | Espera; ejecuciones siguientes del mismo código son rápidas. El timeout por defecto ya lo contempla. |
 | **`npm ci` eterno o errores de symlink** | Ejecutar sobre `/mnt/d` (drvfs) | Sigue la **regla ext4** ([§3.6](#36-regla-ext4-de-wsl2-crítica-para-builds-npm)): `rsync` a `~/.ehpc-build/…` y compila allí. Nunca `node_modules` en `/mnt/d`. |
-| **AppImage no arranca: `dlopen(): error loading libfuse.so.2`** | Falta FUSE 2 | `sudo apt install libfuse2` (o extrae con `./E-HPC.AppImage --appimage-extract` y ejecuta el `AppRun`). |
+| **AppImage no arranca: `dlopen(): error loading libfuse.so.2`** | Falta FUSE 2 | `sudo apt install libfuse2` (o extrae con `./Telar.AppImage --appimage-extract` y ejecuta el `AppRun`). |
 | **Windows: "Windows protegió su PC" (SmartScreen)** | Instalador **sin firmar** | **Más información → Ejecutar de todas formas**. Es esperado (ver [§5.3](#53-distribución-windows-nsis--portable)). |
 | **`docker compose` da warning "volume already exists but was created for project…"** | Volumen `ehpc_submissions` con `name:` explícito, levantado antes desde otro directorio (proyecto Compose distinto) | **Benigno**: es el mismo volumen real; el job se ejecuta bien. Para silenciarlo, levanta siempre desde el mismo directorio o `docker compose down -v` para recrearlo. |
 | **UI carga pero las llamadas fallan con error de CORS** | Origin no permitido (p.ej. abriste por un host distinto de `127.0.0.1`/`localhost`) | Usa exactamente `http://127.0.0.1:8080`. Los origins válidos están en `EHPC_ALLOWED_ORIGINS` ([§8](#8-variables-de-entorno-ehpc_)). |

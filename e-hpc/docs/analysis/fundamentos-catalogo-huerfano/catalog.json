@@ -48,7 +48,7 @@
       "id": "f4",
       "order": 4,
       "title": "OpenMP y PyOMP: tu caja de herramientas",
-      "description": "Qué es OpenMP, el modelo fork-join, las directivas esenciales, por qué PyOMP/Numba, y cómo leer el simulador de E-HPC.",
+      "description": "Qué es OpenMP, el modelo fork-join, las directivas esenciales, por qué PyOMP/Numba, y cómo leer el simulador de Telar.",
       "level": "Intermedio",
       "lessons": [
         "f4-01-que-es-openmp",
@@ -355,7 +355,7 @@
     "f4-06-como-leer-el-simulador": {
       "module_id": "f4",
       "order": 23,
-      "title": "Cómo leer el simulador de E-HPC",
+      "title": "Cómo leer el simulador de Telar",
       "kind": "video",
       "video_url": null,
       "estimated_minutes": 4,

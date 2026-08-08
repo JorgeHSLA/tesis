@@ -1,4 +1,4 @@
-"""Configuración del backend E-HPC.
+"""Configuración del backend Telar.
 
 Tabla única de variables de entorno ``EHPC_*`` — TRANSCRIPCIÓN de
 ``docs/architecture/architecture.md`` §10.5 (CONGELADA). ``EHPC_COMPOSE_DIR``

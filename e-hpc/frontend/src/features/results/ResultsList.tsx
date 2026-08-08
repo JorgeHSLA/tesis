@@ -41,7 +41,7 @@ export default function ResultsList() {
 
       {error != null ? (
         <ErrorState
-          message="No se pudo cargar el historial. ¿Está corriendo el backend E-HPC?"
+          message="No se pudo cargar el historial. ¿Está corriendo el backend Telar?"
           detail={error.message}
           onRetry={load}
         />

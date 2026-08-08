@@ -1,4 +1,4 @@
-# E-HPC — Especificación de arquitectura del frontend (React + Vite + TS)
+# Telar — Especificación de arquitectura del frontend (React + Vite + TS)
 
 > **Estado: CONGELADO para Fase 3.** Cambios posteriores requieren decisión explícita registrada.
 >
@@ -56,7 +56,7 @@ ejemplos provistos, no escribir desde cero).
 
 ```
 frontend/
-├─ index.html                     # <html lang="es" data-variant="v1">, <title>E-HPC…</title>
+├─ index.html                     # <html lang="es" data-variant="v1">, <title>Telar…</title>
 ├─ vite.config.ts                 # base: './', plugin react, alias '@' → src
 ├─ tsconfig.json
 ├─ package.json
@@ -172,7 +172,7 @@ const routes = [
 
 | Ruta | title | crumbs |
 |---|---|---|
-| `/` | `Inicio` | `['E-HPC']` |
+| `/` | `Inicio` | `['Telar']` |
 | `/simulador` | `Simulador · Configurar` | `['Simulador','Configurar']` |
 | `/simulador/:jobId` | `Simulador · En vivo` | `['Simulador','En vivo']` |
 | `/resultados` | `Resultados` | `['Simulador','Resultados']` |
@@ -683,9 +683,9 @@ Literales nuevos que aplican a varias pantallas (los específicos van en cada pa
 
 | Ubicación | Texto nuevo (exacto) |
 |---|---|
-| `<title>` | `E-HPC — Simulador educativo de OpenMP` |
+| `<title>` | `Telar — Simulador educativo de OpenMP` |
 | Sidebar brand-sub | `v1.0 · local` |
-| Sidebar footer (web) | `Backend E-HPC` / `conectado · {cores} núcleos` |
+| Sidebar footer (web) | `Backend Telar` / `conectado · {cores} núcleos` |
 | Sidebar footer (desktop) | `Docker runtime` / `{n} contenedores activos` (§6.7) |
 | Topbar usuario | avatar `ES` + `estudiante` (sin auth en MVP) |
 | Selector de framework | fijo `OpenMP · PyOMP`; opciones `MPI (mpirun)` y `Slurm (sbatch)` presentes pero `disabled` con sufijo ` — próximamente` |
@@ -1047,7 +1047,7 @@ no ejecutarla` (botón simulador disabled).
   montar y cada 10 s. Estados: ok → dot verde pulsante, `Docker runtime` / `{n} contenedores
   activos`; caído → dot rojo estático, `Docker runtime` / `servicios detenidos` + botón sm
   outline `Levantar` → `dockerUp()` con spinner y re-check; comprobando → dot ámbar `verificando…`.
-- **web**: `GET /health` cada 30 s → `Backend E-HPC` / `conectado` (verde) o `sin conexión`
+- **web**: `GET /health` cada 30 s → `Backend Telar` / `conectado` (verde) o `sin conexión`
   (rojo). El texto del footer se oculta colapsado (solo dot), como el prototipo.
 
 ---

@@ -46,9 +46,9 @@ Detente en la última fila, porque es la que más sorprende: si la mitad de tu p
 
 De aquí sale una lección que contradice el primer instinto de todo el mundo. Cuando un programa paralelo no acelera, el reflejo es añadir más hilos. Amdahl dice: mira primero la fracción serial. Reducir la parte serial del 10 al 5 por ciento duplica tu techo, de 10x a 20x, sin tocar un solo hilo. A veces, una hora optimizando el código serial rinde más que cualquier cantidad de núcleos. Los ingenieros de HPC se obsesionan con la fracción serial por una buena razón: es la que manda.
 
-### Conexión con E-HPC (4:30–5:00)
+### Conexión con Telar (4:30–5:00)
 
-En el simulador de E-HPC vas a ver la ley de Amdahl en acción sin fórmulas: corre el mismo ejemplo con 1, 2, 4 y 8 hilos y grafica mentalmente los speedups. Verás la curva doblarse y aplanarse justo como predice Amdahl. Y una cosa más: en el quiz de este módulo te espera una pregunta concreta —¿cuál es el techo de un programa 80 por ciento paralelo?—. Ya tienes la fórmula: uno entre la fracción serial. Te toca hacer la cuenta.
+En el simulador de Telar vas a ver la ley de Amdahl en acción sin fórmulas: corre el mismo ejemplo con 1, 2, 4 y 8 hilos y grafica mentalmente los speedups. Verás la curva doblarse y aplanarse justo como predice Amdahl. Y una cosa más: en el quiz de este módulo te espera una pregunta concreta —¿cuál es el techo de un programa 80 por ciento paralelo?—. Ya tienes la fórmula: uno entre la fracción serial. Te toca hacer la cuenta.
 
 ## Apoyo visual
 

@@ -28,7 +28,7 @@ interface RouteMeta {
  *  Las entradas «Autoría · …» solo se ejercitan en el build admin (las rutas
  *  /admin/* únicamente existen ahí), pero se dejan siempre en la tabla. */
 export function routeMeta(pathname: string): RouteMeta {
-  if (pathname === '/') return { title: 'Inicio', crumbs: ['E-HPC'] }
+  if (pathname === '/') return { title: 'Inicio', crumbs: ['Telar'] }
   if (/^\/simulador\/.+/.test(pathname)) return { title: 'Simulador · En vivo', crumbs: ['Simulador', 'En vivo'] }
   if (pathname.startsWith('/simulador')) return { title: 'Simulador · Configurar', crumbs: ['Simulador', 'Configurar'] }
   if (pathname.startsWith('/resultados')) return { title: 'Resultados', crumbs: ['Simulador', 'Resultados'] }
@@ -38,7 +38,7 @@ export function routeMeta(pathname: string): RouteMeta {
   if (/^\/admin\/quiz\b/.test(pathname)) return { title: 'Autoría · Quiz', crumbs: ['Autoría', 'Quiz'] }
   if (/^\/admin\/ejemplos\b/.test(pathname)) return { title: 'Autoría · Ejemplo', crumbs: ['Autoría', 'Ejemplo'] }
   if (pathname.startsWith('/admin')) return { title: 'Autoría · Panel', crumbs: ['Autoría', 'Panel'] }
-  return { title: 'Inicio', crumbs: ['E-HPC'] }
+  return { title: 'Inicio', crumbs: ['Telar'] }
 }
 
 /** Estado de navegación que TopBar manda al catálogo para pedirle el foco del
@@ -79,7 +79,7 @@ export function TopBar() {
       <button
         type="button"
         className="btn btn-ghost btn-sm"
-        aria-label="Acerca de E-HPC"
+        aria-label="Acerca de Telar"
         aria-haspopup="dialog"
         aria-expanded={aboutOpen}
         onClick={() => setAboutOpen(true)}

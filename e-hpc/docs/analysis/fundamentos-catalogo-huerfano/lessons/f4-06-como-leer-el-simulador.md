@@ -1,4 +1,4 @@
-# Cómo leer el simulador de E-HPC
+# Cómo leer el simulador de Telar
 
 Video F4.6 · ~4 minutos · Módulo F4 «OpenMP y PyOMP: tu caja de herramientas»
 
@@ -8,7 +8,7 @@ Video F4.6 · ~4 minutos · Módulo F4 «OpenMP y PyOMP: tu caja de herramientas
 
 ### Gancho (0:00–0:20)
 
-Ya tienes todo el vocabulario del paralelismo. Solo falta una cosa antes de ensuciarte las manos: aprender a leer la herramienta donde vas a ejecutar código. Cuatro minutos para conocer el simulador de E-HPC de arriba abajo, y con eso cierras el track y quedas listo para el módulo uno.
+Ya tienes todo el vocabulario del paralelismo. Solo falta una cosa antes de ensuciarte las manos: aprender a leer la herramienta donde vas a ejecutar código. Cuatro minutos para conocer el simulador de Telar de arriba abajo, y con eso cierras el track y quedas listo para el módulo uno.
 
 ### El ciclo de un job (0:20–1:30)
 
@@ -34,7 +34,7 @@ Y con esto cerramos. Hagamos memoria de lo que sabes ahora: por qué existe el p
 
 ## Apoyo visual
 
-- 0:00–0:20 — Barrido rápido por todas las pantallas del simulador; título «cómo leer E-HPC».
+- 0:00–0:20 — Barrido rápido por todas las pantallas del simulador; título «cómo leer Telar».
 - 0:20–1:30 — El ciclo de 3 pasos: elegir código (upload o presets) → configurar (el slider de hilos) → botón lanzar.
 - 1:30–2:20 — Un contenedor Docker como caja sellada con Python+PyOMP; iconos de «sin red», «non-root», «límites CPU/mem/tiempo».
 - 2:20–3:00 — Pantalla en vivo: logs corriendo, gráficas de CPU/memoria subiendo, actividad por hilo (fork-join).

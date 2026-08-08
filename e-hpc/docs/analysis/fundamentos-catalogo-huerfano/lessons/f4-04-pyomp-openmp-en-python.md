@@ -47,9 +47,9 @@ Hay una peculiaridad de Numba que tienes que conocer o te va a confundir al medi
 
 Y una nota de honestidad técnica, importante para no frustrarte. PyOMP está en la versión 0.5, y **no implementa todo el estándar de OpenMP**. Las directivas que enseñamos en este módulo —`parallel`, `for`, `reduction`, `private`, `shared`, `firstprivate`, `critical`, `barrier`, `single`, `task`— sí funcionan y están verificadas. Pero otras que aparecen en libros de OpenMP, como `atomic`, `sections`, `master`, o `schedule(dynamic)`, **no** están disponibles todavía en esta versión. El curso está diseñado a propósito usando solo lo que funciona de verdad, y cuando algo no está soportado, te enseñamos el sustituto: por ejemplo, donde en C usarías `atomic`, aquí usas `critical`.
 
-### Conexión con E-HPC (4:30–5:00)
+### Conexión con Telar (4:30–5:00)
 
-Todo el simulador de E-HPC corre sobre PyOMP: cuando lances un job, tu código Python decorado con `@njit` se compila y se ejecuta con hilos reales dentro del contenedor. Ya entiendes la magia que lo hace posible. En el próximo video desmenuzamos, línea por línea, tu primer programa PyOMP de verdad.
+Todo el simulador de Telar corre sobre PyOMP: cuando lances un job, tu código Python decorado con `@njit` se compila y se ejecuta con hilos reales dentro del contenedor. Ya entiendes la magia que lo hace posible. En el próximo video desmenuzamos, línea por línea, tu primer programa PyOMP de verdad.
 
 ## Apoyo visual
 
@@ -57,7 +57,7 @@ Todo el simulador de E-HPC corre sobre PyOMP: cuando lances un job, tu código P
 - 0:20–1:20 — Balanza: «Python: cómodo pero lento + GIL» vs «C: rápido y paralelo pero incómodo».
 - 1:20–2:50 — Pipeline: código Python → `@njit` / Numba → código máquina → hilos creados FUERA del intérprete (el candado GIL tachado).
 - 2:50–3:50 — Línea de tiempo de dos llamadas: la 1ª larga (compila + corre), las siguientes cortas; rótulo «warmup = descartar la 1ª».
-- 3:50–5:00 — Tabla «SÍ funciona / NO funciona en 0.5.x»; ejemplo `atomic → critical`; transición al editor de E-HPC.
+- 3:50–5:00 — Tabla «SÍ funciona / NO funciona en 0.5.x»; ejemplo `atomic → critical`; transición al editor de Telar.
 
 ## Para recordar
 

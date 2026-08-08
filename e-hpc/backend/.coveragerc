@@ -1,4 +1,4 @@
-# Cobertura del backend E-HPC (WP9).
+# Cobertura del backend Telar (WP9).
 # app/content/**/main.py son PAYLOADS del runner (fixtures literales de WP4),
 # no código del backend: se excluyen de la medición.
 [run]

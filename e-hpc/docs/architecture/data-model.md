@@ -1,4 +1,4 @@
-# E-HPC — Modelo de datos (SQLite + fixtures)
+# Telar — Modelo de datos (SQLite + fixtures)
 
 > **Estado: CONGELADO (Fase 1).** DDL, interfaces de repositorio y reparto
 > código-vs-DB definitivos para Fase 3. Complementa `architecture.md` y

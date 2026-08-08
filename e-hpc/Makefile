@@ -1,4 +1,4 @@
-# E-HPC — Makefile raíz (architecture.md §10.3)
+# Telar — Makefile raíz (architecture.md §10.3)
 #
 # REGLA WSL2 / ext4 (architecture.md §9-§10, encapsulada aquí):
 #   El repo vive en /mnt/d (drvfs, ~10x más lento y sin symlinks fiables).

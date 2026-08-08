@@ -40,7 +40,7 @@ export async function fetchEnvelope<T>(path: string, init?: RequestInit): Promis
     res = await fetch(API_BASE + path, { ...init, headers: buildHeaders(init) })
   } catch {
     // Red caída / backend inalcanzable: código local (no es del contrato).
-    throw new ApiError('NETWORK_ERROR', 'No se pudo contactar con el backend E-HPC.', 0)
+    throw new ApiError('NETWORK_ERROR', 'No se pudo contactar con el backend Telar.', 0)
   }
 
   let envelope: Envelope<T>

@@ -80,7 +80,7 @@ export default function ResultsScreen() {
           message={
             error.code === 'JOB_NOT_FOUND'
               ? 'Este job no existe o fue limpiado.'
-              : 'No se pudieron cargar los resultados. ¿Está corriendo el backend E-HPC?'
+              : 'No se pudieron cargar los resultados. ¿Está corriendo el backend Telar?'
           }
           detail={error.message}
           onRetry={error.code === 'JOB_NOT_FOUND' ? undefined : load}

@@ -30,7 +30,7 @@ La imagen clásica es un puente de un solo carril. Un coche entra por el este, o
 
 Ahora, una buena noticia para este curso: con OpenMP estructurado, usando `critical` sin nombre como hiciste en los videos anteriores, el riesgo de deadlock es **bajo**, porque el runtime gestiona las esperas de forma ordenada. Los deadlocks aparecen sobre todo cuando manejas varios candados a mano, o en el mundo de MPI donde dos procesos se quedan esperando el mensaje del otro. Pero el concepto es esencial en toda la concurrencia, y por eso lo tienes que reconocer: si alguna vez tu programa paralelo se queda colgado, sin consumir CPU, sin avanzar ni terminar, la primera sospecha es un deadlock.
 
-### Conexión con E-HPC y cierre del módulo (4:10–5:00)
+### Conexión con Telar y cierre del módulo (4:10–5:00)
 
 En el simulador vas a ejecutar tú mismo la pareja del false sharing: la versión lenta y la arreglada, una al lado de la otra, y verás la diferencia de tiempos en la pantalla de resultados. No te lo van a contar: lo vas a medir. Con esto cierras el módulo más importante del track. Ya sabes qué es la memoria compartida, por qué provoca races, y las herramientas para domarla: private, critical, reduction, barreras, y ahora reconoces el false sharing y el deadlock. En el último módulo por fin le ponemos nombre y sintaxis a todo esto: OpenMP y PyOMP.
 
@@ -40,7 +40,7 @@ En el simulador vas a ejecutar tú mismo la pareja del false sharing: la versió
 - 0:20–1:40 — Una línea de caché de 64 bytes como un cartón de huevos; dos hilos, cada uno con su huevo, pasándose el cartón completo de un lado a otro.
 - 1:40–2:50 — Comparación de tiempos de los dos ejemplos de π (array compartido vs acumulador privado); barras de tiempo casi iguales vs escalando.
 - 2:50–4:10 — Dos coches frente a frente en un puente de un carril, ninguno cede; ciclo de espera A→B→A.
-- 4:10–5:00 — Pantalla de resultados de E-HPC comparando las dos versiones; resumen de las herramientas del módulo F3.
+- 4:10–5:00 — Pantalla de resultados de Telar comparando las dos versiones; resumen de las herramientas del módulo F3.
 
 ## Para recordar
 

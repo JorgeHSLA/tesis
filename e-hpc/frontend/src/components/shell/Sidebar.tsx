@@ -65,9 +65,9 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <div className="sidebar-brand-mark" aria-hidden="true">E</div>
+        <div className="sidebar-brand-mark" aria-hidden="true">T</div>
         <div className="sidebar-brand-textwrap">
-          <div className="sidebar-brand-text">E-HPC</div>
+          <div className="sidebar-brand-text">Telar</div>
           <div className="sidebar-brand-sub">v1.0 · local</div>
         </div>
       </div>

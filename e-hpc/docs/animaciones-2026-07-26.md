@@ -62,7 +62,7 @@ la convención de `components/viz/*` («gráficas SVG sin librerías») y porque
 
 ## 4. Mapa de roles de color
 
-| Rol de la animación original | Token de E-HPC |
+| Rol de la animación original | Token de Telar |
 |---|---|
 | master / nodo principal | `--viz-node-master` |
 | workers / hilos | `--viz-node` |

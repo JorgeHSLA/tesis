@@ -26,9 +26,9 @@ Y ahí está la explicación del misterio inicial: cien dividido entre ocho da 1
 
 La consecuencia es un cambio de época. Antes de 2005, el software se aceleraba solo con esperar al siguiente procesador. Hoy, un programa serial corre prácticamente igual en un chip de hace varios años que en uno nuevo. Si quieres que tu código aproveche la máquina que ya tienes, hay una sola salida: escribirlo para que use varios núcleos a la vez. Eso es programar en paralelo, y no es un lujo de supercomputadores: es la única forma de exprimir hasta la laptop en la que estás viendo este video.
 
-### Conexión con E-HPC (3:30–4:00)
+### Conexión con Telar (3:30–4:00)
 
-En E-HPC esto no se queda en teoría. Cada programa que ejecutes en la plataforma corre en un entorno real de ocho núcleos, y el simulador te muestra las métricas en vivo: cuánta CPU consume tu código y qué están haciendo los hilos. Vas a ver con tus propios ojos cómo ese doce por ciento se transforma en ocho núcleos trabajando a la vez. En el próximo video le ponemos nombre a la idea central: el paralelismo.
+En Telar esto no se queda en teoría. Cada programa que ejecutes en la plataforma corre en un entorno real de ocho núcleos, y el simulador te muestra las métricas en vivo: cuánta CPU consume tu código y qué están haciendo los hilos. Vas a ver con tus propios ojos cómo ese doce por ciento se transforma en ocho núcleos trabajando a la vez. En el próximo video le ponemos nombre a la idea central: el paralelismo.
 
 ## Apoyo visual
 
@@ -36,7 +36,7 @@ En E-HPC esto no se queda en teoría. Cada programa que ejecutes en la plataform
 - 0:20–1:30 — Gráfica animada de frecuencia de los procesadores vs año: sube hasta ~2005 y se aplana; icono de termómetro al llegar al muro.
 - 1:30–2:30 — Sobre la misma gráfica, segunda curva: número de núcleos por chip vs año, subiendo justo donde la frecuencia se aplana.
 - 2:30–3:30 — Vista de 8 núcleos: uno al 100 % en color y siete en gris «dormidos»; en pantalla, el cálculo 100 / 8 = 12,5 %.
-- 3:30–4:00 — Captura del simulador E-HPC con las métricas de CPU del contenedor en vivo.
+- 3:30–4:00 — Captura del simulador Telar con las métricas de CPU del contenedor en vivo.
 
 ## Para recordar
 

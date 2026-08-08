@@ -28,7 +28,7 @@ Un matiz útil que verás en el módulo práctico: `single` lleva una barrera im
 
 Pero cuidado, que aquí volvemos a un tema del módulo anterior: **toda espera es speedup perdido**. Cada vez que pones una barrera, los hilos rápidos se quedan de brazos cruzados esperando al más lento. Ese tiempo ocioso no lo recuperas. Por eso la regla es la misma de siempre: sincroniza **solo cuando la correctitud lo exige**, nunca «por si acaso». Una barrera de más no rompe tu programa, pero lo frena. El buen código paralelo tiene las mínimas barreras necesarias, y ni una más.
 
-### Conexión con E-HPC (3:35–4:00)
+### Conexión con Telar (3:35–4:00)
 
 En el simulador vas a encontrar `barrier` y `single` en acción en varias lecciones prácticas: el ejemplo de entorno de datos los usa para ordenar sus fases, y el de difusión de calor los necesita entre cada paso de la simulación. Cuando los veas, reconoce el patrón: es el grupo de excursión esperando en el río. En el próximo video, el último del módulo, cerramos con dos enemigos invisibles: el false sharing y el deadlock.
 
@@ -38,7 +38,7 @@ En el simulador vas a encontrar `barrier` y `single` en acción en varias leccio
 - 0:20–1:30 — Los rápidos esperan en la orilla; cuando llega el último, todos cruzan juntos; rótulo «barrier».
 - 1:30–2:15 — Diagrama de dos fases: hilos escribiendo su parte de un array (fase 1), barrera, hilos leyendo el array completo (fase 2).
 - 2:15–3:00 — Una sola persona comprando tickets mientras 7 descansan; rótulo «single» con «+ barrera implícita».
-- 3:00–4:00 — Línea de tiempo mostrando el tiempo ocioso de los hilos rápidos en cada barrera (speedup perdido); captura de E-HPC.
+- 3:00–4:00 — Línea de tiempo mostrando el tiempo ocioso de los hilos rápidos en cada barrera (speedup perdido); captura de Telar.
 
 ## Para recordar
 

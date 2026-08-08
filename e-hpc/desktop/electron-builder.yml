@@ -4,7 +4,7 @@
 #   - extraMetadata.desktopName + linux.syncDesktopName: asociación de ventana
 #     (WM_CLASS ↔ .desktop) en entornos Linux.
 appId: edu.ehpc.desktop
-productName: E-HPC
+productName: Telar
 directories:
   output: release
 files:
@@ -13,7 +13,7 @@ files:
 extraMetadata:
   main: dist-electron/main.cjs
   homepage: https://github.com/jorgesierra/e-hpc
-  desktopName: E-HPC.desktop
+  desktopName: Telar.desktop
 extraResources:
   - from: ../frontend/dist            # el MISMO build de Vite que sirve nginx
     to: app-frontend

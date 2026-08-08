@@ -1,7 +1,7 @@
 // RuntimeFooter — footer del sidebar (frontend-spec §6.7, §6.0):
 //  - desktop: estado de window.ehpc.dockerStatus() con poll 10 s; caído →
 //    botón `Levantar` (dockerUp + re-check).
-//  - web: GET /health cada 30 s → `Backend E-HPC` / `conectado · N núcleos`.
+//  - web: GET /health cada 30 s → `Backend Telar` / `conectado · N núcleos`.
 // El texto se oculta colapsado (solo dot), como el prototipo.
 import { useDockerStatus } from '../../hooks/useDockerStatus'
 import { usePlatform } from '../../hooks/usePlatform'
@@ -13,7 +13,7 @@ export function RuntimeFooter() {
   const docker = useDockerStatus()
   const { data: system } = useSystemInfo()
 
-  const title = platform === 'desktop' ? 'Docker runtime' : 'Backend E-HPC'
+  const title = platform === 'desktop' ? 'Docker runtime' : 'Backend Telar'
 
   let dotClass = 'status-dot'
   let detail: string

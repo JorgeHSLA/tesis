@@ -1,4 +1,4 @@
-"""DTOs pydantic (v2) del contrato de API de E-HPC — §4 Cursos: módulos y lecciones.
+"""DTOs pydantic (v2) del contrato de API de Telar — §4 Cursos: módulos y lecciones.
 
 TRANSCRIPCIÓN LITERAL de ``docs/architecture/api-contract.md`` (CONGELADO).
 No añadir, quitar ni renombrar campos sin actualizar el contrato primero.

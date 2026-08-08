@@ -32,9 +32,9 @@ Ese es el trato con los hilos: la memoria compartida los hace potentísimos y a 
 
 Un apunte práctico para cerrar: ¿cuántos hilos conviene crear? Como regla general, tantos como núcleos lógicos tenga la máquina. La de referencia de este curso tiene ocho, así que ocho hilos es el punto natural. Y ese número se controla con una variable que vas a ver por todas partes: `OMP_NUM_THREADS`.
 
-### Conexión con E-HPC (4:15–5:00)
+### Conexión con Telar (4:15–5:00)
 
-En el simulador de E-HPC, ese slider de «hilos» que vas a mover es literalmente esto: le dice a tu programa cuántas personas viven en la casa, cuántos hilos nacen para repartirse el trabajo. Pon uno y verás un núcleo trabajando; pon ocho y verás la máquina entera encendida. Ya tienes al protagonista del curso. En el próximo y último video del módulo aclaramos una confusión que casi todo el mundo arrastra: la diferencia entre concurrencia y paralelismo.
+En el simulador de Telar, ese slider de «hilos» que vas a mover es literalmente esto: le dice a tu programa cuántas personas viven en la casa, cuántos hilos nacen para repartirse el trabajo. Pon uno y verás un núcleo trabajando; pon ocho y verás la máquina entera encendida. Ya tienes al protagonista del curso. En el próximo y último video del módulo aclaramos una confusión que casi todo el mundo arrastra: la diferencia entre concurrencia y paralelismo.
 
 ## Apoyo visual
 
@@ -42,7 +42,7 @@ En el simulador de E-HPC, ese slider de «hilos» que vas a mover es literalment
 - 0:20–1:40 — Una casa (proceso) con 8 personas dentro; todas abren la MISMA nevera (memoria compartida); cada una entra a SU habitación (stack privado).
 - 1:40–3:00 — Diagrama: un proceso con 8 hilos, cada hilo mapeado a un núcleo; flecha «comunicación = leer/escribir la misma memoria = gratis».
 - 3:00–4:15 — Dos personas alcanzando el último huevo a la vez en la nevera compartida; símbolo de conflicto; teaser «Módulo F3».
-- 4:15–5:00 — El slider de hilos del simulador E-HPC moviéndose de 1 a 8; los núcleos se encienden uno a uno.
+- 4:15–5:00 — El slider de hilos del simulador Telar moviéndose de 1 a 8; los núcleos se encienden uno a uno.
 
 ## Para recordar
 

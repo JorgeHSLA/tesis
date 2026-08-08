@@ -1,4 +1,4 @@
-"""DTOs pydantic (v2) del contrato de API de E-HPC — §1 Envelope.
+"""DTOs pydantic (v2) del contrato de API de Telar — §1 Envelope.
 
 TRANSCRIPCIÓN LITERAL de ``docs/architecture/api-contract.md`` (CONGELADO).
 Módulo base del paquete ``app.schemas``: el resto de secciones dependen de

@@ -26,9 +26,9 @@ Ahora bien, no todo se puede repartir. Volvamos a los pintores para ver los dos 
 
 Por ahora quédate con la idea grande: el paralelismo funciona de maravilla **cuando el trabajo se puede dividir en partes independientes**, y se complica exactamente en la medida en que esas partes dejan de serlo.
 
-### Conexión con E-HPC (3:15–4:00)
+### Conexión con Telar (3:15–4:00)
 
-En E-HPC vas a ver esta idea hecha números. Uno de los ejemplos del curso, un simulador de transporte de partículas, reparte su trabajo en partes tan independientes que con ocho hilos corre casi ocho veces más rápido: el caso ideal de los pintores. Otro ejemplo, en cambio, apenas mejora aunque le añadas hilos, y entender por qué será uno de los momentos más reveladores del curso. Todo empieza aquí: paralelizar es repartir. En el próximo video bajamos un nivel para ver qué es exactamente eso que se reparte dentro de tu computadora.
+En Telar vas a ver esta idea hecha números. Uno de los ejemplos del curso, un simulador de transporte de partículas, reparte su trabajo en partes tan independientes que con ocho hilos corre casi ocho veces más rápido: el caso ideal de los pintores. Otro ejemplo, en cambio, apenas mejora aunque le añadas hilos, y entender por qué será uno de los momentos más reveladores del curso. Todo empieza aquí: paralelizar es repartir. En el próximo video bajamos un nivel para ver qué es exactamente eso que se reparte dentro de tu computadora.
 
 ## Apoyo visual
 
@@ -36,7 +36,7 @@ En E-HPC vas a ver esta idea hecha números. Uno de los ejemplos del curso, un s
 - 0:20–1:30 — Plano de la casa dividido en 8 habitaciones, cada una con un pintor de color distinto trabajando en paralelo.
 - 1:30–2:30 — Comparación de líneas de tiempo: una barra serial larga vs 8 barras paralelas cortas apiladas, misma área total.
 - 2:30–3:15 — Los mismos pintores, ahora mostrando el paso serial «mezclar la pintura» (7 esperando) y el choque por «la misma escalera».
-- 3:15–4:00 — Captura de la pantalla de resultados de E-HPC con el speedup ~8x del ejemplo de transporte de partículas.
+- 3:15–4:00 — Captura de la pantalla de resultados de Telar con el speedup ~8x del ejemplo de transporte de partículas.
 
 ## Para recordar
 

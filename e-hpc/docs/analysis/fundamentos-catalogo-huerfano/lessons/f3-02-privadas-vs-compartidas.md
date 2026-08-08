@@ -32,9 +32,9 @@ Esa es la foto completa: lo privado se evapora al salir; lo compartido permanece
 
 Una advertencia que viene directo de los ejemplos del curso: olvidar **una sola** variable de trabajo en la lista `private` ya es un bug. En el ejemplo de Mandelbrot que verás pronto, la versión correcta declara privadas las ocho variables de trabajo del punto; dejar una fuera sería un race tan real como el del bug principal. Declarar el entorno de datos no es burocracia: es la diferencia entre un programa correcto y uno que miente.
 
-### Conexión con E-HPC (4:10–5:00)
+### Conexión con Telar (4:10–5:00)
 
-En E-HPC, la lección `entornoDatos` del módulo m3 es un laboratorio construido a propósito para esto: no calcula nada útil, y esa es su gracia. Declara una variable de cada tipo, las modifica desde 4 hilos y te muestra qué sobrevive al salir de la región. Córrela varias veces: verás que las líneas de los hilos salen en orden distinto, pero los valores de las copias privadas y de la compartida son siempre los que acabas de aprender. Cuando puedas predecir esa salida antes de ejecutarla, la decisión número uno de OpenMP ya es tuya.
+En Telar, la lección `entornoDatos` del módulo m3 es un laboratorio construido a propósito para esto: no calcula nada útil, y esa es su gracia. Declara una variable de cada tipo, las modifica desde 4 hilos y te muestra qué sobrevive al salir de la región. Córrela varias veces: verás que las líneas de los hilos salen en orden distinto, pero los valores de las copias privadas y de la compartida son siempre los que acabas de aprender. Cuando puedas predecir esa salida antes de ejecutarla, la decisión número uno de OpenMP ya es tuya.
 
 ## Apoyo visual
 
@@ -42,7 +42,7 @@ En E-HPC, la lección `entornoDatos` del módulo m3 es un laboratorio construido
 - 0:20–1:30 — cocina animada: una nevera etiquetada `shared`, ocho tablas de cortar etiquetadas `private`, fotocopias de una receta etiquetadas `firstprivate`.
 - 1:30–3:10 — diagrama de memoria: una caja grande compartida (`zsh`) y 4 cajitas por hilo para `x` y `zfp`; al lado, el output real de `entornoDatos` resaltando la línea final «x = 100 | zfp = 10 | zsh = 4».
 - 3:10–4:10 — tabla de dos columnas: «privado: contadores, temporales» / «compartido: entrada, salida»; después, una lista `private(...)` donde una variable olvidada parpadea en rojo.
-- 4:10–5:00 — captura de la lección `entornoDatos` en E-HPC con el botón de ejecutar.
+- 4:10–5:00 — captura de la lección `entornoDatos` en Telar con el botón de ejecutar.
 
 ## Para recordar
 

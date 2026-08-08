@@ -28,7 +28,7 @@ Ahora la letra pequeña. Todo hilo que espera en la puerta es tiempo de cómputo
 
 De ahí la regla: `critical` es para operaciones **raras y cortas**. Nunca dentro del bucle caliente.
 
-### Conexión con E-HPC (3:20–4:00)
+### Conexión con Telar (3:20–4:00)
 
 La lección `spmdCritical` del módulo m2 es el ejemplo de manual de un `critical` bien puesto. Cada hilo acumula su suma parcial en una variable **privada**, sin tocar a nadie, durante todo el bucle. Y solo al final, una única vez por hilo, entra a la sección crítica para sumar su parcial al total compartido. Con 8 hilos, la puerta se cruza 8 veces en todo el programa — no millones —, así que el costo es despreciable. Esa es la receta: acumula privado, protege solo el final. Y en el próximo video verás que OpenMP puede hacer hasta eso por ti, con una sola cláusula: `reduction`.
 

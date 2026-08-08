@@ -140,7 +140,7 @@ export function SimulatorIdle() {
     return (
       <section className="screen simulator-screen">
         <ErrorState
-          message="No se pudo cargar la configuración del simulador. ¿Está corriendo el backend E-HPC?"
+          message="No se pudo cargar la configuración del simulador. ¿Está corriendo el backend Telar?"
           detail={(sysError ?? modulesError)?.message}
           onRetry={() => {
             sysRetry()
@@ -230,7 +230,7 @@ export function SimulatorIdle() {
             <pre className="launch-error-instructions">
               {launchError.code === 'RUNNER_IMAGE_MISSING'
                 ? '# Construye la imagen del runner:\nmake runner-image\n# (o) docker build -t ehpc-runner:0.5.1 runner/'
-                : '# Arranca Docker Desktop / el daemon y verifica:\ndocker info\n# Luego reinicia el backend E-HPC.'}
+                : '# Arranca Docker Desktop / el daemon y verifica:\ndocker info\n# Luego reinicia el backend Telar.'}
             </pre>
           )}
         </div>

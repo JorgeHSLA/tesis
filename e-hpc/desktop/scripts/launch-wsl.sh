@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# launch-wsl.sh — abre E-HPC (shell Electron) dentro de WSL desde el acceso
+# launch-wsl.sh — abre Telar (shell Electron) dentro de WSL desde el acceso
 # directo del escritorio de Windows. El render por CPU ya va en main.ts
 # (app.disableHardwareAcceleration), así que la ventana se pinta bien vía WSLg,
 # tenga GPU o no. No aborta ante errores no fatales: prioriza abrir la ventana.
@@ -28,14 +28,14 @@ case "${1:-}" in
 esac
 export EHPC_ADMIN_MODE="$ADMIN"
 if [ "$ADMIN" = 1 ]; then MODE_LABEL="AUTORÍA (admin)"; else MODE_LABEL="estudiante"; fi
-echo "[E-HPC] Modo: $MODE_LABEL"
+echo "[Telar] Modo: $MODE_LABEL"
 
 # 1) Asegurar el backend en :8000 (Electron le habla directo). `up -d` es
 #    declarativo: recrea el contenedor si cambió EHPC_ADMIN_MODE (alternar
 #    estudiante⇄admin). En modo admin, además, RECONSTRUIMOS la imagen
 #    (`--build`): así el backend toma el código más reciente y nunca se sirve
 #    una imagen vieja tras editar el backend (el bug de la sesión anterior).
-echo "[E-HPC] Asegurando backend con Docker (la 1ª vez puede tardar unos minutos)…"
+echo "[Telar] Asegurando backend con Docker (la 1ª vez puede tardar unos minutos)…"
 if [ "$ADMIN" = 1 ]; then
   # EHPC_ADMIN_BUILD=1 (Nivel 3): el rebuild admin CONSTRUYE la imagen que SÍ
   # incluye el código admin (router /admin + motor de escritura). Sin este arg,
@@ -51,7 +51,7 @@ else
 fi
 for _ in $(seq 1 60); do
   if curl -sf http://127.0.0.1:8000/health >/dev/null 2>&1; then
-    echo "[E-HPC] Backend listo."
+    echo "[Telar] Backend listo."
     break
   fi
   sleep 1
@@ -59,7 +59,7 @@ done
 
 # 2) Abrir la ventana de Electron (modo dev: vite + esbuild + electron).
 #    VITE_ADMIN=1 hace que el vite dev incluya la UI de autoría (build admin).
-echo "[E-HPC] Abriendo la aplicación… (cierra esta ventana o la de la app para salir)"
+echo "[Telar] Abriendo la aplicación… (cierra esta ventana o la de la app para salir)"
 cd "$DESKTOP_DIR"
 if [ "$ADMIN" = 1 ]; then
   exec env VITE_ADMIN=1 npm run dev

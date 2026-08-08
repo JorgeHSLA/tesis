@@ -2,7 +2,7 @@
 
 Video F2.2 · ~4 minutos · Módulo F2 «Pensar en paralelo»
 
-**Objetivo:** Definir speedup y eficiencia, las dos métricas que el simulador de E-HPC calcula automáticamente en cada job.
+**Objetivo:** Definir speedup y eficiencia, las dos métricas que el simulador de Telar calcula automáticamente en cada job.
 
 ## Guion
 
@@ -36,16 +36,16 @@ Segundo, la difusión de calor en una placa 2D: la versión serial tarda 0.99 se
 
 Mismo lenguaje, mismas directivas, resultados opuestos. ¿Por qué? Esa es exactamente la pregunta del video sobre overhead, dos lecciones más adelante, y la vas a comprobar con tus propias mediciones en el módulo práctico 7.
 
-### Conexión con E-HPC (3:30–4:00)
+### Conexión con Telar (3:30–4:00)
 
-En E-HPC no tendrás que calcular nada de esto a mano: cada job que lances mide los tiempos y te muestra el speedup y la eficiencia en la pantalla de resultados, automáticamente. Tu trabajo es interpretarlos: un speedup cercano a N es una victoria; uno cercano a 1 es una señal de que algo —overhead, memoria, desbalance— se está comiendo tu paralelismo. Las próximas lecciones te enseñan a encontrar al culpable.
+En Telar no tendrás que calcular nada de esto a mano: cada job que lances mide los tiempos y te muestra el speedup y la eficiencia en la pantalla de resultados, automáticamente. Tu trabajo es interpretarlos: un speedup cercano a N es una victoria; uno cercano a 1 es una señal de que algo —overhead, memoria, desbalance— se está comiendo tu paralelismo. Las próximas lecciones te enseñan a encontrar al culpable.
 
 ## Apoyo visual
 
 - 0:00–0:20 — dos cronómetros lado a lado: «1 hilo» vs «8 hilos», con un signo de interrogación gigante.
 - 0:20–1:40 — la fórmula `S = T1 / TN` construyéndose pieza a pieza; ejemplo animado 10 s → 2.5 s → S = 4; recta del speedup lineal `S = N` como referencia.
 - 1:40–2:40 — la fórmula `E = S / N` con una barra de porcentaje que se llena; comparación 8/8 = 100 % vs 4/8 = 50 %.
-- 2:40–3:30 — pantalla de resultados real de E-HPC anotada con flechas: transporte de partículas (0.726 s → 0.091 s, ~8x) frente al stencil de calor (~1.1x).
+- 2:40–3:30 — pantalla de resultados real de Telar anotada con flechas: transporte de partículas (0.726 s → 0.091 s, ~8x) frente al stencil de calor (~1.1x).
 - 3:30–4:00 — zoom a la tarjeta de speedup/eficiencia del simulador con la leyenda «esto se calcula solo en cada job».
 
 ## Para recordar
@@ -53,4 +53,4 @@ En E-HPC no tendrás que calcular nada de esto a mano: cada job que lances mide 
 - `S = T1 / TN`: el speedup es el tiempo con un hilo dividido por el tiempo con N hilos; el ideal es lineal (`S = N`).
 - `E = S / N`: la eficiencia dice qué porcentaje de cada hilo aprovechas de verdad.
 - Datos reales del curso: el transporte de partículas escala ~8x con 8 hilos (eficiencia ~100 %); el stencil de calor apenas ~1.1x.
-- E-HPC calcula ambas métricas automáticamente en cada job: tu tarea es interpretarlas.
+- Telar calcula ambas métricas automáticamente en cada job: tu tarea es interpretarlas.

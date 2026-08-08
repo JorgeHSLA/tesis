@@ -26,9 +26,9 @@ Aquí viene la propiedad más importante del proceso, la que hay que grabar a fu
 
 ¿Y quién decide qué núcleo ejecuta qué proceso? El **sistema operativo**. En tu máquina hay decenas o cientos de procesos vivos —el navegador, la música, tu editor, tu script— y solo unos pocos núcleos. El sistema operativo hace de director de orquesta: reparte los núcleos entre los procesos, le da a cada uno su turno, lo pausa, lo reanuda, lo mueve de un núcleo a otro. A ese trabajo de repartir se le llama planificación, o *scheduling*. Tú casi nunca lo ves, pero está ocurriendo miles de veces por segundo bajo tus pies.
 
-### Conexión con E-HPC (3:30–4:00)
+### Conexión con Telar (3:30–4:00)
 
-En E-HPC, cuando lances un job, tu código PyOMP corre como un **proceso** dentro de un contenedor Docker aislado: su propia memoria, sus propios límites de CPU. Lo verás nacer, consumir recursos y terminar, en vivo, en la pantalla del simulador. Ya sabes qué es un proceso y por qué su memoria privada es a la vez una virtud y una molestia. En el próximo video abrimos ese proceso por dentro y conocemos a los protagonistas de todo el curso: los hilos.
+En Telar, cuando lances un job, tu código PyOMP corre como un **proceso** dentro de un contenedor Docker aislado: su propia memoria, sus propios límites de CPU. Lo verás nacer, consumir recursos y terminar, en vivo, en la pantalla del simulador. Ya sabes qué es un proceso y por qué su memoria privada es a la vez una virtud y una molestia. En el próximo video abrimos ese proceso por dentro y conocemos a los protagonistas de todo el curso: los hilos.
 
 ## Apoyo visual
 
@@ -36,7 +36,7 @@ En E-HPC, cuando lances un job, tu código PyOMP corre como un **proceso** dentr
 - 0:20–1:30 — Split screen: a la izquierda una receta en papel (programa); a la derecha una cocina en plena acción (proceso).
 - 1:30–2:45 — Dos cocinas lado a lado, cada una con su despensa cerrada con llave; un ingrediente que hay que llevar físicamente de una a otra («mandar una carta»).
 - 2:45–3:30 — El sistema operativo como director de orquesta asignando turnos de núcleo a muchos procesos (navegador, música, editor…).
-- 3:30–4:00 — Captura del simulador E-HPC: un job corriendo como proceso dentro de su contenedor, con métricas.
+- 3:30–4:00 — Captura del simulador Telar: un job corriendo como proceso dentro de su contenedor, con métricas.
 
 ## Para recordar
 

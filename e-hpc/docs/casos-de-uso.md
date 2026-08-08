@@ -1,4 +1,4 @@
-# E-HPC — Catálogo de casos de uso
+# Telar — Catálogo de casos de uso
 
 ## 1. Actores
 

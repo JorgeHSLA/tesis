@@ -42,12 +42,12 @@ describe('TopBar', () => {
 
   it('el botón de ayuda abre el diálogo «Acerca de» y lo cierra', () => {
     renderTopBar('/')
-    const help = screen.getByRole('button', { name: 'Acerca de E-HPC' })
+    const help = screen.getByRole('button', { name: 'Acerca de Telar' })
     expect(help).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('dialog')).toBeNull()
 
     fireEvent.click(help)
-    const dialog = screen.getByRole('dialog', { name: 'Acerca de E-HPC' })
+    const dialog = screen.getByRole('dialog', { name: 'Acerca de Telar' })
     expect(dialog).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus()
 
@@ -57,7 +57,7 @@ describe('TopBar', () => {
 
   it('el diálogo se cierra con Escape', () => {
     renderTopBar('/')
-    fireEvent.click(screen.getByRole('button', { name: 'Acerca de E-HPC' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Acerca de Telar' }))
     expect(screen.getByRole('dialog')).toBeInTheDocument()
 
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -66,7 +66,7 @@ describe('TopBar', () => {
 
   it('el «Acerca de» muestra versión y NO enlaza a ningún destino de red', () => {
     renderTopBar('/')
-    fireEvent.click(screen.getByRole('button', { name: 'Acerca de E-HPC' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Acerca de Telar' }))
 
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent(/Versión/)

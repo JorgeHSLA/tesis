@@ -41,9 +41,9 @@ Mejor todavía: si un compilador ignora las directivas, el programa sigue siendo
 
 Una aclaración honesta antes de cerrar: OpenMP trabaja dentro de **una** máquina, con hilos que comparten memoria; para repartir trabajo entre varias máquinas de un clúster existe otro estándar, MPI, que queda fuera de este curso.
 
-### Conexión con E-HPC (4:20–5:00)
+### Conexión con Telar (4:20–5:00)
 
-¿Y qué pinta todo esto en E-HPC, si aquí programamos en Python? Pues que se transfiere directo: en este curso usarás PyOMP, que te permite escribir estas mismas directivas — con exactamente la misma sintaxis — dentro de Python compilado. Cómo es posible esa magia lo vemos en el video F4.4. Y cada directiva importante tiene su lección práctica en el simulador, donde la ejecutarás sobre código real y medirás la diferencia con tus propios ojos. OpenMP no es teoría de museo: es la línea que vas a escribir una y otra vez durante todo el curso.
+¿Y qué pinta todo esto en Telar, si aquí programamos en Python? Pues que se transfiere directo: en este curso usarás PyOMP, que te permite escribir estas mismas directivas — con exactamente la misma sintaxis — dentro de Python compilado. Cómo es posible esa magia lo vemos en el video F4.4. Y cada directiva importante tiene su lección práctica en el simulador, donde la ejecutarás sobre código real y medirás la diferencia con tus propios ojos. OpenMP no es teoría de museo: es la línea que vas a escribir una y otra vez durante todo el curso.
 
 ## Apoyo visual
 
@@ -51,7 +51,7 @@ Una aclaración honesta antes de cerrar: OpenMP trabaja dentro de **una** máqui
 - 0:20–1:30: el bucle serial en pantalla; la línea `#pragma omp parallel for` se escribe encima con efecto de tipeo; un medidor de núcleos pasa de 1 activo a 8 activos.
 - 1:30–3:15: línea de tiempo 1997→hoy; tarjetas de C, C++ y Fortran; comparación en dos columnas «librería: docena de llamadas manuales» vs «directiva: 1 anotación».
 - 3:15–4:20: un programa largo en gris donde solo dos bucles se iluminan en color al recibir directivas; rótulo breve «¿varias máquinas? eso es MPI».
-- 4:20–5:00: transición al editor de E-HPC mostrando `with openmp("parallel for")` en Python.
+- 4:20–5:00: transición al editor de Telar mostrando `with openmp("parallel for")` en Python.
 
 ## Para recordar
 

@@ -1,4 +1,4 @@
-# Investigación: Electron para E-HPC (estado 2025–2026)
+# Investigación: Electron para Telar (estado 2025–2026)
 
 > Fecha de investigación: 2026-07-12.
 > Contexto: shell de escritorio delgado que reutiliza el MISMO build de Vite del frontend web
@@ -30,7 +30,7 @@ Datos del runtime (de `https://releases.electronjs.org/releases.json`):
   (hoy: 43, 42, 41). Electron 39 ya es EOL.
   Fuente: https://www.electronjs.org/docs/latest/tutorial/electron-timelines
 
-**Implicación clave para E-HPC**: con Node 18.20.8 solo se puede instalar un Electron EOL (39.x).
+**Implicación clave para Telar**: con Node 18.20.8 solo se puede instalar un Electron EOL (39.x).
 Node 18 en sí llegó a end-of-life el 2025-04-30. Dado que el checklist de seguridad oficial de
 Electron exige "usar la versión actual de Electron" (ítem 16), la decisión correcta es
 **instalar Node 22 LTS vía nvm** en WSL2:
@@ -60,7 +60,7 @@ también exigen Node 20.19+/22.12+, el upgrade del Node de desarrollo es inevita
   web); main y preload se compilan aparte (esbuild/tsc, o directamente JS CommonJS sin build);
   `electron-builder` empaqueta.
 
-### Recomendación para E-HPC: **Vite (existente) + esbuild para main/preload + electron-builder**
+### Recomendación para Telar: **Vite (existente) + esbuild para main/preload + electron-builder**
 
 Razones específicas del proyecto:
 
@@ -104,7 +104,7 @@ Fuentes: https://electron-vite.org/guide/ · npm registry (`engines` verificados
 ## 2. Checklist de seguridad oficial vigente (Electron 43)
 
 Fuente única: https://www.electronjs.org/docs/latest/tutorial/security (checklist de 20 ítems).
-Los relevantes para E-HPC (contenido remoto = solo `localhost`, contenido local = build de Vite):
+Los relevantes para Telar (contenido remoto = solo `localhost`, contenido local = build de Vite):
 
 | Ítem | Regla | Default actual |
 |---|---|---|
@@ -159,7 +159,7 @@ Anti-patrones a evitar (mismos docs): `allowRunningInsecureContent: true`,
 `experimentalFeatures: true`, `enableBlinkFeatures`, exponer `ipcRenderer` "crudo" en
 el preload (ver §4).
 
-### CSP para E-HPC
+### CSP para Telar
 
 Como el HTML se carga con `loadFile` (sin headers HTTP), la CSP va como `<meta>` en el
 `index.html` del build de Vite **o** inyectada solo en la app de escritorio vía
@@ -192,7 +192,7 @@ Fuente: https://www.electron.build/docs/features/multi-platform-build/ · https:
 - **Mono 4.2+** solo hace falta para Squirrel.Windows ("NSIS doesn't require Mono") — no aplica.
 - Vía sin instalar nada en el sistema: imagen Docker oficial
   **`electronuserland/builder:wine`** ("Wine + NodeJS 20. Use for Windows targets");
-  existe `:wine-mono` para Squirrel. Como en E-HPC ya hay Docker en WSL2, esta es la ruta
+  existe `:wine-mono` para Squirrel. Como en Telar ya hay Docker en WSL2, esta es la ruta
   de menor fricción:
 
   ```bash
@@ -203,7 +203,7 @@ Fuente: https://www.electron.build/docs/features/multi-platform-build/ · https:
   ```
 
 - Limitación documentada: "You cannot build for Windows using Docker if your app has native
-  dependencies that don't use prebuild" — **no afecta a E-HPC** (shell sin módulos nativos).
+  dependencies that don't use prebuild" — **no afecta a Telar** (shell sin módulos nativos).
 - Firma de código (code signing) de Windows desde Linux es posible pero frágil; para la tesis
   se puede omitir (instalador sin firmar) y documentar el warning de SmartScreen.
 - **Alternativa recomendada para el artefacto final**: empaquetar en el **host Windows**
@@ -224,7 +224,7 @@ Fuente: https://www.electron.build/docs/features/multi-platform-build/ · https:
 
 ```yaml
 appId: edu.ehpc.desktop
-productName: E-HPC
+productName: Telar
 directories:
   output: release
 files:
@@ -350,10 +350,10 @@ para que el mismo build web/desktop muestre u oculte el panel "estado de servici
 
 ## 5. Cargar el build de Vite en producción y el dev-server en dev
 
-### Producción: `loadFile` (recomendado para E-HPC) vs servidor local
+### Producción: `loadFile` (recomendado para Telar) vs servidor local
 
 - **`win.loadFile(...)`**: cero dependencias, sin puertos abiertos, funciona dentro del asar.
-  Es lo que recomienda electron-vite y la mayoría de templates actuales. Suficiente para E-HPC.
+  Es lo que recomienda electron-vite y la mayoría de templates actuales. Suficiente para Telar.
 - **Servidor HTTP local embebido**: innecesario aquí; abre superficie de ataque (cualquier
   proceso local puede conectarse) y contradice el espíritu del ítem 18 del checklist.
 - **Punto intermedio moderno**: `protocol.handle('app', ...)` sirviendo el dist con esquema

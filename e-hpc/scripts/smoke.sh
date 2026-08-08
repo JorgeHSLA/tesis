@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# scripts/smoke.sh — prueba de humo E2E del stack E-HPC (WP11).
+# scripts/smoke.sh — prueba de humo E2E del stack Telar (WP11).
 #
 # Levanta el stack con Docker Compose (construye las imágenes si faltan),
 # espera a que nginx sirva /health, ejecuta un job real del ejemplo `spmd`
@@ -117,7 +117,7 @@ http_post_json() {
 }
 
 # ── 0. Comprobaciones previas ────────────────────────────────────────────────
-info "E-HPC smoke test — repo: ${REPO_ROOT}"
+info "Telar smoke test — repo: ${REPO_ROOT}"
 command -v docker >/dev/null 2>&1 || { fail "docker no está en PATH"; exit 1; }
 docker compose version >/dev/null 2>&1 || { fail "docker compose (v2) no disponible"; exit 1; }
 command -v curl >/dev/null 2>&1 || { fail "curl no está en PATH"; exit 1; }

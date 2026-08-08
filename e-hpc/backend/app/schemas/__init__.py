@@ -1,4 +1,4 @@
-"""Modelos pydantic (v2) del contrato de API de E-HPC.
+"""Modelos pydantic (v2) del contrato de API de Telar.
 
 TRANSCRIPCIÓN LITERAL de ``docs/architecture/api-contract.md`` (CONGELADO):
 envelope genérico, salud/sistema, ejemplos, módulos/lecciones, quizzes,

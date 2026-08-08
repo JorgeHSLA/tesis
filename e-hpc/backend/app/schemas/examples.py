@@ -1,4 +1,4 @@
-"""DTOs pydantic (v2) del contrato de API de E-HPC — §3 Catálogo de ejemplos.
+"""DTOs pydantic (v2) del contrato de API de Telar — §3 Catálogo de ejemplos.
 
 TRANSCRIPCIÓN LITERAL de ``docs/architecture/api-contract.md`` (CONGELADO).
 Provee ``ParserId``, reutilizado por §7 (jobs) y §10 (admin).

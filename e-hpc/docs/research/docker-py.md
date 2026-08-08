@@ -1,6 +1,6 @@
-# Investigación: docker-py (paquete `docker` de PyPI) para ejecutar código no confiable en E-HPC
+# Investigación: docker-py (paquete `docker` de PyPI) para ejecutar código no confiable en Telar
 
-> **Proyecto:** E-HPC — plataforma educativa para aprender OpenMP con PyOMP.
+> **Proyecto:** Telar — plataforma educativa para aprender OpenMP con PyOMP.
 > **Contexto:** Backend FastAPI (Python 3.12) que ejecuta código PyOMP de estudiantes en
 > contenedores Docker aislados (imagen runner: `python 3.12 + pyomp 0.5.*`), con logs y
 > métricas (`docker stats`) en vivo vía WebSocket.
@@ -76,7 +76,7 @@ Referencia completa de parámetros: [Containers — docker-py docs](https://dock
 | `init=True` | bool | PID 1 = tini: reenvía señales y cosecha zombies (importante para matar procesos hijos de OpenMP al hacer `kill`). |
 | `cpuset_cpus="0-3"` | str | (Opcional) fija cores concretos — útil para que las mediciones de speedup OpenMP sean reproducibles. |
 
-### 2.2 Ejemplo completo para el runner E-HPC
+### 2.2 Ejemplo completo para el runner Telar
 
 ```python
 import docker
@@ -234,7 +234,7 @@ Puntos clave:
   (el daemon cierra la conexión y el generador acaba). Esto encaja bien con el timeout
   duro de §5: `kill()` termina a la vez ejecución, log-stream y stats-stream.
 - `asyncio.to_thread(next, gen, _SENTINEL)` es equivalente (Python ≥3.9).
-- Alternativa async nativa: **aiodocker** (cliente asyncio no oficial). Para E-HPC no es
+- Alternativa async nativa: **aiodocker** (cliente asyncio no oficial). Para Telar no es
   necesario: el patrón executor es suficiente y docker-py es el SDK mantenido por Docker.
 - El threadpool por defecto tiene `min(32, cpu+4)` workers; cada ejecución activa ocupa
   ~2 threads (logs + stats). Dimensionar `ThreadPoolExecutor` propio si se esperan
@@ -368,7 +368,7 @@ Docs: [container.wait()](https://docker-py.readthedocs.io/en/stable/containers.h
   pierden logs finales).
 - `remove=True` solo aplica a `detach=False` (borra el cliente tras leer la salida);
   no sirve para nuestro flujo detach + streaming.
-- **Decisión para E-HPC:** `auto_remove=False` siempre; leer logs + exit code; borrar
+- **Decisión para Telar:** `auto_remove=False` siempre; leer logs + exit code; borrar
   explícitamente con `remove(force=True)` en un `finally`. Añadir un *reaper* periódico
   que borre contenedores viejos con label `app=e-hpc` por si el backend crashea.
 
@@ -486,7 +486,7 @@ riesgo es la superficie del backend.
 
 ---
 
-## 7. Recomendaciones consolidadas para E-HPC
+## 7. Recomendaciones consolidadas para Telar
 
 1. **Pin:** `docker>=7.2,<8` + `docker.from_env(version="auto", timeout=120, max_pool_size=50)`.
 2. **Flujo por ejecución:** `run(detach=True, auto_remove=False)` → 2 tasks asyncio

@@ -1,8 +1,8 @@
-# E-HPC — Especificación completa del handoff de diseño (Claude Design)
+# Telar — Especificación completa del handoff de diseño (Claude Design)
 
 > **Fuente:** `/mnt/d/universidad/tesis/e-hpc-handoff/e-hpc/` (bundle exportado de claude.ai/design).
 > **Objetivo:** este documento es autosuficiente — un agente puede implementar la UI en React + Vite + TS **sin leer el handoff**. Todos los valores (hex, px, ms, textos en español) son literales del prototipo.
-> **Idioma de la UI:** español (`<html lang="es">`). Título del documento: `E-HPC — Simulador educativo de clusters`.
+> **Idioma de la UI:** español (`<html lang="es">`). Título del documento: `Telar — Simulador educativo de clusters`.
 
 ---
 
@@ -58,7 +58,7 @@ Cada archivo exporta a `window` con `Object.assign(window, {...})`. En producci�
 
 | screen | `title` (topbar) | `crumbs` |
 |---|---|---|
-| home | `Inicio` | `['E-HPC']` |
+| home | `Inicio` | `['Telar']` |
 | simulator (idle) | `Simulador · Configurar` | `['Simulador', 'Configurar']` |
 | simulator (running/finished) | `Simulador · En vivo` | `['Simulador', 'En vivo']` |
 | results | `Resultados` | `['Simulador', 'Resultados']` |
@@ -323,7 +323,7 @@ aside.sidebar.(expanded|collapsed)
  ├ .sidebar-brand
  │   ├ .sidebar-brand-mark        → "E"
  │   └ .sidebar-brand-textwrap
- │       ├ .sidebar-brand-text    → "E-HPC"
+ │       ├ .sidebar-brand-text    → "Telar"
  │       └ .sidebar-brand-sub     → "v0.4 · local"
  ├ button.sidebar-toggle  (IconChevronLeft si expandido / IconChevronRight si colapsado)
  │   └ span.nav-label → "Colapsar"   (title="Colapsar menú"/"Expandir menú")
@@ -779,7 +779,7 @@ Estado local: `filter: 'all'|'video'|'quiz'`, `query: string`, `openMod` (acorde
 | video | `Paralelismo: datos vs tareas` | 11:30 | ✓ |
 | video | `Speedup y ley de Amdahl` | 9:45 | ✓ |
 | quiz | `Quiz: conceptos básicos` | 6 preguntas | ✓ |
-| video | `Tu primer job en E-HPC` | 12:40 | — |
+| video | `Tu primer job en Telar` | 12:40 | — |
 
 **Módulo 02 — `MPI desde cero`** — desc: `Message Passing Interface: comunicación entre procesos distribuidos.` — `Intermedio`, `1h 58m`, 45% (abierto por defecto):
 
@@ -860,7 +860,7 @@ Estado local: `filter: 'all'|'video'|'quiz'`, `query: string`, `openMod` (acorde
   1. `La diferencia entre comunicación *point-to-point* y *colectiva*.`
   2. `Por qué MPI_Send puede causar deadlocks.`
   3. `Cuándo usar MPI_Isend/Irecv + MPI_Wait.`
-  4. `Cómo depurar mensajes usando el simulador local de E-HPC.`
+  4. `Cómo depurar mensajes usando el simulador local de Telar.`
   - `code` dentro de takeaways: bg surface, 1px 5px, radius 4, borde --border.
 - Row final (mt 18, gap 10): primary [IconPlay 14] `Probar en el simulador` · outline [IconDownload 14] `Slides (PDF)`.
 
@@ -1004,7 +1004,7 @@ Nota SMIL: `animateMotion`/`animate` funcionan en todos los navegadores modernos
 - **Decisión para producción: no portar.** Lo único que debe conservarse funcionalmente es:
   1. El **switcher de variantes v1/v2** del topbar (§2.8) con persistencia en `localStorage['ehpc-variant']`.
   2. El doble mecanismo de theming (`data-variant` en `<html>` + clase en `.app`) — o unificarlo en producción en un solo atributo `data-variant` y reescribir los selectores `.v2 ...` como `[data-variant="v2"] ...`.
-- Si se quisiera un panel de dev-tweaks interno, este archivo sirve de referencia de UX, pero no es parte del diseño de E-HPC.
+- Si se quisiera un panel de dev-tweaks interno, este archivo sirve de referencia de UX, pero no es parte del diseño de Telar.
 
 ---
 

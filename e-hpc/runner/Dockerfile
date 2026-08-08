@@ -1,4 +1,4 @@
-# e-hpc/runner/Dockerfile — runner PyOMP de E-HPC
+# e-hpc/runner/Dockerfile — runner PyOMP de Telar
 # Literal de docs/research/pyomp-runner.md §4 (CONGELADO).
 # Base: hay wheel cp312 manylinux_2_28 (glibc>=2.28); trixie trae glibc 2.41.
 FROM python:3.12-slim

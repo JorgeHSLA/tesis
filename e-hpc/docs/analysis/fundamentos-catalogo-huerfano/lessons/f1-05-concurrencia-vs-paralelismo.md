@@ -34,9 +34,9 @@ Y hay un detalle sobre Python que tienes que conocer desde ya. El intérprete cl
 
 ¿Entonces cómo va a hacer paralelismo de verdad este curso, si trabajamos en Python? Con un truco muy elegante que es la base de PyOMP: compilar tu código a lenguaje máquina y salir del intérprete —y por tanto del GIL— antes de crear los hilos. Cómo funciona esa magia lo desarrollamos en el módulo F4. Por ahora quédate con que sí, vamos a exprimir tus ocho núcleos de verdad.
 
-### Conexión con E-HPC (4:35–5:00)
+### Conexión con Telar (4:35–5:00)
 
-Con esto cierras el vocabulario base: sabes qué es un núcleo, un proceso, un hilo, y ahora la diferencia entre concurrencia y paralelismo. En E-HPC verás paralelismo genuino: métricas de varios núcleos encendidos al mismo tiempo, no uno turnándose. Te espera el quiz del módulo para afianzarlo, y luego pasamos a pensar en paralelo: cómo se reparte el trabajo y cómo se mide si valió la pena.
+Con esto cierras el vocabulario base: sabes qué es un núcleo, un proceso, un hilo, y ahora la diferencia entre concurrencia y paralelismo. En Telar verás paralelismo genuino: métricas de varios núcleos encendidos al mismo tiempo, no uno turnándose. Te espera el quiz del módulo para afianzarlo, y luego pasamos a pensar en paralelo: cómo se reparte el trabajo y cómo se mide si valió la pena.
 
 ## Apoyo visual
 
@@ -45,7 +45,7 @@ Con esto cierras el vocabulario base: sabes qué es un núcleo, un proceso, un h
 - 1:40–2:40 — Cuatro baristas, cuatro máquinas, cuatro espressos extrayéndose en el MISMO instante marcado en la línea de tiempo.
 - 2:40–3:40 — Matriz 2x2: concurrencia sí/no × paralelismo sí/no, con el barista ilustrando cada casilla.
 - 3:40–4:35 — Diagrama del GIL: muchos hilos de Python pero un único «candado» que solo deja pasar a uno; teaser «PyOMP lo esquiva → F4».
-- 4:35–5:00 — Métricas de E-HPC con varios núcleos activos simultáneamente.
+- 4:35–5:00 — Métricas de Telar con varios núcleos activos simultáneamente.
 
 ## Para recordar
 

@@ -30,9 +30,9 @@ Hay un caso especial de overhead que merece su propio nombre: los programas *mem
 
 Compáralo con el transporte de partículas: muchísimo cálculo por cada byte que toca —es *compute-bound*— y por eso escala a 8x. En el módulo práctico 7 vas a medir esta diferencia con tus propias manos.
 
-### Conexión con E-HPC (3:30–4:00)
+### Conexión con Telar (3:30–4:00)
 
-El simulador de E-HPC es el laboratorio perfecto para cazar overhead: toma el mismo código y córrelo con 1, 2, 4 y 8 hilos. Observa dónde el speedup deja de crecer, o incluso retrocede. Ese punto exacto te está diciendo cuánto trabajo real hay en tu problema y cuánto te cuesta coordinarlo. Es un experimento de dos minutos que responde la pregunta central de esta lección: ¿valen la pena los hilos aquí, o serial gana?
+El simulador de Telar es el laboratorio perfecto para cazar overhead: toma el mismo código y córrelo con 1, 2, 4 y 8 hilos. Observa dónde el speedup deja de crecer, o incluso retrocede. Ese punto exacto te está diciendo cuánto trabajo real hay en tu problema y cuánto te cuesta coordinarlo. Es un experimento de dos minutos que responde la pregunta central de esta lección: ¿valen la pena los hilos aquí, o serial gana?
 
 ## Apoyo visual
 
@@ -40,11 +40,11 @@ El simulador de E-HPC es el laboratorio perfecto para cazar overhead: toma el mi
 - 0:20–1:40 — la mudanza: ocho amigos rodeando una silla; luego la lista de los cuatro costos apareciendo uno a uno (crear hilos, repartir, sincronizar, competir por memoria).
 - 1:40–2:40 — balanza «trabajo útil vs coordinación» inclinándose según crece el tamaño del problema; timeline donde la franja de overhead se come la ganancia en el caso pequeño.
 - 2:40–3:30 — ocho núcleos haciendo fila frente a un solo bus de memoria; comparativa stencil de calor (~1.1x) vs transporte de partículas (~8x).
-- 3:30–4:00 — el simulador de E-HPC corriendo el mismo código con 1, 2, 4, 8 hilos y la curva de speedup aplanándose.
+- 3:30–4:00 — el simulador de Telar corriendo el mismo código con 1, 2, 4, 8 hilos y la curva de speedup aplanándose.
 
 ## Para recordar
 
 - El overhead son los costos invisibles del paralelismo: crear hilos, repartir trabajo, sincronizarse y competir por memoria y caché.
 - Regla mental: el trabajo por hilo debe ser mucho mayor que el costo de coordinarse; con problemas pequeños, serial gana.
 - Un programa memory-bound (como el stencil de calor, ~1.1x) no acelera con más hilos: el límite es el ancho de banda de memoria, no la CPU.
-- Experimento clave en E-HPC: correr el mismo código con 1, 2, 4 y 8 hilos y encontrar dónde deja de mejorar.
+- Experimento clave en Telar: correr el mismo código con 1, 2, 4 y 8 hilos y encontrar dónde deja de mejorar.

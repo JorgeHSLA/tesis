@@ -1,4 +1,4 @@
-# E-HPC — Especificación del shell de escritorio (Electron)
+# Telar — Especificación del shell de escritorio (Electron)
 
 > **Estado: CONGELADO para Fase 3.** Fuente de detalle: `docs/research/electron.md`.
 > Decisiones de Fase 0 que este documento implementa sin re-litigar: Electron ^43 +
@@ -222,7 +222,7 @@ export interface EhpcApi {
   readonly appVersion: string
   /** Plataforma del SO: 'win32' | 'linux' | 'darwin'. */
   readonly platform: NodeJS.Platform
-  /** `docker compose ps --format json` del proyecto E-HPC. */
+  /** `docker compose ps --format json` del proyecto Telar. */
   dockerStatus(): Promise<DockerStatusResult>
   /** `docker compose up -d` (backend + web + build de runner si falta). */
   dockerUp(): Promise<DockerActionResult>
@@ -358,7 +358,7 @@ solo https construida con `new URL` (ítems 13-17 del checklist oficial).
 
 ```yaml
 appId: edu.ehpc.desktop
-productName: E-HPC
+productName: Telar
 directories:
   output: release
 files:
@@ -520,7 +520,7 @@ export function attachNavigationGuards(win: BrowserWindow): void {
 
 ### 7.3 Checklist de seguridad aplicado (Electron 43, checklist oficial de 20 ítems)
 
-| # | Ítem | Aplicación en E-HPC |
+| # | Ítem | Aplicación en Telar |
 |---|---|---|
 | 1 | Solo cargar contenido seguro | Prod: `file://` local (build propio). Dev: localhost |
 | 2 | `nodeIntegration: false` | Explícito en webPreferences (§4) |

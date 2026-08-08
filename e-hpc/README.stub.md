@@ -1,4 +1,4 @@
-# E-HPC (stub — el README definitivo lo escribe WP11)
+# Telar (stub — el README definitivo lo escribe WP11)
 
 Plataforma educativa para aprender OpenMP con PyOMP: lecciones, quizzes y
 ejecución de código real en contenedores Docker efímeros y aislados.

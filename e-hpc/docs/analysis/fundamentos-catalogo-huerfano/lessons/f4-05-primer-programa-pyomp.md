@@ -58,9 +58,9 @@ Hello from thread 5
 
 Cero, tres, seis, dos… ¡no es cero, uno, dos, tres! Y esto es lo más importante del ejemplo: ese desorden **no es un error, es la esencia del paralelismo**. Los ocho hilos corren a la vez, de forma concurrente, y no hay ninguna regla que diga quién imprime primero. El que gane la carrera hasta el `print`, imprime. En la siguiente corrida el orden será distinto. Recuerda el video de las race conditions: cuando no hay sincronización de orden, el orden es impredecible. Aquí no importa —son saludos— pero si esto fuera una suma a una variable compartida, ya sabes el lío en que estaríamos.
 
-### Conexión con E-HPC (4:20–5:00)
+### Conexión con Telar (4:20–5:00)
 
-Y aquí está lo bueno: este programa es una de las lecciones prácticas del simulador, la primera. Cuando termines el track, tu primer job va a ser exactamente este. Te lanzo un reto: ¿en qué orden saldrán los saludos en la máquina de E-HPC? No lo adivines: córrelo, míralo, y córrelo otra vez para ver si cambia. Ese es el momento en que el paralelismo deja de ser teoría. En el último video del track te enseño a leer todo lo que el simulador te va a mostrar.
+Y aquí está lo bueno: este programa es una de las lecciones prácticas del simulador, la primera. Cuando termines el track, tu primer job va a ser exactamente este. Te lanzo un reto: ¿en qué orden saldrán los saludos en la máquina de Telar? No lo adivines: córrelo, míralo, y córrelo otra vez para ver si cambia. Ese es el momento en que el paralelismo deja de ser teoría. En el último video del track te enseño a leer todo lo que el simulador te va a mostrar.
 
 ## Apoyo visual
 
@@ -68,7 +68,7 @@ Y aquí está lo bueno: este programa es una de las lecciones prácticas del sim
 - 0:20–1:20 — El código completo en pantalla, limpio, con numeración de líneas.
 - 1:20–3:10 — Cada línea se resalta al explicarla; iconos que conectan: `@njit`→compilar, `with openmp`→fork/join, `omp_get_thread_num`→«¿quién eres?».
 - 3:10–4:20 — La salida real de 8 líneas en orden 0,3,6,2,1,4,7,5; se marca «¡no está ordenado!» y «esto es correcto»; ocho hilos corriendo una carrera hacia el print.
-- 4:20–5:00 — El ejemplo abriéndose en el simulador de E-HPC con el botón «Probar en el simulador».
+- 4:20–5:00 — El ejemplo abriéndose en el simulador de Telar con el botón «Probar en el simulador».
 
 ## Para recordar
 

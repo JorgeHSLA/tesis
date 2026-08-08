@@ -1,9 +1,9 @@
 {
   "name": "ehpc-desktop",
-  "productName": "E-HPC",
+  "productName": "Telar",
   "private": true,
   "version": "1.0.0",
-  "description": "Shell de escritorio de E-HPC (Electron)",
+  "description": "Shell de escritorio de Telar (Electron)",
   "author": "Jorge Sierra <jorgesierralaiton@gmail.com>",
   "main": "dist-electron/main.cjs",
   "scripts": {

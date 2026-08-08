@@ -34,7 +34,7 @@ _STATUSES = frozenset(
     {"queued", "creating", "compiling", "running",
      "completed", "failed", "timeout", "cancelled"}
 )
-_TRUNCATION_MARK = "\n--- [E-HPC] output truncado a {n} bytes ---\n"
+_TRUNCATION_MARK = "\n--- [Telar] output truncado a {n} bytes ---\n"
 
 
 # ───────────────────────────── envelope helpers ─────────────────────────────

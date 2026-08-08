@@ -1,4 +1,4 @@
-# E-HPC — Plan de implementación de Fase 3 (paquetes de trabajo paralelizables)
+# Telar — Plan de implementación de Fase 3 (paquetes de trabajo paralelizables)
 
 > **Estado: CONGELADO.** Este plan es el input del orquestador de Fase 3.
 > Los contratos congelados (`api-contract.md`, `data-model.md`,

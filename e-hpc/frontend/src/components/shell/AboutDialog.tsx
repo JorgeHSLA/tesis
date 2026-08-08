@@ -52,7 +52,7 @@ export function AboutDialog({ onClose }: AboutDialogProps) {
         <div className="card-head">
           <IconHelp size={16} />
           <div>
-            <div className="card-title" id="about-title">Acerca de E-HPC</div>
+            <div className="card-title" id="about-title">Acerca de Telar</div>
             <div className="card-sub">Simulador educativo de OpenMP · PyOMP</div>
           </div>
         </div>

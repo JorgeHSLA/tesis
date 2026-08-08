@@ -1,4 +1,4 @@
-# E-HPC — Arquitectura del sistema
+# Telar — Arquitectura del sistema
 
 > **Estado: CONGELADO (Fase 1).** Este documento, junto con `api-contract.md` y
 > `data-model.md`, es la fuente de verdad para los implementadores de Fase 3.
@@ -11,7 +11,7 @@
 
 ## 1. Visión general
 
-E-HPC es una plataforma educativa para aprender OpenMP con PyOMP. El estudiante
+Telar es una plataforma educativa para aprender OpenMP con PyOMP. El estudiante
 lee lecciones (derivadas de los 14 ejemplos del repo de aprendizaje), ejecuta
 código PyOMP real en contenedores Docker efímeros y aislados, observa logs y
 métricas en vivo, responde quizzes y sigue su progreso.

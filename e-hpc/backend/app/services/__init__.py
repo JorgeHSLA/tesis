@@ -1,4 +1,4 @@
-"""Servicios del backend E-HPC (WP2).
+"""Servicios del backend Telar (WP2).
 
 - ``docker_service``: ÚNICO módulo del repo que importa ``docker``.
 - ``job_runner``: orquestación del ciclo de vida del job (drainer, kill_reason).

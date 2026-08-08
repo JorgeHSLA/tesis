@@ -1,4 +1,4 @@
-# E-HPC — Contrato de API (REST + WebSocket)
+# Telar — Contrato de API (REST + WebSocket)
 
 > **Estado: CONGELADO (Fase 1).** Los implementadores de Fase 3 no pueden
 > añadir, quitar ni renombrar campos/endpoints sin actualizar este documento.
@@ -692,7 +692,7 @@ El stem del filename procede de `jobs.filename`, que ya cumple el patrón
 estricto de 7.1/7.2 (solo `[A-Za-z0-9._-]`) — imposible inyectar comillas o
 CR/LF en la cabecera.
 Si el output fue truncado, se añade una última línea
-`\n--- [E-HPC] output truncado a 262144 bytes ---\n`.
+`\n--- [Telar] output truncado a 262144 bytes ---\n`.
 
 Errores (con envelope JSON): `404 JOB_NOT_FOUND`; `409` con
 `code="JOB_NOT_FINISHED"`, `message="El job aún no ha terminado"` si el job

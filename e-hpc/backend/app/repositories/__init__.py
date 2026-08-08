@@ -1,4 +1,4 @@
-"""Repositorios de E-HPC (data-model §5).
+"""Repositorios de Telar (data-model §5).
 
 Solo re-exporta los repositorios de ESTADO y sus records. ``content.py``
 (WP3, fixtures en memoria) NO se importa aquí para no acoplar la carga del

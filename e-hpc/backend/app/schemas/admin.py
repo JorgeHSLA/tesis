@@ -1,4 +1,4 @@
-"""DTOs pydantic (v2) del contrato de API de E-HPC — §10 Autoría (admin), Fase 4.
+"""DTOs pydantic (v2) del contrato de API de Telar — §10 Autoría (admin), Fase 4.
 
 TRANSCRIPCIÓN de api-contract.md §10 (CONGELADO). ADITIVO: no toca nada de
 Fase 3. Reutiliza ``ParserId`` (§3), ``FILENAME_PATTERN`` (§7) y

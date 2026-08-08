@@ -1,1 +1,1 @@
-"""E-HPC backend — FastAPI + SQLite + orquestación de runners Docker."""
+"""Telar backend — FastAPI + SQLite + orquestación de runners Docker."""

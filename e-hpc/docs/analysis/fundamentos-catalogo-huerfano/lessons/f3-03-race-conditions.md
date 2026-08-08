@@ -50,9 +50,9 @@ Este bug tiene tres propiedades que lo hacen especialmente peligroso. Uno: el co
 
 En este curso no te lo vamos a contar: te lo vamos a mostrar. El ejemplo `mandelbrot` estima el área del conjunto de Mandelbrot contando puntos, y trae **un bug puesto a propósito**: el contador `num_outside` es compartido y todos los hilos le hacen `+= 1` sin protección. Tres corridas reales de la versión rota: área 1.955, área 1.788, área 2.272. Distinta cada vez, y siempre lejos del valor real, que ronda 1.506. La versión corregida da 1.5103 en todas las corridas, sin excepción. Como resume la propia lección: el programa no crashea — solo miente.
 
-### Conexión con E-HPC (4:30–5:00)
+### Conexión con Telar (4:30–5:00)
 
-En el módulo m5 de E-HPC vas a correr ese bug tú mismo: lanzarás la versión rota varias veces, verás el área bailar entre corridas, y luego la arreglarás. En los próximos dos videos te doy las herramientas: la exclusión mutua con `critical` y la joya de la corona, `reduction`. No te los saltes: son el antídoto exacto de lo que acabas de ver.
+En el módulo m5 de Telar vas a correr ese bug tú mismo: lanzarás la versión rota varias veces, verás el área bailar entre corridas, y luego la arreglarás. En los próximos dos videos te doy las herramientas: la exclusión mutua con `critical` y la joya de la corona, `reduction`. No te los saltes: son el antídoto exacto de lo que acabas de ver.
 
 ## Apoyo visual
 
@@ -60,7 +60,7 @@ En el módulo m5 de E-HPC vas a correr ese bug tú mismo: lanzarás la versión 
 - 0:20–1:20 — animación de la hoja de cálculo: Ana y Beto leyendo la misma celda, la escritura de Ana desapareciendo bajo la de Beto.
 - 1:20–2:50 — timeline de dos hilos sobre la variable `contador`: los tres pasos (leer, sumar, escribir) intercalándose, con la actualización perdida resaltada en rojo.
 - 2:50–3:50 — tríptico: «el compilador no lo ve · no crashea · funciona en pruebas, falla en producción».
-- 3:50–5:00 — output real de `mandelbrot`: las tres áreas con race variando frente a las tres con `reduction` clavadas en 1.5103; captura del módulo m5 en E-HPC.
+- 3:50–5:00 — output real de `mandelbrot`: las tres áreas con race variando frente a las tres con `reduction` clavadas en 1.5103; captura del módulo m5 en Telar.
 
 ## Para recordar
 

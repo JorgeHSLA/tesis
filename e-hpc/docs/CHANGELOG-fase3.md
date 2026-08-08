@@ -1,4 +1,4 @@
-# CHANGELOG — Fase 3 (implementación de E-HPC)
+# CHANGELOG — Fase 3 (implementación de Telar)
 
 Resumen de lo entregado en la Fase 3 a partir del plan congelado
 [`docs/architecture/implementation-plan.md`](architecture/implementation-plan.md).

@@ -30,9 +30,9 @@ Ahora la maldición. Que todos puedan escribir en la misma pizarra significa que
 
 Este módulo es el mapa completo de esos peligros y de sus antídotos. Primero, la decisión número uno: qué variables son `private` y cuáles `shared`. Luego, el enemigo principal: las race conditions. Después, las herramientas: `critical` para la exclusión mutua, `reduction` para acumular con elegancia, `barrier` y `single` para marcar el ritmo del equipo. Y cerramos con dos enemigos invisibles: el false sharing y el deadlock.
 
-### Conexión con E-HPC (3:40–4:00)
+### Conexión con Telar (3:40–4:00)
 
-Nada de esto se queda en teoría. En E-HPC hay una lección con un bug de memoria compartida puesto a propósito, para que lo veas fallar en vivo, y otra pareja de lecciones que mide con cronómetro cuánto cuesta compartir mal. En este módulo aprendes los conceptos; en el simulador los vas a romper y arreglar tú. Empezamos.
+Nada de esto se queda en teoría. En Telar hay una lección con un bug de memoria compartida puesto a propósito, para que lo veas fallar en vivo, y otra pareja de lecciones que mide con cronómetro cuánto cuesta compartir mal. En este módulo aprendes los conceptos; en el simulador los vas a romper y arreglar tú. Empezamos.
 
 ## Apoyo visual
 

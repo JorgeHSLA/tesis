@@ -1,6 +1,6 @@
-# Investigación: FastAPI para el backend de E-HPC
+# Investigación: FastAPI para el backend de Telar
 
-> **Fecha:** 2026-07-12 · **Proyecto:** E-HPC (plataforma educativa OpenMP/PyOMP)
+> **Fecha:** 2026-07-12 · **Proyecto:** Telar (plataforma educativa OpenMP/PyOMP)
 > **Entorno objetivo:** WSL2 (Ubuntu) sobre Windows · Docker 29.3.0 + Compose v5.1.0 · Python 3.12.3 · Node 18.20.8
 > **Alcance:** versiones, WebSockets (stream de logs/métricas desde threads sync), UploadFile, SQLite, lifespan/CORS/jobs largos, docker-compose con healthchecks.
 
@@ -20,7 +20,7 @@
 | `docker` (docker-py) | >= 7.1 | SDK para lanzar los contenedores runner y leer logs/stats. |
 | `websockets` | (vía `uvicorn[standard]`) | Backend WS de uvicorn; no se usa directamente. |
 
-`pip install "fastapi[standard]"` instala de una vez `uvicorn[standard]`, `python-multipart`, `httpx`, `jinja2` y el CLI `fastapi dev/run`. Para el backend de E-HPC es la opción más simple.
+`pip install "fastapi[standard]"` instala de una vez `uvicorn[standard]`, `python-multipart`, `httpx`, `jinja2` y el CLI `fastapi dev/run`. Para el backend de Telar es la opción más simple.
 
 **Pin sugerido para `requirements.txt` (o `pyproject.toml`):**
 
@@ -64,7 +64,7 @@ async def job_stream(websocket: WebSocket, job_id: str):
 Claves:
 
 - `WebSocketDisconnect` se lanza al hacer `receive()` sobre un socket cerrado; si solo se **envía**, la desconexión aparece como excepción en `send_*` (Starlette lanza `RuntimeError`/`WebSocketDisconnect` según versión). El patrón robusto es tener una tarea lectora concurrente (ver 2.3).
-- `send_json(data)` serializa con `json.dumps` (modo `text` por defecto). Para los mensajes de E-HPC conviene un **envelope tipado**: `{"type": "log" | "metrics" | "status" | "eof", ...}`.
+- `send_json(data)` serializa con `json.dumps` (modo `text` por defecto). Para los mensajes de Telar conviene un **envelope tipado**: `{"type": "log" | "metrics" | "status" | "eof", ...}`.
 - `websocket.close(code=1000)` para cierre limpio; códigos 4000-4999 para errores de aplicación (p. ej. `4404` job inexistente).
 - **CORS no aplica a WebSockets**: `CORSMiddleware` no inspecciona handshakes WS. Si se quiere restringir origen, validar manualmente `websocket.headers.get("origin")` antes de `accept()`.
 
@@ -79,7 +79,7 @@ Claves:
 | `loop.call_soon_threadsafe(queue.put_nowait, msg)` | No bloquea el thread productor; si la cola está llena lanza `QueueFull` (se pierde el mensaje o hay que manejarlo) | Métricas (1 muestra/s, perder una no importa) |
 | `asyncio.run_coroutine_threadsafe(queue.put(msg), loop).result()` | Bloquea el thread productor hasta que hay hueco → **backpressure natural** | Logs (no se debe perder ninguna línea; si el cliente va lento, se frena la lectura del contenedor) |
 
-### 2.3 Snippet completo para E-HPC (logs + stats → WebSocket)
+### 2.3 Snippet completo para Telar (logs + stats → WebSocket)
 
 ```python
 import asyncio
@@ -192,7 +192,7 @@ Notas de diseño:
 - La cancelación de `pending` en el `finally`/tras `asyncio.wait` es **crítica**: sin ella, la tarea emisora sigue intentando escribir a un socket muerto y se fugan recursos (patrón documentado en websocket.org/guides/frameworks/fastapi).
 - El sentinela `_EOF` se compara **por identidad** (`is`), no por igualdad, para no confundirlo con datos del usuario.
 - Si el frontend se reconecta (F5), conviene guardar los logs también en disco/DB (el runner ya los tiene: `container.logs()` sin `stream` devuelve todo el histórico) y reenviar el backlog al `accept()`.
-- Alternativa empaquetada: la librería `janus` ofrece una cola con API sync + async simultánea; es exactamente este patrón. Para E-HPC no hace falta una dependencia extra: el puente son ~10 líneas.
+- Alternativa empaquetada: la librería `janus` ofrece una cola con API sync + async simultánea; es exactamente este patrón. Para Telar no hace falta una dependencia extra: el puente son ~10 líneas.
 
 ### 2.4 ¿SSE (sse-starlette) sería más simple? Comparativa y recomendación
 
@@ -208,7 +208,7 @@ Notas de diseño:
 | Testeo manual | Cliente WS (wscat, Postman) | `curl -N` directo |
 | Límite de conexiones | Sin límite práctico | HTTP/1.1: ~6 conexiones por navegador/dominio (irrelevante con 1 job a la vez) |
 
-**Recomendación para E-HPC: WebSocket.** Razones:
+**Recomendación para Telar: WebSocket.** Razones:
 
 1. **Un solo canal** multiplexa logs + métricas + cambios de estado del job con mensajes JSON tipados, y además admite comandos del cliente (**cancelar job**, y en el futuro stdin interactivo) sin endpoints adicionales. Para una plataforma educativa donde el estudiante ejecuta y aborta código, la bidireccionalidad no es opcional a medio plazo.
 2. FastAPI lo soporta **nativamente** (cero dependencias extra) y uvicorn[standard] trae el backend `websockets`.
@@ -240,7 +240,7 @@ location /ws/ {
 - `UploadFile.size` en Starlette moderno refleja los **bytes realmente recibidos** (no lo que declare el cliente) — es confiable *después* de recibir el cuerpo. Para cortar **antes** de recibir todo, se valida `Content-Length` o se lee por chunks.
 - `file.content_type` lo declara el cliente → **no confiar** para seguridad; validar extensión + contenido.
 
-### 3.2 Snippet de validación para E-HPC (código PyOMP del estudiante)
+### 3.2 Snippet de validación para Telar (código PyOMP del estudiante)
 
 ```python
 from pathlib import Path
@@ -294,7 +294,7 @@ async def create_job_from_file(file: UploadFile):
 
 - **Primera barrera en nginx:** `client_max_body_size 1m;` rechaza cuerpos grandes antes de tocar Python.
 - **Barrera rápida en FastAPI:** un chequeo de `Content-Length` (middleware o dependencia) devuelve 413 sin leer el cuerpo cuando el header ya excede el límite; la lectura por chunks cubre a los clientes que mienten u omiten el header.
-- **Alternativa más simple para el caso principal:** el flujo típico de E-HPC es *editor Monaco → ejecutar*. Ahí el código es texto y basta un body JSON con Pydantic, sin multipart:
+- **Alternativa más simple para el caso principal:** el flujo típico de Telar es *editor Monaco → ejecutar*. Ahí el código es texto y basta un body JSON con Pydantic, sin multipart:
 
 ```python
 from pydantic import BaseModel, Field
@@ -320,7 +320,7 @@ class RunRequest(BaseModel):
 
 ### 4.2 Recomendación pragmática para el MVP: **aiosqlite + repository pattern, sin ORM**
 
-La base de datos de E-HPC es pequeña (usuarios, lecciones/progreso, jobs y sus metadatos) y el backend es async-first por los WebSockets. `aiosqlite` mantiene todo en un solo modelo de concurrencia, el repository pattern aísla el SQL, y si la tesis creciera hacia Postgres, los repositorios se reimplementan sin tocar la lógica de negocio.
+La base de datos de Telar es pequeña (usuarios, lecciones/progreso, jobs y sus metadatos) y el backend es async-first por los WebSockets. `aiosqlite` mantiene todo en un solo modelo de concurrencia, el repository pattern aísla el SQL, y si la tesis creciera hacia Postgres, los repositorios se reimplementan sin tocar la lógica de negocio.
 
 ```python
 # db.py
@@ -420,7 +420,7 @@ async def lifespan(app: FastAPI):
     await app.state.db.close()
     app.state.docker.close()
 
-app = FastAPI(title="E-HPC API", lifespan=lifespan)
+app = FastAPI(title="Telar API", lifespan=lifespan)
 ```
 
 `app.state` es el lugar idiomático para singletons (cliente Docker, conexión DB, registro de jobs); en endpoints se accede vía `request.app.state` / `websocket.app.state`, o se envuelve en dependencias `Depends` para testear con overrides.
@@ -434,7 +434,7 @@ app = FastAPI(title="E-HPC API", lifespan=lifespan)
 | Funciones sync | Se ejecutan en el threadpool automáticamente | Hay que envolver con `asyncio.to_thread` |
 | Sobrevive a restart del proceso | No | No |
 
-Para E-HPC (ejecuciones de minutos, con estado consultable, stream en vivo y cancelación) **`asyncio.create_task` + registro en memoria** es lo correcto; `BackgroundTasks` no da handle. Celery/arq serían la evolución si hiciera falta persistencia de cola o múltiples workers — sobredimensionado para el MVP.
+Para Telar (ejecuciones de minutos, con estado consultable, stream en vivo y cancelación) **`asyncio.create_task` + registro en memoria** es lo correcto; `BackgroundTasks` no da handle. Celery/arq serían la evolución si hiciera falta persistencia de cola o múltiples workers — sobredimensionado para el MVP.
 
 ```python
 import asyncio, uuid
@@ -544,7 +544,7 @@ async def health():
     )
 ```
 
-### 6.2 compose.yaml para E-HPC
+### 6.2 compose.yaml para Telar
 
 ```yaml
 # compose.yaml — Compose v2/v5: la clave `version:` está obsoleta, omitirla

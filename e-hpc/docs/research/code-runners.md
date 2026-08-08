@@ -1,8 +1,8 @@
 # Investigación: sandboxes de ejecución de código (online judges / code runners)
 
-> **Proyecto:** E-HPC — plataforma educativa para aprender OpenMP con PyOMP.
+> **Proyecto:** Telar — plataforma educativa para aprender OpenMP con PyOMP.
 > **Objetivo:** adoptar patrones probados de Judge0, Piston, glot.run (docker-run) y codapi
-> para el runner Docker de E-HPC (FastAPI + contenedores `python:3.12` + `pyomp 0.5.*`),
+> para el runner Docker de Telar (FastAPI + contenedores `python:3.12` + `pyomp 0.5.*`),
 > en vez de inventar el aislamiento desde cero.
 > **Fecha:** 2026-07-12. Todas las cifras fueron verificadas contra los repos/docs citados al final.
 
@@ -41,7 +41,7 @@ Puntos clave:
   la misma box con `--init`, que falla-limpia si quedó huérfana).
 - **Config con doble tope:** cada límite tiene default y máximo del lado servidor
   (`CPU_TIME_LIMIT=5`, `MAX_CPU_TIME_LIMIT=15`…): el cliente puede pedir más por envío,
-  pero nunca superar el `MAX_*`. Patrón directamente aplicable a E-HPC
+  pero nunca superar el `MAX_*`. Patrón directamente aplicable a Telar
   (el ejercicio define límites; el backend impone topes globales).
 
 Defaults de `judge0.conf` (verificados en master):
@@ -94,7 +94,7 @@ autoritativa del default real) dice 64. Separa **timeout de compilación** (10 s
 
 ### 1.3 glot.run (glotcode/docker-run) — un contenedor Docker efímero por request
 
-El más parecido a lo que E-HPC necesita: servicio (Rust) que habla con el **Docker daemon
+El más parecido a lo que Telar necesita: servicio (Rust) que habla con el **Docker daemon
 por el unix socket** y crea **un contenedor nuevo por cada run, que siempre se borra**.
 El payload entra por **stdin** (attach) y el resultado sale por **stdout como JSON**
 `{stdout, stderr, error}` — es decir, hay un pequeño *agente dentro de la imagen* que
@@ -174,7 +174,7 @@ trazabilidad).
 
 ## 2. Tabla comparativa de límites y flags
 
-| Aspecto | Judge0 (isolate) | Piston (isolate) | glot docker-run | codapi | **Propuesta E-HPC** |
+| Aspecto | Judge0 (isolate) | Piston (isolate) | glot docker-run | codapi | **Propuesta Telar** |
 |---|---|---|---|---|---|
 | Unidad de aislamiento | box de isolate, worker persistente | box de isolate en contenedor privileged | **contenedor Docker por run** | **contenedor Docker por run** | contenedor Docker por run |
 | CPU-time | 5 s (máx 15) `-t` + `-x 1` | 3000 ms | — (solo wall) | — (solo wall) | opcional vía `ulimit cpu` |
@@ -198,7 +198,7 @@ Lectura transversal: **los cuatro coinciden en** red deshabilitada por defecto, 
 root, límite de procesos ~60–128, output acotado y destrucción total del entorno tras cada
 run. Divergen en la unidad de aislamiento (isolate vs contenedor) y en sync vs cola.
 
-**Decisión para E-HPC:** patrón glot/codapi (contenedor efímero por job). isolate exige
+**Decisión para Telar:** patrón glot/codapi (contenedor efímero por job). isolate exige
 contenedor `privileged` y manipulación de cgroups (Piston) — frágil sobre Docker en WSL2 y
 excesivo para el caso educativo. El overhead de ~300 ms/contenedor es irrelevante frente a
 los segundos de JIT de PyOMP.
@@ -222,7 +222,7 @@ resuelve distinto:
 - **Judge0**: escribe a archivo dentro del sandbox y el ulimit `fsize` (1024 KB) corta
   al *escritor* con SIGXFSZ (status 8 = Runtime Error SIGXFSZ).
 
-**Para E-HPC:** leer los streams de forma incremental (attach/logs de la API de Docker),
+**Para Telar:** leer los streams de forma incremental (attach/logs de la API de Docker),
 contar bytes, cortar a ~256 KB y marcar `"truncated": true` en el resultado; además
 rate-limit de frames del WebSocket (p. ej. flush cada 100 ms o cada 4 KB). No confiar solo
 en el buffer del cliente.
@@ -237,7 +237,7 @@ en el buffer del cliente.
   si dos contenedores comparten uid se limitan entre sí (la propia doc de Docker lo
   advierte). Útil solo como segunda capa.
 
-**Para E-HPC:** `--pids-limit 128`. Ojo con PyOMP: el proceso Python + runtime OpenMP
+**Para Telar:** `--pids-limit 128`. Ojo con PyOMP: el proceso Python + runtime OpenMP
 (N threads) + threadpool interno de Numba coexisten; con 64 puede quedar justo si el
 estudiante pide muchos threads — 128 da margen sin habilitar una fork bomb útil.
 
@@ -256,7 +256,7 @@ Patrón común glot/codapi:
   **normalmente no disponible en Docker sobre WSL2**; usar tmpfs en su lugar.
 - Judge0 usa el enfoque ulimit: `fsize` (KB) por proceso — combinable: `--ulimit fsize`.
 
-**Para E-HPC:** `--read-only`, código en `/workspace:ro`, `--tmpfs /tmp:rw,noexec,nosuid,size=64m`.
+**Para Telar:** `--read-only`, código en `/workspace:ro`, `--tmpfs /tmp:rw,noexec,nosuid,size=64m`.
 Importante: Numba/PyOMP necesita un dir escribible para su caché si se activa
 (`NUMBA_CACHE_DIR=/tmp/numba-cache`, ver §6.3) — con rootfs read-only y `HOME` no escribible,
 sin esa variable el caché en disco simplemente no funciona (falla a modo sin caché).
@@ -279,7 +279,7 @@ sin esa variable el caché en disco simplemente no funciona (falla a modo sin ca
   implícito (la conexión HTTP abierta). Concurrencia acotada (`PISTON_MAX_CONCURRENT_JOBS=64`,
   `pool_size=8` en codapi) — la cola es el semáforo.
 
-### 4.2 Diseño recomendado para E-HPC
+### 4.2 Diseño recomendado para Telar
 
 Estados (superset mínimo de Judge0, sin veredicto de judge):
 
@@ -317,7 +317,7 @@ queued → running → completed        (exit_code == 0)
   emite ~1 muestra/s; CPU% = `(cpu_delta / system_cpu_delta) * online_cpus * 100`.
   Reenviar por el mismo WebSocket del job con tipo de mensaje distinto (`log` vs `stats`).
 
-### 4.3 `docker run` de referencia para el runner E-HPC
+### 4.3 `docker run` de referencia para el runner Telar
 
 ```bash
 docker run --rm \
@@ -342,7 +342,7 @@ judges de la tabla — aquí el paralelismo es el objeto de estudio, no un riesg
 
 ---
 
-## 5. Comparación de decisiones que E-HPC hereda
+## 5. Comparación de decisiones que Telar hereda
 
 | Patrón adoptado | Origen |
 |---|---|
@@ -362,7 +362,7 @@ judges de la tabla — aquí el paralelismo es el objeto de estudio, no un riesg
 ### 6.1 Contexto de versiones (verificado en PyPI, 2026-07)
 
 - **pyomp 0.5.1** (última, 2026-02-19); serie 0.5.x requiere **Numba 0.62.x–0.63.x** y
-  soporta **Python 3.10–3.14** → compatible con el runner Python 3.12 de E-HPC.
+  soporta **Python 3.10–3.14** → compatible con el runner Python 3.12 de Telar.
 - Instalación por pip con wheels manylinux x86-64 (funciona en el contenedor Linux);
   PyOMP es una **extensión de Numba** (`from numba.openmp import njit, openmp_context`),
   no un fork. Incluye su propio runtime LLVM OpenMP.
@@ -379,7 +379,7 @@ tipos). La guía oficial de Numba lo señala como *el* error clásico de benchma
 
 Su ejemplo canónico: `Elapsed (with compilation) ≈ 0.33 s` vs
 `Elapsed (after compilation) ≈ µs`. Con PyOMP el efecto es peor: a la compilación de Numba
-se suma la transformación OpenMP, y además `import numba` ya cuesta ~1–2 s. Si E-HPC mide
+se suma la transformación OpenMP, y además `import numba` ya cuesta ~1–2 s. Si Telar mide
 "tiempo del contenedor" (wall del `docker run`), el estudiante vería que su versión
 paralela con 8 threads "tarda 6 s" contra 0.1 s del C secuencial — una medición inútil.
 
@@ -398,7 +398,7 @@ Qué dice la doc de Numba (FAQ + developer/caching + reference/envvars, verifica
 - Concurrencia: "Concurrent read/write of the cache is safe only if file replacement
   operation is atomic for the filesystem" — tmpfs cumple.
 
-Implicaciones para E-HPC:
+Implicaciones para Telar:
 
 1. **No compartir un volumen de caché entre estudiantes.** Los `.nbc` se cargan con
    pickle: un caché escribible compartido es un vector de ejecución arbitraria
@@ -421,7 +421,7 @@ La conclusión operativa — y lo que hacen todos los benchmarks serios de Numba
 **medir dentro del proceso, después de calentar**:
 
 ```python
-# harness.py (esqueleto conceptual del runner E-HPC)
+# harness.py (esqueleto conceptual del runner Telar)
 from numba.openmp import njit, openmp_context as openmp
 from numba.openmp import omp_get_wtime, omp_set_num_threads
 import json, time
@@ -466,7 +466,7 @@ Reglas que se derivan de las fuentes:
 
 ---
 
-## 7. Notas del entorno E-HPC (WSL2, Docker 29.3, Node 18)
+## 7. Notas del entorno Telar (WSL2, Docker 29.3, Node 18)
 
 - Ninguno de los patrones adoptados exige Node: el backend es Python/FastAPI y habla con la
   Docker Engine API. Piston (API Node) y Judge0 (Rails) se estudiaron como referencia, no

@@ -1,4 +1,4 @@
-"""DTOs pydantic (v2) del contrato de API de E-HPC — §5 Quizzes.
+"""DTOs pydantic (v2) del contrato de API de Telar — §5 Quizzes.
 
 TRANSCRIPCIÓN LITERAL de ``docs/architecture/api-contract.md`` (CONGELADO).
 Provee ``QuizOptionKey``, reutilizado por §10 (admin).

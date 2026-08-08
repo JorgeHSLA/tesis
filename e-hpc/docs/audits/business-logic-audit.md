@@ -1,4 +1,4 @@
-# E-HPC — Auditoría de lógica de negocio
+# Telar — Auditoría de lógica de negocio
 
 - **Fecha:** 2026-07-16 (working tree con el rediseño visual del frontend sin commitear; el backend no tiene cambios pendientes)
 - **Alcance:** revisión estática de coherencia de lógica de negocio de toda la plataforma (backend FastAPI, frontend React/TS, shell Electron, runner/compose, fixtures de contenido) contra la fuente de verdad `docs/architecture/` (`api-contract.md` manda).

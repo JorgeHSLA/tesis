@@ -723,7 +723,7 @@ def test_output_truncado_anade_marca(settings, fake_docker, real_content):
         assert detail["output_truncated"] is True
         output = client.get(f"/api/v1/jobs/{job_id}/output")
         assert output.text.endswith(
-            "--- [E-HPC] output truncado a 128 bytes ---\n"
+            "--- [Telar] output truncado a 128 bytes ---\n"
         )
 
 

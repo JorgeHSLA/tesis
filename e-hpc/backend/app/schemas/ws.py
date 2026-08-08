@@ -1,4 +1,4 @@
-"""DTOs pydantic (v2) del contrato de API de E-HPC — §8 Protocolo WebSocket.
+"""DTOs pydantic (v2) del contrato de API de Telar — §8 Protocolo WebSocket.
 
 TRANSCRIPCIÓN LITERAL de ``docs/architecture/api-contract.md`` (CONGELADO).
 Reutiliza ``JobStatus`` de §7 (jobs).

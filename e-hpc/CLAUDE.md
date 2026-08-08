@@ -1,4 +1,4 @@
-# E-HPC — guía para Claude
+# Telar — guía para Claude
 
 Plataforma educativa para aprender paralelismo **OpenMP vía PyOMP**: cursos estilo Coursera + un **simulador** que ejecuta código real del estudiante en contenedores Docker aislados. Corre como **web** (nginx) Y como **app de escritorio Electron**, desde el MISMO build del frontend. Artefacto central de la tesis de Jorge (español).
 

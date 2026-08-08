@@ -14,7 +14,7 @@ export async function getHealth(): Promise<HealthDto> {
   try {
     res = await fetch(`${API_BASE}/health`, { headers: { Accept: 'application/json' } })
   } catch {
-    throw new ApiError('NETWORK_ERROR', 'No se pudo contactar con el backend E-HPC.', 0)
+    throw new ApiError('NETWORK_ERROR', 'No se pudo contactar con el backend Telar.', 0)
   }
   if (!res.ok) {
     throw new ApiError('HEALTH_UNAVAILABLE', `Healthcheck no disponible (HTTP ${res.status}).`, res.status)

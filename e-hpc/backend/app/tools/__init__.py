@@ -1,4 +1,4 @@
-"""Herramientas de línea de comandos del backend E-HPC (WP3).
+"""Herramientas de línea de comandos del backend Telar (WP3).
 
 Uso: ``python -m app.tools.validate_content`` — valida los fixtures de
 contenido de ``backend/app/content/`` (WP4) contra los invariantes de

@@ -40,9 +40,9 @@ Fíjate en algo importante: entre región y región paralela, el programa vuelve
 
 La consecuencia práctica es una habilidad de lectura. Cuando te enfrentes a un código OpenMP, lo primero que debes buscar es: **¿dónde forkea y dónde joinea?** Localiza las regiones paralelas —los bloques marcados con directivas— y ya sabes dónde entra la cuadrilla y dónde se va. Todo lo que está fuera de esas regiones lo hace un solo hilo. Con ese mapa mental, cualquier programa paralelo deja de ser un misterio.
 
-### Conexión con E-HPC (3:35–4:00)
+### Conexión con Telar (3:35–4:00)
 
-Y aquí viene algo bonito: la visualización de hilos «en vivo» del simulador de E-HPC es, literalmente, este diagrama con datos reales. Cuando lances un job vas a ver los hilos activarse al entrar a una región paralela y apagarse al salir: el fork y el join, respirando en tiempo real con tu propio código. En el próximo video hacemos un recorrido rápido por las directivas que marcan esas regiones.
+Y aquí viene algo bonito: la visualización de hilos «en vivo» del simulador de Telar es, literalmente, este diagrama con datos reales. Cuando lances un job vas a ver los hilos activarse al entrar a una región paralela y apagarse al salir: el fork y el join, respirando en tiempo real con tu propio código. En el próximo video hacemos un recorrido rápido por las directivas que marcan esas regiones.
 
 ## Apoyo visual
 
@@ -50,7 +50,7 @@ Y aquí viene algo bonito: la visualización de hilos «en vivo» del simulador 
 - 0:20–1:30 — Un jefe de obra solo con papeleo; convoca 8 obreros para una pared; los despide; vuelve a estar solo.
 - 1:30–3:00 — El diagrama fork-join animado, sincronizado con etiquetas «serial / región paralela / serial»; se resalta que entre regiones hay un solo hilo.
 - 3:00–3:35 — Un fragmento de código OpenMP con las regiones paralelas resaltadas en color; lupa buscando «¿dónde forkea?».
-- 3:35–4:00 — La visualización de hilos en vivo del simulador E-HPC activándose y apagándose.
+- 3:35–4:00 — La visualización de hilos en vivo del simulador Telar activándose y apagándose.
 
 ## Para recordar
 

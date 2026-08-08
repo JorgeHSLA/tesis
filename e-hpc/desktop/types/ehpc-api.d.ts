@@ -27,7 +27,7 @@ export interface EhpcApi {
   readonly appVersion: string
   /** Plataforma del SO: 'win32' | 'linux' | 'darwin'. */
   readonly platform: NodeJS.Platform
-  /** `docker compose ps --format json` del proyecto E-HPC. */
+  /** `docker compose ps --format json` del proyecto Telar. */
   dockerStatus(): Promise<DockerStatusResult>
   /** `docker compose up -d` (backend + web + build de runner si falta). */
   dockerUp(): Promise<DockerActionResult>

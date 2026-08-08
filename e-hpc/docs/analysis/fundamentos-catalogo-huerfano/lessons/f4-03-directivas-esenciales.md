@@ -65,7 +65,7 @@ with openmp("critical"):
 
 Y una que aún no vimos y que abre un mundo entero: **`task`**. En vez de repartir un bucle, crea una unidad de trabajo suelta que cualquier hilo libre puede tomar. Es la base del patrón divide y vencerás —recursión, árboles, trabajo irregular— y tiene su propio módulo práctico más adelante.
 
-### Cierre y conexión con E-HPC (4:20–5:00)
+### Cierre y conexión con Telar (4:20–5:00)
 
 Ese es el mapa: `parallel`, `for`, `reduction`, `private`/`shared`/`firstprivate`, `critical`, `barrier`/`single`, y `task`. Con esas siete piezas construyes casi cualquier programa del curso. Y lo mejor: **no las memorices ahora**. Cada una tiene su lección práctica en el simulador, con código real que vas a ejecutar y medir. Esto era solo el mapa para que, cuando las encuentres, ya sepas de qué te hablan. En el próximo video resolvemos el gran misterio: cómo es posible escribir todo esto en Python.
 

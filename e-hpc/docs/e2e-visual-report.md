@@ -1,4 +1,4 @@
-# E-HPC — Reporte de verificación visual E2E (aceptación independiente)
+# Telar — Reporte de verificación visual E2E (aceptación independiente)
 
 > **Rol:** verificador independiente. Nada se asume: cada criterio tiene un
 > veredicto PASS/FAIL respaldado por una **aserción sobre el DOM que ve el

@@ -1,4 +1,4 @@
-"""DTOs pydantic (v2) del contrato de API de E-HPC — §7 Jobs.
+"""DTOs pydantic (v2) del contrato de API de Telar — §7 Jobs.
 
 TRANSCRIPCIÓN LITERAL de ``docs/architecture/api-contract.md`` (CONGELADO).
 Provee ``FILENAME_PATTERN`` (reutilizado por §10 admin) y ``JobStatus``

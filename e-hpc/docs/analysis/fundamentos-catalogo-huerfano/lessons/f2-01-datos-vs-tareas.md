@@ -42,9 +42,9 @@ Dos: SPMD, un mismo programa que ejecutan todos los hilos, donde cada hilo usa s
 
 Tres: divide y vencerás con tareas. El problema se va partiendo en subproblemas que se encolan como tareas, y los hilos las van tomando según se desocupan. Aquí ya estamos en paralelismo de tareas puro.
 
-### Conexión con E-HPC (4:20–5:00)
+### Conexión con Telar (4:20–5:00)
 
-Estos tres patrones no son teoría suelta: son, exactamente, tres módulos prácticos de E-HPC. El paralelismo a nivel de bucle es el módulo 1; SPMD, con su reparto manual por identidad del hilo, es el módulo 2; y divide y vencerás con tareas es el módulo 6. Cuando llegues a ellos, vas a escribir y ejecutar cada patrón con código real en el simulador. Por ahora, quédate con la pregunta clave de este video: ¿mi problema es un montón de datos iguales, o una estructura de tareas distintas? Casi todo lo demás se deriva de ahí.
+Estos tres patrones no son teoría suelta: son, exactamente, tres módulos prácticos de Telar. El paralelismo a nivel de bucle es el módulo 1; SPMD, con su reparto manual por identidad del hilo, es el módulo 2; y divide y vencerás con tareas es el módulo 6. Cuando llegues a ellos, vas a escribir y ejecutar cada patrón con código real en el simulador. Por ahora, quédate con la pregunta clave de este video: ¿mi problema es un montón de datos iguales, o una estructura de tareas distintas? Casi todo lo demás se deriva de ahí.
 
 ## Apoyo visual
 
@@ -52,11 +52,11 @@ Estos tres patrones no son teoría suelta: son, exactamente, tres módulos prác
 - 0:20–1:30 — animación del montón de 800 exámenes partiéndose en 8 pilas iguales; después, la cadena de montaje con tres profesores y flechas de flujo entre ellos.
 - 1:30–3:30 — pantalla dividida: a la izquierda «DATOS: misma operación, distintos trozos» (un array partido en rangos de colores); a la derecha «TAREAS: operaciones distintas» (etapas encadenadas).
 - 3:30–4:20 — tarjeta-mapa con los tres patrones (loop-level, SPMD, tareas) iluminándose uno a uno.
-- 4:20–5:00 — catálogo de E-HPC resaltando los módulos m1, m2 y m6.
+- 4:20–5:00 — catálogo de Telar resaltando los módulos m1, m2 y m6.
 
 ## Para recordar
 
 - Paralelismo de datos: la misma operación sobre trozos distintos (ocho pilas de cien exámenes). Es el caso dominante en cómputo científico.
 - Paralelismo de tareas: operaciones distintas ejecutándose a la vez (corregir, sumar, subir). Más flexible, pero exige más coordinación.
 - Los tres patrones del curso: loop-level (repartir un `for`), SPMD (repartir a mano por identidad del hilo) y divide y vencerás (tareas).
-- Corresponden exactamente a los módulos prácticos m1, m2 y m6 de E-HPC.
+- Corresponden exactamente a los módulos prácticos m1, m2 y m6 de Telar.
