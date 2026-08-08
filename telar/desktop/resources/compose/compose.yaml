@@ -1,0 +1,59 @@
+# desktop/resources/compose/compose.yaml — compose de DESPLIEGUE empaquetado
+# (electron-spec.md §6.1): solo `image:`, cero `build:` (los contextos del
+# compose raíz no existen bajo process.resourcesPath en una máquina con solo
+# el instalador). Puertos, environment y volumes idénticos al compose raíz
+# (architecture.md §2.2); todos los puertos ligados a 127.0.0.1.
+name: telar
+services:
+  backend:
+    # Compose empaquetado: usa `image:` (no `build:`), así que el ARG
+    # TELAR_ADMIN_BUILD (Nivel 3, ver backend/Dockerfile) NO aplica aquí. La
+    # imagen publicada por defecto es la ESTUDIANTE (sin código admin en el
+    # artefacto; /api/v1/admin/* → 404). Un despliegue admin usa/publica la
+    # imagen construida con `TELAR_ADMIN_BUILD=1` y añade `TELAR_ADMIN_MODE: "1"`
+    # a este servicio backend.
+    image: ghcr.io/jorgesierra/telar-backend:1.0.0
+    ports: ["127.0.0.1:8000:8000"]
+    environment:
+      TELAR_DB_PATH: /app/data/telar.db
+      # Despliegue por defecto = ESTUDIANTE: el modo autoría (admin) está
+      # APAGADO y /api/v1/admin/* responde 401. Un despliegue admin añade
+      # `TELAR_ADMIN_MODE: "1"` a este servicio backend (app local en loopback
+      # distribuida solo a administradores; sin login/token).
+      # Idéntica al compose raíz: el navegador manda Origin http://127.0.0.1:8080
+      # (no localhost); 'null' es para Electron (file://).
+      TELAR_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null"
+      TELAR_CODE_DELIVERY: volume
+      TELAR_SUBMISSIONS_VOLUME: telar_submissions
+      TELAR_RUNNER_IMAGE: ghcr.io/jorgesierra/telar-runner:0.5.1
+      TELAR_MAX_TIMEOUT_S: 0                 # 0 = sin límite (tope opcional)
+      TELAR_MAX_CONCURRENT_JOBS: 2
+    volumes:
+      - telar_data:/app/data
+      - telar_submissions:/submissions
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; r=urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3); sys.exit(0 if r.status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  runner:
+    image: ghcr.io/jorgesierra/telar-runner:0.5.1
+    profiles: ["build"]        # nunca corre como servicio; `up` lo ignora
+    entrypoint: ["true"]
+
+volumes:
+  # name: explícito para compartir el MISMO volumen de datos entre despliegues
+  # (estudiante / admin) y desactivar el prefijo del proyecto ('name: telar').
+  telar_data:
+    name: telar_data
+  # name: explícito para DESACTIVAR el prefijo del proyecto ('name: telar'
+  # arriba): sin él, Compose crea 'telar_telar_submissions' mientras el runner
+  # monta el literal TELAR_SUBMISSIONS_VOLUME → volumen vacío → todos los jobs
+  # fallan con 'no such file or directory' (igual que compose.yaml raíz).
+  telar_submissions:
+    name: telar_submissions

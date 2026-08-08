@@ -1,0 +1,48 @@
+# Telar — guía para Claude
+
+Plataforma educativa para aprender paralelismo **OpenMP vía PyOMP**: cursos estilo Coursera + un **simulador** que ejecuta código real del estudiante en contenedores Docker aislados. Corre como **web** (nginx) Y como **app de escritorio Electron**, desde el MISMO build del frontend. Artefacto central de la tesis de Jorge (español).
+
+**Estado: Fase 3 completa y verificada en verde** (backend cobertura 93.79% / 205 tests, frontend 163 tests, E2E por navegador y smoke E2E pasando). Ver `docs/CHANGELOG-fase3.md`.
+
+## Cómo correr
+
+```bash
+# Prerequisito en CADA shell (el Node por defecto es v18 y falla con EBADENGINE):
+export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"   # activa Node 22
+
+# WEB (stack completo) — 'make' NO está instalado, usar docker compose directo:
+docker compose build frontend backend && docker compose --profile build build runner
+docker compose up -d          # UI en http://127.0.0.1:8080, backend en :8000
+docker compose down
+
+# Smoke E2E de todo el stack:
+bash scripts/smoke.sh
+
+# Tests backend (sin daemon Docker — usa fakes):
+cd backend && DOCKER_HOST=tcp://127.0.0.1:1 pytest --cov=app --cov-fail-under=80
+
+# Tests frontend / desktop dev:  cd frontend && npx vitest run   |   cd desktop && npm run dev
+```
+
+## Reglas de este entorno (NO obvias — respétalas)
+
+- **Node 22 vía nvm obligatorio** (`. "$NVM_DIR/nvm.sh"` antes de node/npm). v18 rompe electron≥40 y vite≥7.
+- **Builds pesados en ext4, nunca en `/mnt/d`**: rsync a `~/.telar-build/<pkg>/` y compila allí (drvfs es ~10x más lento; penaliza npm/node_modules y el JIT de Numba). El `package-lock.json` regenerado se copia de vuelta al repo.
+- **`make` no está instalado**: usar `docker compose` directamente (el Makefile existe pero no se invoca con make).
+- **Puertos ligados a `127.0.0.1`** (backend sin auth + socket Docker montado): no exponer en 0.0.0.0.
+- **Contratos CONGELADOS** en `docs/architecture/` (`api-contract.md` manda). No modificar `backend/app/schemas.py`, `frontend/src/api/types.ts`, `frontend/src/ws/messages.ts`, `frontend/src/types/telar.d.ts`: el código se adapta al contrato, no al revés.
+- **Bugs de infra ya corregidos — no re-introducir**: (1) los orígenes CORS/WS deben incluir `http://127.0.0.1:8080` (el navegador manda ese Origin, no `localhost`); (2) el volumen `telar_submissions` lleva `name:` explícito en `compose.yaml` para desactivar el prefijo de proyecto de Compose — sin eso el runner monta un volumen vacío distinto y TODOS los jobs fallan con "no such file or directory".
+
+## Estructura
+
+- `backend/` — FastAPI (jobs, WebSocket de logs+métricas, cursos, quizzes, SQLite). Ver `backend/CLAUDE.md`.
+- `frontend/` — React+Vite+TS, mismo build para web y Electron. Ver `frontend/CLAUDE.md`.
+- `runner/` — imagen Docker python:3.12-slim + pyomp 0.5.1 que ejecuta el código del estudiante. Ver `runner/CLAUDE.md`.
+- `desktop/` — shell Electron seguro. Ver `desktop/CLAUDE.md`.
+- `backend/app/content/` — los 14 ejemplos = 8 módulos de curso + 60 preguntas de quiz (fixtures).
+- `docs/architecture/` — contratos + arquitectura (fuente de verdad). `docs/research/` — investigación de Fase 0. `docs/analysis/` — spec del handoff y de los ejemplos.
+- `README.md` — documentación extensa para la memoria de tesis. `docs/CHANGELOG-fase3.md` — qué se entregó.
+
+## Contexto de dominio
+
+El diseño original (handoff) hablaba de clusters MPI/Slurm; la app real es **OpenMP = memoria compartida con hilos**. La UI adapta la semántica (workers→hilos, "Mensajes MPI"→sincronizaciones) manteniendo el lenguaje visual. El selector de framework queda fijo en "OpenMP · PyOMP".
