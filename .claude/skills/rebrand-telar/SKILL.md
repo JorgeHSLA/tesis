@@ -555,6 +555,7 @@ Y en cada capa, un **revisor adversarial** que busca tres cosas:
 | Fichero | Qué hace |
 |---------|----------|
 | `scripts/inventory.py` | Fase A: clasifica cada ocurrencia en capa y área |
+| `scripts/apply-layer.py` | aplica UNA capa por sustitución determinista (cumple T1 por construcción) |
 | `scripts/brand_invariance_lib.py` | el neutralizador de marca (núcleo de T1) |
 | `scripts/brand-invariance.py` | T1: compara dos árboles neutralizados |
 | `scripts/selftest-invariance.py` | demuestra que T1 acepta y rechaza lo que debe |
