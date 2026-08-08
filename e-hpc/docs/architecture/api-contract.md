@@ -59,7 +59,7 @@ usan el envelope:
 | 429 | `TOO_MANY_JOBS` | Cola interna llena (>10 jobs en `queued`) |
 | 500 | `INTERNAL_ERROR` | Excepción no controlada (mensaje genérico; detalle solo en logs del servidor) |
 | 503 | `DOCKER_UNAVAILABLE` | El daemon no responde a `ping()` |
-| 503 | `RUNNER_IMAGE_MISSING` | La imagen `ehpc-runner` no existe en el daemon |
+| 503 | `RUNNER_IMAGE_MISSING` | La imagen `telar-runner` no existe en el daemon |
 | 401 | `UNAUTHORIZED` | **(Fase 4, §10)** Endpoint `/admin/*` con el modo autoría apagado (despliegue "estudiante", sin `TELAR_ADMIN_MODE`). _Nota 2026-07-26: ya no hay login/token; el gate es de despliegue (ver §10.0)_ |
 | 404 | `MODULE_NOT_FOUND` | **(Fase 4, §10)** id de módulo inexistente |
 | 409 | `DUPLICATE_ID` | **(Fase 4, §10)** Crear contenido con un id ya usado (módulo, o lección/ejemplo — comparten namespace) |
@@ -101,7 +101,7 @@ UI muestra.
   "data": {
     "cores": 8,
     "max_threads": 8,
-    "runner_image": "ehpc-runner:0.5.1",
+    "runner_image": "telar-runner:0.5.1",
     "runner_image_present": true,
     "gpu_examples_enabled": false,
     "versions": { "backend": "1.0.0", "python": "3.12.3", "pyomp": "0.5.1", "api": "v1" },

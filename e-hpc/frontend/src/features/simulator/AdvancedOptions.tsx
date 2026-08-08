@@ -26,7 +26,7 @@ export function AdvancedOptions({ system, exampleDefaultTimeout, timeoutS, onTim
   const envId = useId()
   const toId = useId()
   const options = buildTimeoutOptions(system.limits.max_timeout_s, exampleDefaultTimeout)
-  const runtime = `ehpc-runner · python ${system.versions.python} + pyomp ${system.versions.pyomp}`
+  const runtime = `telar-runner · python ${system.versions.python} + pyomp ${system.versions.pyomp}`
 
   return (
     <Card style={{ marginTop: 20 }}>

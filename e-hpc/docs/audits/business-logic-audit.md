@@ -24,7 +24,7 @@
 
 ### Top riesgos
 
-1. **BL-02 (critical)** — El `compose.yaml` empaquetado del desktop **reintroduce el bug del volumen `ehpc_submissions` sin `name:`** que `CLAUDE.md` marca como "corregido — no reintroducir": en el Modo A del instalador **todos los jobs del simulador fallarían** con "no such file or directory". Su gemelo BL-12 reintroduce además el bug de CORS 127.0.0.1.
+1. **BL-02 (critical)** — El `compose.yaml` empaquetado del desktop **reintroduce el bug del volumen `telar_submissions` sin `name:`** que `CLAUDE.md` marca como "corregido — no reintroducir": en el Modo A del instalador **todos los jobs del simulador fallarían** con "no such file or directory". Su gemelo BL-12 reintroduce además el bug de CORS 127.0.0.1.
 2. **BL-01 (critical)** — Borrar una lección deja huérfanas sus filas de `lesson_progress`/`quiz_attempts` (sin FK ni limpieza); si el admin reutiliza el mismo id, el estudiante **hereda `completed:true`/`best_quiz_score` de un contenido que nunca vio**, y el `MAX`/`COALESCE` del upsert impide que se corrija jamás.
 3. **BL-03 (critical)** — Una línea `hilos = 0` en el stdout (posible con código editado por el estudiante) lanza `ZeroDivisionError` en el parser de sweep y **reclasifica un job exitoso como `failed`/`sandbox_error`**, rompiendo la promesa "jamás lanza" del propio módulo.
 4. **BL-09 + BL-10 (high)** — La pareja replay-de-`seq` (backend reinicia `seq` en el replay terminal; frontend no resetea `lastLogSeq` en el retry manual) hace que tras una reconexión el estudiante pueda ver **la terminal vacía o sin la salida del job**.
@@ -43,7 +43,7 @@ Todos los veredictos son CONFIRMED. Detalle completo (escenario de fallo y recom
 | ID | Sev | Categoría | Área | Título | Evidencia principal |
 |---|---|---|---|---|---|
 | BL-01 | critical | logic-bug | Cursos/Admin/Persistencia | Borrar lección deja `lesson_progress`/`quiz_attempts` huérfanos; reutilizar el id resucita progreso ajeno | `backend/app/repositories/content_admin.py:300-304`, `backend/app/schema.sql:63,78` |
-| BL-02 | critical | inconsistency | Desktop | Compose empaquetado sin `name: ehpc_submissions` — regresión: todos los jobs fallan en Modo A | `desktop/resources/compose/compose.yaml:52` vs `compose.yaml:67` |
+| BL-02 | critical | inconsistency | Desktop | Compose empaquetado sin `name: telar_submissions` — regresión: todos los jobs fallan en Modo A | `desktop/resources/compose/compose.yaml:52` vs `compose.yaml:67` |
 | BL-03 | critical | logic-bug | Parsers | `ZeroDivisionError` con `hilos = 0` en sweep → job exitoso reclasificado `failed`/`sandbox_error` | `backend/app/services/output_parser.py:31,96` |
 | BL-04 | high | logic-bug | Quiz/Persistencia | `submit_attempt` no es atómico: dos commits independientes; el rollback conjunto es un no-op | `backend/app/repositories/quiz_attempts.py:50`, `progress.py:82`, `quiz_service.py:149-160` |
 | BL-05 | high | missing-business-logic | Jobs/Progreso | `lesson_progress.last_job_id` nunca se escribe (contrato §7.1 incumplido; anomalía WP9-02) | `backend/app/services/job_runner.py:698`, `backend/tests/test_anomalies.py:23,106` |
@@ -95,10 +95,10 @@ Todos los veredictos son CONFIRMED. Detalle completo (escenario de fallo y recom
 *Recomendación:* purgar `lesson_progress` y `quiz_attempts` del `lesson_id` dentro de la misma transacción del DELETE (o añadir FKs `ON DELETE CASCADE` reales), o rechazar la reutilización de ids borrados (tombstone).
 *Matiz del panel:* requiere una acción deliberada de un admin autenticado (no es explotable por un estudiante); es un bug de integridad de negocio, no un vector de ataque.
 
-**BL-02 — El compose empaquetado del desktop reintroduce el bug del volumen `ehpc_submissions`** · inconsistency · CONFIRMED (2/2)
-`desktop/resources/compose/compose.yaml` fija `name: ehpc` como proyecto y declara el volumen `ehpc_submissions:` **sin** el `name:` explícito que el `compose.yaml` raíz sí tiene (línea 67, con comentario explicando este mismo bug). Compose creará `ehpc_ehpc_submissions`, mientras `docker_service.py:245` monta el runner con el literal `ehpc_submissions` (env `TELAR_SUBMISSIONS_VOLUME`, línea 28 del propio compose empaquetado); Docker autocrea un volumen vacío con ese nombre. `COMPOSE_PROJECT_NAME` existe en `desktop/src/constants.ts` pero `ipc-docker.ts` nunca lo pasa.
+**BL-02 — El compose empaquetado del desktop reintroduce el bug del volumen `telar_submissions`** · inconsistency · CONFIRMED (2/2)
+`desktop/resources/compose/compose.yaml` fija `name: telar` como proyecto y declara el volumen `telar_submissions:` **sin** el `name:` explícito que el `compose.yaml` raíz sí tiene (línea 67, con comentario explicando este mismo bug). Compose creará `telar_telar_submissions`, mientras `docker_service.py:245` monta el runner con el literal `telar_submissions` (env `TELAR_SUBMISSIONS_VOLUME`, línea 28 del propio compose empaquetado); Docker autocrea un volumen vacío con ese nombre. `COMPOSE_PROJECT_NAME` existe en `desktop/src/constants.ts` pero `ipc-docker.ts` nunca lo pasa.
 *Escenario:* en Modo A (instalador con imágenes GHCR), **todos los jobs del simulador fallan** con "no such file or directory" — exactamente el bug que `CLAUDE.md` (línea 34) marca como corregido y a no reintroducir. `electron-spec.md` §6.1 reproduce el mismo compose defectuoso.
-*Recomendación:* añadir `name: ehpc_submissions` al volumen del compose empaquetado y un check (test/CI) que compare los campos críticos de ambos compose.
+*Recomendación:* añadir `name: telar_submissions` al volumen del compose empaquetado y un check (test/CI) que compare los campos críticos de ambos compose.
 
 **BL-03 — `ZeroDivisionError` con `hilos = 0`: un job exitoso se reclasifica como `sandbox_error`** · logic-bug · CONFIRMED (2/2, reproducido ejecutando el parser)
 Las regex de sweep aceptan `(\d+)` = 0 (`output_parser.py:31`) y `_sweep_series` valida `baseline<=0` y `time_s<=0` pero no `threads==0` antes de `speedup/threads` (línea 96).
@@ -226,7 +226,7 @@ Ningún `.py` referencia `fundamentos` (grep repo-wide); el seeder/loader solo l
 *Recomendación:* decidir su estado — integrarlo (extendiendo modelo/seeder para lecciones sin ejemplo) o moverlo fuera de `app/content/` como material de fase futura.
 
 **BL-28 — El footer no distingue "Docker ausente" de "servicios detenidos"; `openExternal` sin uso** · missing-business-logic · CONFIRMED (2/2)
-`useDockerStatus` colapsa `ok:false` (docker no instalado) y `ok:true, running==0` en un único `'down'` (`useDockerStatus.ts:42`); el footer siempre dice "servicios detenidos" (`RuntimeFooter.tsx:32`). `window.ehpc.openExternal` no se invoca en ningún punto del frontend, así que el link "Cómo instalar Docker" de `electron-spec.md` §8 (línea 567) no existe.
+`useDockerStatus` colapsa `ok:false` (docker no instalado) y `ok:true, running==0` en un único `'down'` (`useDockerStatus.ts:42`); el footer siempre dice "servicios detenidos" (`RuntimeFooter.tsx:32`). `window.telar.openExternal` no se invoca en ningún punto del frontend, así que el link "Cómo instalar Docker" de `electron-spec.md` §8 (línea 567) no existe.
 *Recomendación:* propagar `ok/error` como estado propio (ámbar/rojo según spec) y añadir el link `openExternal` cuando `ok===false`.
 
 **BL-29 — El estado "ok" del footer ignora `health`** · logic-bug · CONFIRMED (2/2)
@@ -320,7 +320,7 @@ Estado: ✓ = verificada y conforme · ⚠ = implementada con desviaciones (ver 
 | GET públicos §3–§5 byte-idénticos tras Fase 4 | ✓ | Verificado contra `from_fixtures` vs `load(db)` y goldens. |
 | `/health` sin envelope, liveness≠readiness; `max_threads = min(8, cores)` (§2) | ✓ | Conforme. |
 | Dominio OpenMP sin restos MPI/Slurm (CLAUDE.md) | ⚠ | Grep exhaustivo en backend, frontend y contenido: lecciones limpias (menciones a MPI son pedagógicas); componentes viz correctos (nombres como `NodeDiamond` son léxico visual, no semántica); restos reales: etiqueta "Procesos/hilos" (BL-40) y el Amdahl fabricado en pair vs librería (BL-30). |
-| Contratos congelados frontend (`types.ts`, `messages.ts`, `ehpc.d.ts` byte-idéntico a desktop) | ✓ | `ehpc.d.ts` verificado byte-idéntico con diff; regex de `sweepParse.ts` idénticas a las del backend. |
+| Contratos congelados frontend (`types.ts`, `messages.ts`, `telar.d.ts` byte-idéntico a desktop) | ✓ | `telar.d.ts` verificado byte-idéntico con diff; regex de `sweepParse.ts` idénticas a las del backend. |
 | Electron-spec: hardening, CSP, IPC whitelist, estados del footer (§7-§8) | ⚠ | Hardening e IPC verificados (canales sin parámetros del renderer); CSP desvía en `font-src` (BL-39); estados del footer no implementan la spec (BL-28, BL-29); composes empaquetados desincronizados (BL-02, BL-12). |
 
 ---
@@ -369,7 +369,7 @@ Volumen: ~130 subagentes útiles, ~7,8 M tokens, ~2 500 llamadas a herramientas 
 
 ### B. Qué se revisó y qué quedó fuera
 
-**Revisado a fondo (13 áreas):** todos los routers y services del backend; `schema.sql` completo (v1 + migration 2) y los 5 repositorios; seeder y herramientas; el ciclo completo del WS (backend y cliente); los DTOs congelados contra el contrato endpoint a endpoint; los contratos congelados del frontend y su uso real (stores, hooks, sockets, simulador, quiz, admin); auth admin de punta a punta (incl. enumeración del guard en todos los endpoints y el manejo del token en el cliente); `output_parser.py` completo (con ejecución local de solo-cómputo para reproducir BL-03 y BL-37); `catalog.json` contra data-model §4.2 (los 14 ejemplos, uno a uno, y muestreo de 8 `main.py`); grep anti-MPI en backend, frontend y contenido; shell Electron (`main/preload/ipc-docker/security/constants`, byte-identidad de `ehpc.d.ts`, composes empaquetados).
+**Revisado a fondo (13 áreas):** todos los routers y services del backend; `schema.sql` completo (v1 + migration 2) y los 5 repositorios; seeder y herramientas; el ciclo completo del WS (backend y cliente); los DTOs congelados contra el contrato endpoint a endpoint; los contratos congelados del frontend y su uso real (stores, hooks, sockets, simulador, quiz, admin); auth admin de punta a punta (incl. enumeración del guard en todos los endpoints y el manejo del token en el cliente); `output_parser.py` completo (con ejecución local de solo-cómputo para reproducir BL-03 y BL-37); `catalog.json` contra data-model §4.2 (los 14 ejemplos, uno a uno, y muestreo de 8 `main.py`); grep anti-MPI en backend, frontend y contenido; shell Electron (`main/preload/ipc-docker/security/constants`, byte-identidad de `telar.d.ts`, composes empaquetados).
 
 **Fuera de alcance (honestidad):** ejecución dinámica (no se levantó el stack, no se corrieron pytest/vitest/build; dos verificaciones puntuales ejecutaron el parser en aislamiento); el render markdown real del subset; los 23 `.md` de `fundamentos/` línea a línea; la migración real Fase 3→4 sobre una DB poblada (solo lectura del mecanismo); `nginx.conf` y `scripts/` en detalle; el comportamiento real de Docker/cgroups (solo análisis estático de flags); accesibilidad y capa visual (el rediseño en curso no se auditó como tal).
 

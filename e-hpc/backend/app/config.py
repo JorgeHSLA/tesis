@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="TELAR_", extra="ignore")
 
     # Persistencia (db.py)
-    db_path: str = "~/.ehpc/ehpc.db"  # compose: /app/data/ehpc.db
+    db_path: str = "~/.telar/telar.db"  # compose: /app/data/telar.db
 
     # CORS + validación Origin del WS
     allowed_origins: str = (
@@ -28,9 +28,9 @@ class Settings(BaseSettings):
 
     # docker_service
     code_delivery: Literal["bind", "volume"] = "bind"  # compose: volume
-    submissions_volume: str = "ehpc_submissions"
-    jobs_dir: str = "~/.ehpc/jobs"  # solo modo bind
-    runner_image: str = "ehpc-runner:0.5.1"
+    submissions_volume: str = "telar_submissions"
+    jobs_dir: str = "~/.telar/jobs"  # solo modo bind
+    runner_image: str = "telar-runner:0.5.1"
 
     # Validación de jobs / semáforo / drainer
     # 0 (o <=0) = sin límite: el tope de timeout por job es OPCIONAL.

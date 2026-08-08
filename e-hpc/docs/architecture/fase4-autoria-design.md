@@ -705,7 +705,7 @@ Cambios:
 > se actualizan abajo.
 
 Todo lo del estudiante intacto: `client.ts`, `types.ts` (salvo la unión
-`ApiErrorCode`), `messages.ts`, `ehpc.d.ts` no se tocan. Chunks admin `lazy` →
+`ApiErrorCode`), `messages.ts`, `telar.d.ts` no se tocan. Chunks admin `lazy` →
 fuera del bundle del estudiante (además, ahora la rama entera cuelga de
 `ADMIN_BUILD`, así que en el build estudiante ni se registran).
 

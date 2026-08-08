@@ -3,7 +3,7 @@
 // Dos ejes independientes:
 //  · data-variant  → FIJO en v2 (el switch v1/v2 se retiró en 2026-07); no se
 //    lee ningún valor persistido (un 'v1' viejo debe quedar ignorado).
-//  · data-theme    → claro/oscuro, persistido en 'ehpc-theme', con
+//  · data-theme    → claro/oscuro, persistido en 'telar-theme', con
 //    prefers-color-scheme como valor por defecto.
 //
 // El eje de tema se prueba con `vi.resetModules()` + import dinámico porque el
@@ -58,7 +58,7 @@ describe('themeStore · eje de variante (fija v2)', () => {
 
   it('ignora un valor v1 heredado en localStorage y aplica v2', () => {
     // Sesión previa con el switch: pudo quedar 'v1' persistido.
-    localStorage.setItem('ehpc-variant', JSON.stringify({ state: { variant: 'v1' }, version: 0 }))
+    localStorage.setItem('telar-variant', JSON.stringify({ state: { variant: 'v1' }, version: 0 }))
     applyFixedVariant()
     expect(document.documentElement.dataset.variant).toBe('v2')
   })
@@ -111,7 +111,7 @@ describe('themeStore · eje claro/oscuro (data-theme)', () => {
     expect(document.documentElement.dataset.theme).toBe('light')
   })
 
-  it('toggleTheme() alterna, escribe <html> y persiste bajo ehpc-theme', async () => {
+  it('toggleTheme() alterna, escribe <html> y persiste bajo telar-theme', async () => {
     stubSystemDark(false)
     const { useThemeStore } = await freshModule()
 

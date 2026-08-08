@@ -30,7 +30,7 @@ services:
         TELAR_ADMIN_BUILD: "${TELAR_ADMIN_BUILD:-0}"
     ports: ["127.0.0.1:8000:8000"]
     environment:
-      TELAR_DB_PATH: /app/data/ehpc.db
+      TELAR_DB_PATH: /app/data/telar.db
       # Modo autoría (admin): apagado por defecto (=0 ⇒ ESTUDIANTE, /api/v1/admin/*
       # responde 401). Se enciende con la env del shell:
       #   TELAR_ADMIN_MODE=1 docker compose up -d backend
@@ -42,13 +42,13 @@ services:
       # en api-contract.md §0 — mitigado por el bind a loopback.
       TELAR_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null"
       TELAR_CODE_DELIVERY: volume            # 'volume' (compose) | 'bind' (dev nativo)
-      TELAR_SUBMISSIONS_VOLUME: ehpc_submissions
-      TELAR_RUNNER_IMAGE: ehpc-runner:0.5.1
+      TELAR_SUBMISSIONS_VOLUME: telar_submissions
+      TELAR_RUNNER_IMAGE: telar-runner:0.5.1
       TELAR_MAX_TIMEOUT_S: 0                 # 0 = sin límite (tope opcional)
       TELAR_MAX_CONCURRENT_JOBS: 2
     volumes:
-      - ehpc_data:/app/data
-      - ehpc_submissions:/submissions        # rw en backend; el runner lo monta :ro
+      - telar_data:/app/data
+      - telar_submissions:/submissions        # rw en backend; el runner lo monta :ro
       - /var/run/docker.sock:/var/run/docker.sock   # ver §5 (riesgo documentado)
     healthcheck:
       # python-urllib: python:3.12-slim no trae curl/wget.
@@ -67,19 +67,19 @@ services:
   # (la instancia el backend por la API, un contenedor efímero por job).
   runner:
     build: ./runner
-    image: ehpc-runner:0.5.1
+    image: telar-runner:0.5.1
     profiles: ["build"]          # `docker compose --profile build build runner`
     entrypoint: ["true"]
 
 volumes:
   # name: explícito para compartir el MISMO volumen de datos entre despliegues
   # (estudiante / admin) y desactivar el prefijo del proyecto Compose.
-  ehpc_data:
-    name: ehpc_data
+  telar_data:
+    name: telar_data
   # Nombre explícito para DESACTIVAR el prefijo del proyecto Compose: así el
-  # volumen real es 'ehpc_submissions' (no '<proyecto>_ehpc_submissions') y
+  # volumen real es 'telar_submissions' (no '<proyecto>_telar_submissions') y
   # coincide con source=TELAR_SUBMISSIONS_VOLUME que el backend pasa al runner
   # en docker_service._code_mount_kwargs. Sin esto, backend escribe en el
   # volumen prefijado y el runner monta OTRO volumen vacío → 'no such file'.
-  ehpc_submissions:
-    name: ehpc_submissions
+  telar_submissions:
+    name: telar_submissions

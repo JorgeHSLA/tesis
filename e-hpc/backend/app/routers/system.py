@@ -30,7 +30,7 @@ from app.schemas import (
     SystemVersions,
 )
 
-logger = logging.getLogger("ehpc.system")
+logger = logging.getLogger("telar.system")
 
 #: Versión del backend (SystemVersions.backend y FastAPI(version=...)).
 BACKEND_VERSION = "1.0.0"
@@ -142,7 +142,7 @@ async def system_info(request: Request) -> dict:
 
 
 def _pyomp_version(runner_image: str) -> str:
-    """El tag de la imagen runner ES la versión de pyomp (ehpc-runner:0.5.1)."""
+    """El tag de la imagen runner ES la versión de pyomp (telar-runner:0.5.1)."""
     _, _, tag = runner_image.partition(":")
     return tag or "unknown"
 

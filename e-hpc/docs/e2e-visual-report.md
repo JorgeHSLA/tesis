@@ -6,7 +6,7 @@
 > Navegador real: Chromium vía Playwright contra el stack en `http://127.0.0.1:8080`.
 
 - **Fechas:** Fase 3 (estudiante) 2026-07-13 · **Fase 4 (autoría/admin) 2026-07-14**.
-- **Suite:** `~/.ehpc-verify/e2e/` (ext4, aislada del repo) — Page Object Model, `playwright.config.ts`.
+- **Suite:** `~/.telar-verify/e2e/` (ext4, aislada del repo) — Page Object Model, `playwright.config.ts`.
 - **Veredicto global:** ✅ **PASS** — **15/15 tests verdes** (8 estudiante A–D + 7 admin ADM1–7) + aislamiento del sandbox. La verificación encontró **1 bug real de UI** en la autoría de quizzes (el editor no permitía crear el PRIMER quiz de una lección; §10). **BUG-01 quedó RESUELTO** (fix aplicado y verificado el 2026-07-14): ADM4 se reescribió de "documenta el defecto" a **camino feliz** que crea el quiz enteramente por la UI. Además: 1 desviación de *literalidad* en Resultados (no es bug) y 1 flaky corregido de raíz.
 - **Actualización 2026-07-14 (resolución de BUG-01):** se trató el `404 QUIZ_NOT_FOUND` como quiz vacío editable en `AdminQuizEditor` y se corrigió el `id` provisional de las preguntas nuevas (el contrato §10.6 exige `id` no vacío). Frontend: **206 tests Vitest verdes** (+4), `tsc --noEmit` limpio; E2E **15/15** con ADM4 como camino feliz. Sin cambios en contratos congelados ni en el backend. Detalle en §10.
 - **Nota Fase 4:** requiere `TELAR_ADMIN_PASSWORD` (sin la var, admin deshabilitado). Se levantó el stack con esa variable y se **reconstruyeron** las imágenes backend+frontend para incluir el código de Fase 4.
@@ -48,7 +48,7 @@ docker compose up -d      # frontend (nginx :8080) + backend (:8000)
 Readiness comprobada por **polling** (no `sleep` fijo) antes de abrir el navegador:
 
 - `GET /health` → `200 {"status":"ok","checks":{"db":true,"docker":true,"runner_image":true}}`
-- `GET /api/v1/system` → `cores=8, max_threads=8, runner_image="ehpc-runner:0.5.1"`, límites `max_concurrent_jobs=2`, `max_timeout_s=120`.
+- `GET /api/v1/system` → `cores=8, max_threads=8, runner_image="telar-runner:0.5.1"`, límites `max_concurrent_jobs=2`, `max_timeout_s=120`.
 - Versiones: backend `1.0.0`, python `3.12.13`, **pyomp `0.5.1`**, api `v1`.
 
 Smoke E2E de datos (`bash scripts/smoke.sh`) previo: **8/8 PASS** (job `spmd` completado `exit_code=0`, `parsed_timings.kind=sweep`, quiz calificado por el servidor). *Nota:* `smoke.sh` termina con `docker compose down`; se volvió a levantar el stack antes de la verificación visual.
@@ -94,8 +94,8 @@ Smoke E2E de datos (`bash scripts/smoke.sh`) previo: **8/8 PASS** (job `spmd` co
 
 ## 5. Evidencia del sandbox (aislamiento del runner)
 
-Con un job en ejecución, `docker inspect` del contenedor etiquetado `ehpc.job`
-(`ehpc-run-<job_id>`, imagen `ehpc-runner:0.5.1`):
+Con un job en ejecución, `docker inspect` del contenedor etiquetado `telar.job`
+(`telar-run-<job_id>`, imagen `telar-runner:0.5.1`):
 
 | Propiedad | Esperado | Observado | ✓ |
 |---|---|---|---|
@@ -170,7 +170,7 @@ para incluir el código de Fase 4. Journey verificado de punta a punta:
 
 ## 7. Artefactos (entregables)
 
-Raíz: `~/.ehpc-verify/e2e/artifacts/`
+Raíz: `~/.telar-verify/e2e/artifacts/`
 
 - **Capturas por hito** (`artifacts/shots/*.png`, **16 PNG**): estudiante — `home`, `simulador-live`, `resultados-speedup`, `learn-leccion`, `learn-quiz-resultado`, `A-simulador-idle-spmd`, `A4-resultados-regenerados`, `A5-live-antes-de-cancelar`, `A5-cancelado`; admin — `admin-login`, `admin-dashboard-modulo-creado`, `admin-lesson-editor`, **`admin-quiz-nuevo-formulario`** y **`admin-quiz-creado`** (BUG-01 resuelto: crear el primer quiz por UI), `admin-student-catalogo`, `admin-student-simulador`. *(La corrida previa al fix dejó `admin-quiz-DEFECTO-nuevo.png` como registro histórico del defecto.)*
 - **Trace + video por test** (`artifacts/evidence/**`): **15 `trace.zip` + 15 `video.webm`** (corrida verde bajo `playwright.evidence.config.ts` con `trace/video/screenshot: 'on'`).
@@ -178,7 +178,7 @@ Raíz: `~/.ehpc-verify/e2e/artifacts/`
 - **Logs de consola por test:** `artifacts/console/*.json` (estudiante `[]`; admin solo 401/404 esperados de `/api/v1/admin/*`).
 - **Trace de la corrida principal:** `artifacts/test-output/**/trace.zip` (sólo si hubo reintento).
 
-Ver un trace: `npx playwright show-trace ~/.ehpc-verify/e2e/artifacts/evidence/<carpeta-del-test>/trace.zip`
+Ver un trace: `npx playwright show-trace ~/.telar-verify/e2e/artifacts/evidence/<carpeta-del-test>/trace.zip`
 
 ---
 
@@ -197,7 +197,7 @@ curl -s http://127.0.0.1:8080/health         # esperar 200
 # 2) Suite (Node 22 vía nvm; ext4). La suite admin usa la contraseña 'e2e-admin-2026'
 #    (constante PWD en tests/d-admin.spec.ts) — ajústala a la del backend.
 export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"
-cd ~/.ehpc-verify/e2e
+cd ~/.telar-verify/e2e
 npx playwright test                                   # config CI-correcta (15 tests)
 npx playwright test --config=playwright.evidence.config.ts   # + trace/video para la memoria
 ```

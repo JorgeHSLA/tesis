@@ -41,7 +41,7 @@ Cada archivo exporta a `window` con `Object.assign(window, {...})`. En producci�
 
 ### 0.3 Router y estado global (app.jsx)
 
-- `variant: 'v1' | 'v2'` — persistido en `localStorage['ehpc-variant']` (default `'v1'`). Efecto: `document.documentElement.dataset.variant = variant` (habilita `:root[data-variant="v2"]` de v2.css) **y** clase en el contenedor raíz: `<div className={'app ' + variant}>` (habilita selectores `.v2 .xxx`).
+- `variant: 'v1' | 'v2'` — persistido en `localStorage['telar-variant']` (default `'v1'`). Efecto: `document.documentElement.dataset.variant = variant` (habilita `:root[data-variant="v2"]` de v2.css) **y** clase en el contenedor raíz: `<div className={'app ' + variant}>` (habilita selectores `.v2 .xxx`).
 - `screen: 'home' | 'simulator' | 'results' | 'catalog' | 'learn'` (default `'home'`).
 - `simStatus: 'idle' | 'running' | 'finished'` (default `'idle'`).
 - `mode: 'sim' | 'learn'` — se actualiza con la pantalla (`learn|catalog → 'learn'`; `simulator|results → 'sim'`) pero **nunca se renderiza** (vestigial; existe CSS `.v2 .mode-switch` sin JSX que lo use).
@@ -315,7 +315,7 @@ Labels de los botones: `v1 · cálido` y `v2 · local app`. En producción: mant
 
 ### 3.2 Sidebar — estructura exacta (shell.jsx)
 
-Estado: `expanded` persistido en `localStorage['ehpc-sidebar-expanded']`; **default: colapsado** (`saved === null → false`).
+Estado: `expanded` persistido en `localStorage['telar-sidebar-expanded']`; **default: colapsado** (`saved === null → false`).
 
 Estructura DOM:
 ```
@@ -669,7 +669,7 @@ Grid de columnas: `120px 180px 1fr 1fr 100px 100px`, gap 14, padding filas 10px 
 Columnas (cabecera literal): `Nodo` · `Contenedor` · `CPU` · `Memoria` · `Msgs MPI` · `Estado`.
 
 - **Nodo:** `NodeDiamond` (div 18×18 rotado 45°, radius 3; color: warn `#E8A317`, head `#2F5E21`, worker `#3F7A2E`) + id en mono.
-- **Contenedor:** mono-small — head → `ehpc-head-01`; workers → `ehpc-worker-w{i}` (el código concatena `ehpc-worker-${n.id}` y el id ya es `w0`… → literal `ehpc-worker-w0`).
+- **Contenedor:** mono-small — head → `telar-head-01`; workers → `telar-worker-w{i}` (el código concatena `telar-worker-${n.id}` y el id ya es `w0`… → literal `telar-worker-w0`).
 - **CPU:** `MiniBar` color `#3F7A2E` (warning → `#E8A317`).
 - **Memoria:** `MiniBar` color `#F57324`.
 - **Msgs MPI:** número mono.
@@ -1002,7 +1002,7 @@ Nota SMIL: `animateMotion`/`animate` funcionan en todos los navegadores modernos
 - Es el **runtime de "edit mode" de Claude Design**: un panel flotante arrastrable (280px, glassmorphism `rgba(250,249,247,.78)` + `backdrop-filter blur(24px)`) con controles genéricos (`TweakSlider`, `TweakToggle`, `TweakRadio` segmentado, `TweakSelect`, `TweakText`, `TweakNumber` con scrub, `TweakColor`, `TweakButton`, `TweakSection`) y un hook `useTweaks` que persiste vía `postMessage` al host (`__edit_mode_available`, `__activate_edit_mode`, `__deactivate_edit_mode`, `__edit_mode_set_keys`, `__edit_mode_dismissed`) reescribiendo bloques `/*EDITMODE-BEGIN*/.../*EDITMODE-END*/` en disco.
 - **NO está incluido en E-HPC.html** (ningún `<script>` lo carga) y **ningún componente del prototipo lo usa**. No controla el selector v1/v2 (eso lo hace `variant-switch` de app.jsx).
 - **Decisión para producción: no portar.** Lo único que debe conservarse funcionalmente es:
-  1. El **switcher de variantes v1/v2** del topbar (§2.8) con persistencia en `localStorage['ehpc-variant']`.
+  1. El **switcher de variantes v1/v2** del topbar (§2.8) con persistencia en `localStorage['telar-variant']`.
   2. El doble mecanismo de theming (`data-variant` en `<html>` + clase en `.app`) — o unificarlo en producción en un solo atributo `data-variant` y reescribir los selectores `.v2 ...` como `[data-variant="v2"] ...`.
 - Si se quisiera un panel de dev-tweaks interno, este archivo sirve de referencia de UX, pero no es parte del diseño de Telar.
 
@@ -1065,7 +1065,7 @@ El prototipo está escrito alrededor de MPI + Slurm + Docker (cluster simulado).
 | Live · terminal título | `docker logs -f head-node --tail 40` | `./heat_omp — salida en vivo` (o el comando real del backend) |
 | Live · logs genLogLine | `rank {r} entering MPI_Barrier`, `MPI_Send(...)`, `MPI_Recv(...)` | `thread {t} entering omp barrier`, `critical(sum) acquired by t{t}`, `chunk {a}-{b} → t{t}` |
 | Live · warn banner | `Worker w3 está idle… revisa el MPI_Scatter.` | `Hilo t3 está idle… revisa el schedule(static) — prueba dynamic.` |
-| Live · tabla | columnas `Contenedor` / `Msgs MPI`; valores `ehpc-head-01`, `ehpc-worker-w{i}` | `Núcleo` / `Syncs`; `core-0`, `core-{i}` |
+| Live · tabla | columnas `Contenedor` / `Msgs MPI`; valores `telar-head-01`, `telar-worker-w{i}` | `Núcleo` / `Syncs`; `core-0`, `core-{i}` |
 | Resultados · métricas | `Mensajes MPI 14,862` | `Sincronizaciones 14,862` |
 | Resultados · obs 1 | `Tu MPI_Scatter reparte 128 filas entre 4 workers…` | `Tu schedule(static) reparte 128 filas entre 4 hilos…` |
 | Resultados · obs 2 | `Todos los workers enviaron/recibieron dentro del 10%…` | `Todos los hilos trabajaron dentro del 10% entre sí…` |
@@ -1108,10 +1108,10 @@ src/
   styles/tokens.css        (§1.2–1.5: v1 + dark + v2 en data-variant)
   styles/base.css          (§1.1, 1.7, 2.x)
   styles/screens.css       (§4–8, corregido)
-  theme/VariantContext.tsx (variant + localStorage 'ehpc-variant'; setea data-variant en <html>)
+  theme/VariantContext.tsx (variant + localStorage 'telar-variant'; setea data-variant en <html>)
   components/icons/        (§9, portados literal)
   components/ui/           (Button, Card, Chip, Terminal, MetricCard, MiniBar, NodeDiamond…)
-  components/shell/        (Sidebar, TopBar; localStorage 'ehpc-sidebar-expanded', default colapsado)
+  components/shell/        (Sidebar, TopBar; localStorage 'telar-sidebar-expanded', default colapsado)
   components/viz/          (HomeClusterDiagram, ClusterTopology, LiveTopology, WorkDistributionChart)
   screens/                 (Home, Simulator, Results, Catalog, Learn)
   sim/                     (useSimulation: tick 700ms, jitter, genLogLine, progreso)

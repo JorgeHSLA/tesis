@@ -178,7 +178,7 @@ Se mantiene el criterio verificado de la tesis: **cero recharts/d3/chart.js**.
 Verificado sobre la ventana real (WSLg, conexión CDP):
 
 ```
-window.ehpc presente · platform "linux" · data-variant "v2"
+window.telar presente · platform "linux" · data-variant "v2"
 app 1908×972  ==  viewport 1908×972   → llena la ventana exacto ✅
 scroll horizontal: false · fondo: rgb(232,237,244) = #E8EDF4
 requests de red: solo localhost:8000 (API) → 0 requests de fuentes/CDN ✅
@@ -216,7 +216,7 @@ Higiene resultante (verificada por grep):
 | `prefers-reduced-motion` | animaciones a `0s` bajo `reduce`, activas en `no-preference` |
 | Desbordes @1920·1440·1280·1024·768·375 (5 pantallas + admin) | **0** |
 | Electron (WSLg) | carga y llena la ventana exacto |
-| Contratos congelados (`api/types.ts`, `ws/messages.ts`, `types/ehpc.d.ts`, `schemas.py`) | **sin tocar** |
+| Contratos congelados (`api/types.ts`, `ws/messages.ts`, `types/telar.d.ts`, `schemas.py`) | **sin tocar** |
 | Semántica accesible de los E2E (roles/labels/textos) | **sin tocar** |
 
 ## Observación para seguimiento (fuera del alcance de este trabajo)

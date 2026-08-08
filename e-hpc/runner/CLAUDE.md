@@ -5,7 +5,7 @@ Imagen `python:3.12-slim` + `pyomp==0.5.1` (wheel cp312 verificado — sin conda
 ## Construir / probar
 
 ```bash
-docker build -t ehpc-runner:0.5.1 runner/    # incluye smoke test de OpenMP en el build (fail-fast); ~777MB
+docker build -t telar-runner:0.5.1 runner/    # incluye smoke test de OpenMP en el build (fail-fast); ~777MB
 ```
 
 ## Sandbox (código NO confiable — no relajar)

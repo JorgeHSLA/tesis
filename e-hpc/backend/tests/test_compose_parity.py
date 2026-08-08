@@ -6,12 +6,12 @@ El desktop shell despliega con su propio compose empaquetado
 del compose raíz (``compose.yaml``) en los dos puntos que ya causaron
 incidentes y que este test evita que se vuelvan a colar:
 
-- **BL-02**: el volumen ``ehpc_submissions`` necesita ``name:`` explícito
+- **BL-02**: el volumen ``telar_submissions`` necesita ``name:`` explícito
   para desactivar el prefijo de proyecto de Compose. El compose empaquetado
-  fija ``name: ehpc`` a nivel de proyecto; sin el ``name:`` explícito en el
-  volumen, Compose crearía ``ehpc_ehpc_submissions`` mientras el runner
+  fija ``name: telar`` a nivel de proyecto; sin el ``name:`` explícito en el
+  volumen, Compose crearía ``telar_telar_submissions`` mientras el runner
   sigue montando el literal de ``TELAR_SUBMISSIONS_VOLUME``
-  (``ehpc_submissions``) → volumen vacío → **todos los jobs fallan** con
+  (``telar_submissions``) → volumen vacío → **todos los jobs fallan** con
   "no such file or directory" (Modo A, ver
   ``app/services/docker_service.py::_code_mount_kwargs``).
 - **BL-12**: ``TELAR_ALLOWED_ORIGINS`` del compose empaquetado quedó
@@ -57,8 +57,8 @@ def desktop_compose() -> dict:
 
 
 def _volume_name(compose: dict) -> str | None:
-    """``name:`` explícito de volumes.ehpc_submissions, o None si no está."""
-    volume = compose.get("volumes", {}).get("ehpc_submissions")
+    """``name:`` explícito de volumes.telar_submissions, o None si no está."""
+    volume = compose.get("volumes", {}).get("telar_submissions")
     return volume.get("name") if isinstance(volume, dict) else None
 
 
@@ -70,17 +70,17 @@ def _backend_env(compose: dict, key: str) -> object:
 
 
 @pytest.mark.parametrize("compose_fixture", ["root_compose", "desktop_compose"])
-def test_volumen_ehpc_submissions_tiene_name_explicito(compose_fixture, request):
+def test_volumen_telar_submissions_tiene_name_explicito(compose_fixture, request):
     compose = request.getfixturevalue(compose_fixture)
     label = _LABELS[compose_fixture]
     volume_name = _volume_name(compose)
-    assert volume_name == "ehpc_submissions", (
-        f"BL-02: {label} no declara `name: ehpc_submissions` explícito en el "
-        "volumen `volumes.ehpc_submissions`. Sin ese `name:` explícito, con "
-        "el `name:` de proyecto Compose fijado (p.ej. `name: ehpc`), Compose "
-        "crea el volumen prefijado `ehpc_ehpc_submissions` mientras el "
+    assert volume_name == "telar_submissions", (
+        f"BL-02: {label} no declara `name: telar_submissions` explícito en el "
+        "volumen `volumes.telar_submissions`. Sin ese `name:` explícito, con "
+        "el `name:` de proyecto Compose fijado (p.ej. `name: telar`), Compose "
+        "crea el volumen prefijado `telar_telar_submissions` mientras el "
         "runner sigue montando el literal de TELAR_SUBMISSIONS_VOLUME "
-        "(`ehpc_submissions`) → monta un volumen vacío/distinto → TODOS los "
+        "(`telar_submissions`) → monta un volumen vacío/distinto → TODOS los "
         "jobs fallan con 'no such file or directory' (Modo A)."
     )
 
@@ -126,7 +126,7 @@ def test_submissions_volume_env_coincide_con_name_del_volumen(compose_fixture, r
     volume_name = _volume_name(compose)
     assert volume_name == env_value, (
         f"BL-02: en {label}, TELAR_SUBMISSIONS_VOLUME={env_value!r} no "
-        f"coincide con el `name:` explícito del volumen `ehpc_submissions` "
+        f"coincide con el `name:` explícito del volumen `telar_submissions` "
         f"({volume_name!r}). El backend escribe el código del estudiante en "
         "el volumen TELAR_SUBMISSIONS_VOLUME y el runner monta ese mismo "
         "literal como source; si no coinciden con el nombre real del "

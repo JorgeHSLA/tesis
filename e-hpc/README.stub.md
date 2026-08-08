@@ -17,7 +17,7 @@ troubleshooting) llega con WP11.
 ## Arranque rápido (dev, WSL2)
 
 ```bash
-make build-runner    # imagen ehpc-runner (una vez, ~777 MB)
+make build-runner    # imagen telar-runner (una vez, ~777 MB)
 make dev-backend     # uvicorn :8000 (nativo WSL)
 make dev-frontend    # Vite :5173
 ```

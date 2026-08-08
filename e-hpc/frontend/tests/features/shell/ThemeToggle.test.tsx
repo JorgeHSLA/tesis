@@ -48,6 +48,6 @@ describe('ThemeToggle', () => {
 
     render(<ThemeToggle />)
     expect(screen.getByRole('button', { name: 'Cambiar a modo claro' })).toHaveAttribute('aria-pressed', 'true')
-    expect(localStorage.getItem('ehpc-theme')).toContain('dark')
+    expect(localStorage.getItem('telar-theme')).toContain('dark')
   })
 })

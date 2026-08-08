@@ -27,7 +27,7 @@ sobre el mismo build de React:
 5. [Ejecutar la versión ESCRITORIO](#5-ejecutar-la-versión-escritorio)
 6. [Ejecutar los TESTS](#6-ejecutar-los-tests)
 7. [Prueba de humo E2E (`scripts/smoke.sh`)](#7-prueba-de-humo-e2e-scriptssmokesh)
-8. [Variables de entorno `TELAR_*`](#8-variables-de-entorno-ehpc_)
+8. [Variables de entorno `TELAR_*`](#8-variables-de-entorno-telar_)
 9. [Modelo de seguridad del runner](#9-modelo-de-seguridad-del-runner)
 10. [Decisiones de diseño clave](#10-decisiones-de-diseño-clave)
 11. [Limitaciones conocidas](#11-limitaciones-conocidas)
@@ -67,17 +67,17 @@ jobs hablando con el daemon de Docker a través de un módulo aislado
 |  Electron shell |  :8000          v
 |  (mismo build)  +------->+------------------+       +------------------+
 +--------+--------+        |  FastAPI backend |<----->|  SQLite (WAL)    |
-         | IPC whitelist   |  uvicorn 1 worker|       |  vol. ehpc_data  |
+         | IPC whitelist   |  uvicorn 1 worker|       |  vol. telar_data  |
          | (compose up/    +--------+---------+       +------------------+
          |  stop/ps)                | docker-py (módulo docker_service)
          v                          v
 +---------------------------------------------------------------+
 |  Docker daemon (/var/run/docker.sock)                          |
 |   +---------------------------------------------------------+ |
-|   | runner efímero por job: ehpc-runner                     | |
+|   | runner efímero por job: telar-runner                     | |
 |   | --network none --user 10001 --cap-drop ALL              | |
 |   | --read-only + tmpfs /tmp | 512m | pids 128 | init       | |
-|   | código en /work :ro (vol. ehpc_submissions, subpath)    | |
+|   | código en /work :ro (vol. telar_submissions, subpath)    | |
 |   +---------------------------------------------------------+ |
 +---------------------------------------------------------------+
 ```
@@ -87,7 +87,7 @@ jobs hablando con el daemon de Docker a través de un módulo aislado
 | **Frontend** | React + Vite + TypeScript (nginx en web, Electron en desktop) | UI: home, simulador, resultados, catálogo, lecciones/quizzes |
 | **Desktop shell** | Electron ^43 + electron-builder ^26 + esbuild | Carga el mismo build; IPC con whitelist cerrada para `docker compose up/stop/ps` |
 | **Backend** | FastAPI + uvicorn (**1 worker**) + Python 3.12 | API REST + WebSocket, orquestación de jobs, persistencia |
-| **Runner** | Imagen propia `ehpc-runner` (`python:3.12-slim` + `pyomp==0.5.1`, ~777 MB) | Ejecuta el código del estudiante; un contenedor efímero por job |
+| **Runner** | Imagen propia `telar-runner` (`python:3.12-slim` + `pyomp==0.5.1`, ~777 MB) | Ejecuta el código del estudiante; un contenedor efímero por job |
 | **Persistencia** | SQLite (aiosqlite, WAL) + fixtures versionados en código | Jobs, intentos de quiz, progreso |
 
 **Puertos, todos ligados a `127.0.0.1` (loopback):** el backend **no tiene
@@ -157,7 +157,7 @@ forma fiable. Por eso:
 
 - **`node_modules`, `npm ci`, `tsc`, `vite build` y `pytest` pesados NUNCA se
   ejecutan sobre `/mnt/d`.** Se sincronizan a una copia en **ext4**
-  (`$HOME/.ehpc-build/…` o un clon de trabajo en `~/dev/e-hpc`), se compila
+  (`$HOME/.telar-build/…` o un clon de trabajo en `~/dev/e-hpc`), se compila
   allí y sólo se copian de vuelta los artefactos (`dist/`, `package-lock.json`).
 - El `Makefile` encapsula esta regla: `make build-frontend`, `make build-desktop`
   y `make dist` hacen el `rsync` a ext4, compilan y traen los artefactos.
@@ -165,12 +165,12 @@ forma fiable. Por eso:
 
   ```bash
   rsync -a --exclude node_modules --exclude dist --exclude .venv \
-        /mnt/d/universidad/tesis/e-hpc/frontend/ ~/.ehpc-build/frontend/
-  cd ~/.ehpc-build/frontend && \
+        /mnt/d/universidad/tesis/e-hpc/frontend/ ~/.telar-build/frontend/
+  cd ~/.telar-build/frontend && \
     export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh" && nvm use 22 && \
     npm ci && npm run build
   # copia de vuelta el lock regenerado y el dist:
-  cp ~/.ehpc-build/frontend/package-lock.json /mnt/d/universidad/tesis/e-hpc/frontend/
+  cp ~/.telar-build/frontend/package-lock.json /mnt/d/universidad/tesis/e-hpc/frontend/
   ```
 
 > Los **builds de Docker** no sufren esta regla en el mismo grado (el contexto
@@ -220,7 +220,7 @@ construye aparte con `--profile build`.
 
 > **Nota sobre el nombre del proyecto Compose.** Levantar desde la raíz del repo
 > usa el proyecto `e-hpc`; levantar desde un clon en ext4 usa `repo`. El volumen
-> `ehpc_submissions` lleva `name:` explícito en `compose.yaml`, así que **es el
+> `telar_submissions` lleva `name:` explícito en `compose.yaml`, así que **es el
 > mismo volumen real en ambos casos** (ver [§10](#10-decisiones-de-diseño-clave)).
 > Compose puede emitir un warning cosmético "volume already exists but was
 > created for project…"; es benigno y el job se ejecuta correctamente.
@@ -249,7 +249,7 @@ esbuild recompila; reinicia Electron a mano (`Ctrl+C` + `npm run dev`).
 # recomendado: usa el Makefile (aplica la regla ext4 automáticamente)
 make dist
 
-# o manualmente, en un clon ext4 (~/dev/e-hpc o ~/.ehpc-build):
+# o manualmente, en un clon ext4 (~/dev/e-hpc o ~/.telar-build):
 cd desktop && npm run dist:linux   # == npm run build && electron-builder --linux
 ```
 
@@ -313,8 +313,8 @@ rendimiento:
 ```bash
 # sincroniza a ext4 y ejecuta
 rsync -a --exclude .venv --exclude __pycache__ \
-      /mnt/d/universidad/tesis/e-hpc/backend/ ~/.ehpc-build/backend/
-cd ~/.ehpc-build/backend
+      /mnt/d/universidad/tesis/e-hpc/backend/ ~/.telar-build/backend/
+cd ~/.telar-build/backend
 python -m pytest --cov=app --cov-fail-under=80
 ```
 
@@ -330,7 +330,7 @@ python -m pytest --cov=app --cov-fail-under=80
 
 ```bash
 export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh" && nvm use 22
-cd ~/.ehpc-build/frontend   # clon ext4 con node_modules
+cd ~/.telar-build/frontend   # clon ext4 con node_modules
 npm run test                # vitest run
 npm run test:coverage       # con cobertura (≥80% en src/ws, stores, lib, hooks)
 ```
@@ -343,7 +343,7 @@ separado** (usan `conftest.py` homónimos sin paquete que colisionan si se
 recolectan juntos):
 
 ```bash
-cd ~/.ehpc-build/backend
+cd ~/.telar-build/backend
 python -m pytest tests_local_wp1
 python -m pytest tests_local_wp2
 # … etc.
@@ -394,12 +394,12 @@ Transcripción de
 
 | Variable | Default | Usada por |
 |---|---|---|
-| `TELAR_DB_PATH` | `~/.ehpc/ehpc.db` (dev) / `/app/data/ehpc.db` (compose) | `db.py` |
+| `TELAR_DB_PATH` | `~/.telar/telar.db` (dev) / `/app/data/telar.db` (compose) | `db.py` |
 | `TELAR_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null` | CORS + validación Origin del WS |
 | `TELAR_CODE_DELIVERY` | `bind` (dev) / `volume` (compose) | `docker_service` |
-| `TELAR_SUBMISSIONS_VOLUME` | `ehpc_submissions` | `docker_service` (modo volume) |
-| `TELAR_JOBS_DIR` | `~/.ehpc/jobs` | `docker_service` (modo bind) |
-| `TELAR_RUNNER_IMAGE` | `ehpc-runner:0.5.1` | `docker_service` |
+| `TELAR_SUBMISSIONS_VOLUME` | `telar_submissions` | `docker_service` (modo volume) |
+| `TELAR_JOBS_DIR` | `~/.telar/jobs` | `docker_service` (modo bind) |
+| `TELAR_RUNNER_IMAGE` | `telar-runner:0.5.1` | `docker_service` |
 | `TELAR_MAX_TIMEOUT_S` | `120` | validación de jobs |
 | `TELAR_MAX_CONCURRENT_JOBS` | `2` | semáforo del `job_runner` |
 | `TELAR_MAX_CODE_BYTES` | `262144` | validación jobs/upload |
@@ -509,7 +509,7 @@ contenedor-efímero de glot.run/codapi):
 | 12 | Código montado `/work` **`:ro`** | Automodificación; escritura fuera de tmpfs |
 | 13 | Timeout duro `wait(timeout)` + `kill` | Bucles infinitos (wall-clock) |
 | 14 | Truncado de output a 256 KB + kill | Inundación del backend/WS; deadlock de pipe |
-| 15 | Labels `ehpc.runner=true` + reaper al arranque | Contenedores huérfanos si el backend crashea |
+| 15 | Labels `telar.runner=true` + reaper al arranque | Contenedores huérfanos si el backend crashea |
 | 16 | Imagen fija por constante; el usuario nunca influye en `HostConfig` | Inyección de parámetros a `containers.run` |
 
 ### 9.1 Riesgo documentado del socket Docker
@@ -571,11 +571,11 @@ Detalle completo en
    llamadas `fetch`/WS de la UI web con error de CORS.
 
 7. **Fix de infraestructura — nombre explícito del volumen Compose.** El backend
-   escribe el código del job en el volumen `ehpc_submissions` y le pasa al runner
-   `source=ehpc_submissions`. Por defecto Compose **prefija** los volúmenes con
-   el nombre del proyecto (`<proyecto>_ehpc_submissions`), con lo que el backend
+   escribe el código del job en el volumen `telar_submissions` y le pasa al runner
+   `source=telar_submissions`. Por defecto Compose **prefija** los volúmenes con
+   el nombre del proyecto (`<proyecto>_telar_submissions`), con lo que el backend
    escribiría en el volumen prefijado y el runner montaría **otro** volumen
-   vacío → `no such file`. Se fija `name: ehpc_submissions` en `compose.yaml`
+   vacío → `no such file`. Se fija `name: telar_submissions` en `compose.yaml`
    para **desactivar el prefijo**, de modo que backend y runner comparten el
    mismo volumen real.
 
@@ -609,12 +609,12 @@ Detalle completo en
 |---|---|---|
 | **`npm warn EBADENGINE … required: node >=22`** | Shell en Node 18 (default del sistema) | `export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh" && nvm use 22` en esa terminal. |
 | **Primera ejecución de un job muy lenta / "compiling" largo** | **JIT de PyOMP/Numba** compila en la primera invocación (segundos). No es un cuelgue | Espera; ejecuciones siguientes del mismo código son rápidas. El timeout por defecto ya lo contempla. |
-| **`npm ci` eterno o errores de symlink** | Ejecutar sobre `/mnt/d` (drvfs) | Sigue la **regla ext4** ([§3.6](#36-regla-ext4-de-wsl2-crítica-para-builds-npm)): `rsync` a `~/.ehpc-build/…` y compila allí. Nunca `node_modules` en `/mnt/d`. |
+| **`npm ci` eterno o errores de symlink** | Ejecutar sobre `/mnt/d` (drvfs) | Sigue la **regla ext4** ([§3.6](#36-regla-ext4-de-wsl2-crítica-para-builds-npm)): `rsync` a `~/.telar-build/…` y compila allí. Nunca `node_modules` en `/mnt/d`. |
 | **AppImage no arranca: `dlopen(): error loading libfuse.so.2`** | Falta FUSE 2 | `sudo apt install libfuse2` (o extrae con `./Telar.AppImage --appimage-extract` y ejecuta el `AppRun`). |
 | **Windows: "Windows protegió su PC" (SmartScreen)** | Instalador **sin firmar** | **Más información → Ejecutar de todas formas**. Es esperado (ver [§5.3](#53-distribución-windows-nsis--portable)). |
-| **`docker compose` da warning "volume already exists but was created for project…"** | Volumen `ehpc_submissions` con `name:` explícito, levantado antes desde otro directorio (proyecto Compose distinto) | **Benigno**: es el mismo volumen real; el job se ejecuta bien. Para silenciarlo, levanta siempre desde el mismo directorio o `docker compose down -v` para recrearlo. |
-| **UI carga pero las llamadas fallan con error de CORS** | Origin no permitido (p.ej. abriste por un host distinto de `127.0.0.1`/`localhost`) | Usa exactamente `http://127.0.0.1:8080`. Los origins válidos están en `TELAR_ALLOWED_ORIGINS` ([§8](#8-variables-de-entorno-ehpc_)). |
-| **`/system` con `runner_image_present: false` / job falla con `RUNNER_IMAGE_MISSING`** | Falta la imagen `ehpc-runner:0.5.1` | `docker compose --profile build build runner` (o `make build-runner`). |
+| **`docker compose` da warning "volume already exists but was created for project…"** | Volumen `telar_submissions` con `name:` explícito, levantado antes desde otro directorio (proyecto Compose distinto) | **Benigno**: es el mismo volumen real; el job se ejecuta bien. Para silenciarlo, levanta siempre desde el mismo directorio o `docker compose down -v` para recrearlo. |
+| **UI carga pero las llamadas fallan con error de CORS** | Origin no permitido (p.ej. abriste por un host distinto de `127.0.0.1`/`localhost`) | Usa exactamente `http://127.0.0.1:8080`. Los origins válidos están en `TELAR_ALLOWED_ORIGINS` ([§8](#8-variables-de-entorno-telar_)). |
+| **`/system` con `runner_image_present: false` / job falla con `RUNNER_IMAGE_MISSING`** | Falta la imagen `telar-runner:0.5.1` | `docker compose --profile build build runner` (o `make build-runner`). |
 | **`scripts/smoke.sh`: "ni jq ni python3 disponibles"** | Entorno sin `jq` ni `python3` | Instala uno de los dos; Python 3.12 ya es prerequisito ([§3.4](#34-python-312)). |
 
 ---

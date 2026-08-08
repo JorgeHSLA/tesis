@@ -72,11 +72,11 @@ def _fresh_write_lock():
 def settings(tmp_path: Path) -> Settings:
     """Settings de test aislados del entorno del host."""
     return Settings(
-        db_path=str(tmp_path / "ehpc.db"),
+        db_path=str(tmp_path / "telar.db"),
         jobs_dir=str(tmp_path / "jobs"),
         allowed_origins="http://localhost:5173,http://localhost:8080,null",
         code_delivery="bind",
-        runner_image="ehpc-runner:0.5.1",
+        runner_image="telar-runner:0.5.1",
         # Despliegue CON tope (el default de producción es 0 = sin límite).
         # Se mantiene explícito para que la suite ejercite la rama "tope
         # activo"; los tests del centinela 0 construyen su propio Settings.
@@ -139,7 +139,7 @@ def make_job_record(job_id: str, **over) -> JobRecord:
         source_code="print('x')\n",
         threads=2,
         timeout_s=30,
-        runner_image="ehpc-runner:0.5.1",
+        runner_image="telar-runner:0.5.1",
         status="queued",
         container_id=None,
         error_detail=None,

@@ -14,7 +14,7 @@
 
 1. Leer PRIMERO los docs de `docs/architecture/` listados en su paquete.
 2. Entorno WSL2: `npm ci`/builds/pytest se ejecutan en el clon ext4
-   (`~/dev/e-hpc/`), nunca en `/mnt/d`. DB y jobs de dev en `~/.ehpc/`.
+   (`~/dev/e-hpc/`), nunca en `/mnt/d`. DB y jobs de dev en `~/.telar/`.
 3. Convenciones de código: archivos < 400 líneas (800 máx), funciones
    < 50 líneas, datos inmutables, errores manejados explícitamente, cero
    secretos hardcodeados.
@@ -61,8 +61,8 @@ configuración, contratos transcritos y artefactos operativos.
   modules, lessons, quiz, progress, mensajes WS) — transcripción, sin lógica.
 - **Tipos TS**: `frontend/src/api/types.ts` y `frontend/src/ws/messages.ts`
   transcritos de api-contract.md (snake_case literal, 8 fases, envelope);
-  `frontend/src/types/ehpc.d.ts` y `desktop/types/ehpc-api.d.ts` (contrato
-  `window.ehpc` de electron-spec §5.1, copia idéntica + test de igualdad).
+  `frontend/src/types/telar.d.ts` y `desktop/types/telar-api.d.ts` (contrato
+  `window.telar` de electron-spec §5.1, copia idéntica + test de igualdad).
 - `frontend/package.json` (deps de frontend-spec §0), `vite.config.ts`
   (`base:'./'`, alias `@`), `tsconfig.json` strict, `index.html`
   (`data-variant="v1"`), `src/config.ts` (resolución RUNTIME de
@@ -86,7 +86,7 @@ configuración, contratos transcritos y artefactos operativos.
   python -c "import app.config, app.schemas"`.
 - `docker build runner/` construye y su smoke test interno pasa (puede
   tardar; ~777 MB).
-- Test de igualdad `ehpc.d.ts` == `ehpc-api.d.ts` pasa.
+- Test de igualdad `telar.d.ts` == `telar-api.d.ts` pasa.
 
 **Presupuesto**: ~45 archivos, ~2.500 líneas (la mitad configs/DTOs).
 
@@ -386,7 +386,7 @@ empaquetado e iconos), `desktop/electron-builder.yml`.
 
 **Criterios**: `npm run typecheck` + `npm run build`; `npm run dist:linux`
 produce AppImage+deb; con el stack compose corriendo: la app carga el build,
-`window.ehpc` definido, footer muestra estado Docker, `Levantar` ejecuta la
+`window.telar` definido, footer muestra estado Docker, `Levantar` ejecuta la
 secuencia build-runner+up y el poll aguanta hasta 10 min; navegación externa
 bloqueada (test manual del checklist §7.3).
 

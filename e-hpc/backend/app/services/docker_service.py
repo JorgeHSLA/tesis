@@ -28,13 +28,13 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from ..config import Settings
 
-logger = logging.getLogger("ehpc.docker_service")
+logger = logging.getLogger("telar.docker_service")
 
 # ───────────────────── Constantes del sandbox (architecture §4) ──────────────
 # El usuario JAMÁS influye en HostConfig: imagen/flags fijos por constante;
 # solo `threads` (ya validado 1..max) y el timeout acotado llegan del exterior.
 
-RUNNER_LABEL = "ehpc.runner"  # + ehpc.job=<id>; base del reaper (§4.15)
+RUNNER_LABEL = "telar.runner"  # + telar.job=<id>; base del reaper (§4.15)
 SANDBOX_NETWORK_MODE = "none"  # §4.1 sin red
 SANDBOX_USER = "10001"  # §4.2 useradd runner, sin shell
 SANDBOX_CAP_DROP = ["ALL"]  # §4.3
@@ -261,9 +261,9 @@ class DockerService:
             container = self._client.containers.create(
                 image=self._settings.runner_image,
                 command=RUNNER_COMMAND,
-                name=f"ehpc-run-{job_id}",
+                name=f"telar-run-{job_id}",
                 detach=True,
-                labels={RUNNER_LABEL: "true", "ehpc.job": job_id},
+                labels={RUNNER_LABEL: "true", "telar.job": job_id},
                 # --- aislamiento (§4) ---
                 network_mode=SANDBOX_NETWORK_MODE,
                 user=SANDBOX_USER,
@@ -315,7 +315,7 @@ class DockerService:
         """Mata el runner del job por label (vía REST /cancel sin handle)."""
         try:
             containers = self._client.containers.list(
-                filters={"label": f"ehpc.job={job_id}"}
+                filters={"label": f"telar.job={job_id}"}
             )
             for container in containers:
                 try:

@@ -191,7 +191,7 @@ def test_run_job_flags_sandbox_constantes(service, stub, settings):
     assert kwargs["init"] is True                                # §4.11
     assert kwargs["auto_remove"] is False                        # §3 p.2
     assert kwargs["log_config"] == RUNNER_LOG_CONFIG             # §3 p.9
-    assert kwargs["labels"] == {RUNNER_LABEL: "true", "ehpc.job": "job1"}
+    assert kwargs["labels"] == {RUNNER_LABEL: "true", "telar.job": "job1"}
     env = kwargs["environment"]
     assert env["OMP_NUM_THREADS"] == "4" and env["NUMBA_NUM_THREADS"] == "4"
     assert env["PYTHONUNBUFFERED"] == "1"
@@ -279,7 +279,7 @@ def test_bl15_solo_los_fallos_reales_de_limpieza_se_logean(
         start_error=docker.errors.APIError("cgroup roto"),
         remove_error=remove_error,
     )
-    with caplog.at_level("WARNING", logger="ehpc.docker_service"):
+    with caplog.at_level("WARNING", logger="telar.docker_service"):
         with pytest.raises(DockerServiceError):
             service.run_job("job1", "/x", threads=1, timeout_s=30)
     assert ("no se pudo eliminar" in caplog.text) is se_logea
@@ -310,7 +310,7 @@ def test_kill_por_label(service, stub):
     service.kill("job1")
     assert target.killed is True
     assert stub.containers.list_filters[-1]["filters"] == {
-        "label": "ehpc.job=job1"
+        "label": "telar.job=job1"
     }
 
 
@@ -342,7 +342,7 @@ def test_reap_orphans_contenedores_y_directorios(service, stub, settings):
     assert removed == 1 and dirs_removed == 2
     assert orphan.removed == (True, True)  # force=True, v=True
     assert stub.containers.list_filters[-1] == {
-        "all": True, "filters": {"label": "ehpc.runner=true"}
+        "all": True, "filters": {"label": "telar.runner=true"}
     }
     assert not (jobs_dir / "viejo1").exists()
 

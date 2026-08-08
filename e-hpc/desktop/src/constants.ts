@@ -15,7 +15,7 @@ export const API_ORIGIN = process.env.TELAR_API_ORIGIN ?? 'http://localhost:8000
 export const WS_ORIGIN = API_ORIGIN.replace(/^http/, 'ws')
 
 /** Nombre del proyecto compose (clave `name:` del compose empaquetado). */
-export const COMPOSE_PROJECT_NAME = 'ehpc'
+export const COMPOSE_PROJECT_NAME = 'telar'
 
 /** Subcarpeta bajo process.resourcesPath con el compose de despliegue (§6.1). */
 export const PACKAGED_COMPOSE_SUBDIR = 'compose'

@@ -87,9 +87,9 @@ client = docker.from_env(version="auto", timeout=120, max_pool_size=50)
 def launch_student_container(execution_id: str, cpus: int = 4) -> "docker.models.containers.Container":
     """Lanza el código del estudiante en un sandbox duro. NO bloquea (detach=True)."""
     return client.containers.run(
-        image="ehpc-runner:py3.12-pyomp0.5",
+        image="telar-runner:py3.12-pyomp0.5",
         command=["python", "-I", "/work/main.py"],   # -I: modo aislado de CPython
-        name=f"ehpc-run-{execution_id}",
+        name=f"telar-run-{execution_id}",
         detach=True,                                  # devuelve Container, no bloquea
 
         # --- Aislamiento ---
@@ -105,7 +105,7 @@ def launch_student_container(execution_id: str, cpus: int = 4) -> "docker.models
         init=True,                                    # tini como PID 1
 
         # --- Código del estudiante (volumen nombrado compartido, ver §2.3) ---
-        volumes={f"ehpc_sub_{execution_id}": {"bind": "/work", "mode": "ro"}},
+        volumes={f"telar_sub_{execution_id}": {"bind": "/work", "mode": "ro"}},
         working_dir="/work",
 
         # --- Recursos ---
@@ -155,9 +155,9 @@ bind-mount con rutas del **host**, no del contenedor backend. Un
 
 Soluciones (de más simple a más robusta):
 
-1. **Volumen nombrado compartido**: compose declara `ehpc_submissions`, lo monta en el
+1. **Volumen nombrado compartido**: compose declara `telar_submissions`, lo monta en el
    backend en `/submissions` (rw) y el backend lo pasa por nombre al runner
-   (`volumes={"ehpc_submissions": {"bind": "/work", "mode": "ro"}}` + subcarpeta por
+   (`volumes={"telar_submissions": {"bind": "/work", "mode": "ro"}}` + subcarpeta por
    ejecución con el `subpath` de docker-py 7.2.0 o estructura interna). Los volúmenes
    nombrados los resuelve el daemon, sin ambigüedad de rutas.
 2. **`put_archive` (docker cp programático)**: `client.containers.create(...)` →

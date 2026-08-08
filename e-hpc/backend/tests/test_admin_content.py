@@ -34,11 +34,11 @@ from fakes.fake_docker import FakeDockerService
 
 def _make_app(tmp_path, *, admin_mode: bool = True):
     settings = Settings(
-        db_path=str(tmp_path / "ehpc.db"),
+        db_path=str(tmp_path / "telar.db"),
         jobs_dir=str(tmp_path / "jobs"),
         allowed_origins="http://localhost:5173,null",
         code_delivery="bind",
-        runner_image="ehpc-runner:0.5.1",
+        runner_image="telar-runner:0.5.1",
         max_timeout_s=120,
         max_concurrent_jobs=2,
         max_code_bytes=262144,

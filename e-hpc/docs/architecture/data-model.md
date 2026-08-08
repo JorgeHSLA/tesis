@@ -72,8 +72,8 @@ async def open_db(path: str) -> aiosqlite.Connection:
   quiz-attempt→progress) toma el lock, ejecuta sus statements y hace
   `commit()`/`rollback()` **dentro de él**. Con un solo writer real el coste
   es nulo a esta escala; las lecturas no toman el lock (WAL).
-- Ruta: `TELAR_DB_PATH` (compose: `/app/data/ehpc.db` en el volumen
-  `ehpc_data`; dev: `~/.ehpc/ehpc.db` — ext4, nunca `/mnt/d`).
+- Ruta: `TELAR_DB_PATH` (compose: `/app/data/telar.db` en el volumen
+  `telar_data`; dev: `~/.telar/telar.db` — ext4, nunca `/mnt/d`).
 - Esquema: `schema.sql` idempotente (`CREATE TABLE IF NOT EXISTS …`)
   ejecutado en el lifespan; `schema_version` gobierna migraciones manuales
   (bloques `-- migration N` aplicados si `version < N`).
@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     threads           INTEGER NOT NULL CHECK (threads BETWEEN 1 AND 16),
                                                      -- threads_effective (CPUs asignadas)
     timeout_s         INTEGER NOT NULL CHECK (timeout_s BETWEEN 5 AND 120),
-    runner_image      TEXT NOT NULL,                 -- p.ej. 'ehpc-runner:0.5.1'
+    runner_image      TEXT NOT NULL,                 -- p.ej. 'telar-runner:0.5.1'
     -- ciclo de vida
     status            TEXT NOT NULL DEFAULT 'queued'
                       CHECK (status IN ('queued','creating','compiling','running',
@@ -550,10 +550,10 @@ Reglas transversales:
 
 | Dato | Dev (backend nativo WSL) | Prod/demo (compose) |
 |---|---|---|
-| SQLite | `~/.ehpc/ehpc.db` (ext4) | volumen `ehpc_data` → `/app/data/ehpc.db` |
-| Código por job (efímero) | `~/.ehpc/jobs/<job_id>/main.py` → bind `:ro` | volumen `ehpc_submissions` → `/submissions/<job_id>/` → mount `subpath` `:ro` |
+| SQLite | `~/.telar/telar.db` (ext4) | volumen `telar_data` → `/app/data/telar.db` |
+| Código por job (efímero) | `~/.telar/jobs/<job_id>/main.py` → bind `:ro` | volumen `telar_submissions` → `/submissions/<job_id>/` → mount `subpath` `:ro` |
 | Fixtures de contenido | **semilla** versionada del repo (seeder → SQLite) | igual (horneados en la imagen, sembrados al arranque) |
-| Contenido de cursos runtime | **SQLite** (`modules/lessons/examples/quiz_questions`) | igual (volumen `ehpc_data`) |
+| Contenido de cursos runtime | **SQLite** (`modules/lessons/examples/quiz_questions`) | igual (volumen `telar_data`) |
 | Logs/salida del job | fila `jobs.stdout/stderr` (≤256 KB) | igual |
 | Métricas en vivo | solo WS + ring buffer en memoria | igual |
 

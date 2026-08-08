@@ -11,15 +11,15 @@ Regresión crítica: el compose empaquetado del desktop
 corregidos en el compose raíz y marcados como "no re-introducir" en
 `CLAUDE.md`.
 
-### BL-02 (critical) — volumen `ehpc_submissions` sin `name:` explícito
+### BL-02 (critical) — volumen `telar_submissions` sin `name:` explícito
 
-- **Causa:** el compose empaquetado fija `name: ehpc` como proyecto pero
-  declaraba el volumen `ehpc_submissions:` sin `name:` explícito. Compose
-  creaba `ehpc_ehpc_submissions` mientras el runner monta el literal de
-  `TELAR_SUBMISSIONS_VOLUME` (`ehpc_submissions`) → el runner montaba un
+- **Causa:** el compose empaquetado fija `name: telar` como proyecto pero
+  declaraba el volumen `telar_submissions:` sin `name:` explícito. Compose
+  creaba `telar_telar_submissions` mientras el runner monta el literal de
+  `TELAR_SUBMISSIONS_VOLUME` (`telar_submissions`) → el runner montaba un
   volumen vacío autocreado y **todos los jobs del simulador fallaban** con
   "no such file or directory" en Modo A (instalador con imágenes GHCR).
-- **Fix:** `name: ehpc_submissions` en el volumen, igual que el compose raíz
+- **Fix:** `name: telar_submissions` en el volumen, igual que el compose raíz
   (con comentario explicando el porqué, espejo del raíz).
 
 ### BL-12 (high) — `TELAR_ALLOWED_ORIGINS` sin variantes `127.0.0.1`
@@ -34,7 +34,7 @@ corregidos en el compose raíz y marcados como "no re-introducir" en
 
 6 tests que comparan los campos críticos entre `compose.yaml` raíz y
 `desktop/resources/compose/compose.yaml`: `name:` explícito del volumen
-`ehpc_submissions` en ambos, `TELAR_ALLOWED_ORIGINS` idéntica, y
+`telar_submissions` en ambos, `TELAR_ALLOWED_ORIGINS` idéntica, y
 `TELAR_SUBMISSIONS_VOLUME` idéntica entre composes **y** coincidente con el
 `name:` real del volumen (paridad env↔volumen). Escrito RED contra la
 regresión (TDD) y verde tras el fix: esta desincronización ya no puede volver
@@ -49,7 +49,7 @@ a pasar silenciosa.
 sin `data:` la CSP los bloquea al cargar por `file://`. Se actualiza la spec
 para reflejar el comportamiento correcto del código (el código NO cambia).
 En la misma edición, el compose de ejemplo de §6.1 incorpora el
-`name: ehpc_submissions` del fix BL-02 para no volver a documentar el compose
+`name: telar_submissions` del fix BL-02 para no volver a documentar el compose
 defectuoso.
 
 ### Verificación
@@ -553,19 +553,19 @@ Sin CRITICAL. **1 HIGH + 2 MEDIUM + 1 LOW corregidos antes del commit:**
 - Frontend: `npm run typecheck` (src + tests) limpio; Vitest **221/221**;
   cobertura lib 97.9% / ws 94.3% / stores 97.4% / hooks 95.7% (todos ≥80).
 - Imágenes Docker backend y frontend reconstruidas con todos los fixes S1-S5.
-- Contratos congelados intactos (`types.ts`, `messages.ts`, `ehpc.d.ts`,
+- Contratos congelados intactos (`types.ts`, `messages.ts`, `telar.d.ts`,
   `schemas.py`): S5 solo tocó `observations.ts`, `ResultsCards.tsx` y tests.
 
 ### Verificación E2E de CIERRE de la campaña (stack real + Playwright)
 
 Stack web levantado con `TELAR_ADMIN_PASSWORD` de override e imágenes recién
-construidas. Suite completa de `~/.ehpc-verify/e2e/`: **15/15 verdes a la
+construidas. Suite completa de `~/.telar-verify/e2e/`: **15/15 verdes a la
 primera corrida (22.6s), sin retries y SIN modificar ningún assert**. Cero
 anomalías: en consola solo los 401/404 esperados y allowlisted de ADM1/ADM4,
 y cero errores en los logs del backend.
 
 Probes dirigidos de los 3 critical (evidencia en
-`~/.ehpc-verify/e2e/artifacts/closure-s5/`):
+`~/.telar-verify/e2e/artifacts/closure-s5/`):
 
 - **BL-01 (fix S2) — PASS.** Crear lección+quiz, aprobarla como estudiante
   (`completed:true`, `best_quiz_score:1`), DELETE admin y re-crear una lección
@@ -683,7 +683,7 @@ disclaimer del lead en §5 ya superseded el resto (§0 C2/C3, §8, §10) como ob
 ### Docs congelados desincronizados (low, doc-only)
 - `architecture.md` §2.2 (y la tabla de env vars §10.5): `TELAR_ALLOWED_ORIGINS` con las
   variantes `127.0.0.1` (el navegador manda ese Origin al abrir `127.0.0.1:8080` — BL-12)
-  y el volumen `ehpc_submissions` con `name:` explícito (sin él Compose prefija el proyecto
+  y el volumen `telar_submissions` con `name:` explícito (sin él Compose prefija el proyecto
   y el runner monta un volumen vacío — BL-02). Alineado con `compose.yaml` raíz y `config.py`.
 - `frontend-spec.md` §6.4: se corrige la regla vieja "siempre que haya speedup → info
   Amdahl" (que BL-30 supersede). La inversión de Amdahl aplica solo con referencia serial
@@ -698,7 +698,7 @@ disclaimer del lead en §5 ya superseded el resto (§0 C2/C3, §8, §10) como ob
   `tests/test_audit_residuos.py` (BL-22 + BL-17, RED→GREEN verificado contra `main`).
 - **Frontend:** `tsc --noEmit` (src + tests) limpio; **vitest 224/224**; cobertura
   `ws/jobSocket.ts` 94% (≥80).
-- **Contratos congelados intactos** (`types.ts`, `messages.ts`, `ehpc.d.ts`): solo se
+- **Contratos congelados intactos** (`types.ts`, `messages.ts`, `telar.d.ts`): solo se
   tocó `schemas.py` (adaptación al contrato, BL-17) y `api-contract.md` (doc-first).
 - **Ronda de review:** security-reviewer (BL-22, sin hallazgos), python-reviewer (BL-17,
   approve), typescript-reviewer (BL-09/10) y code-reviewer (rama) → 1 HIGH + 1 MEDIUM +

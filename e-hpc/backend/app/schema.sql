@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     threads           INTEGER NOT NULL CHECK (threads BETWEEN 1 AND 16),
                                                      -- threads_effective (CPUs asignadas)
     timeout_s         INTEGER NOT NULL CHECK (timeout_s BETWEEN 5 AND 120),
-    runner_image      TEXT NOT NULL,                 -- p.ej. 'ehpc-runner:0.5.1'
+    runner_image      TEXT NOT NULL,                 -- p.ej. 'telar-runner:0.5.1'
     -- ciclo de vida
     status            TEXT NOT NULL DEFAULT 'queued'
                       CHECK (status IN ('queued','creating','compiling','running',

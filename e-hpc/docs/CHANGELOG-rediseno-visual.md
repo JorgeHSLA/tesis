@@ -71,7 +71,7 @@ por mockup (paleta #1 "Teal de progreso + Naranja de logro") antes de tocar la a
 
 ## Qué NO cambió (invariantes)
 - Contratos congelados intactos: `api/types.ts`, `api/admin-types.ts`, `ws/messages.ts`,
-  `types/ehpc.d.ts`, `schemas.py`, `docs/architecture/api-contract.md`.
+  `types/telar.d.ts`, `schemas.py`, `docs/architecture/api-contract.md`.
 - Semántica accesible EXACTA (roles, textos, aria-labels): la suite E2E de 15 tests pasa
   **sin modificar un solo assert**.
 - Gráficas SVG a mano (cero librerías), HashRouter + `base:'./'`, theming `data-variant`,
@@ -86,11 +86,11 @@ por mockup (paleta #1 "Teal de progreso + Naranja de logro") antes de tocar la a
 | Contraste AA renderizado (4 rutas) | 0 fallos |
 | Requests externas (fonts/CSP) | 0 |
 | `prefers-reduced-motion` | animaciones suprimidas |
-| Electron (xvfb + Playwright `_electron`, carga por `file://`) | OK — título, h1, `window.ehpc`, Plex cargada, 0 errores de consola (primera verificación gráfica real del proyecto) |
+| Electron (xvfb + Playwright `_electron`, carga por `file://`) | OK — título, h1, `window.telar`, Plex cargada, 0 errores de consola (primera verificación gráfica real del proyecto) |
 | Vars CSS sin definir / restos de paleta vieja | 0 (grep + cross-check usadas vs definidas) |
 
-Capturas: "antes" en `~/.ehpc-verify/e2e/artifacts/shots-before-redesign/`, "después"
-regeneradas por la suite en `~/.ehpc-verify/e2e/artifacts/shots/`.
+Capturas: "antes" en `~/.telar-verify/e2e/artifacts/shots-before-redesign/`, "después"
+regeneradas por la suite en `~/.telar-verify/e2e/artifacts/shots/`.
 
 ## Proceso
 Mockup (3 pantallas, 3 paletas conmutables) → aprobación de paleta #1 → tokens.css + fuentes
@@ -104,7 +104,7 @@ auditoría AA renderizada con fixes → E2E final.
 
 Seis ajustes concretos sobre la pantalla de lección (`/#/cursos/:leccionId`) tras revisión
 del usuario, más el cierre del sistema de variantes. **Solo capa visual/UI**: contratos
-congelados (`api/types.ts`, `ws/messages.ts`, `ehpc.d.ts`, `schemas.py`) intactos.
+congelados (`api/types.ts`, `ws/messages.ts`, `telar.d.ts`, `schemas.py`) intactos.
 
 ## Qué cambió
 1. **Switch v1/v2 retirado; app fija en v2.** `TopBar.tsx` sin el `variant-switch`;
@@ -124,7 +124,7 @@ congelados (`api/types.ts`, `ws/messages.ts`, `ehpc.d.ts`, `schemas.py`) intacto
    uso.
 5. **Panel "módulo + progreso" como drawer a la derecha, OCULTO por defecto**, con botón
    toggle (`aria-expanded`/`aria-controls`, chevron animado, entrada suave respetando
-   `prefers-reduced-motion`), estado persistido en `localStorage['ehpc-learn-side']`. Al
+   `prefers-reduced-motion`), estado persistido en `localStorage['telar-learn-side']`. Al
    ocultarse, el contenido ocupa el ancho completo.
 6. **Botones neutros con subtono azul claro** (tokens `--btn-neutral-*` ~ `#EEF4FF`) en
    `.btn`/`.btn-outline`; texto slate oscuro (contraste AA holgado). Los CTA (`.btn-primary`/

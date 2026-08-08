@@ -618,10 +618,10 @@ crea un job. Es el mecanismo interno común a todos ellos.
    si se excede → `429 TOO_MANY_JOBS` al crear).
 2. Comprueba `cancel_requested` (ver CU-08) antes de crear el contenedor.
 3. Entrega el código al runner según `TELAR_CODE_DELIVERY`: `bind` (backend
-   nativo en dev, escribe en `~/.ehpc/jobs/<job_id>/main.py`) o `volume`
-   (compose/prod, escribe en el volumen nombrado `ehpc_submissions`,
+   nativo en dev, escribe en `~/.telar/jobs/<job_id>/main.py`) o `volume`
+   (compose/prod, escribe en el volumen nombrado `telar_submissions`,
    montado por el runner con `subpath=<job_id>`).
-4. `docker_service.run_job` crea y arranca el contenedor `ehpc-runner` con
+4. `docker_service.run_job` crea y arranca el contenedor `telar-runner` con
    **17 mecanismos de aislamiento en capas** (ver tabla completa en
    `architecture.md` §4): `network_mode="none"`, usuario no-root `10001`,
    `cap_drop=ALL`, `no-new-privileges`, rootfs `read_only` + `tmpfs /tmp`
@@ -663,13 +663,13 @@ sus métricas y tiempos parseados listos para CU-09.
 (lifespan de FastAPI) — típicamente tras un crash o reinicio.
 
 **Flujo principal:**
-1. Lista contenedores con el label `ehpc.runner=true`
+1. Lista contenedores con el label `telar.runner=true`
    (`containers.list(all=True, filters=...)`) y los elimina por la fuerza.
 2. Marca como `failed` (`error_detail="orphaned_on_restart"`) todo job en
    DB que haya quedado en un estado no terminal (`queued/creating/
    compiling/running`) sin contenedor vivo asociado.
 3. Borra todos los directorios de código huérfanos (`/submissions/*` en
-   compose, `~/.ehpc/jobs/*` en dev): son efímeros por definición y, tras un
+   compose, `~/.telar/jobs/*` en dev): son efímeros por definición y, tras un
    crash, el `finally` del job (CU-27, paso 10) nunca llegó a correr.
 
 **Postcondición:** no quedan contenedores fantasma consumiendo recursos ni
@@ -714,10 +714,10 @@ para aceptar jobs.
    vía `onHeadersReceived`, y carga el **mismo build** de React que la web
    (`loadFile` sobre el recurso empaquetado, protocolo `file://`), sin menú
    nativo en producción.
-3. `preload.ts` expone `window.ehpc = {appVersion, platform, dockerStatus,
+3. `preload.ts` expone `window.telar = {appVersion, platform, dockerStatus,
    dockerUp, dockerStop, openExternal}` vía `contextBridge` — nunca
    `ipcRenderer` crudo.
-4. El frontend detecta plataforma (`window.ehpc !== undefined` ⇒ desktop) y
+4. El frontend detecta plataforma (`window.telar !== undefined` ⇒ desktop) y
    apunta la API/WS a `http://localhost:8000` / `ws://localhost:8000` en
    vez de rutas relativas.
 
@@ -730,7 +730,7 @@ arriba, la UI lo refleja y ofrece levantar el stack (CU-31).
 
 **Flujo principal:**
 1. El usuario pulsa "iniciar" en el panel de estado Docker de la UI.
-2. El renderer invoca `window.ehpc.dockerUp()` → IPC `docker:run` con la
+2. El renderer invoca `window.telar.dockerUp()` → IPC `docker:run` con la
    acción cerrada `'compose:up'`.
 3. `ipc-docker.ts` valida que el remitente sea el frame principal confiable
    (`file://` en prod o el origin del dev-server) antes de ejecutar nada.
@@ -750,7 +750,7 @@ puede empezar a operar normalmente.
 
 ### CU-32 — Detener el stack Docker desde la app de escritorio
 
-Igual mecánica que CU-31: `window.ehpc.dockerStop()` → IPC `docker:run`
+Igual mecánica que CU-31: `window.telar.dockerStop()` → IPC `docker:run`
 acción `'compose:stop'` → `docker compose stop` en el mismo `cwd`.
 
 ---
@@ -758,7 +758,7 @@ acción `'compose:stop'` → `docker compose stop` en el mismo `cwd`.
 ### CU-33 — Consultar el estado de los servicios Docker
 
 **Flujo principal:**
-1. El renderer llama `window.ehpc.dockerStatus()` → IPC `docker:run` acción
+1. El renderer llama `window.telar.dockerStatus()` → IPC `docker:run` acción
    `'compose:ps'` → `docker compose ps --format json`.
 2. `parseComposePs` interpreta la salida NDJSON (un objeto JSON por línea)
    de Compose v2+, descarta líneas no parseables, y devuelve una estructura
@@ -774,7 +774,7 @@ acción `'compose:stop'` → `docker compose stop` en el mismo `cwd`.
 **Flujo principal:**
 1. El usuario hace clic en un enlace externo (p.ej. documentación) dentro de
    la app.
-2. El renderer invoca `window.ehpc.openExternal(url)` → IPC
+2. El renderer invoca `window.telar.openExternal(url)` → IPC
    `shell:open-external`.
 3. El main process valida remitente confiable, parsea la URL (lanza si no
    es válida) y **exige protocolo `https:`** — cualquier otro esquema se

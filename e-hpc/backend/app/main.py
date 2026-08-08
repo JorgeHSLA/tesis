@@ -42,7 +42,7 @@ from app.tools.seed_content import (
     seed_content_into,
 )
 
-logger = logging.getLogger("ehpc.main")
+logger = logging.getLogger("telar.main")
 
 
 async def _maybe_await(value: Any) -> Any:

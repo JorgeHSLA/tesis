@@ -18,7 +18,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-logger = logging.getLogger("ehpc.errors")
+logger = logging.getLogger("telar.errors")
 
 #: HTTP por defecto de cada código del catálogo §1.1. Un router puede forzar
 #: otro status en casos documentados (p. ej. VALIDATION_ERROR con 400 cuando

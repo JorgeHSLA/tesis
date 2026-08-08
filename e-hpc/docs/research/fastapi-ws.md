@@ -404,7 +404,7 @@ from .repositories.jobs import JobRepository
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ---- startup ----
-    app.state.db = await open_db("data/ehpc.db")
+    app.state.db = await open_db("data/telar.db")
     app.state.docker = docker.from_env()          # habla con /var/run/docker.sock
     app.state.jobs = {}                           # registro en memoria: job_id -> Job
     app.state.job_repo = JobRepository(app.state.db)
@@ -457,7 +457,7 @@ async def create_job(req: RunRequest, request: Request):
         # crear el runner es bloqueante -> thread
         job.container = await asyncio.to_thread(
             docker_client.containers.run,
-            "ehpc-runner:latest",
+            "telar-runner:latest",
             command=["python", "/work/main.py"],
             detach=True,
             network_disabled=True,       # aislamiento: sin red
@@ -554,7 +554,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - TELAR_DB_PATH=/app/data/ehpc.db
+      - TELAR_DB_PATH=/app/data/telar.db
       - TELAR_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8080,null
     volumes:
       - ./data:/app/data
@@ -591,7 +591,7 @@ Puntos clave:
 - **Healthcheck sin curl:** la imagen `python:3.12-slim` no trae curl; el one-liner de `urllib` evita instalarlo. Alternativa equivalente: `CMD-SHELL` con `python -c ...` si se necesitan variables de entorno.
 - **`start_period`** cubre el arranque del lifespan (abrir DB, ping a Docker); los fallos dentro de ese periodo no cuentan para `retries`.
 - **Socket de Docker montado:** los runners de PyOMP se lanzan como contenedores *hermanos* vía `/var/run/docker.sock` (patrón sibling, no Docker-in-Docker). Advertencia de seguridad conocida: acceso al socket = root del host; aceptable para entorno educativo local/WSL2, y motivo extra para que el runner corra con `network_disabled`, límites de memoria/CPU/pids y sin privilegios (ver §5.2). Documentarlo en la tesis como decisión consciente.
-- **Runner precompilado:** construir la imagen `ehpc-runner` (python 3.12 + `pyomp==0.5.*`) en el mismo compose con `profiles: ["build"]` o un `docker build` previo, y referenciarla por tag desde el backend.
+- **Runner precompilado:** construir la imagen `telar-runner` (python 3.12 + `pyomp==0.5.*`) en el mismo compose con `profiles: ["build"]` o un `docker build` previo, y referenciarla por tag desde el backend.
 - **WSL2:** el socket `/var/run/docker.sock` funciona igual dentro de WSL2 con Docker Engine nativo o Docker Desktop (integración WSL). Sin cambios en el compose.
 - **uvicorn en el contenedor:** `CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]` — un solo worker es suficiente y **necesario** mientras el registro de jobs viva en memoria (con `--workers N` cada worker tendría su propio dict y los WS podrían caer en el worker equivocado).
 

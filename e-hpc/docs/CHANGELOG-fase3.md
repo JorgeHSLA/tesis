@@ -49,10 +49,10 @@ resueltos sin tocar contratos:
    fallaban por CORS.
 
 2. **Nombre explícito del volumen Compose.** Por defecto, Compose prefija los
-   volúmenes con el nombre del proyecto (`<proyecto>_ehpc_submissions`). El
+   volúmenes con el nombre del proyecto (`<proyecto>_telar_submissions`). El
    backend escribía en el volumen prefijado, pero pasaba al runner
-   `source=ehpc_submissions` (sin prefijo) → el runner montaba **otro** volumen
-   vacío y fallaba con `no such file`. Se fijó `name: ehpc_submissions` en
+   `source=telar_submissions` (sin prefijo) → el runner montaba **otro** volumen
+   vacío y fallaba con `no such file`. Se fijó `name: telar_submissions` en
    `compose.yaml` para **desactivar el prefijo**; backend y runner comparten
    ahora el mismo volumen real.
 

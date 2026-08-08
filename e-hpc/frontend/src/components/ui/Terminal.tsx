@@ -12,7 +12,7 @@ const DOT_COLORS = [
 ] as const
 
 export interface TerminalProps {
-  /** Título del header (p. ej. `docker logs -f ehpc-job-…`). */
+  /** Título del header (p. ej. `docker logs -f telar-job-…`). */
   title?: ReactNode
   /** false → sin header de dots (card Output de resultados). */
   dots?: boolean

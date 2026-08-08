@@ -37,7 +37,7 @@ export function jsonResponse(body: unknown, status = 200): Response {
 export const SYSTEM_INFO: SystemInfoDto = {
   cores: 8,
   max_threads: 8,
-  runner_image: 'ehpc-runner:0.5.1',
+  runner_image: 'telar-runner:0.5.1',
   runner_image_present: true,
   gpu_examples_enabled: false,
   versions: { backend: '1.0.0', python: '3.12', pyomp: '0.5.1', api: 'v1' },

@@ -30,7 +30,7 @@ if TYPE_CHECKING:  # pragma: no cover — solo tipos; jamás importa docker
     from ..config import Settings
     from .docker_service import DockerServicePort, JobExecutionPort
 
-logger = logging.getLogger("ehpc.job_runner")
+logger = logging.getLogger("telar.job_runner")
 
 # ─────────────────────────────── Constantes ─────────────────────────────────
 
@@ -282,9 +282,9 @@ class JobRunner:
         )
         self.registry[job_id] = handle
         handle.drainer = asyncio.create_task(
-            self._drain(handle), name=f"ehpc-drainer-{job_id}"
+            self._drain(handle), name=f"telar-drainer-{job_id}"
         )
-        handle.task = asyncio.create_task(self._run(handle), name=f"ehpc-job-{job_id}")
+        handle.task = asyncio.create_task(self._run(handle), name=f"telar-job-{job_id}")
         return handle
 
     async def cancel(self, job_id: str) -> str | None:
@@ -625,13 +625,13 @@ class JobRunner:
                         target=self._logs_worker,
                         args=(handle, execution, stream, loop),
                         daemon=True,
-                        name=f"ehpc-logs-{stream}-{handle.job_id[:8]}",
+                        name=f"telar-logs-{stream}-{handle.job_id[:8]}",
                     ).start()
                 threading.Thread(
                     target=self._stats_worker,
                     args=(handle, execution, loop),
                     daemon=True,
-                    name=f"ehpc-stats-{handle.job_id[:8]}",
+                    name=f"telar-stats-{handle.job_id[:8]}",
                 ).start()
 
                 exit_code = await self._wait_with_timeout(handle, execution)
@@ -862,7 +862,7 @@ class JobRunner:
             self.registry.pop(handle.job_id, None)
 
         task = asyncio.create_task(
-            _expire(), name=f"ehpc-retain-{handle.job_id}"
+            _expire(), name=f"telar-retain-{handle.job_id}"
         )
         handle.aux_tasks.append(task)  # referencia viva (trampa GC de asyncio)
 
@@ -884,7 +884,7 @@ class JobRunner:
 
 async def run_startup_reaper(docker_service: "DockerServicePort", job_repo: Any) -> dict:
     """§3 punto 8 — lo invoca el lifespan de WP1 por interfaz: elimina los
-    contenedores con label ``ehpc.runner=true``, barre TODOS los directorios
+    contenedores con label ``telar.runner=true``, barre TODOS los directorios
     de código huérfanos y marca ``failed/orphaned_on_restart`` en DB."""
     containers_removed, dirs_removed = await asyncio.to_thread(
         docker_service.reap_orphans

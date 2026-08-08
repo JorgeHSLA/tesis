@@ -69,7 +69,7 @@ export function LiveTerminalCard({ jobId, phase, logs, logsTruncated }: LiveTerm
       <div style={{ position: 'relative', height: '100%' }}>
         <Terminal
           ref={bodyRef}
-          title={`docker logs -f ehpc-job-${jobId} · en vivo`}
+          title={`docker logs -f telar-job-${jobId} · en vivo`}
           label="Salida en vivo de la ejecución"
           bodyClassName="live-terminal-body"
         >

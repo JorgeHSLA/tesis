@@ -10,8 +10,8 @@
 //      COMPONE con el anterior sin tocarlo. La paleta oscura completa vive en
 //      styles/tokens.css bajo [data-theme="dark"].
 //
-// Persistencia del tema: clave 'ehpc-theme' (nueva; no colisiona con la vieja
-// 'ehpc-variant'). Valor por defecto = `prefers-color-scheme` del sistema.
+// Persistencia del tema: clave 'telar-theme' (nueva; no colisiona con la vieja
+// 'telar-variant'). Valor por defecto = `prefers-color-scheme` del sistema.
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -36,7 +36,7 @@ applyFixedVariant()
 export type Theme = 'light' | 'dark'
 
 /** Clave de localStorage del eje de tema (distinta de la de variante). */
-export const THEME_STORAGE_KEY = 'ehpc-theme'
+export const THEME_STORAGE_KEY = 'telar-theme'
 
 /** Ventana durante la cual <html> lleva `data-theme-transition` (ms).
  *  Debe coincidir con la duración declarada en tokens.css §8. */

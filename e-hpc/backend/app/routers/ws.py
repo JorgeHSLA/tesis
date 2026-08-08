@@ -23,7 +23,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ..services.job_runner import TERMINAL_STATUSES, JobHandle, utc_now_iso
 
-logger = logging.getLogger("ehpc.ws")
+logger = logging.getLogger("telar.ws")
 
 router = APIRouter(tags=["ws"])
 

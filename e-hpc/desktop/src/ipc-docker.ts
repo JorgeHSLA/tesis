@@ -4,7 +4,7 @@ import { app, ipcMain, shell } from 'electron'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import path from 'node:path'
-import type { ComposeService, DockerActionResult, DockerStatusResult } from '../types/ehpc-api'
+import type { ComposeService, DockerActionResult, DockerStatusResult } from '../types/telar-api'
 import {
   DEV_SERVER_ORIGIN,
   EXEC_MAX_BUFFER,

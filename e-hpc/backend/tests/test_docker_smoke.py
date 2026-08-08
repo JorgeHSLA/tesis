@@ -1,7 +1,7 @@
 """Smoke OPT-IN contra el daemon Docker real y la imagen runner (WP9).
 
 Se ejecuta SOLO con ``pytest -m docker`` (excluido por defecto en pytest.ini).
-Requiere el daemon accesible y la imagen ``ehpc-runner:0.5.1`` construida.
+Requiere el daemon accesible y la imagen ``telar-runner:0.5.1`` construida.
 """
 
 from __future__ import annotations

@@ -23,7 +23,7 @@ Componentes:
 | Frontend | React + Vite + TS, servido por nginx (web) y por Electron (desktop) — **un único build** (`base: './'`, HashRouter) | UI: home, simulador, resultados, catálogo, lecciones/quizzes |
 | Desktop shell | Electron ^43 + electron-builder ^26 + esbuild (main/preload) | Carga el mismo build; IPC con whitelist cerrada para `docker compose up/stop/ps` |
 | Backend | FastAPI 0.139 + uvicorn (1 worker) + Python 3.12 | API REST + WebSocket, orquestación de jobs, persistencia SQLite |
-| Runner | Imagen propia `ehpc-runner` (`python:3.12-slim` + `pyomp==0.5.1`, ~777 MB) | Ejecuta el código del estudiante; un contenedor efímero por job |
+| Runner | Imagen propia `telar-runner` (`python:3.12-slim` + `pyomp==0.5.1`, ~777 MB) | Ejecuta el código del estudiante; un contenedor efímero por job |
 | Persistencia | SQLite vía aiosqlite (WAL) + fixtures versionados en código | Jobs, intentos de quiz, progreso; el contenido (ejemplos/lecciones/quizzes) vive en fixtures |
 
 ### 1.1 Diagrama de componentes
@@ -41,9 +41,9 @@ flowchart LR
             BACK[backend: FastAPI<br/>uvicorn 1 worker]
         end
         DOCKERD[(Docker daemon<br/>/var/run/docker.sock)]
-        RUNNER[runner efímero por job<br/>ehpc-runner · network none<br/>no-root · read-only · 512m]
-        DB[(SQLite<br/>volumen ehpc_data)]
-        SUBS[(volumen ehpc_submissions<br/>código por job)]
+        RUNNER[runner efímero por job<br/>telar-runner · network none<br/>no-root · read-only · 512m]
+        DB[(SQLite<br/>volumen telar_data)]
+        SUBS[(volumen telar_submissions<br/>código por job)]
     end
 
     WEB -->|HTTP :8080| NGINX
@@ -69,17 +69,17 @@ Versión ASCII (para la memoria impresa):
 |  Electron shell |  :8000          v
 |  (mismo build)  +------->+------------------+       +------------------+
 +--------+--------+        |  FastAPI backend |<----->|  SQLite (WAL)    |
-         | IPC whitelist   |  uvicorn 1 worker|       |  vol. ehpc_data  |
+         | IPC whitelist   |  uvicorn 1 worker|       |  vol. telar_data  |
          | (compose up/    +--------+---------+       +------------------+
          |  stop/ps)                | docker-py (módulo docker_service)
          v                          v
 +---------------------------------------------------------------+
 |  Docker daemon (/var/run/docker.sock)                          |
 |   +---------------------------------------------------------+ |
-|   | runner efímero por job: ehpc-runner                     | |
+|   | runner efímero por job: telar-runner                     | |
 |   | --network none --user 10001 --cap-drop ALL              | |
 |   | --read-only + tmpfs /tmp | 512m | pids 128 | init       | |
-|   | código en /work :ro (vol. ehpc_submissions, subpath)    | |
+|   | código en /work :ro (vol. telar_submissions, subpath)    | |
 |   +---------------------------------------------------------+ |
 +---------------------------------------------------------------+
 ```
@@ -105,9 +105,9 @@ Electron dev: carga http://localhost:5173 (VITE_DEV_SERVER_URL)
   (`~/`): el FS 9p de `/mnt/d` multiplica ~10× los tiempos de I/O
   (medido en `pyomp-runner.md` §6).
 - Entrega de código al runner en dev: el backend es un proceso del host, así
-  que escribe `~/.ehpc/jobs/<job_id>/main.py` y lo bind-monta `:ro` — el
+  que escribe `~/.telar/jobs/<job_id>/main.py` y lo bind-monta `:ro` — el
   daemon resuelve rutas del host sin ambigüedad.
-- La imagen `ehpc-runner` se construye una vez: `docker compose --profile build build runner`.
+- La imagen `telar-runner` se construye una vez: `docker compose --profile build build runner`.
 
 ### 2.2 Modo producción/demo (compose completo)
 
@@ -135,20 +135,20 @@ services:
     build: ./backend
     ports: ["127.0.0.1:8000:8000"]
     environment:
-      TELAR_DB_PATH: /app/data/ehpc.db
+      TELAR_DB_PATH: /app/data/telar.db
       # 'null' es necesario para Electron (file://); riesgo residual documentado
       # en api-contract.md §0 — mitigado por el bind a loopback. Las variantes
       # 127.0.0.1 son OBLIGATORIAS: al abrir http://127.0.0.1:8080 el navegador
       # manda ese Origin (no 'localhost'), y sin ellas CORS/WS lo rechazan (BL-12).
       TELAR_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null"
       TELAR_CODE_DELIVERY: volume            # 'volume' (compose) | 'bind' (dev nativo)
-      TELAR_SUBMISSIONS_VOLUME: ehpc_submissions
-      TELAR_RUNNER_IMAGE: ehpc-runner:0.5.1
+      TELAR_SUBMISSIONS_VOLUME: telar_submissions
+      TELAR_RUNNER_IMAGE: telar-runner:0.5.1
       TELAR_MAX_TIMEOUT_S: 0                 # 0 = sin límite (tope opcional)
       TELAR_MAX_CONCURRENT_JOBS: 2
     volumes:
-      - ehpc_data:/app/data
-      - ehpc_submissions:/submissions        # rw en backend; el runner lo monta :ro
+      - telar_data:/app/data
+      - telar_submissions:/submissions        # rw en backend; el runner lo monta :ro
       - /var/run/docker.sock:/var/run/docker.sock   # ver §5 (riesgo documentado)
     healthcheck:
       # python-urllib: python:3.12-slim no trae curl/wget.
@@ -167,18 +167,18 @@ services:
   # (la instancia el backend por la API, un contenedor efímero por job).
   runner:
     build: ./runner
-    image: ehpc-runner:0.5.1
+    image: telar-runner:0.5.1
     profiles: ["build"]          # `docker compose --profile build build runner`
     entrypoint: ["true"]
 
 volumes:
-  ehpc_data:
+  telar_data:
   # `name:` explícito (BL-02): sin él Compose antepone el prefijo del proyecto
-  # (`<proyecto>_ehpc_submissions`) y el runner montaría un volumen vacío
+  # (`<proyecto>_telar_submissions`) y el runner montaría un volumen vacío
   # distinto del que escribe el backend → todos los jobs fallan con "no such
   # file or directory". Debe coincidir con TELAR_SUBMISSIONS_VOLUME.
-  ehpc_submissions:
-    name: ehpc_submissions
+  telar_submissions:
+    name: telar_submissions
 ```
 
 > **Variante empaquetada (escritorio, solo Electron).** El despliegue de
@@ -229,7 +229,7 @@ otra plataforma):
 
 ```ts
 // config.ts — regla congelada
-const isDesktop = typeof window.ehpc !== 'undefined' || location.protocol === 'file:'
+const isDesktop = typeof window.telar !== 'undefined' || location.protocol === 'file:'
 export const API_BASE = import.meta.env.VITE_API_BASE      // override SOLO de dev
   ?? (isDesktop ? 'http://localhost:8000' : '')             // web: mismo origen (proxy nginx)
 export const WS_BASE  = import.meta.env.VITE_WS_BASE
@@ -320,11 +320,11 @@ Puntos no negociables del flujo (todos verificados en Fase 0):
 7. **Exit code 137 se desambigua** con `container.reload()` →
    `attrs["State"]["OOMKilled"]` antes de `remove`.
 8. **Reaper de huérfanos**: en el lifespan de arranque,
-   `containers.list(all=True, filters={"label": "ehpc.runner=true"})` → `remove(force=True)`,
+   `containers.list(all=True, filters={"label": "telar.runner=true"})` → `remove(force=True)`,
    y todo job `queued/creating/compiling/running` en DB sin contenedor vivo →
    `failed` con `error_detail="orphaned_on_restart"`. Además borra **todos**
    los directorios de código huérfanos (`/submissions/*` en compose,
-   `~/.ehpc/jobs/*` en dev): son efímeros por definición y tras un crash el
+   `~/.telar/jobs/*` en dev): son efímeros por definición y tras un crash el
    `finally` del job nunca corrió.
 9. **`log_config` del runner**: cada contenedor runner se crea con
    `log_config={"type": "json-file", "config": {"max-size": "4m", "max-file": "1"}}`
@@ -340,8 +340,8 @@ tras la config `TELAR_CODE_DELIVERY`:
 
 | Modo | Cuándo | Mecanismo |
 |---|---|---|
-| `bind` | Backend nativo en WSL (dev) | Backend escribe `~/.ehpc/jobs/<job_id>/main.py` (ext4) y lo monta `{host_path: {"bind": "/work", "mode": "ro"}}` — el backend ES un proceso del host |
-| `volume` | Backend en compose (prod/demo) | Volumen nombrado `ehpc_submissions` montado rw en el backend en `/submissions`; el backend escribe `/submissions/<job_id>/main.py`; el runner monta el volumen con `subpath=<job_id>` (docker-py ≥7.2) en `/work`, `:ro` |
+| `bind` | Backend nativo en WSL (dev) | Backend escribe `~/.telar/jobs/<job_id>/main.py` (ext4) y lo monta `{host_path: {"bind": "/work", "mode": "ro"}}` — el backend ES un proceso del host |
+| `volume` | Backend en compose (prod/demo) | Volumen nombrado `telar_submissions` montado rw en el backend en `/submissions`; el backend escribe `/submissions/<job_id>/main.py`; el runner monta el volumen con `subpath=<job_id>` (docker-py ≥7.2) en `/work`, `:ro` |
 
 Fallback documentado si `subpath` diera problemas: `put_archive` (create →
 put_archive → start), pendiente de un spike porque con `read_only=True` el
@@ -469,7 +469,7 @@ el patrón contenedor-efímero de glot.run/codapi (verificado en
 | 12 | Código montado `/work` **`:ro`** | Automodificación del código; escritura fuera de tmpfs |
 | 13 | Timeout duro `wait(timeout)` + `kill` | Bucles infinitos, procesos dormidos (wall-clock, no CPU-time) |
 | 14 | Truncado de output a 256 KB + kill | Inundación del backend/WS por `print` en bucle paralelo; deadlock de pipe |
-| 15 | Labels `ehpc.runner=true`, `ehpc.job=<id>` + reaper al arranque | Contenedores huérfanos si el backend crashea |
+| 15 | Labels `telar.runner=true`, `telar.job=<id>` + reaper al arranque | Contenedores huérfanos si el backend crashea |
 | 16 | Imagen fija por constante; el usuario jamás influye en `HostConfig` | Inyección de parámetros hacia `containers.run` |
 | 17 | `PYTHONUNBUFFERED=1`, `NUMBA_CACHE_DIR=/tmp/numba_cache`, `OMP_NUM_THREADS=NUMBA_NUM_THREADS=N` | (Robustez, no seguridad) logs en vivo; `cache=True` no revienta con rootfs ro; libomp no es cgroup-aware — sin la env var vería los 8 cores del host |
 
@@ -643,8 +643,8 @@ cómputo real; jamás los 3–5 s típicos de un judge.
   - **Lección**: `GET /lessons/{id}` (markdown), quiz
     (`GET /lessons/{id}/quiz`, `POST .../attempts`), progreso
     (`PUT /progress/lessons/{id}`).
-- Detección de plataforma: `window.ehpc === undefined` ⇒ web. En Electron,
-  `window.ehpc` (contextBridge) expone exactamente
+- Detección de plataforma: `window.telar === undefined` ⇒ web. En Electron,
+  `window.telar` (contextBridge) expone exactamente
   `{ appVersion, platform, dockerStatus, dockerUp, dockerStop, openExternal }`
   (nombres finales de `electron-spec.md` §5.1; whitelist cerrada, `execFile`
   sin shell, validación de `senderFrame`).
@@ -682,7 +682,7 @@ e-hpc/
 ```
 
 Convenios WSL2: repositorio en `/mnt/d`, pero `node_modules`, `dist`,
-`~/.ehpc/` (DB y jobs de dev) y cachés (`ELECTRON_CACHE`) en ext4.
+`~/.telar/` (DB y jobs de dev) y cachés (`ELECTRON_CACHE`) en ext4.
 Empaquetado Windows: `electronuserland/builder:wine` en Docker o build final
 en el host Windows.
 
@@ -714,7 +714,7 @@ por `npm run build` en el mismo clon ext4 (mismo código ⇒ mismo build).
 ### 10.3 Makefile (raíz) — flujo dev multi-proceso
 
 ```
-make dev-backend    # uvicorn app.main:app --reload (nativo WSL, ~/.ehpc)
+make dev-backend    # uvicorn app.main:app --reload (nativo WSL, ~/.telar)
 make dev-frontend   # npm --prefix frontend run dev (Vite :5173)
 make dev-desktop    # npm --prefix desktop run dev
 make build-runner   # docker compose --profile build build runner
@@ -735,12 +735,12 @@ make dist           # vite build + electron-builder --linux
 
 | Variable | Default | Usada por |
 |---|---|---|
-| `TELAR_DB_PATH` | `~/.ehpc/ehpc.db` (dev) / `/app/data/ehpc.db` (compose) | db.py |
+| `TELAR_DB_PATH` | `~/.telar/telar.db` (dev) / `/app/data/telar.db` (compose) | db.py |
 | `TELAR_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null` (incluye las variantes `127.0.0.1` — BL-12) | CORS + validación Origin del WS |
 | `TELAR_CODE_DELIVERY` | `bind` (dev) / `volume` (compose) | docker_service |
-| `TELAR_SUBMISSIONS_VOLUME` | `ehpc_submissions` | docker_service (modo volume) |
-| `TELAR_JOBS_DIR` | `~/.ehpc/jobs` | docker_service (modo bind) |
-| `TELAR_RUNNER_IMAGE` | `ehpc-runner:0.5.1` | docker_service |
+| `TELAR_SUBMISSIONS_VOLUME` | `telar_submissions` | docker_service (modo volume) |
+| `TELAR_JOBS_DIR` | `~/.telar/jobs` | docker_service (modo bind) |
+| `TELAR_RUNNER_IMAGE` | `telar-runner:0.5.1` | docker_service |
 | `TELAR_MAX_TIMEOUT_S` | `0` = **sin límite** (tope opcional; con `> 0` es el máximo de `timeout_s`) | validación jobs |
 | `TELAR_MAX_CONCURRENT_JOBS` | `2` | semáforo job_runner |
 | `TELAR_MAX_CODE_BYTES` | `262144` | validación jobs/upload |

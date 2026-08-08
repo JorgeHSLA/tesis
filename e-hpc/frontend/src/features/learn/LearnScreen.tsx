@@ -26,7 +26,7 @@ import { TracksCard } from './TracksCard'
 
 // El panel "módulo + progreso" es un drawer a la derecha, OCULTO por defecto;
 // su estado (abierto/cerrado) se persiste como preferencia de UI en localStorage.
-const SIDE_STORAGE_KEY = 'ehpc-learn-side'
+const SIDE_STORAGE_KEY = 'telar-learn-side'
 
 function readSidePref(): boolean {
   // El acceso a localStorage puede lanzar (iframe sandbox, webview Electron

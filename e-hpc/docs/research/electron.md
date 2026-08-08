@@ -223,7 +223,7 @@ Fuente: https://www.electron.build/docs/features/multi-platform-build/ · https:
 ### Fragmento `electron-builder.yml` propuesto
 
 ```yaml
-appId: edu.ehpc.desktop
+appId: edu.telar.desktop
 productName: Telar
 directories:
   output: release
@@ -318,7 +318,7 @@ Claves de seguridad del patrón:
 ```ts
 import { contextBridge, ipcRenderer } from 'electron'
 
-contextBridge.exposeInMainWorld('ehpc', {
+contextBridge.exposeInMainWorld('telar', {
   dockerPs:   () => ipcRenderer.invoke('docker:run', 'compose:ps'),
   dockerUp:   () => ipcRenderer.invoke('docker:run', 'compose:up'),
   dockerStop: () => ipcRenderer.invoke('docker:run', 'compose:stop')
@@ -328,10 +328,10 @@ contextBridge.exposeInMainWorld('ehpc', {
 ### renderer (React) — tipado + uso
 
 ```ts
-// types/ehpc.d.ts (compartible con el paquete web; en web window.ehpc === undefined)
+// types/telar.d.ts (compartible con el paquete web; en web window.telar === undefined)
 interface DockerResult { ok: boolean; stdout?: string; stderr?: string; code?: number | null }
 interface Window {
-  ehpc?: {
+  telar?: {
     dockerPs(): Promise<DockerResult>
     dockerUp(): Promise<DockerResult>
     dockerStop(): Promise<DockerResult>
@@ -339,11 +339,11 @@ interface Window {
 }
 
 // componente
-const res = await window.ehpc?.dockerPs()
+const res = await window.telar?.dockerPs()
 if (res?.ok) setServices(JSON.parse(res.stdout!))
 ```
 
-El `window.ehpc === undefined` en el navegador es además el **detector natural de plataforma**
+El `window.telar === undefined` en el navegador es además el **detector natural de plataforma**
 para que el mismo build web/desktop muestre u oculte el panel "estado de servicios Docker".
 
 ---

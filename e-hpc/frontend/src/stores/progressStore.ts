@@ -3,7 +3,7 @@
 // CACHÉ hidratada de GET /modules (progress fusionado) y refrescada tras cada
 // PUT /progress y POST /quiz/attempts. En localStorage SOLO persiste
 // `lastLessonId` (estado de UI "continuar donde lo dejaste") bajo la clave
-// 'ehpc-last-lesson'; TODO lo demás viene del servidor.
+// 'telar-last-lesson'; TODO lo demás viene del servidor.
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { getModules, putLessonProgress } from '../api/content'
@@ -20,7 +20,7 @@ export interface ProgressState {
   modules: ModuleDto[] | null
   /** `summary` del propio GET /modules (lessons_total, quizzes_total…). */
   summary: ModulesSummaryDto | null
-  /** persist 'ehpc-last-lesson' — SOLO estado de UI, jamás progreso real. */
+  /** persist 'telar-last-lesson' — SOLO estado de UI, jamás progreso real. */
   lastLessonId: string | null
   loading: boolean
   /** Mensaje del último fallo de hydrate (las pantallas pintan ErrorState). */
@@ -109,7 +109,7 @@ export const useProgressStore = create<ProgressState>()(
       },
     }),
     {
-      name: 'ehpc-last-lesson',
+      name: 'telar-last-lesson',
       // SOLO lastLessonId persiste (frontend-spec §3.1, decisión 9).
       partialize: (state) => ({ lastLessonId: state.lastLessonId }),
     },

@@ -111,10 +111,10 @@ describe('markViewed()', () => {
     expect(getModulesMock).not.toHaveBeenCalled()
   })
 
-  it('lastLessonId persiste en localStorage (ehpc-last-lesson)', async () => {
+  it('lastLessonId persiste en localStorage (telar-last-lesson)', async () => {
     useProgressStore.setState({ modules: cloneModules() })
     await useProgressStore.getState().markViewed('spmd')
-    const raw = localStorage.getItem('ehpc-last-lesson')
+    const raw = localStorage.getItem('telar-last-lesson')
     expect(raw).not.toBeNull()
     expect(JSON.parse(raw as string).state.lastLessonId).toBe('spmd')
   })

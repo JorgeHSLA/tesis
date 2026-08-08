@@ -296,11 +296,11 @@ queued → running → completed        (exit_code == 0)
 - **Cola:** para una sola máquina basta `asyncio.Queue` + semáforo (límite de contenedores
   concurrentes = nº de jobs cuyo `--cpus` sumado quepa en el host); Redis/arq solo si se
   escala a varios workers.
-- **Identidad contenedor↔job (patrón codapi):** `--name ehpc-job-<uuid>` y **labels**:
-  `--label ehpc.runner=true --label ehpc.job=<uuid>`.
+- **Identidad contenedor↔job (patrón codapi):** `--name telar-job-<uuid>` y **labels**:
+  `--label telar.runner=true --label telar.job=<uuid>`.
 - **Cleanup de huérfanos al reiniciar** (la pieza que los proyectos síncronos resuelven con
   `--rm` pero que un backend con estado debe reforzar):
-  1. al arrancar el backend: `docker ps -aq --filter label=ehpc.runner=true | xargs -r docker rm -f`
+  1. al arrancar el backend: `docker ps -aq --filter label=telar.runner=true | xargs -r docker rm -f`
      (equivalente vía API: `containers.list(all=True, filters={"label": ...})`);
   2. reconciliar la DB: todo job en `running`/`queued` sin contenedor vivo → `failed`
      con motivo `orphaned_on_restart`;
@@ -321,8 +321,8 @@ queued → running → completed        (exit_code == 0)
 
 ```bash
 docker run --rm \
-  --name "ehpc-job-${JOB_ID}" \
-  --label ehpc.runner=true --label "ehpc.job=${JOB_ID}" \
+  --name "telar-job-${JOB_ID}" \
+  --label telar.runner=true --label "telar.job=${JOB_ID}" \
   --cpus 4 --memory 512m --memory-swap 512m \
   --pids-limit 128 \
   --network none \
@@ -333,7 +333,7 @@ docker run --rm \
   --cap-drop ALL --security-opt no-new-privileges \
   --ulimit nofile=256 --ulimit fsize=8388608 \
   -e OMP_NUM_THREADS=4 -e NUMBA_CACHE_DIR=/tmp/numba-cache \
-  ehpc-runner:py3.12-pyomp0.5 \
+  telar-runner:py3.12-pyomp0.5 \
   python /workspace/harness.py
 ```
 

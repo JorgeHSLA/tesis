@@ -4,7 +4,7 @@
 > WSL2 (Ubuntu, kernel 6.6.87.2-microsoft-standard), Docker 29.3.0, 8 núcleos.
 > Evidencia primaria: el repo de aprendizaje `/mnt/d/universidad/tesis/simuladores/openmp/aprendizaje/`
 > (probado con Python 3.12.3 + pyomp 0.5.1 + numba 0.63.1) y una imagen de prueba
-> construida y ejecutada en esta máquina (`ehpc-runner-test`, queda en el daemon local).
+> construida y ejecutada en esta máquina (`telar-runner-test`, queda en el daemon local).
 
 ## TL;DR — decisiones
 
@@ -151,7 +151,7 @@ docker run --rm \
   --cap-drop=ALL --security-opt no-new-privileges \
   -e OMP_NUM_THREADS=4 -e NUMBA_NUM_THREADS=4 \
   -v /ruta/al/codigo/main.py:/home/runner/main.py:ro \
-  ehpc-runner
+  telar-runner
 ```
 
 Notas:
@@ -227,8 +227,8 @@ estudiante aparece en ~1–2 s; ejemplos con varias funciones JIT, en ~3–5 s d
   reportará como error de compilación de numba; la UI debería mapear esos errores a
   mensajes pedagógicos.
 - Node 18 del host no afecta a esta imagen (solo frontend); sin acción aquí.
-- Imagen de prueba de esta investigación: `ehpc-runner-test` (queda en el daemon Docker
-  local; `docker rmi ehpc-runner-test` para limpiar).
+- Imagen de prueba de esta investigación: `telar-runner-test` (queda en el daemon Docker
+  local; `docker rmi telar-runner-test` para limpiar).
 
 ## Fuentes
 
@@ -236,5 +236,5 @@ estudiante aparece en ~1–2 s; ejemplos con varias funciones JIT, en ~3–5 s d
 - Repo oficial PyOMP (matriz pyomp↔numba, plataformas, imagen Docker oficial): https://github.com/Python-for-HPC/PyOMP
 - Docs oficiales (instalación pip/conda, `ghcr.io/python-for-hpc/pyomp:latest`): https://pyomp.readthedocs.io
 - Evidencia local: `/mnt/d/universidad/tesis/simuladores/openmp/aprendizaje/README.md` (14 ejemplos validados, tabla de directivas soportadas/no soportadas, instalación pip probada en WSL2) y su `.venv` (Python 3.12.3, pyomp 0.5.1, numba 0.63.1, llvmlite 0.46.0)
-- Mediciones propias 2026-07-12: build de `ehpc-runner-test` sobre `python:3.12-slim` (Debian 13, glibc 2.41), timings de import/JIT en `/mnt/d` vs ext4 vs contenedor, prueba `--cpus=2` sin `OMP_NUM_THREADS` (cgroup-unaware), fallo de `cache=True` con región openmp, ejecución de `fibonacciTareas.py` y `calorStencil.py` en contenedor aislado
+- Mediciones propias 2026-07-12: build de `telar-runner-test` sobre `python:3.12-slim` (Debian 13, glibc 2.41), timings de import/JIT en `/mnt/d` vs ext4 vs contenedor, prueba `--cpus=2` sin `OMP_NUM_THREADS` (cgroup-unaware), fallo de `cache=True` con región openmp, ejecución de `fibonacciTareas.py` y `calorStencil.py` en contenedor aislado
 - Paper PyOMP (CiSE 2021): https://www.osti.gov/pages/servlets/purl/1843562 — y PyOMP CPU+GPU (SC24): https://www.osti.gov/servlets/purl/2479018

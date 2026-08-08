@@ -3,7 +3,7 @@
 #   - extraMetadata.homepage: requerido por el target deb (fpm falla sin él).
 #   - extraMetadata.desktopName + linux.syncDesktopName: asociación de ventana
 #     (WM_CLASS ↔ .desktop) en entornos Linux.
-appId: edu.ehpc.desktop
+appId: edu.telar.desktop
 productName: Telar
 directories:
   output: release

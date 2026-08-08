@@ -20,7 +20,7 @@
 > Decisiones de Fase 0 que este documento NO re-litiga: Vite `base:'./'`, HashRouter,
 > `VITE_API_BASE`/`VITE_WS_BASE` con default `http://localhost:8000`, fuentes self-hosted
 > `@fontsource`, iconos portados literalmente, theming por `data-variant` en `<html>`,
-> detección de plataforma vía `window.ehpc`.
+> detección de plataforma vía `window.telar`.
 
 ---
 
@@ -65,7 +65,7 @@ frontend/
    ├─ main.tsx                    # createRoot + RouterProvider + import de estilos/fuentes
    ├─ router.tsx                  # createHashRouter + React.lazy por pantalla (§2)
    ├─ config.ts                   # API_BASE/WS_BASE resueltos en RUNTIME (architecture.md §2.3:
-   │                              #   desktop si window.ehpc || file: → localhost:8000; web → '')
+   │                              #   desktop si window.telar || file: → localhost:8000; web → '')
    ├─ api/                        # capa HTTP tipada (fetch nativo, sin axios)
    │  ├─ client.ts                # fetchJson<T>(): desenvuelve el envelope {success,data,error,meta};
    │  │                           #   !success → throw ApiError(error.code, error.message, status)
@@ -80,8 +80,8 @@ frontend/
    │  └─ jobSocket.ts             # clase JobSocket: conexión, parseo, reconexión, cancel()
    │
    ├─ stores/                     # Zustand (§3)
-   │  ├─ themeStore.ts            # variant v1|v2 (persist 'ehpc-variant')
-   │  ├─ sidebarStore.ts          # expanded (persist 'ehpc-sidebar-expanded', default false)
+   │  ├─ themeStore.ts            # variant v1|v2 (persist 'telar-variant')
+   │  ├─ sidebarStore.ts          # expanded (persist 'telar-sidebar-expanded', default false)
    │  ├─ progressStore.ts         # CACHÉ de progreso del backend (§3.1) + lastLessonId local
    │  └─ jobStore.ts              # job activo: phase, logs (cap), métricas (cap)
    │
@@ -89,8 +89,8 @@ frontend/
    │  ├─ useJobSocket.ts          # abre/cierra JobSocket ligado a jobId, vuelca en jobStore
    │  ├─ useSimulation.ts         # SOLO animaciones decorativas (tick 700 ms) — §5.3
    │  ├─ useSystemInfo.ts         # GET /api/v1/system cacheado (module-level promise)
-   │  ├─ usePlatform.ts           # 'web' | 'desktop' según window.ehpc
-   │  ├─ useDockerStatus.ts       # desktop: poll window.ehpc.dockerStatus(); web: GET /health
+   │  ├─ usePlatform.ts           # 'web' | 'desktop' según window.telar
+   │  ├─ useDockerStatus.ts       # desktop: poll window.telar.dockerStatus(); web: GET /health
    │  └─ useReducedMotion.ts      # matchMedia('(prefers-reduced-motion: reduce)')
    │
    ├─ styles/
@@ -139,7 +139,7 @@ frontend/
    │                              # format.ts (fmtTime, bytes, %),
    │                              # speedup.ts (curvas, eficiencia, Amdahl), observations.ts (§6.4)
    └─ types/
-      └─ ehpc.d.ts                # declaración global de window.ehpc (compartida con desktop)
+      └─ telar.d.ts                # declaración global de window.telar (compartida con desktop)
 ```
 
 Reglas: un componente por archivo; los datos mock del prototipo NO se portan — todo dato visible
@@ -200,8 +200,8 @@ const routes = [
    del árbol.
 3. **Batching de logs**: el store acumula líneas en un buffer intermedio y hace un solo `set`
    cada frame (`requestAnimationFrame` flush) — patrón trivial en Zustand, doloroso en Context.
-4. **`persist` middleware** resuelve `ehpc-variant`, `ehpc-sidebar-expanded` y
-   `ehpc-last-lesson` (el progreso real vive en el backend, §3.1) con claves estables de
+4. **`persist` middleware** resuelve `telar-variant`, `telar-sidebar-expanded` y
+   `telar-last-lesson` (el progreso real vive en el backend, §3.1) con claves estables de
    localStorage.
 5. Coste: ~1.2 KB gz. Context queda para lo que es de árbol puro (ninguno en MVP).
 
@@ -210,14 +210,14 @@ const routes = [
 ```ts
 // themeStore.ts
 interface ThemeState {
-  variant: 'v1' | 'v2'                    // persist key 'ehpc-variant', default 'v1'
+  variant: 'v1' | 'v2'                    // persist key 'telar-variant', default 'v1'
   setVariant(v: 'v1' | 'v2'): void        // efecto: document.documentElement.dataset.variant = v
 }
 // NOTA: se unifica el doble mecanismo del prototipo (§2.9 handoff): SOLO data-variant en <html>;
 // los selectores '.v2 .xxx' se reescriben como '[data-variant="v2"] .xxx' en styles/ (§5.1).
 
 // sidebarStore.ts
-interface SidebarState { expanded: boolean; toggle(): void }   // persist 'ehpc-sidebar-expanded', default false (colapsado)
+interface SidebarState { expanded: boolean; toggle(): void }   // persist 'telar-sidebar-expanded', default false (colapsado)
 
 // progressStore.ts — el BACKEND es la fuente única del progreso (api-contract §4-§6).
 // Este store es una CACHÉ hidratada de GET /modules (progress fusionado) y refrescada tras
@@ -226,7 +226,7 @@ interface SidebarState { expanded: boolean; toggle(): void }   // persist 'ehpc-
 interface ProgressState {
   modules: ModuleDto[] | null                                // GET /api/v1/modules (con progress)
   summary: ProgressSummaryDto | null
-  lastLessonId: string | null                                // persist 'ehpc-last-lesson' (solo UI)
+  lastLessonId: string | null                                // persist 'telar-last-lesson' (solo UI)
   hydrate(): Promise<void>                                   // GET /modules → set
   markViewed(lessonId: string): Promise<void>                // PUT /api/v1/progress/lessons/{id} {viewed:true} → refresca
   applyAttemptResult(r: QuizAttemptResultDto): void          // actualiza caché con la 201 de attempts
@@ -773,7 +773,7 @@ aislado en un contenedor Docker efímero de tu máquina.` Acciones: select de ej
 | Label | Control | Valores |
 |---|---|---|
 | `Framework` | select | `OpenMP · PyOMP` (fijo) · `MPI (mpirun) — próximamente` disabled · `Slurm (sbatch) — próximamente` disabled |
-| `Entorno de ejecución` | readonly | `ehpc-runner · python 3.12 + pyomp 0.5.1` (de `data.versions` de `GET /api/v1/system`) |
+| `Entorno de ejecución` | readonly | `telar-runner · python 3.12 + pyomp 0.5.1` (de `data.versions` de `GET /api/v1/system`) |
 | `Timeout` | select | construido DINÁMICAMENTE desde `data.limits.max_timeout_s`: `30 s` · `60 s` (default o el `default_timeout_s` del ejemplo) · `120 s (límite del backend)`. Jamás ofrecer valores > `max_timeout_s` (el backend valida 5..120 → 422) |
 
 **Precarga por query param:** al montar, si existe `?ejemplo={id}` (navegación desde Learn,
@@ -854,7 +854,7 @@ inventados.**
 mono-small muted `Animación ilustrativa del modelo fork-join — la salida real está a la derecha.`
 
 **`LiveTerminalCard`:** terminal del handoff con header dots + título
-`docker logs -f ehpc-job-{id} · en vivo`. Cuerpo: `logs` reales del WS con formato
+`docker logs -f telar-job-{id} · en vivo`. Cuerpo: `logs` reales del WS con formato
 `<span class="term-dim">[{HH:MM:SS}]</span> <span class="{stderr→term-red:term-green}">{stream}</span> <span>{text}</span>`.
 Estado vacío (antes del primer log), **dirigido por la fase del WS — sin heurísticas de
 tiempo**: `phase=creating` → `term-dim` `Creando contenedor…`; `phase=compiling` →
@@ -1043,7 +1043,7 @@ no ejecutarla` (botón simulador disabled).
 ### 6.7 Shell: RuntimeFooter (sidebar footer)
 
 `usePlatform()`:
-- **desktop** (`window.ehpc` definido): `useDockerStatus` → `window.ehpc.dockerStatus()` al
+- **desktop** (`window.telar` definido): `useDockerStatus` → `window.telar.dockerStatus()` al
   montar y cada 10 s. Estados: ok → dot verde pulsante, `Docker runtime` / `{n} contenedores
   activos`; caído → dot rojo estático, `Docker runtime` / `servicios detenidos` + botón sm
   outline `Levantar` → `dockerUp()` con spinner y re-check; comprobando → dot ámbar `verificando…`.
@@ -1166,7 +1166,7 @@ shape inventado no vale.
 | 2 | `stores/jobStore.test.ts` | cap de 1000 logs + flag truncated; batching (N appends → 1 notificación por flush); cap métricas; `reset()` limpia todo; `setPhase` con detail terminal puebla exitCode/errorDetail |
 | 3 | `hooks/useJobSocket.test.tsx` | monta/desmonta cierra socket; cambio de jobId reconecta; StrictMode no duplica conexión; `elapsedSec` avanza con fake timers |
 | 4 | `stores/progressStore.test.ts` | `hydrate()` puebla la caché desde `/modules` mockeado; `markViewed` llama PUT y refresca; `applyAttemptResult` actualiza best score/completed; `lastLessonId` persiste en localStorage; `moduleProgress` calcula done/total/pct |
-| 5 | `stores/themeStore.test.ts` | default v1; set v2 escribe `data-variant` en `<html>` y localStorage `ehpc-variant`; hidratación desde valor persistido |
+| 5 | `stores/themeStore.test.ts` | default v1; set v2 escribe `data-variant` en `<html>` y localStorage `telar-variant`; hidratación desde valor persistido |
 | 6 | `lib/speedup.test.ts` + `lib/observations.test.ts` | eficiencia de un sweep real (fixture transporte con `series[]` del contrato); regla false-sharing dispara con sweep plano de piSpmd; regla failed+stderr; Amdahl |
 | 7 | `features/simulator/ThreadsField.test.tsx` | configurable: slider habilitado 1..max_threads; fixed: disabled en `fixed_threads` + hint; sweep: disabled + hint barrido; aviso cores<8; el payload OMITE threads en fixed/sweep |
 | 8 | `features/simulator/LiveTerminalCard.test.tsx` | render de líneas stdout/stderr con clases correctas; placeholders por fase creating/compiling; auto-scroll se pausa al scrollear arriba; banner truncado |
@@ -1190,7 +1190,7 @@ Cobertura objetivo: ≥ 80 % en `ws/`, `stores/`, `lib/`, `hooks/`; los componen
 6. Se eliminan: botón Pausar, sliders de % cómputo + allocation-bar, warn-banner del live con datos fake, tab Transcripción, mode-switch v2, WorkDistributionChart (no se porta), videos (reemplazados por CodeShowcase) — §5.2, §6, §8.5.
 7. `LiveMetricsRow` muestra SOLO métricas reales; "Sincronizaciones" queda como vocabulario didáctico, nunca como número inventado — §6.3.
 8. Parser de stdout en backend; frontend consume `parsed_timings` (el parseo en vivo de SweepProgressCard es presentacional, con los mismos regex de architecture.md §7.2) — §6.3/§6.4.
-9. **El backend es la fuente única del progreso y de la corrección de quizzes** (api-contract §5-§6); progressStore es caché + `lastLessonId` local. localStorage solo persiste `ehpc-variant`, `ehpc-sidebar-expanded` y `ehpc-last-lesson` — §3.1, §6.6.
+9. **El backend es la fuente única del progreso y de la corrección de quizzes** (api-contract §5-§6); progressStore es caché + `lastLessonId` local. localStorage solo persiste `telar-variant`, `telar-sidebar-expanded` y `telar-last-lesson` — §3.1, §6.6.
 10. `api/types.ts` y `ws/messages.ts` se transcriben LITERALMENTE de api-contract.md (envelope, snake_case, `/api/v1`, 8 fases, `log.lines[]`+`seq`, sin close 4409); tabla única fase→chip en §6.3 — encabezado y §4.2.
 11. Las gráficas de CPU escalan a `threads_effective·100`, jamás a 100 fijo — §8.1/§8.4.
 12. La serie temporal de métricas vive SOLO en memoria del live; Resultados degrada a `metrics_summary` (el backend no persiste muestras) — §6.4/§8.4.

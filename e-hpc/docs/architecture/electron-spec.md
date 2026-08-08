@@ -25,12 +25,12 @@ e-hpc/
    │  └─ build.mjs                  # esbuild: main.ts + preload.ts → dist-electron/*.cjs (§3)
    ├─ src/
    │  ├─ main.ts                    # ciclo de vida, BrowserWindow, carga dev/prod (§4)
-   │  ├─ preload.ts                 # contextBridge → window.ehpc (§5)
+   │  ├─ preload.ts                 # contextBridge → window.telar (§5)
    │  ├─ ipc-docker.ts              # whitelist de acciones compose + execFile + validación sender (§5.2)
    │  ├─ security.ts                # CSP onHeadersReceived, will-navigate, windowOpenHandler (§7)
    │  └─ constants.ts               # orígenes permitidos, rutas, nombre del compose project
    ├─ types/
-   │  └─ ehpc-api.d.ts              # contrato TS de window.ehpc — se COMPARTE con frontend/src/types/ehpc.d.ts
+   │  └─ telar-api.d.ts              # contrato TS de window.telar — se COMPARTE con frontend/src/types/telar.d.ts
    ├─ dist-electron/                # salida esbuild (gitignored)
    └─ release/                      # salida electron-builder (gitignored)
 ```
@@ -38,7 +38,7 @@ e-hpc/
 - `desktop/` no tiene React ni Vite: solo `electron`, `electron-builder`, `esbuild`,
   `concurrently`, `wait-on` como devDependencies. Cero dependencias de producción
   (`node_modules` no se empaqueta).
-- El contrato `ehpc-api.d.ts` es **un solo archivo** referenciado por ambos paquetes
+- El contrato `telar-api.d.ts` es **un solo archivo** referenciado por ambos paquetes
   (copia verificada por un test o symlink dentro del repo; en NTFS/WSL2 preferir copia +
   check en CI/test para evitar problemas de symlinks).
 
@@ -194,13 +194,13 @@ Notas:
 
 ---
 
-## 5. API `window.ehpc` (contextBridge) y su IPC
+## 5. API `window.telar` (contextBridge) y su IPC
 
-### 5.1 Contrato TS (`types/ehpc-api.d.ts` — compartido con el frontend)
+### 5.1 Contrato TS (`types/telar-api.d.ts` — compartido con el frontend)
 
 ```ts
 export interface ComposeService {
-  name: string                                // p.ej. 'ehpc-backend-1'
+  name: string                                // p.ej. 'telar-backend-1'
   service: string                             // 'backend' | 'web' | ...
   state: 'running' | 'exited' | 'restarting' | 'paused' | 'created' | 'dead'
   health?: 'healthy' | 'unhealthy' | 'starting'
@@ -217,7 +217,7 @@ export interface DockerActionResult {
   error?: string                              // stderr saneado (primeras ~500 chars)
 }
 
-export interface EhpcApi {
+export interface TelarApi {
   /** Versión de la app de escritorio (package.json). */
   readonly appVersion: string
   /** Plataforma del SO: 'win32' | 'linux' | 'darwin'. */
@@ -233,7 +233,7 @@ export interface EhpcApi {
 }
 
 declare global {
-  interface Window { ehpc?: EhpcApi }         // undefined en el build web = detector de plataforma
+  interface Window { telar?: TelarApi }         // undefined en el build web = detector de plataforma
 }
 ```
 
@@ -243,7 +243,7 @@ declare global {
 import { contextBridge, ipcRenderer } from 'electron'
 
 // NUNCA se expone ipcRenderer; solo funciones concretas que invocan canales fijos.
-contextBridge.exposeInMainWorld('ehpc', {
+contextBridge.exposeInMainWorld('telar', {
   appVersion: __APP_VERSION__,               // inyectada por esbuild define
   platform: process.platform,
   dockerStatus: () => ipcRenderer.invoke('docker:run', 'compose:ps'),
@@ -357,7 +357,7 @@ solo https construida con `new URL` (ítems 13-17 del checklist oficial).
 ## 6. electron-builder.yml
 
 ```yaml
-appId: edu.ehpc.desktop
+appId: edu.telar.desktop
 productName: Telar
 directories:
   output: release
@@ -407,20 +407,20 @@ redundante. El compose solo levanta `backend`; `runner` queda en el perfil
 
 ```yaml
 # desktop/resources/compose/compose.yaml — solo image:, cero build:
-name: ehpc
+name: telar
 services:
   backend:
-    image: ghcr.io/jorgesierra/ehpc-backend:1.0.0
+    image: ghcr.io/jorgesierra/telar-backend:1.0.0
     ports: ["127.0.0.1:8000:8000"]
     # … (mismo environment/volumes que architecture.md §2.2)
   runner:
-    image: ghcr.io/jorgesierra/ehpc-runner:0.5.1
+    image: ghcr.io/jorgesierra/telar-runner:0.5.1
     profiles: ["build"]        # nunca corre como servicio; `up` lo ignora
     entrypoint: ["true"]
 volumes:
-  ehpc_data:
-  ehpc_submissions:
-    name: ehpc_submissions   # sin prefijo de proyecto — igual que el compose raíz (BL-02)
+  telar_data:
+  telar_submissions:
+    name: telar_submissions   # sin prefijo de proyecto — igual que el compose raíz (BL-02)
 ```
 
 Estrategia de distribución de imágenes (dos modos, ambos documentados en el
@@ -561,9 +561,9 @@ export function attachNavigationGuards(win: BrowserWindow): void {
 
 ```
 launch → main crea ventana → renderer monta AppShell
-  └─ usePlatform() detecta window.ehpc → modo desktop
+  └─ usePlatform() detecta window.telar → modo desktop
        └─ useDockerStatus():
-            1. window.ehpc.dockerStatus()
+            1. window.telar.dockerStatus()
             2a. ok && backend healthy  → footer: dot verde pulsante
                 'Docker runtime' / '{n} contenedores activos'   (n = services running)
             2b. ok pero backend exited → footer: dot ámbar 'servicios detenidos'
@@ -599,10 +599,10 @@ launch → main crea ventana → renderer monta AppShell
 | `VITE_API_BASE`/`VITE_WS_BASE` | override SOLO de dev | override SOLO de dev |
 | CSP | definida por nginx (opcional) | inyectada por main (§7.1) |
 | Router | HashRouter | HashRouter (requisito file://) |
-| `window.ehpc` | `undefined` | definida por preload |
+| `window.telar` | `undefined` | definida por preload |
 
 **El build es único y NO hornea la base del API**: `config.ts` la resuelve en
-RUNTIME — desktop si `window.ehpc !== undefined || location.protocol === 'file:'`,
+RUNTIME — desktop si `window.telar !== undefined || location.protocol === 'file:'`,
 web (rutas relativas) en caso contrario (regla congelada en `architecture.md`
 §2.3). Así el mismo `dist/` funciona tras nginx y bajo `file://`.
 
@@ -632,10 +632,10 @@ web (rutas relativas) en caso contrario (regla congelada en `architecture.md`
 
 ## 11. Decisiones registradas en este documento
 
-1. `desktop/` como paquete hermano sin Vite propio; contrato `ehpc-api.d.ts` compartido por copia verificada (§1).
+1. `desktop/` como paquete hermano sin Vite propio; contrato `telar-api.d.ts` compartido por copia verificada (§1).
 2. esbuild dos entradas → `dist-electron/*.cjs`, target node24, typecheck separado con tsc (§2-3).
 3. Dev con `concurrently` + `wait-on` (HMR del renderer vía `VITE_DEV_SERVER_URL`); sin auto-restart del main en MVP (§3).
-4. `window.ehpc` = { appVersion, platform, dockerStatus, dockerUp, dockerStop, openExternal } — nombres finales del contrato (§5.1).
+4. `window.telar` = { appVersion, platform, dockerStatus, dockerUp, dockerStop, openExternal } — nombres finales del contrato (§5.1).
 5. `compose ps --format json` parseado como NDJSON en el main; el renderer recibe estructura tipada, nunca stdout crudo (§5.3).
 6. compose.yaml de despliegue empaquetado en `resources/compose` + override por `TELAR_COMPOSE_DIR` (§5.3, §6).
 7. CSP por `onHeadersReceived` solo en desktop; nginx gestiona la suya en web (§7.1).
