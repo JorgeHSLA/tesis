@@ -36,6 +36,19 @@ function toInt(raw: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback
 }
 
+/** Mínimo que exige el backend (`Field(ge=5)`), siempre vigente. */
+export const TIMEOUT_MIN_S = 5
+
+/** Techo duro de `schema.sql` (`CHECK (default_timeout_s BETWEEN 5 AND 120)`),
+ * independiente del tope opcional de la app. */
+const TIMEOUT_HARD_CEILING_S = 120
+
+/** Tope efectivo del campo: el de /system si lo hay (`max_timeout_s > 0` es un
+ * tope OPCIONAL; `0` = sin límite), acotado siempre por el CHECK de la DB. */
+export function effectiveTimeoutCap(maxTimeoutS: number): number {
+  return maxTimeoutS > 0 ? Math.min(maxTimeoutS, TIMEOUT_HARD_CEILING_S) : TIMEOUT_HARD_CEILING_S
+}
+
 export function ExampleMetaFields({
   value,
   onChange,
@@ -45,6 +58,7 @@ export function ExampleMetaFields({
 }: ExampleMetaFieldsProps) {
   const uid = useId()
   const err = (field: string): string | undefined => errors[`${errorPrefix}${field}`]
+  const timeoutCap = effectiveTimeoutCap(maxTimeoutS)
 
   return (
     <div className="col" style={{ gap: 14 }}>
@@ -193,19 +207,19 @@ export function ExampleMetaFields({
         <Field
           label="Timeout por defecto"
           htmlFor={`${uid}-timeout`}
-          hint={`Segundos (máx. ${maxTimeoutS})`}
+          hint={`Segundos (${TIMEOUT_MIN_S}–${timeoutCap})${maxTimeoutS > 0 ? '' : ' · el servidor no impone tope'}`}
           error={err('default_timeout_s')}
         >
           <input
             id={`${uid}-timeout`}
             className="input"
             type="number"
-            min={1}
-            max={maxTimeoutS}
+            min={TIMEOUT_MIN_S}
+            max={timeoutCap}
             value={String(value.default_timeout_s)}
             onChange={(e) => {
               const n = toInt(e.currentTarget.value, value.default_timeout_s)
-              onChange({ default_timeout_s: Math.min(Math.max(1, n), maxTimeoutS) })
+              onChange({ default_timeout_s: Math.min(Math.max(TIMEOUT_MIN_S, n), timeoutCap) })
             }}
           />
         </Field>

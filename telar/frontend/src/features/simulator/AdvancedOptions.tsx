@@ -1,7 +1,9 @@
 // AdvancedOptions — card «Opciones avanzadas» del idle (frontend-spec §6.2).
 // Framework fijo OpenMP·PyOMP (MPI/Slurm disabled «próximamente»); entorno
 // readonly de GET /system; timeout construido DINÁMICAMENTE desde
-// limits.max_timeout_s (JAMÁS ofrecer > max_timeout_s: el backend valida 5..120).
+// limits.max_timeout_s, que ahora es un TOPE OPCIONAL: `0` (o <= 0) significa
+// «sin límite» y es el valor por defecto del backend. Con tope (> 0) jamás se
+// ofrece un valor por encima de él (el backend responde 422).
 import { useId } from 'react'
 import type { SystemInfoDto } from '../../api/types'
 import { Card, CardHead, CardPad } from '../../components/ui/Card'
@@ -15,16 +17,33 @@ export interface AdvancedOptionsProps {
   onTimeoutChange: (t: number) => void
 }
 
-/** Opciones de timeout: 30/60 + default del ejemplo + tope del backend. */
+/** Escalera por defecto cuando el backend no impone tope (max_timeout_s <= 0).
+ *
+ * El techo es 120 s porque `schema.sql` conserva
+ * `CHECK (timeout_s BETWEEN 5 AND 120)`: un valor mayor pasaría la validación
+ * del router y luego rompería el INSERT. Subirlo aquí exige antes la
+ * migración que reconstruya esa tabla. */
+export const TIMEOUT_CHOICES = [30, 60, 90, 120] as const
+
+/** Opciones del select: la escalera fija + el default del ejemplo, acotadas al
+ * tope del backend SOLO si hay tope (`maxTimeoutS > 0`). */
 export function buildTimeoutOptions(maxTimeoutS: number, exampleDefault: number | null): number[] {
-  const base = [30, 60, exampleDefault ?? 60, maxTimeoutS]
-  return [...new Set(base)].filter((t) => t >= 5 && t <= maxTimeoutS).sort((a, b) => a - b)
+  const hasCap = maxTimeoutS > 0
+  const base = [...TIMEOUT_CHOICES, exampleDefault ?? 60]
+  const ceiling = hasCap ? Math.min(maxTimeoutS, TIMEOUT_CHOICES[TIMEOUT_CHOICES.length - 1]) : TIMEOUT_CHOICES[TIMEOUT_CHOICES.length - 1]
+  const values = [...new Set(hasCap ? [...base, maxTimeoutS] : base)]
+    .filter((t) => t >= 5 && t <= ceiling)
+    .sort((a, b) => a - b)
+  // Con topes muy bajos (p. ej. 10 s) la escalera se queda vacía: ofrecer al
+  // menos el propio tope evita repetir el bug del select sin opciones.
+  return values.length > 0 ? values : [Math.max(5, ceiling)]
 }
 
 export function AdvancedOptions({ system, exampleDefaultTimeout, timeoutS, onTimeoutChange }: AdvancedOptionsProps) {
   const fwId = useId()
   const envId = useId()
   const toId = useId()
+  const hasCap = system.limits.max_timeout_s > 0
   const options = buildTimeoutOptions(system.limits.max_timeout_s, exampleDefaultTimeout)
   const runtime = `telar-runner · python ${system.versions.python} + pyomp ${system.versions.pyomp}`
 
@@ -59,11 +78,14 @@ export function AdvancedOptions({ system, exampleDefaultTimeout, timeoutS, onTim
           <select id={toId} className="select" value={timeoutS} onChange={(e) => onTimeoutChange(Number(e.currentTarget.value))}>
             {options.map((t) => (
               <option key={t} value={t}>
-                {t} s{t === system.limits.max_timeout_s ? ' (límite del backend)' : ''}
+                {t} s{hasCap && t === system.limits.max_timeout_s ? ' (límite del backend)' : ''}
               </option>
             ))}
           </select>
-          <div className="field-hint">El timeout incluye el arranque de Python y la compilación JIT.</div>
+          <div className="field-hint">
+            El timeout incluye el arranque de Python y la compilación JIT.
+            {hasCap ? '' : ' El servidor no impone tope; el job se detiene al llegar al valor elegido.'}
+          </div>
         </div>
       </CardPad>
     </Card>
