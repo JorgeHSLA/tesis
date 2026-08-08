@@ -25,7 +25,12 @@ CREATE TABLE IF NOT EXISTS jobs (
     -- configuración de ejecución (lo que se pasó a docker_service)
     threads           INTEGER NOT NULL CHECK (threads BETWEEN 1 AND 16),
                                                      -- threads_effective (CPUs asignadas)
-    timeout_s         INTEGER NOT NULL CHECK (timeout_s BETWEEN 5 AND 120),
+    timeout_s         INTEGER NOT NULL CHECK (timeout_s = 0 OR timeout_s >= 5),
+                                                     -- 0 = SIN TIMEOUT (espera
+                                                     -- indefinida); >= 5 = límite
+                                                     -- en segundos. Sin techo: el
+                                                     -- tope es opcional y vive en
+                                                     -- TELAR_MAX_TIMEOUT_S.
     runner_image      TEXT NOT NULL,                 -- p.ej. 'telar-runner:0.5.1'
     -- ciclo de vida
     status            TEXT NOT NULL DEFAULT 'queued'
@@ -133,7 +138,13 @@ CREATE TABLE IF NOT EXISTS examples (
     parser_id             TEXT NOT NULL CHECK (parser_id IN
                           ('none','sweep_pi','sweep_transporte',
                            'pair_openmp_numpy','pair_openmp_blas','pair_parallel_serial')),
-    default_timeout_s     INTEGER NOT NULL CHECK (default_timeout_s BETWEEN 5 AND 120),
+    default_timeout_s     INTEGER NOT NULL CHECK (default_timeout_s >= 5),
+                                                 -- sin techo (el tope es opcional,
+                                                 -- TELAR_MAX_TIMEOUT_S). A diferencia
+                                                 -- de jobs.timeout_s NO admite 0: un
+                                                 -- ejemplo del curso siempre trae un
+                                                 -- límite; "sin timeout" es una
+                                                 -- elección del estudiante.
     est_run_seconds       INTEGER NOT NULL CHECK (est_run_seconds >= 1),
     enabled               INTEGER NOT NULL CHECK (enabled IN (0,1)),
     requires_gpu          INTEGER NOT NULL CHECK (requires_gpu IN (0,1)),
@@ -165,3 +176,97 @@ CREATE TABLE IF NOT EXISTS app_meta (
     key    TEXT PRIMARY KEY,
     value  TEXT NOT NULL
 );
+
+-- migration 4
+-- "Sin timeout": el tope de `timeout_s` deja de existir en la DB y aparece el
+-- centinela 0 = espera indefinida. Los CHECK viejos
+-- (`timeout_s BETWEEN 5 AND 120`, `default_timeout_s BETWEEN 5 AND 120`) ya no
+-- valen: capaban el valor DESPUÉS de que el router lo aceptara, así que un
+-- timeout largo pasaba la validación y reventaba el INSERT con IntegrityError.
+--
+-- SQLite no permite alterar un CHECK in-place, así que hay que reconstruir la
+-- tabla (procedimiento oficial: sqlite.org/lang_altertable.html#otheralter).
+-- `jobs` tiene una FK ENTRANTE (lesson_progress.last_job_id), por eso el
+-- foreign_keys=OFF durante el intercambio; al renombrar, la FK vuelve a
+-- resolver contra la tabla nueva. Los índices se recrean al final porque
+-- DROP TABLE se los lleva por delante.
+--
+-- El bloque base y la migration 2 ya traen los CHECK nuevos: esto es solo para
+-- DBs creadas antes (schema_version < 4).
+PRAGMA foreign_keys = OFF;
+
+CREATE TABLE jobs_m4 (
+    id                TEXT PRIMARY KEY,
+    source_kind       TEXT NOT NULL
+                      CHECK (source_kind IN ('example','editor','upload')),
+    example_id        TEXT,
+    lesson_id         TEXT,
+    filename          TEXT NOT NULL,
+    source_code       TEXT NOT NULL,
+    threads           INTEGER NOT NULL CHECK (threads BETWEEN 1 AND 16),
+    timeout_s         INTEGER NOT NULL CHECK (timeout_s = 0 OR timeout_s >= 5),
+    runner_image      TEXT NOT NULL,
+    status            TEXT NOT NULL DEFAULT 'queued'
+                      CHECK (status IN ('queued','creating','compiling','running',
+                                        'completed','failed','timeout','cancelled')),
+    container_id      TEXT,
+    error_detail      TEXT,
+    exit_code         INTEGER,
+    oom_killed        INTEGER NOT NULL DEFAULT 0,
+    stdout            TEXT,
+    stderr            TEXT,
+    output_truncated  INTEGER NOT NULL DEFAULT 0,
+    metrics_summary   TEXT,
+    parsed_timings    TEXT,
+    created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    started_at        TEXT,
+    finished_at       TEXT,
+    wall_time_ms      INTEGER
+);
+INSERT INTO jobs_m4 SELECT
+    id, source_kind, example_id, lesson_id, filename, source_code, threads,
+    timeout_s, runner_image, status, container_id, error_detail, exit_code,
+    oom_killed, stdout, stderr, output_truncated, metrics_summary,
+    parsed_timings, created_at, started_at, finished_at, wall_time_ms
+FROM jobs;
+DROP TABLE jobs;
+ALTER TABLE jobs_m4 RENAME TO jobs;
+
+CREATE INDEX IF NOT EXISTS idx_jobs_created  ON jobs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_jobs_status   ON jobs (status);
+CREATE INDEX IF NOT EXISTS idx_jobs_lesson   ON jobs (lesson_id)  WHERE lesson_id  IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_jobs_example  ON jobs (example_id) WHERE example_id IS NOT NULL;
+
+CREATE TABLE examples_m4 (
+    id                    TEXT PRIMARY KEY REFERENCES lessons(id) ON DELETE CASCADE,
+    filename              TEXT NOT NULL,
+    title                 TEXT NOT NULL CHECK (length(title) > 0),
+    difficulty            INTEGER NOT NULL CHECK (difficulty BETWEEN 1 AND 5),
+    teaches               TEXT NOT NULL,
+    directives_json       TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(directives_json)),
+    threads_configurable  INTEGER NOT NULL CHECK (threads_configurable IN (0,1)),
+    fixed_threads         INTEGER,
+    fixed_threads_note    TEXT,
+    sweeps_threads        INTEGER NOT NULL CHECK (sweeps_threads IN (0,1)),
+    self_measures         INTEGER NOT NULL CHECK (self_measures IN (0,1)),
+    parser_id             TEXT NOT NULL CHECK (parser_id IN
+                          ('none','sweep_pi','sweep_transporte',
+                           'pair_openmp_numpy','pair_openmp_blas','pair_parallel_serial')),
+    default_timeout_s     INTEGER NOT NULL CHECK (default_timeout_s >= 5),
+    est_run_seconds       INTEGER NOT NULL CHECK (est_run_seconds >= 1),
+    enabled               INTEGER NOT NULL CHECK (enabled IN (0,1)),
+    requires_gpu          INTEGER NOT NULL CHECK (requires_gpu IN (0,1)),
+    expected_output_note  TEXT NOT NULL,
+    takeaways_json        TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(takeaways_json)),
+    source_code           TEXT NOT NULL CHECK (length(source_code) > 0)
+);
+INSERT INTO examples_m4 SELECT
+    id, filename, title, difficulty, teaches, directives_json,
+    threads_configurable, fixed_threads, fixed_threads_note, sweeps_threads,
+    self_measures, parser_id, default_timeout_s, est_run_seconds, enabled,
+    requires_gpu, expected_output_note, takeaways_json, source_code
+FROM examples;
+DROP TABLE examples;
+ALTER TABLE examples_m4 RENAME TO examples;
+
+PRAGMA foreign_keys = ON;

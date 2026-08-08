@@ -618,7 +618,7 @@ Reglas del parser:
 
 | Parámetro | Default | Tope servidor |
 |---|---|---|
-| `timeout_s` por job | el del fixture del ejemplo (30–90 s según ejemplo; 60 s para código propio) | `TELAR_MAX_TIMEOUT_S` — **opcional**: `0` (por defecto) = sin límite; `> 0` = máximo. El mínimo (5 s) se valida siempre |
+| `timeout_s` por job | el del fixture del ejemplo (30–90 s según ejemplo; 60 s para código propio) | `TELAR_MAX_TIMEOUT_S` — **opcional**: `0` (por defecto) = sin límite; `> 0` = máximo. `timeout_s = 0` pide **sin timeout** (espera indefinida, `wait(None)`); solo se admite si no hay tope. Cualquier otro valor, `>= 5` |
 | Jobs concurrentes | `TELAR_MAX_CONCURRENT_JOBS=2` (semáforo asyncio) | cola interna máx. 10 → 429 |
 
 Los timeouts absorben import + JIT (hasta ~5–20 s en funciones no triviales) +

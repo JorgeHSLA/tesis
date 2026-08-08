@@ -18,6 +18,7 @@ from app.services.job_runner import (
     KILL_NONE,
     KILL_OUTPUT_LIMIT,
     KILL_TIMEOUT,
+    NO_TIMEOUT,
     JobHandle,
     JobRunner,
     compute_metrics,
@@ -49,11 +50,15 @@ def make_runner(docker: FakeDockerService, repo, settings, **over) -> JobRunner:
 async def launch(
     runner: JobRunner, repo: JobRepository, job_id: str, *,
     threads: int = 2, timeout_s: int = 30, parser_id: str = "none",
-    source_code: str = "print('x')\n", wait_timeout_s: int | None = None,
+    source_code: str = "print('x')\n", wait_timeout_s: float | None = None,
     lesson_id: str | None = None,
 ) -> JobHandle:
     """Crea la fila (queued) y arranca el runner. ``wait_timeout_s`` permite
-    un timeout de espera menor que el mínimo del CHECK de la DB (5s)."""
+    un timeout de espera menor que el mínimo del CHECK de la DB (5s).
+
+    OJO: no puede valer 0 — ese es el centinela ``NO_TIMEOUT`` (espera
+    indefinida), así que un 0 aquí colgaría el test para siempre en vez de
+    disparar el wall_timeout. Usar un float pequeño (p. ej. 0.05)."""
     await repo.create(make_job_record(
         job_id, threads=threads, timeout_s=timeout_s, source_code=source_code,
         lesson_id=lesson_id,
@@ -156,7 +161,7 @@ async def test_timeout_wall_clock(db, settings):
     repo = JobRepository(db)
     runner = make_runner(docker, repo, settings)
     execution = docker.queue_execution(FakeExecution(hang=True))
-    handle = await launch(runner, repo, "j1", wait_timeout_s=0)  # wait(0) → timeout
+    handle = await launch(runner, repo, "j1", wait_timeout_s=0.05)  # wait(0.05) → timeout
     await asyncio.wait_for(handle.task, 10)
     assert handle.kill_reason == KILL_TIMEOUT
     assert execution.killed is True
@@ -653,3 +658,60 @@ async def test_bl05_upsert_que_falla_no_reclasifica_el_job(db, settings):
     record = await repo.find_by_id("job-bl05-boom")
     assert record.status == "completed"
     assert record.error_detail is None
+
+
+# ───────────────── NO_TIMEOUT: job sin timeout (centinela 0) ─────────────────
+
+
+async def test_sin_timeout_espera_indefinida(db, settings):
+    """``timeout_s = 0`` ⇒ el runner llama a ``wait(None)``: sin wall-clock.
+
+    Se usa un contenedor que SÍ termina solo (hang=False); con hang=True el
+    test se colgaría para siempre, que es justamente la semántica nueva.
+    """
+    docker = FakeDockerService()
+    repo = JobRepository(db)
+    runner = make_runner(docker, repo, settings)
+    execution = docker.queue_execution(FakeExecution(stdout=[b"ok\n"]))
+    handle = await launch(runner, repo, "j1", timeout_s=NO_TIMEOUT)
+    await asyncio.wait_for(handle.task, 10)
+
+    # El runner propagó None (espera indefinida), no un número.
+    assert execution.wait_timeouts == [None]
+    # Y jamás se mata por wall_timeout.
+    assert handle.kill_reason != KILL_TIMEOUT
+    record = await repo.find_by_id("j1")
+    assert record.status == "completed"
+    assert record.error_detail is None
+    assert record.timeout_s == NO_TIMEOUT
+
+
+async def test_con_timeout_sigue_pasando_el_numero(db, settings):
+    """Contraste: con timeout normal se propaga el float, no None."""
+    docker = FakeDockerService()
+    repo = JobRepository(db)
+    runner = make_runner(docker, repo, settings)
+    execution = docker.queue_execution(FakeExecution(stdout=[b"ok\n"]))
+    handle = await launch(runner, repo, "j1", timeout_s=30)
+    await asyncio.wait_for(handle.task, 10)
+
+    assert execution.wait_timeouts == [30.0]
+
+
+async def test_sin_timeout_sigue_siendo_cancelable(db, settings):
+    """Sin wall-clock, cancelar es la única salida de un job colgado: es la
+    red de seguridad de la que depende el modo NO_TIMEOUT."""
+    docker = FakeDockerService()
+    repo = JobRepository(db)
+    runner = make_runner(docker, repo, settings)
+    execution = docker.queue_execution(FakeExecution(hang=True))
+    handle = await launch(runner, repo, "j1", timeout_s=NO_TIMEOUT)
+    await wait_phase(handle, "running", "compiling", "creating")
+
+    handle.request_kill(KILL_CANCEL)
+    execution.kill()
+    await asyncio.wait_for(handle.task, 10)
+
+    assert execution.wait_timeouts == [None]
+    record = await repo.find_by_id("j1")
+    assert record.status == "cancelled"

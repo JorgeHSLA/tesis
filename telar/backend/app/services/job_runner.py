@@ -42,6 +42,13 @@ KILL_TIMEOUT = "timeout"
 
 TERMINAL_STATUSES = frozenset({"completed", "failed", "timeout", "cancelled"})
 
+#: Centinela de `timeout_s`: 0 = SIN TIMEOUT (se espera al contenedor
+#: indefinidamente y jamás se produce `wall_timeout`). Con este valor el job
+#: solo termina por sí mismo, por cancelación o por el tope de output; en
+#: particular, un bucle infinito retiene su slot del semáforo hasta que alguien
+#: cancele. Solo se admite si el despliegue NO fija tope (TELAR_MAX_TIMEOUT_S).
+NO_TIMEOUT = 0
+
 CENTRAL_QUEUE_MAX = 1000  # backpressure del productor contra el drainer (§8.4)
 SUBSCRIBER_QUEUE_MAX = 200  # cola por-conexión, put_nowait lossy (§3.2)
 BACKLOG_MAX_LINES = 500  # ring-buffer de replay (§3.2)
@@ -736,7 +743,15 @@ class JobRunner:
     async def _wait_with_timeout(
         self, handle: JobHandle, execution: "JobExecutionPort"
     ) -> int | None:
-        """Timeout duro §3 p.6: wait(timeout) → kill → wait(grace) → 137."""
+        """Timeout duro §3 p.6: wait(timeout) → kill → wait(grace) → 137.
+
+        Con ``timeout_s == NO_TIMEOUT`` se espera SIN límite: ``wait(None)`` no
+        puede levantar ``RunnerTimeout``, así que el job nunca termina en
+        ``timeout``/``wall_timeout``. Las demás vías de muerte (cancel, tope de
+        output, OOM) siguen intactas porque no pasan por aquí.
+        """
+        if handle.timeout_s == NO_TIMEOUT:
+            return await asyncio.to_thread(execution.wait, None)
         try:
             return await asyncio.to_thread(execution.wait, float(handle.timeout_s))
         except RunnerTimeout:

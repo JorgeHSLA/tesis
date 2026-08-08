@@ -4,12 +4,17 @@
 // sin nada seleccionable.
 import { describe, expect, it } from 'vitest'
 
-import { buildTimeoutOptions, TIMEOUT_CHOICES } from '../../src/features/simulator/AdvancedOptions'
+import { buildTimeoutOptions, NO_TIMEOUT, TIMEOUT_CHOICES } from '../../src/features/simulator/AdvancedOptions'
 import { effectiveTimeoutCap, TIMEOUT_MIN_S } from '../../src/features/admin/example/ExampleMetaFields'
 
 describe('buildTimeoutOptions', () => {
-  it('sin tope (0) ofrece la escalera de 4 valores', () => {
-    expect(buildTimeoutOptions(0, null)).toEqual([...TIMEOUT_CHOICES])
+  it('sin tope ofrece «Sin timeout» + la escalera de 4 valores', () => {
+    expect(buildTimeoutOptions(0, null)).toEqual([NO_TIMEOUT, ...TIMEOUT_CHOICES])
+  })
+
+  it('«Sin timeout» va primero y solo aparece sin tope', () => {
+    expect(buildTimeoutOptions(0, null)[0]).toBe(NO_TIMEOUT)
+    expect(buildTimeoutOptions(120, null)).not.toContain(NO_TIMEOUT)
   })
 
   it('sin tope NUNCA devuelve lista vacía (regresión del select en blanco)', () => {
@@ -28,9 +33,10 @@ describe('buildTimeoutOptions', () => {
     expect(buildTimeoutOptions(0, 45)).toContain(45)
   })
 
-  it('nunca ofrece por debajo del mínimo del backend (5 s)', () => {
+  it('salvo el centinela 0, nunca ofrece por debajo del mínimo (5 s)', () => {
     for (const max of [0, 10, 120]) {
-      expect(Math.min(...buildTimeoutOptions(max, null))).toBeGreaterThanOrEqual(5)
+      const reales = buildTimeoutOptions(max, null).filter((t) => t !== NO_TIMEOUT)
+      expect(Math.min(...reales)).toBeGreaterThanOrEqual(5)
     }
   })
 
@@ -42,17 +48,17 @@ describe('buildTimeoutOptions', () => {
 })
 
 describe('effectiveTimeoutCap (campo admin)', () => {
-  it('sin tope cae al techo del CHECK de la DB, no a 0', () => {
-    expect(effectiveTimeoutCap(0)).toBe(120)
-    expect(effectiveTimeoutCap(-5)).toBe(120)
+  it('sin tope no impone techo (null), y desde luego no 0', () => {
+    expect(effectiveTimeoutCap(0)).toBeNull()
+    expect(effectiveTimeoutCap(-5)).toBeNull()
   })
 
   it('con tope usa el del backend', () => {
     expect(effectiveTimeoutCap(60)).toBe(60)
   })
 
-  it('nunca supera el techo de la DB aunque el backend permita más', () => {
-    expect(effectiveTimeoutCap(3600)).toBe(120)
+  it('ya no hay techo de 120: la migration 4 levantó el CHECK', () => {
+    expect(effectiveTimeoutCap(3600)).toBe(3600)
   })
 
   it('el mínimo declarado coincide con el ge=5 del backend', () => {

@@ -36,17 +36,20 @@ function toInt(raw: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback
 }
 
-/** Mínimo que exige el backend (`Field(ge=5)`), siempre vigente. */
+/** Mínimo que exige el backend (`Field(ge=5)`), siempre vigente.
+ *
+ * A diferencia de `jobs.timeout_s`, el `default_timeout_s` de un ejemplo NO
+ * admite el centinela 0: un ejemplo del curso siempre trae un límite; «sin
+ * timeout» es una elección del estudiante en el simulador. */
 export const TIMEOUT_MIN_S = 5
 
-/** Techo duro de `schema.sql` (`CHECK (default_timeout_s BETWEEN 5 AND 120)`),
- * independiente del tope opcional de la app. */
-const TIMEOUT_HARD_CEILING_S = 120
-
-/** Tope efectivo del campo: el de /system si lo hay (`max_timeout_s > 0` es un
- * tope OPCIONAL; `0` = sin límite), acotado siempre por el CHECK de la DB. */
-export function effectiveTimeoutCap(maxTimeoutS: number): number {
-  return maxTimeoutS > 0 ? Math.min(maxTimeoutS, TIMEOUT_HARD_CEILING_S) : TIMEOUT_HARD_CEILING_S
+/** Tope efectivo del campo, o `null` si no hay ninguno.
+ *
+ * `max_timeout_s > 0` es un tope OPCIONAL del despliegue; `0` = sin límite. La
+ * migration 4 levantó el `CHECK ... BETWEEN 5 AND 120` de la DB, así que sin
+ * tope de despliegue no queda ningún techo que imponer. */
+export function effectiveTimeoutCap(maxTimeoutS: number): number | null {
+  return maxTimeoutS > 0 ? maxTimeoutS : null
 }
 
 export function ExampleMetaFields({
@@ -207,7 +210,11 @@ export function ExampleMetaFields({
         <Field
           label="Timeout por defecto"
           htmlFor={`${uid}-timeout`}
-          hint={`Segundos (${TIMEOUT_MIN_S}–${timeoutCap})${maxTimeoutS > 0 ? '' : ' · el servidor no impone tope'}`}
+          hint={
+            timeoutCap == null
+              ? `Segundos (mín. ${TIMEOUT_MIN_S}) · el servidor no impone tope`
+              : `Segundos (${TIMEOUT_MIN_S}–${timeoutCap})`
+          }
           error={err('default_timeout_s')}
         >
           <input
@@ -215,11 +222,14 @@ export function ExampleMetaFields({
             className="input"
             type="number"
             min={TIMEOUT_MIN_S}
-            max={timeoutCap}
+            max={timeoutCap ?? undefined}
             value={String(value.default_timeout_s)}
             onChange={(e) => {
               const n = toInt(e.currentTarget.value, value.default_timeout_s)
-              onChange({ default_timeout_s: Math.min(Math.max(TIMEOUT_MIN_S, n), timeoutCap) })
+              const atLeastMin = Math.max(TIMEOUT_MIN_S, n)
+              onChange({
+                default_timeout_s: timeoutCap == null ? atLeastMin : Math.min(atLeastMin, timeoutCap),
+              })
             }}
           />
         </Field>

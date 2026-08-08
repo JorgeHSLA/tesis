@@ -286,19 +286,50 @@ def test_timeout_sin_tope_sigue_exigiendo_el_minimo(settings):
 
 
 def test_dto_job_create_sin_cap_estatico_de_timeout():
-    """CONTRATO: ``JobCreateRequest.timeout_s`` ya no lleva ``le=120``.
+    """CONTRATO: ``JobCreateRequest.timeout_s`` ya no lleva ``le=120``, y con
+    el centinela de «sin timeout» tampoco ``ge=5``: ahora es ``ge=0``.
 
-    El tope dejó de vivir en el DTO (era estático) y pasó a runtime, así que
-    un valor grande valida a nivel de schema; quien decide es el router según
-    ``settings.max_timeout_s``.
+    El tope dejó de vivir en el DTO (era estático) y pasó a runtime; la regla
+    «0 (sin timeout) o >= 5» la aplica el router, porque depende de
+    ``settings.max_timeout_s``. El DTO solo descarta los negativos.
     """
     import pydantic
 
     from app.schemas import JobCreateRequest
 
     assert JobCreateRequest(code="print(1)\n", timeout_s=36000).timeout_s == 36000
+    assert JobCreateRequest(code="print(1)\n", timeout_s=0).timeout_s == 0  # sin timeout
+    # 4 ya NO lo rechaza el DTO (lo hace el router con un 422 del contrato).
+    assert JobCreateRequest(code="print(1)\n", timeout_s=4).timeout_s == 4
     with pytest.raises(pydantic.ValidationError):
-        JobCreateRequest(code="print(1)\n", timeout_s=4)
+        JobCreateRequest(code="print(1)\n", timeout_s=-1)
+
+
+def test_timeout_cuatro_lo_rechaza_el_router_422(client):
+    """El mínimo sigue vigente aunque el DTO ya no lo imponga."""
+    response = client.post("/api/v1/jobs", json={"code": "print(1)\n", "timeout_s": 4})
+    assert_error_envelope(response, 422, "VALIDATION_ERROR")
+
+
+def test_sin_timeout_rechazado_si_hay_tope_configurado(client):
+    """Con ``max_timeout_s = 120`` (fixture), pedir 0 es contradictorio → 422."""
+    response = client.post("/api/v1/jobs", json={"code": "print(1)\n", "timeout_s": 0})
+    body = assert_error_envelope(response, 422, "VALIDATION_ERROR")
+    assert "sin timeout" in body["error"]["message"]
+
+
+def test_sin_timeout_aceptado_si_no_hay_tope(settings, fake_docker):
+    """Sin tope (``max_timeout_s = 0``), ``timeout_s = 0`` crea el job y se
+    persiste como 0 = espera indefinida."""
+    with _build_client(settings, 0) as client:
+        fake_docker_local = client.app.state.docker_service
+        fake_docker_local.queue_execution(FakeExecution(stdout=[b"ok\n"]))
+        response = client.post("/api/v1/jobs", json={"code": "print(1)\n", "timeout_s": 0})
+        data = assert_ok_envelope(response, 202)["data"]
+        detail = wait_terminal(client, data["job_id"])
+        assert detail["timeout_s"] == 0
+        assert detail["status"] == "completed"
+        assert detail["error_detail"] is None
 
 
 def test_timeout_default_del_ejemplo(client, fake_docker, real_content):

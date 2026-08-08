@@ -23,7 +23,7 @@ from pydantic import ValidationError
 from ..errors import sanitize_validation_errors
 from ..repositories.records import JobRecord
 from ..schemas import FILENAME_PATTERN, JobCreateRequest
-from ..services.job_runner import TERMINAL_STATUSES, utc_now_iso
+from ..services.job_runner import NO_TIMEOUT, TERMINAL_STATUSES, utc_now_iso
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
 
@@ -156,15 +156,23 @@ async def _create_job(
                 f"threads debe estar entre 1 y {max_threads}.",
             )
 
-    # --- timeout (§7.4): mínimo SIEMPRE, máximo OPCIONAL ---
-    # El default sigue siendo el del ejemplo (o 60 s para código propio): omitir
-    # timeout_s nunca deja un slot colgado. El tope, en cambio, es opcional:
-    # TELAR_MAX_TIMEOUT_S <= 0 significa "sin límite".
+    # --- timeout (§7.4): centinela 0 = SIN TIMEOUT; mínimo 5; máximo OPCIONAL ---
+    # Omitir timeout_s NO significa "sin timeout": se usa el default del ejemplo
+    # (o 60 s), para que un olvido no deje un slot colgado. "Sin timeout" hay que
+    # pedirlo explícitamente con 0, y queda PROHIBIDO si el despliegue fija tope
+    # (TELAR_MAX_TIMEOUT_S > 0): un tope y una espera infinita se contradicen.
     default_timeout = example.default_timeout_s if example is not None else 60
     eff_timeout = timeout_s if timeout_s is not None else default_timeout
-    if eff_timeout < 5:
-        return _err(422, "VALIDATION_ERROR", "timeout_s debe ser >= 5.")
-    if settings.max_timeout_s > 0 and eff_timeout > settings.max_timeout_s:
+    if eff_timeout == NO_TIMEOUT:
+        if settings.max_timeout_s > 0:
+            return _err(
+                422, "VALIDATION_ERROR",
+                "Este servidor fija un tope de "
+                f"{settings.max_timeout_s} s: timeout_s=0 (sin timeout) no está permitido.",
+            )
+    elif eff_timeout < 5:
+        return _err(422, "VALIDATION_ERROR", "timeout_s debe ser 0 (sin timeout) o >= 5.")
+    elif settings.max_timeout_s > 0 and eff_timeout > settings.max_timeout_s:
         return _err(
             422, "VALIDATION_ERROR",
             f"timeout_s no puede superar {settings.max_timeout_s}.",

@@ -60,9 +60,10 @@ class JobCreateRequest(BaseModel):
     filename: str | None = Field(default=None, pattern=FILENAME_PATTERN)
     threads: int | None = Field(default=None, ge=1)  # tope: max_threads (/system)
     # Sin cap estático: el tope es OPCIONAL y se aplica en RUNTIME
-    # (settings.max_timeout_s > 0) en el router `_create_job`. Con
-    # TELAR_MAX_TIMEOUT_S <= 0 no hay máximo; el mínimo (5 s) sí es fijo.
-    timeout_s: int | None = Field(default=None, ge=5)
+    # (settings.max_timeout_s > 0) en el router `_create_job`. `0` es el
+    # centinela de SIN TIMEOUT (espera indefinida); el resto de valores deben
+    # ser >= 5. Ese "0 o >= 5" lo valida el router, no el DTO.
+    timeout_s: int | None = Field(default=None, ge=0)
     lesson_id: str | None = None
 
 

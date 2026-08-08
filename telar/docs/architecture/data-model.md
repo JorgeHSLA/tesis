@@ -106,7 +106,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     -- configuración de ejecución (lo que se pasó a docker_service)
     threads           INTEGER NOT NULL CHECK (threads BETWEEN 1 AND 16),
                                                      -- threads_effective (CPUs asignadas)
-    timeout_s         INTEGER NOT NULL CHECK (timeout_s BETWEEN 5 AND 120),
+    timeout_s         INTEGER NOT NULL CHECK (timeout_s = 0 OR timeout_s >= 5),
+                                                     -- 0 = SIN TIMEOUT (migration 4)
     runner_image      TEXT NOT NULL,                 -- p.ej. 'telar-runner:0.5.1'
     -- ciclo de vida
     status            TEXT NOT NULL DEFAULT 'queued'
@@ -137,14 +138,20 @@ CREATE INDEX IF NOT EXISTS idx_jobs_lesson   ON jobs (lesson_id)  WHERE lesson_i
 CREATE INDEX IF NOT EXISTS idx_jobs_example  ON jobs (example_id) WHERE example_id IS NOT NULL;
 ```
 
-> **Nota (tope de timeout).** El máximo a nivel de aplicación es OPCIONAL
-> (`TELAR_MAX_TIMEOUT_S = 0` ⇒ sin límite, ver api-contract §7.1), pero el
-> `CHECK (timeout_s BETWEEN 5 AND 120)` de arriba **sigue vigente** y es el
-> tope efectivo: un `timeout_s > 120` supera la validación del router y luego
-> falla el `INSERT` con `IntegrityError`. Subir ese techo exige un bloque
-> `-- migration N` que reconstruya la tabla (SQLite no permite alterar un
-> CHECK in-place). Lo mismo aplica a
-> `content_examples.default_timeout_s CHECK (... BETWEEN 5 AND 120)`.
+> **Nota (timeout).** El techo desapareció en la **migration 4**: el
+> `CHECK (timeout_s BETWEEN 5 AND 120)` pasó a
+> `CHECK (timeout_s = 0 OR timeout_s >= 5)`, donde **`0` es el centinela de
+> «sin timeout»** (espera indefinida). El máximo a nivel de aplicación sigue
+> siendo OPCIONAL (`TELAR_MAX_TIMEOUT_S = 0` ⇒ sin límite, api-contract §7.1)
+> y es lo único que puede acotar el valor; con un tope configurado el router
+> rechaza `timeout_s = 0` con 422, porque un tope y una espera infinita se
+> contradicen. En `examples.default_timeout_s` el CHECK quedó en `>= 5`: a
+> diferencia de un job, un ejemplo del curso **no** admite 0 — «sin timeout»
+> es una elección del estudiante, no un default de contenido.
+>
+> Consecuencia operativa: un job con `timeout_s = 0` nunca produce
+> `wall_timeout` y retiene su puesto del semáforo (`TELAR_MAX_CONCURRENT_JOBS`)
+> hasta que termine solo o lo cancelen.
 
 ```sql
 

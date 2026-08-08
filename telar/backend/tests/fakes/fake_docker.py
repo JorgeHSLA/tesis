@@ -101,6 +101,8 @@ class FakeExecution:
         self._done = threading.Event()
         self.killed = False
         self.removed = False
+        #: Timeouts con los que el runner llamó a wait() (None = sin timeout).
+        self.wait_timeouts: list[float | None] = []
         if not hang:
             self._done.set()
 
@@ -135,7 +137,12 @@ class FakeExecution:
         if self._stats_error is not None:
             raise self._stats_error
 
-    def wait(self, timeout: float) -> int:
+    def wait(self, timeout: float | None) -> int:
+        # `timeout=None` ⇒ espera indefinida (job sin timeout): Event.wait(None)
+        # bloquea hasta que alguien lo despierte y NUNCA devuelve False, así que
+        # es imposible que salga un RunnerTimeout. Se registra el valor recibido
+        # para que los tests comprueben que el runner propagó None.
+        self.wait_timeouts.append(timeout)
         if not self._done.wait(timeout):
             raise RunnerTimeout(f"wait({timeout}) excedido (fake)")
         return 137 if self.killed else self._exit_code

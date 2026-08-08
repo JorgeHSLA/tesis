@@ -84,8 +84,12 @@ class JobExecutionPort(Protocol):
         """Generador BLOQUEANTE de muestras crudas de docker stats (~1/s)."""
         ...
 
-    def wait(self, timeout: float) -> int:
-        """Bloquea hasta exit; lanza RunnerTimeout al exceder el wall-clock."""
+    def wait(self, timeout: float | None) -> int:
+        """Bloquea hasta exit; lanza RunnerTimeout al exceder el wall-clock.
+
+        ``timeout=None`` ⇒ espera indefinida (job sin timeout): no puede
+        lanzar ``RunnerTimeout``.
+        """
         ...
 
     def kill(self) -> None:
@@ -150,8 +154,10 @@ class JobExecution:
     def iter_stats(self) -> Iterator[dict]:
         return self._container.stats(stream=True, decode=True)
 
-    def wait(self, timeout: float) -> int:
+    def wait(self, timeout: float | None) -> int:
         try:
+            # timeout=None ⇒ docker-py no fija read-timeout HTTP: espera hasta
+            # que el contenedor muera (job sin timeout).
             result = self._container.wait(timeout=timeout)
         except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as exc:
             # timeout= es read-timeout HTTP; sobre socket UNIX puede venir

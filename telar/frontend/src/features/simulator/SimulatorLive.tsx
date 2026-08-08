@@ -204,7 +204,7 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
           icon={<IconClock size={16} />}
           label="Tiempo transcurrido"
           value={fmtTime(elapsedSec)}
-          hint={timeoutS != null ? `límite ${timeoutS}s` : ' '}
+          hint={timeoutS == null ? ' ' : timeoutS === 0 ? 'sin límite' : `límite ${timeoutS}s`}
         />
         <MetricCard
           icon={<IconCpu size={16} />}
