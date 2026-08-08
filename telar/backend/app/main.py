@@ -53,12 +53,9 @@ async def _maybe_await(value: Any) -> Any:
 
 def _build_docker_service(settings: Settings) -> Any:
     """Construye el docker service real (módulo único de WP2, §5)."""
-    from app.services import docker_service as docker_module
+    from app.services.docker_service import DockerService
 
-    factory = getattr(docker_module, "create_docker_service", None)
-    if callable(factory):
-        return factory(settings)
-    return docker_module.DockerService(settings)  # type: ignore[attr-defined]
+    return DockerService(settings)
 
 
 async def _seed_content_if_unseeded(db_conn: Any) -> None:
