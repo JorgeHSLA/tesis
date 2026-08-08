@@ -73,7 +73,7 @@ def _max_code_bytes(app: "FastAPI") -> int:
     """Tope de bytes del código fuente leído en runtime (BL-17).
 
     Espeja la vía multipart y ``/jobs``: el límite es ``settings.max_code_bytes``
-    (``EHPC_MAX_CODE_BYTES``), no una constante — un operador que baje el tope lo
+    (``TELAR_MAX_CODE_BYTES``), no una constante — un operador que baje el tope lo
     ve aplicado por igual en la vía JSON.
     """
     return int(app.state.settings.max_code_bytes)

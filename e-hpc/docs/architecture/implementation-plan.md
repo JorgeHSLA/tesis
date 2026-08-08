@@ -55,7 +55,7 @@ configuración, contratos transcritos y artefactos operativos.
   useradd runner 10001, según `docs/research/pyomp-runner.md`),
   `.dockerignore` de frontend y backend, `.gitignore`, `Makefile` (§10.3).
 - `backend/requirements.txt` + `requirements-dev.txt` pineados (§10.4);
-  `backend/app/config.py` (pydantic-settings con la tabla EHPC_* de §10.5).
+  `backend/app/config.py` (pydantic-settings con la tabla TELAR_* de §10.5).
 - **Modelos pydantic** `backend/app/schemas.py` (o `schemas/`): DTOs de TODOS
   los request/response de `api-contract.md` (envelope genérico, jobs, system,
   modules, lessons, quiz, progress, mensajes WS) — transcripción, sin lógica.
@@ -442,7 +442,7 @@ cobertura ≥ 80 % en `src/ws`, `src/stores`, `src/lib`, `src/hooks`.
 
 **Docs**: todos.
 
-**Alcance**: `README.md` raíz (prerequisitos, regla ext4, tabla EHPC_*,
+**Alcance**: `README.md` raíz (prerequisitos, regla ext4, tabla TELAR_*,
 targets de make, riesgo del socket, guía del instalador desktop y sus dos
 modos de imágenes, troubleshooting SmartScreen/AppImage), script
 `scripts/smoke.sh` (levanta compose, espera /health, lanza un job de `spmd`

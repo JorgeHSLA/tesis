@@ -554,8 +554,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - EHPC_DB_PATH=/app/data/ehpc.db
-      - EHPC_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8080,null
+      - TELAR_DB_PATH=/app/data/ehpc.db
+      - TELAR_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8080,null
     volumes:
       - ./data:/app/data
       # el backend lanza runners como contenedores HERMANOS (no DinD):

@@ -9,7 +9,7 @@
 - **Suite:** `~/.ehpc-verify/e2e/` (ext4, aislada del repo) — Page Object Model, `playwright.config.ts`.
 - **Veredicto global:** ✅ **PASS** — **15/15 tests verdes** (8 estudiante A–D + 7 admin ADM1–7) + aislamiento del sandbox. La verificación encontró **1 bug real de UI** en la autoría de quizzes (el editor no permitía crear el PRIMER quiz de una lección; §10). **BUG-01 quedó RESUELTO** (fix aplicado y verificado el 2026-07-14): ADM4 se reescribió de "documenta el defecto" a **camino feliz** que crea el quiz enteramente por la UI. Además: 1 desviación de *literalidad* en Resultados (no es bug) y 1 flaky corregido de raíz.
 - **Actualización 2026-07-14 (resolución de BUG-01):** se trató el `404 QUIZ_NOT_FOUND` como quiz vacío editable en `AdminQuizEditor` y se corrigió el `id` provisional de las preguntas nuevas (el contrato §10.6 exige `id` no vacío). Frontend: **206 tests Vitest verdes** (+4), `tsc --noEmit` limpio; E2E **15/15** con ADM4 como camino feliz. Sin cambios en contratos congelados ni en el backend. Detalle en §10.
-- **Nota Fase 4:** requiere `EHPC_ADMIN_PASSWORD` (sin la var, admin deshabilitado). Se levantó el stack con esa variable y se **reconstruyeron** las imágenes backend+frontend para incluir el código de Fase 4.
+- **Nota Fase 4:** requiere `TELAR_ADMIN_PASSWORD` (sin la var, admin deshabilitado). Se levantó el stack con esa variable y se **reconstruyeron** las imágenes backend+frontend para incluir el código de Fase 4.
 
 ---
 
@@ -122,7 +122,7 @@ no-root, sin escalada de privilegios y con límites de PIDs/memoria/CPU.
 > acceso desde el menú del `TopBar`. Ver `architecture/fase4-autoria-design.md` §9.
 
 Área nueva `/#/admin` (HashRouter, shell propio + login gate; el estudiante nunca la
-ve). Habilitada con `EHPC_ADMIN_PASSWORD`; imágenes backend+frontend **reconstruidas**
+ve). Habilitada con `TELAR_ADMIN_PASSWORD`; imágenes backend+frontend **reconstruidas**
 para incluir el código de Fase 4. Journey verificado de punta a punta:
 
 - **ADM1 — Login gate (✅):** visitar `/#/admin` sin sesión **redirige** a `/#/admin/login`; contraseña incorrecta → **401** → mensaje "Contraseña incorrecta"; contraseña correcta → dashboard "Módulos del curso".
@@ -185,12 +185,12 @@ Ver un trace: `npx playwright show-trace ~/.ehpc-verify/e2e/artifacts/evidence/<
 ## 8. Cómo reproducir
 
 ```bash
-# 1) Stack — Fase 4 requiere EHPC_ADMIN_PASSWORD (sin ella, admin deshabilitado).
+# 1) Stack — Fase 4 requiere TELAR_ADMIN_PASSWORD (sin ella, admin deshabilitado).
 #    Reconstruir si las imágenes son previas a Fase 4.
 cd /mnt/d/universidad/tesis/e-hpc
 docker compose build backend frontend
-# Habilitar admin: añadir EHPC_ADMIN_PASSWORD al servicio backend (env / override):
-#   docker compose -f compose.yaml -f <override-con-EHPC_ADMIN_PASSWORD> up -d
+# Habilitar admin: añadir TELAR_ADMIN_PASSWORD al servicio backend (env / override):
+#   docker compose -f compose.yaml -f <override-con-TELAR_ADMIN_PASSWORD> up -d
 docker compose up -d
 curl -s http://127.0.0.1:8080/health         # esperar 200
 

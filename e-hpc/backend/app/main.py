@@ -11,7 +11,7 @@ Lifespan (orden congelado):
 5. registro de jobs en memoria ``app.state.jobs`` (1 worker uvicorn).
 
 El modo autoría (admin) es una variante de despliegue gateada por
-``EHPC_ADMIN_MODE`` (``settings.admin_enabled``): sin token ni sesión.
+``TELAR_ADMIN_MODE`` (``settings.admin_enabled``): sin token ni sesión.
 
 CORS: lista de §10.5 con ``allow_credentials=False`` (incluye ``"null"`` por
 Electron ``file://`` — riesgo residual documentado en api-contract).
@@ -186,10 +186,10 @@ def _include_routers(app: FastAPI) -> None:
 
     # El router admin es OPCIONAL a nivel de ARTEFACTO (Nivel 3, seguridad por
     # AUSENCIA — ver backend/Dockerfile). En el build "estudiante"
-    # (EHPC_ADMIN_BUILD=0) el módulo admin NO se copia a la imagen: su import
+    # (TELAR_ADMIN_BUILD=0) el módulo admin NO se copia a la imagen: su import
     # falla y el router NO se registra → /api/v1/admin/* responde 404. En el
     # build admin (o contra el source, p. ej. los tests) el módulo existe y el
-    # runtime lo sigue gateando EHPC_ADMIN_MODE (api-contract §10.0).
+    # runtime lo sigue gateando TELAR_ADMIN_MODE (api-contract §10.0).
     #
     # Se captura ``ImportError`` (NO solo ``ModuleNotFoundError``): cuando el
     # archivo falta y ``app.routers`` es un paquete, ``from app.routers import
@@ -210,7 +210,7 @@ def _include_routers(app: FastAPI) -> None:
     app.include_router(jobs.router)
     app.include_router(ws.router)
     if _admin is not None:
-        app.include_router(_admin.router)  # §10.2-§10.6 CRUD admin (gate runtime EHPC_ADMIN_MODE)
+        app.include_router(_admin.router)  # §10.2-§10.6 CRUD admin (gate runtime TELAR_ADMIN_MODE)
 
 
 app = create_app()

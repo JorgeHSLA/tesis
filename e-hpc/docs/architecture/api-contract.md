@@ -52,7 +52,7 @@ usan el envelope:
 | 409 | `EXAMPLE_DISABLED` | Ejecutar un ejemplo con `enabled=false` (GPU) |
 | 409 | `JOB_NOT_CANCELLABLE` | Cancelar un job ya terminal |
 | 409 | `JOB_NOT_FINISHED` | Descargar output de un job aún no terminal |
-| 413 | `CODE_TOO_LARGE` | Código > `max_code_bytes` (`EHPC_MAX_CODE_BYTES`, por defecto 262 144; JSON o upload; nginx corta antes a 1 MB) |
+| 413 | `CODE_TOO_LARGE` | Código > `max_code_bytes` (`TELAR_MAX_CODE_BYTES`, por defecto 262 144; JSON o upload; nginx corta antes a 1 MB) |
 | 415 | `INVALID_EXTENSION` | Upload con extensión ≠ `.py` |
 | 422 | `VALIDATION_ERROR` | Falla de esquema pydantic |
 | 422 | `INVALID_ENCODING` | Upload no es UTF-8 válido |
@@ -60,7 +60,7 @@ usan el envelope:
 | 500 | `INTERNAL_ERROR` | Excepción no controlada (mensaje genérico; detalle solo en logs del servidor) |
 | 503 | `DOCKER_UNAVAILABLE` | El daemon no responde a `ping()` |
 | 503 | `RUNNER_IMAGE_MISSING` | La imagen `ehpc-runner` no existe en el daemon |
-| 401 | `UNAUTHORIZED` | **(Fase 4, §10)** Endpoint `/admin/*` con el modo autoría apagado (despliegue "estudiante", sin `EHPC_ADMIN_MODE`). _Nota 2026-07-26: ya no hay login/token; el gate es de despliegue (ver §10.0)_ |
+| 401 | `UNAUTHORIZED` | **(Fase 4, §10)** Endpoint `/admin/*` con el modo autoría apagado (despliegue "estudiante", sin `TELAR_ADMIN_MODE`). _Nota 2026-07-26: ya no hay login/token; el gate es de despliegue (ver §10.0)_ |
 | 404 | `MODULE_NOT_FOUND` | **(Fase 4, §10)** id de módulo inexistente |
 | 409 | `DUPLICATE_ID` | **(Fase 4, §10)** Crear contenido con un id ya usado (módulo, o lección/ejemplo — comparten namespace) |
 | 409 | `ORDER_CONFLICT` | **(Fase 4, §10)** `order` de módulo o de lección colisiona con otro existente |
@@ -117,7 +117,7 @@ UI muestra.
 ```
 
 - `max_threads = min(8, cores)` — techo del slider.
-- `limits.max_timeout_s` es el valor crudo de `EHPC_MAX_TIMEOUT_S`. El tope de
+- `limits.max_timeout_s` es el valor crudo de `TELAR_MAX_TIMEOUT_S`. El tope de
   timeout es **OPCIONAL**: `0` (o cualquier valor ≤ 0) significa **sin límite**
   y es el valor por defecto. El ejemplo de arriba muestra un despliegue que sí
   fija tope (`120`); con la config por defecto ese campo vale `0` y el cliente
@@ -490,10 +490,10 @@ Validación (pydantic + reglas de negocio):
 | Campo | Regla |
 |---|---|
 | `example_id` / `code` | al menos uno presente → si no, `400 VALIDATION_ERROR`; `example_id` inexistente → `404 EXAMPLE_NOT_FOUND` |
-| `code` | `1 ≤ bytes ≤ max_code_bytes` UTF-8 (tope `EHPC_MAX_CODE_BYTES`, por defecto 262144; aplicado en **runtime** en el router, por igual que `/upload` y la vía admin JSON — fix de residuos de auditoría, BL-17) → `413 CODE_TOO_LARGE` |
+| `code` | `1 ≤ bytes ≤ max_code_bytes` UTF-8 (tope `TELAR_MAX_CODE_BYTES`, por defecto 262144; aplicado en **runtime** en el router, por igual que `/upload` y la vía admin JSON — fix de residuos de auditoría, BL-17) → `413 CODE_TOO_LARGE` |
 | `filename` | opcional (default: `filename` del ejemplo, o `main.py`); patrón `^[A-Za-z0-9._-]{1,80}\.py$` |
 | `threads` | **opcional**. Si el ejemplo tiene `threads_configurable=false`, se IGNORA por completo (puede omitirse; el backend usa su valor fijo: `min(8, cores)` para sweep, `fixed_threads` para fixed) y la respuesta lleva `threads_note`. En caso contrario: entero `1..max_threads` (de `/system`), default 4 |
-| `timeout_s` | opcional; mínimo `5` SIEMPRE. El **máximo es opcional**: solo si `EHPC_MAX_TIMEOUT_S > 0` se rechaza `timeout_s > EHPC_MAX_TIMEOUT_S` → `422 VALIDATION_ERROR`; con `EHPC_MAX_TIMEOUT_S = 0` (por defecto) **no hay tope**. Default = `default_timeout_s` del ejemplo o 60 para código propio |
+| `timeout_s` | opcional; mínimo `5` SIEMPRE. El **máximo es opcional**: solo si `TELAR_MAX_TIMEOUT_S > 0` se rechaza `timeout_s > TELAR_MAX_TIMEOUT_S` → `422 VALIDATION_ERROR`; con `TELAR_MAX_TIMEOUT_S = 0` (por defecto) **no hay tope**. Default = `default_timeout_s` del ejemplo o 60 para código propio |
 | `lesson_id` | opcional; si viene, debe existir → `404 LESSON_NOT_FOUND`; al terminar bien el job se actualiza `lesson_progress.last_job_id` |
 | ejemplo deshabilitado | `409 EXAMPLE_DISABLED` |
 | capacidad | `429 TOO_MANY_JOBS` si la cola interna supera 10 |
@@ -974,23 +974,23 @@ C:      GET /api/v1/jobs/01a2…   → parsed_timings (curva de speedup)
 ### 10.0 Autorización (variante de despliegue, sin login)
 
 > **Nota 2026-07-26 — cambio de modelo.** La capa de autenticación de Fase 4
-> (contraseña `EHPC_ADMIN_PASSWORD`, login/logout/session, token Bearer y
+> (contraseña `TELAR_ADMIN_PASSWORD`, login/logout/session, token Bearer y
 > sesiones en memoria) **se eliminó**. El modo autoría (admin) pasa a ser una
 > **variante de despliegue**, no un login. Ya **no existen** los endpoints
 > `POST /admin/login`, `POST /admin/logout` ni `GET /admin/session`, ni el
 > esquema `Authorization: Bearer`.
 
-- **El modo admin se enciende con la env var `EHPC_ADMIN_MODE`** (`config.py`;
+- **El modo admin se enciende con la env var `TELAR_ADMIN_MODE`** (`config.py`;
   pydantic castea `"1"`/`"true"`/`"yes"` y variantes a `bool`). Es una decisión
   de despliegue:
   - **Sin la variable** → despliegue **"estudiante"** (el por defecto de los dos
     `compose.yaml`): todo `/api/v1/admin/*` responde `401 UNAUTHORIZED`.
-  - **Con `EHPC_ADMIN_MODE`** → despliegue **admin**: los `/api/v1/admin/*`
+  - **Con `TELAR_ADMIN_MODE`** → despliegue **admin**: los `/api/v1/admin/*`
     quedan habilitados **sin token**. Es seguro porque la app es **local, en
     loopback** (todos los puertos ligados a `127.0.0.1`) y el despliegue con el
     modo admin se distribuye **solo a administradores**.
 - **Guard `require_admin`**: todo endpoint de contenido admin lo aplica y gatea
-  **solo por `settings.admin_enabled`** (== `EHPC_ADMIN_MODE`). No parsea ningún
+  **solo por `settings.admin_enabled`** (== `TELAR_ADMIN_MODE`). No parsea ningún
   header ni valida tokens. Sin `WWW-Authenticate` (no dispara el diálogo nativo
   del navegador).
 
@@ -999,18 +999,18 @@ No hay endpoints de autenticación. El cliente admin usa directamente los CRUD d
 ellos.
 
 > **Nota 2026-07-26 — Nivel 3 (dos imágenes desde UN codebase; seguridad por
-> AUSENCIA).** El gate `EHPC_ADMIN_MODE` es de *runtime* y presupone que el
+> AUSENCIA).** El gate `TELAR_ADMIN_MODE` es de *runtime* y presupone que el
 > código admin está en la imagen. A nivel de *artefacto* se añade un `ARG` de
-> Docker **`EHPC_ADMIN_BUILD`** (`backend/Dockerfile`) que produce **dos
+> Docker **`TELAR_ADMIN_BUILD`** (`backend/Dockerfile`) que produce **dos
 > imágenes** desde el mismo código, como el tree-shaking del frontend:
-> - **`EHPC_ADMIN_BUILD=0`** (default, imagen **ESTUDIANTE**): los módulos
+> - **`TELAR_ADMIN_BUILD=0`** (default, imagen **ESTUDIANTE**): los módulos
 >   admin-only (`routers/admin.py`, `routers/admin_deps.py`,
 >   `services/content_writer.py`, `services/markdown_validator.py`) **no se
 >   copian** al artefacto; `main.py` detecta la ausencia (`ModuleNotFoundError`)
 >   y **no registra** el router → `/api/v1/admin/*` responde **`404`** (la ruta
 >   no existe), no `401`. **Cero código admin en la imagen.**
-> - **`EHPC_ADMIN_BUILD=1`** (imagen **ADMIN**): los módulos están presentes y el
->   router se registra; el runtime lo sigue gateando `EHPC_ADMIN_MODE` (con el
+> - **`TELAR_ADMIN_BUILD=1`** (imagen **ADMIN**): los módulos están presentes y el
+>   router se registra; el runtime lo sigue gateando `TELAR_ADMIN_MODE` (con el
 >   modo apagado → `401`, como arriba).
 >
 > `repositories/content_admin.py` permanece en **ambas** imágenes: lo importa el
@@ -1165,7 +1165,7 @@ salvo donde se indica otro código:
   `409 ORDER_CONFLICT`.
 - **Contenido**: `correct_key ∈ keys(options)`; `parser_id` ∈ los 6 de §3.1;
   `filename` cumple el patrón `.py`; `source_code` `1 ≤ bytes ≤ max_code_bytes`
-  (`413 CODE_TOO_LARGE`; el tope es `EHPC_MAX_CODE_BYTES`, por defecto 262144, y se
+  (`413 CODE_TOO_LARGE`; el tope es `TELAR_MAX_CODE_BYTES`, por defecto 262144, y se
   aplica en **runtime** por igual en las vías JSON y multipart — fix de auditoría
   S4, BL-17); **markdown dentro del subset** de `frontend/src/lib/markdown.ts`
   (h1-h4, listas, código, negrita/cursiva, enlaces `http(s)`/`#`/relativos, tablas
@@ -1176,5 +1176,5 @@ salvo donde se indica otro código:
   BL-11); **GPU**: `requires_gpu=true ⇒ enabled=false`.
 - Rangos por DTO (pydantic): `difficulty 1..5`, `default_timeout_s ≥ 5` (sin
   cap estático: el tope es opcional y se aplica en runtime solo si
-  `EHPC_MAX_TIMEOUT_S > 0`), `pass_threshold ∈ (0,1]`, `takeaways` no vacío,
+  `TELAR_MAX_TIMEOUT_S > 0`), `pass_threshold ∈ (0,1]`, `takeaways` no vacío,
   etc. → `422 VALIDATION_ERROR`.

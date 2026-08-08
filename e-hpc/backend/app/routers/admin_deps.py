@@ -1,7 +1,7 @@
 """Dependencias compartidas de los routers admin.
 
 El modo autoría (admin) es una **variante de despliegue**, no un login: se
-enciende con la env var ``EHPC_ADMIN_MODE`` (``settings.admin_enabled``). Con el
+enciende con la env var ``TELAR_ADMIN_MODE`` (``settings.admin_enabled``). Con el
 modo apagado —el despliegue "estudiante" por defecto— ``require_admin`` responde
 ``401 UNAUTHORIZED``. No hay token ni sesión: la app es local, en loopback, y el
 despliegue con el modo admin se distribuye solo a administradores. Ver
@@ -28,7 +28,7 @@ def get_settings_state(request: Request) -> Settings:
 
 
 async def require_admin(request: Request) -> None:
-    """Guard único de los endpoints admin: gatea SOLO por ``EHPC_ADMIN_MODE``.
+    """Guard único de los endpoints admin: gatea SOLO por ``TELAR_ADMIN_MODE``.
 
     Modo admin habilitado por despliegue (``settings.admin_enabled``) ⇒ pasa (no
     hay token que devolver). Deshabilitado (despliegue "estudiante") ⇒

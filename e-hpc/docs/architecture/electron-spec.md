@@ -264,7 +264,7 @@ import path from 'node:path'
 const execFileAsync = promisify(execFile)
 
 // Acciones CERRADAS: el renderer solo elige una clave; los argumentos viven aquí.
-// 'compose:up' es COMPUESTA: en modo repo (EHPC_COMPOSE_DIR → clon con build:)
+// 'compose:up' es COMPUESTA: en modo repo (TELAR_COMPOSE_DIR → clon con build:)
 // primero construye la imagen runner (perfil 'build', que `up` ignoraría) y
 // luego levanta; en modo empaquetado (§6.1, compose solo-image:) el build de
 // runner es un no-op inmediato porque el servicio no tiene clave build.
@@ -280,9 +280,9 @@ type DockerAction = keyof typeof DOCKER_ACTIONS
 
 // Dónde vive el compose.yaml: junto a los recursos empaquetados o configurable.
 // Prod: se empaqueta un compose.yaml de despliegue en resources/ (extraResources §6).
-// Dev:  cwd del repo. Override por env EHPC_COMPOSE_DIR (documentado en README).
+// Dev:  cwd del repo. Override por env TELAR_COMPOSE_DIR (documentado en README).
 function composeCwd(): string {
-  if (process.env.EHPC_COMPOSE_DIR) return process.env.EHPC_COMPOSE_DIR
+  if (process.env.TELAR_COMPOSE_DIR) return process.env.TELAR_COMPOSE_DIR
   return app.isPackaged ? path.join(process.resourcesPath, 'compose') : path.resolve(process.cwd(), '..')
 }
 
@@ -428,8 +428,8 @@ README; el instalador solo es autosuficiente en el modo A):
 
 | Modo | Cómo llegan las imágenes | Cuándo |
 |---|---|---|
-| **A — Imágenes publicadas** | `docker compose pull` implícito en `up -d` desde GHCR (tags fijos; se publican con `make publish-images` al cortar release). El backend necesita además la runner localmente: el paso `pull runner` se cubre etiquetando la imagen GHCR como `EHPC_RUNNER_IMAGE` en el environment del backend | Distribución del instalador a terceros |
-| **B — Repo clonado** | `EHPC_COMPOSE_DIR` apunta al clon (compose del repo con `build:`); la acción `compose:up` compuesta (§5.3) construye el runner y levanta | Desarrollo y demo de la tesis (modo por defecto documentado) |
+| **A — Imágenes publicadas** | `docker compose pull` implícito en `up -d` desde GHCR (tags fijos; se publican con `make publish-images` al cortar release). El backend necesita además la runner localmente: el paso `pull runner` se cubre etiquetando la imagen GHCR como `TELAR_RUNNER_IMAGE` en el environment del backend | Distribución del instalador a terceros |
+| **B — Repo clonado** | `TELAR_COMPOSE_DIR` apunta al clon (compose del repo con `build:`); la acción `compose:up` compuesta (§5.3) construye el runner y levanta | Desarrollo y demo de la tesis (modo por defecto documentado) |
 
 Si el usuario instala el paquete sin red al registry y sin repo, `dockerUp`
 falla con stderr saneado y el footer muestra el error + link a la guía
@@ -465,7 +465,7 @@ solo en la app de escritorio, sin tocar el build web (nginx puede definir la suy
 ```ts
 import { session } from 'electron'
 
-const API_ORIGIN = process.env.EHPC_API_ORIGIN ?? 'http://localhost:8000'
+const API_ORIGIN = process.env.TELAR_API_ORIGIN ?? 'http://localhost:8000'
 const WS_ORIGIN  = API_ORIGIN.replace(/^http/, 'ws')
 
 const CSP = [
@@ -637,7 +637,7 @@ web (rutas relativas) en caso contrario (regla congelada en `architecture.md`
 3. Dev con `concurrently` + `wait-on` (HMR del renderer vía `VITE_DEV_SERVER_URL`); sin auto-restart del main en MVP (§3).
 4. `window.ehpc` = { appVersion, platform, dockerStatus, dockerUp, dockerStop, openExternal } — nombres finales del contrato (§5.1).
 5. `compose ps --format json` parseado como NDJSON en el main; el renderer recibe estructura tipada, nunca stdout crudo (§5.3).
-6. compose.yaml de despliegue empaquetado en `resources/compose` + override por `EHPC_COMPOSE_DIR` (§5.3, §6).
+6. compose.yaml de despliegue empaquetado en `resources/compose` + override por `TELAR_COMPOSE_DIR` (§5.3, §6).
 7. CSP por `onHeadersReceived` solo en desktop; nginx gestiona la suya en web (§7.1).
 8. Los servicios Docker NO se detienen al cerrar la app; stop manual desde el footer (§8).
 9. Targets: win nsis+portable (imagen wine o host Windows), linux AppImage+deb (WSL2) (§6).

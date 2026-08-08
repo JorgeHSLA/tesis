@@ -1,6 +1,6 @@
 """Orquestación del ciclo de vida de un job — architecture.md §3 COMPLETO.
 
-Semáforo EHPC_MAX_CONCURRENT_JOBS + registro en memoria; **drainer por job**
+Semáforo TELAR_MAX_CONCURRENT_JOBS + registro en memoria; **drainer por job**
 (§3.2: presupuesto 256 KB, ring-buffer + seq, metrics_summary, fan-out lossy);
 ``cancel_requested`` tras el semáforo y ANTES de create (§3.3); ``kill_reason``
 con prioridad cancel > output_limit > timeout escrito ANTES de kill(); orden

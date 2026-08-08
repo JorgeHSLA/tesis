@@ -53,12 +53,12 @@ Todos los veredictos son CONFIRMED. Detalle completo (escenario de fallo y recom
 | BL-09 | high | contract-violation | WebSocket | El replay terminal reinicia `seq` desde 0 (el contrato exige reusar los originales) → el front descarta todo | `backend/app/routers/ws.py:113-121`, `frontend/src/ws/jobSocket.ts:136` |
 | BL-10 | high | logic-bug | Frontend | El retry manual del WS borra los logs y luego descarta el replay (no resetea `lastLogSeq`) | `frontend/src/ws/jobSocket.ts:57-64,136`, `frontend/src/stores/jobStore.ts:91` |
 | BL-11 | high | inconsistency | Fixtures/Admin | El fixture `sumaVectoresGPU` viola la coherencia de hilos del write-path admin → el ejemplo GPU es ineditable (422) | `backend/app/content/catalog.json:471-474`, `backend/app/services/content_writer.py:89` |
-| BL-12 | high | inconsistency | Desktop | `EHPC_ALLOWED_ORIGINS` empaquetado omite las variantes `127.0.0.1` (regresión del bug CORS) | `desktop/resources/compose/compose.yaml:26` vs `compose.yaml:28` |
+| BL-12 | high | inconsistency | Desktop | `TELAR_ALLOWED_ORIGINS` empaquetado omite las variantes `127.0.0.1` (regresión del bug CORS) | `desktop/resources/compose/compose.yaml:26` vs `compose.yaml:28` |
 | BL-13 | medium | contract-violation | Jobs | `output_truncated=true` puede convivir con `status`/`error_detail` de cancel/timeout (contradice §7.4) | `backend/app/services/job_runner.py:395-409,718-720` |
 | BL-14 | medium | domain-semantics | Sandbox | `cpuset_cpus` siempre arranca en el core 0: jobs concurrentes comparten los mismos cores físicos | `backend/app/services/docker_service.py:277-278` |
 | BL-15 | medium | missing-business-logic | Sandbox | Contenedor huérfano si `start()` falla tras un `create()` exitoso (nadie hace `remove()`) | `backend/app/services/docker_service.py:289-292` |
 | BL-16 | medium | domain-semantics | WebSocket | El replay fabrica el `ts` de cada línea con la hora del replay, no la del evento | `backend/app/routers/ws.py:126`, `frontend/.../LiveTerminalCard.tsx:23,80` |
-| BL-17 | medium | inconsistency | Admin | `EHPC_MAX_CODE_BYTES` se ignora en las rutas admin JSON (tope 262144 hardcodeado; multipart sí lo honra) | `backend/app/schemas.py:715,743`, `backend/app/services/content_writer.py:50` |
+| BL-17 | medium | inconsistency | Admin | `TELAR_MAX_CODE_BYTES` se ignora en las rutas admin JSON (tope 262144 hardcodeado; multipart sí lo honra) | `backend/app/schemas.py:715,743`, `backend/app/services/content_writer.py:50` |
 | BL-18 | medium | contract-violation | Admin | La autogeneración de id de pregunta `{lesson_id}-q{n}` prometida en §10.5 no existe (422 en su lugar) | `backend/app/schemas.py:771` vs `docs/architecture/api-contract.md:1053-1054` |
 | BL-19 | medium | race-condition | Admin/Persistencia | Los GET admin retienen el `write_lock` transversal durante lecturas N+1: serializan `finish()` de jobs y quiz | `backend/app/routers/admin.py:86`, `backend/app/repositories/content_admin.py:460` |
 | BL-20 | medium | missing-business-logic | Admin | Sin reorder por lote: intercambiar el `order` de dos lecciones/módulos da siempre 409 (hay workaround manual) | `backend/app/schema.sql:112`, `backend/app/services/content_writer.py:314` |
@@ -96,7 +96,7 @@ Todos los veredictos son CONFIRMED. Detalle completo (escenario de fallo y recom
 *Matiz del panel:* requiere una acción deliberada de un admin autenticado (no es explotable por un estudiante); es un bug de integridad de negocio, no un vector de ataque.
 
 **BL-02 — El compose empaquetado del desktop reintroduce el bug del volumen `ehpc_submissions`** · inconsistency · CONFIRMED (2/2)
-`desktop/resources/compose/compose.yaml` fija `name: ehpc` como proyecto y declara el volumen `ehpc_submissions:` **sin** el `name:` explícito que el `compose.yaml` raíz sí tiene (línea 67, con comentario explicando este mismo bug). Compose creará `ehpc_ehpc_submissions`, mientras `docker_service.py:245` monta el runner con el literal `ehpc_submissions` (env `EHPC_SUBMISSIONS_VOLUME`, línea 28 del propio compose empaquetado); Docker autocrea un volumen vacío con ese nombre. `COMPOSE_PROJECT_NAME` existe en `desktop/src/constants.ts` pero `ipc-docker.ts` nunca lo pasa.
+`desktop/resources/compose/compose.yaml` fija `name: ehpc` como proyecto y declara el volumen `ehpc_submissions:` **sin** el `name:` explícito que el `compose.yaml` raíz sí tiene (línea 67, con comentario explicando este mismo bug). Compose creará `ehpc_ehpc_submissions`, mientras `docker_service.py:245` monta el runner con el literal `ehpc_submissions` (env `TELAR_SUBMISSIONS_VOLUME`, línea 28 del propio compose empaquetado); Docker autocrea un volumen vacío con ese nombre. `COMPOSE_PROJECT_NAME` existe en `desktop/src/constants.ts` pero `ipc-docker.ts` nunca lo pasa.
 *Escenario:* en Modo A (instalador con imágenes GHCR), **todos los jobs del simulador fallan** con "no such file or directory" — exactamente el bug que `CLAUDE.md` (línea 34) marca como corregido y a no reintroducir. `electron-spec.md` §6.1 reproduce el mismo compose defectuoso.
 *Recomendación:* añadir `name: ehpc_submissions` al volumen del compose empaquetado y un check (test/CI) que compare los campos críticos de ambos compose.
 
@@ -147,7 +147,7 @@ El contrato (§8.2) dice "el backlog re-usa los `seq` originales" y el cliente d
 *Escenario:* el admin abre el ejemplo GPU y guarda cualquier cambio (p. ej. el título) reenviando los mismos valores ⇒ `422 CONTENT_VALIDATION_ERROR` (`fixed_threads`): el contenido semilla oficial es **ineditable** por la propia UI de autoría.
 *Recomendación:* reconciliar regla y fixture — carve-out por `requires_gpu` en la coherencia de hilos, o dar un valor coherente al fixture.
 
-**BL-12 — `EHPC_ALLOWED_ORIGINS` del compose empaquetado omite `127.0.0.1`** · inconsistency · CONFIRMED (2/2)
+**BL-12 — `TELAR_ALLOWED_ORIGINS` del compose empaquetado omite `127.0.0.1`** · inconsistency · CONFIRMED (2/2)
 El compose raíz (línea 28) incluye las variantes `localhost`/`127.0.0.1` para 5173/8080 (bug CORS documentado como corregido en `CLAUDE.md`); el empaquetado (`desktop/resources/compose/compose.yaml:26`) conserva la lista vieja sin `127.0.0.1`.
 *Escenario:* el compose empaquetado también publica el frontend en `127.0.0.1:8080`; un usuario del instalador que abra esa URL en su navegador sufre el bloqueo CORS ya conocido (Electron en sí no lo dispara: carga `file://`/Origin `null`).
 *Recomendación:* igualar el valor al del compose raíz (mismo check de paridad que BL-02).
@@ -171,7 +171,7 @@ En `run_job`, si `create()` triunfa y `start()` lanza (`docker_service.py:289-29
 *Escenario:* tras F5 sobre un job terminado, todas las líneas muestran el mismo timestamp (la hora del refresh), presentado como si fuera el tiempo real de ejecución.
 *Recomendación:* no fabricar `ts` en el replay (omitir/marcar el campo) o persistir timestamps reales por línea.
 
-**BL-17 — `EHPC_MAX_CODE_BYTES` ignorado en las rutas admin JSON** · inconsistency · CONFIRMED (3 votos)
+**BL-17 — `TELAR_MAX_CODE_BYTES` ignorado en las rutas admin JSON** · inconsistency · CONFIRMED (3 votos)
 `AdminLessonCreate.source_code`/`AdminExampleCodeRequest` usan `max_length=262144` literal (`schemas.py:715,743`) y `content_writer._check_code_size` duplica la constante (línea 50); la variante multipart y `/jobs` sí leen `settings.max_code_bytes` (override testeado en `test_routers_jobs.py`).
 *Escenario:* un operador baja el límite global a 8 KB y el admin igualmente inserta 50 KB por la vía JSON — el límite configurado no es uniforme entre transportes.
 *Recomendación:* leer `settings.max_code_bytes` en runtime también en el camino JSON/`_check_code_size`.

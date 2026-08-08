@@ -16,13 +16,13 @@ corregidos en el compose raíz y marcados como "no re-introducir" en
 - **Causa:** el compose empaquetado fija `name: ehpc` como proyecto pero
   declaraba el volumen `ehpc_submissions:` sin `name:` explícito. Compose
   creaba `ehpc_ehpc_submissions` mientras el runner monta el literal de
-  `EHPC_SUBMISSIONS_VOLUME` (`ehpc_submissions`) → el runner montaba un
+  `TELAR_SUBMISSIONS_VOLUME` (`ehpc_submissions`) → el runner montaba un
   volumen vacío autocreado y **todos los jobs del simulador fallaban** con
   "no such file or directory" en Modo A (instalador con imágenes GHCR).
 - **Fix:** `name: ehpc_submissions` en el volumen, igual que el compose raíz
   (con comentario explicando el porqué, espejo del raíz).
 
-### BL-12 (high) — `EHPC_ALLOWED_ORIGINS` sin variantes `127.0.0.1`
+### BL-12 (high) — `TELAR_ALLOWED_ORIGINS` sin variantes `127.0.0.1`
 
 - **Causa:** el compose empaquetado conservaba la lista vieja de orígenes
   (`localhost` + `null`); el navegador manda `Origin: http://127.0.0.1:8080`
@@ -34,8 +34,8 @@ corregidos en el compose raíz y marcados como "no re-introducir" en
 
 6 tests que comparan los campos críticos entre `compose.yaml` raíz y
 `desktop/resources/compose/compose.yaml`: `name:` explícito del volumen
-`ehpc_submissions` en ambos, `EHPC_ALLOWED_ORIGINS` idéntica, y
-`EHPC_SUBMISSIONS_VOLUME` idéntica entre composes **y** coincidente con el
+`ehpc_submissions` en ambos, `TELAR_ALLOWED_ORIGINS` idéntica, y
+`TELAR_SUBMISSIONS_VOLUME` idéntica entre composes **y** coincidente con el
 `name:` real del volumen (paridad env↔volumen). Escrito RED contra la
 regresión (TDD) y verde tras el fix: esta desincronización ya no puede volver
 a pasar silenciosa.
@@ -283,7 +283,7 @@ por hallazgo (TDD RED→GREEN). Contratos congelados (`schemas.py`,
   `output_truncated=true`) queda escrita. Sin cambios de código.
 - **BL-14 / zona gris 6 — aislamiento de cores bajo concurrencia:** NO se
   implementa `cpuset` disjunto por slot. `architecture.md` §4 documenta que el
-  rango arranca siempre en el core 0, que con `EHPC_MAX_CONCURRENT_JOBS > 1`
+  rango arranca siempre en el core 0, que con `TELAR_MAX_CONCURRENT_JOBS > 1`
   dos jobs comparten cores físicos, y que la reproducibilidad de las métricas
   aplica **ejecutando un job a la vez**. Test que fija el comportamiento como
   deliberado.
@@ -384,7 +384,7 @@ configurables ni barrido, incluido `sumaVectoresGPU` (`requires_gpu`,
 ex.requires_gpu` (los ejemplos GPU no usan hilos de CPU). El fixture NO se tocó;
 `seed_content --check` sigue OK. Contrato: §10.6 documenta la excepción.
 
-#### BL-17 (medium) — `EHPC_MAX_CODE_BYTES` se ignoraba en la vía JSON
+#### BL-17 (medium) — `TELAR_MAX_CODE_BYTES` se ignoraba en la vía JSON
 `content_writer._check_code_size` usaba una constante `262144` hardcodeada
 mientras la vía multipart y `/jobs` leían `settings.max_code_bytes`. Ahora
 `_check_code_size(app, source_code)` lee `app.state.settings.max_code_bytes` en
@@ -466,7 +466,7 @@ Sin hallazgos CRITICAL. **1 HIGH + 2 MEDIUM corregidos** antes del commit:
 
 - **HIGH — BL-17 sólo cubría bajar el tope** — el `Field(max_length=262144)`
   estático de pydantic en `source_code` (JSON) rechazaba antes del check runtime:
-  subir `EHPC_MAX_CODE_BYTES` por encima de 262144 no tenía efecto por JSON
+  subir `TELAR_MAX_CODE_BYTES` por encima de 262144 no tenía efecto por JSON
   (sí por multipart), rompiendo la paridad que el propio fix prometía. Se quitó
   el cap estático de `AdminExampleCodeRequest`/`AdminLessonCreate.source_code`:
   el límite es 100% runtime (`content_writer._check_code_size`), idéntico en JSON
@@ -558,7 +558,7 @@ Sin CRITICAL. **1 HIGH + 2 MEDIUM + 1 LOW corregidos antes del commit:**
 
 ### Verificación E2E de CIERRE de la campaña (stack real + Playwright)
 
-Stack web levantado con `EHPC_ADMIN_PASSWORD` de override e imágenes recién
+Stack web levantado con `TELAR_ADMIN_PASSWORD` de override e imágenes recién
 construidas. Suite completa de `~/.ehpc-verify/e2e/`: **15/15 verdes a la
 primera corrida (22.6s), sin retries y SIN modificar ningún assert**. Cero
 anomalías: en consola solo los 401/404 esperados y allowlisted de ADM1/ADM4,
@@ -637,11 +637,11 @@ params vía el handler global ya saneado.
 - **Test:** `test_bl22_post_jobs_422_no_refleja_input_crudo` (el centinela crudo no
   aparece en `response.text`; se conservan `type`/`loc`/`msg`, se van `input`/`ctx`/`url`).
 
-### BL-17 (low, consistency) — `POST /jobs` ignoraba `EHPC_MAX_CODE_BYTES` al SUBIR el tope
+### BL-17 (low, consistency) — `POST /jobs` ignoraba `TELAR_MAX_CODE_BYTES` al SUBIR el tope
 `JobCreateRequest.code` conservaba un `max_length=262144` estático de pydantic mientras
 la vía admin JSON ya leía `settings.max_code_bytes` en runtime (fix S4). El check runtime
 de bytes ya existía en `_create_job` (compartido con `/upload`), así que **bajar** el tope
-ya funcionaba; **subir** `EHPC_MAX_CODE_BYTES` por encima de 262144 no tenía efecto por
+ya funcionaba; **subir** `TELAR_MAX_CODE_BYTES` por encima de 262144 no tenía efecto por
 JSON (pydantic rechazaba antes) — mismo bug que el HIGH que S4 encontró para el
 `source_code` admin. **Fix:** se quita el cap estático de `code` (el tope es 100% runtime);
 se elimina la rama `string_too_long` de `create_job` (ya inalcanzable) — el 413
@@ -681,7 +681,7 @@ cabecera de §6, flujo de login §9.F y los criterios de verificación §11 (1 y
 disclaimer del lead en §5 ya superseded el resto (§0 C2/C3, §8, §10) como obsoletas.
 
 ### Docs congelados desincronizados (low, doc-only)
-- `architecture.md` §2.2 (y la tabla de env vars §10.5): `EHPC_ALLOWED_ORIGINS` con las
+- `architecture.md` §2.2 (y la tabla de env vars §10.5): `TELAR_ALLOWED_ORIGINS` con las
   variantes `127.0.0.1` (el navegador manda ese Origin al abrir `127.0.0.1:8080` — BL-12)
   y el volumen `ehpc_submissions` con `name:` explícito (sin él Compose prefija el proyecto
   y el runner monta un volumen vacío — BL-02). Alineado con `compose.yaml` raíz y `config.py`.

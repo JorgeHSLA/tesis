@@ -13,7 +13,7 @@
 |---|-----------|--------|---------|---------|
 | C1 | Rutas de auth | `POST /admin/login` \| `POST /admin/session` | **`POST /admin/login`, `POST /admin/logout`, `GET /admin/session`** | Verbos explícitos, 2/3 slices coinciden; login no es CRUD de recurso. |
 | C2 | Códigos de error de auth | `UNAUTHORIZED` único \| `ADMIN_UNAUTHORIZED`+`ADMIN_INVALID_PASSWORD`+`ADMIN_DISABLED` | **`UNAUTHORIZED` (401) + `ADMIN_DISABLED` (403)** | Un solo código de fallo de credencial (login o bearer); `ADMIN_DISABLED` separado porque la UI necesita distinguir "falta la env var". |
-| C3 | Modo deshabilitado en login | 401 indistinguible \| 403 `ADMIN_DISABLED` | **403 `ADMIN_DISABLED`** | Herramienta local mono-usuario en loopback: el valor UX de avisar "define EHPC_ADMIN_PASSWORD" supera el riesgo nulo de enumeración. |
+| C3 | Modo deshabilitado en login | 401 indistinguible \| 403 `ADMIN_DISABLED` | **403 `ADMIN_DISABLED`** | Herramienta local mono-usuario en loopback: el valor UX de avisar "define TELAR_ADMIN_PASSWORD" supera el riesgo nulo de enumeración. |
 | C4 | TTL de sesión | fijo 8h \| deslizante | **fijo 8h, sin sliding** | Más simple; el admin re-loguea; `GET /session` no renueva. |
 | C5 | Store de sesión | clase `AdminSessionStore` \| `dict[str,float]` | **clase `AdminSessionStore`** | Tipada, testeable, encapsula purga/tope; internamente usa dict. |
 | C6 | Shape de `GET /session` | `{valid,expires_at}` \| `{authenticated,expires_at}` | **`{authenticated, expires_at}`** | 2/3 slices; nombre consistente con la UI. |
@@ -37,7 +37,7 @@
    14 ejemplos + 60 preguntas habilitadas byte-idénticos.
 3. **Persistencia = SQLite.** 4 tablas nuevas en `-- migration 2` (`schema_version` → 2 vía el
    mecanismo existente de `db.py`).
-4. **Auth = admin único por `EHPC_ADMIN_PASSWORD`.** Sin la var, modo admin **deshabilitado**
+4. **Auth = admin único por `TELAR_ADMIN_PASSWORD`.** Sin la var, modo admin **deshabilitado**
    (todo `/admin/*` responde `403 ADMIN_DISABLED`). El estudiante nunca hace login; todos sus flujos
    quedan intactos.
 5. **Bearer token + sesiones server-side en memoria** (`app.state.admin_sessions`, patrón de
@@ -285,7 +285,7 @@ vez al inicio del request (patrón `get_content`). **Invariante a documentar**: 
 ## 5. Auth
 
 > **OBSOLETO 2026-07-26 — toda esta §5 quedó superada.** El modo autoría ya NO
-> usa login/token/sesión: se gatea por `EHPC_ADMIN_MODE` (backend) + `VITE_ADMIN`
+> usa login/token/sesión: se gatea por `TELAR_ADMIN_MODE` (backend) + `VITE_ADMIN`
 > (build frontend). Se eliminaron `admin_auth.py` (router y service),
 > `AdminSessionStore`, `LoginThrottle`, `verify_password` y los endpoints
 > `/admin/login|logout|session`. `require_admin` solo comprueba
@@ -306,13 +306,13 @@ vez al inicio del request (patrón `get_content`). **Invariante a documentar**: 
 ### 5.1 Config — `backend/app/config.py`
 
 ```python
-admin_password: str = ""   # EHPC_ADMIN_PASSWORD; "" ⇒ modo admin DESHABILITADO
+admin_password: str = ""   # TELAR_ADMIN_PASSWORD; "" ⇒ modo admin DESHABILITADO
 
 @property
 def admin_enabled(self) -> bool:
     return bool(self.admin_password.strip())
 ```
-No hay default de contraseña. `EHPC_ADMIN_PASSWORD` es un secreto: nunca se logea (ni su longitud).
+No hay default de contraseña. `TELAR_ADMIN_PASSWORD` es un secreto: nunca se logea (ni su longitud).
 Inyectada por entorno (compose `environment:` / `.env` no versionado).
 
 ### 5.2 Store de sesión — `backend/app/services/admin_auth.py` (nuevo)
@@ -655,7 +655,7 @@ Confirmados como inexistentes hoy (schemas.py:16-31, errors.py:26-37). Añadir *
 | HTTP | `error.code` | Cuándo |
 |---|---|---|
 | 401 | `UNAUTHORIZED` | Login con password incorrecto, o endpoint admin sin/`con` Bearer inválido o expirado |
-| 403 | `ADMIN_DISABLED` | `EHPC_ADMIN_PASSWORD` ausente → modo admin deshabilitado (login + todo `/admin/*`) |
+| 403 | `ADMIN_DISABLED` | `TELAR_ADMIN_PASSWORD` ausente → modo admin deshabilitado (login + todo `/admin/*`) |
 | 404 | `MODULE_NOT_FOUND` | id de módulo inexistente |
 | 409 | `DUPLICATE_ID` | crear con un id ya usado (módulo o lección/ejemplo) |
 | 409 | `ORDER_CONFLICT` | `order` de módulo o de lección colisiona |
@@ -693,7 +693,7 @@ Cambios:
 >   las rutas de autoría **no existen** (ni por URL) y el bundler las descarta
 >   por tree-shaking. Build admin (`VITE_ADMIN=1`, script `npm run build:admin`):
 >   incluye la autoría.
-> - **Backend, en runtime** con `EHPC_ADMIN_MODE` (los endpoints `/admin/*`
+> - **Backend, en runtime** con `TELAR_ADMIN_MODE` (los endpoints `/admin/*`
 >   responden o no).
 >
 > El acceso es por un item **«Autoría»** del `Sidebar` (visible solo en el build
@@ -769,7 +769,7 @@ tokens CSS nuevos: reciclar `.card`, `.btn*`, `.field-*`, `.chip*`, `.markdown`,
 
 - **Sin guard ni login**: no hay `AdminGuard` ni `/admin/login`. El gating del
   frontend es por BUILD (`ADMIN_BUILD`, §header); el del backend, por runtime
-  (`EHPC_ADMIN_MODE`). En el build estudiante las rutas admin ni existen.
+  (`TELAR_ADMIN_MODE`). En el build estudiante las rutas admin ni existen.
 - **Misma shell**: las pantallas admin renderizan dentro del `AppShell` del
   estudiante (mismo `TopBar` + `Sidebar`); no hay chrome de "modo aparte".
 - **Acceso por el `Sidebar`**: item **«Autoría»** (icono `IconLayers`) → `/admin`,
@@ -813,7 +813,7 @@ contra `GET /admin/session`; si `authenticated:false` → limpia, cubre backend 
 
 1. **Login** `#/admin/login`: `Field` password (autoFocus, Enter=submit) + botón "Entrar". `401` →
    error rojo "Contraseña incorrecta" (401 **indistinguible**: cubre la credencial errónea Y el modo
-   admin deshabilitado sin `EHPC_ADMIN_PASSWORD`; la UI trata cualquier 401 como "credencial o modo no
+   admin deshabilitado sin `TELAR_ADMIN_PASSWORD`; la UI trata cualquier 401 como "credencial o modo no
    disponibles", no se filtra el estado — BL-34, no existe `ADMIN_DISABLED`). Red → `ErrorState` retry.
    Si ya autenticado al montar → `Navigate` a `state.from ?? '/admin'`.
 2. **Dashboard** `#/admin`: `getModules()`; `ModuleGroup` colapsable con acciones CRUD + botón
@@ -874,7 +874,7 @@ A,B,C). Ola 4 = E (tras A,C,D). E2E (§11) tras E.
   `422 CONTENT_VALIDATION_ERROR` (markdown, correct_key, threads/GPU); reload → GET público refleja el
   cambio; subida `.py` `413`/`415`/`422`.
 - **E**: `DOCKER_HOST=tcp://127.0.0.1:1 pytest backend/tests -q` verde full; arranque con y sin
-  `EHPC_ADMIN_PASSWORD` (sin var: `/admin/*` → 403; estudiante idéntico).
+  `TELAR_ADMIN_PASSWORD` (sin var: `/admin/*` → 403; estudiante idéntico).
 - **F**: `cd frontend && npx tsc --noEmit` limpio.
 - **G**: `cd frontend && npx tsc --noEmit && npx vitest run` — tests de §9 (store, guard, authFetch,
   editores, `lib/pyfile`) verdes, ≥80% en stores/hooks/lib nuevos.
@@ -899,7 +899,7 @@ A,B,C). Ola 4 = E (tras A,C,D). E2E (§11) tras E.
 - **R5 — Token robado por XSS.** Aceptado (§5.6 T3): CSP dura + TTL 8h + `sessionStorage` + logout
   revoca; mono-usuario loopback.
 
-**Verificación E2E (flujo crítico, Playwright; precondición: backend con `EHPC_ADMIN_PASSWORD`)**
+**Verificación E2E (flujo crítico, Playwright; precondición: backend con `TELAR_ADMIN_PASSWORD`)**
 1. `#/admin/login` con password correcto → dashboard; con password malo → 401 en el form; sin la env
    var → **el mismo 401 indistinguible** (no una pantalla distinta; no se filtra el estado — BL-34).
 2. Crear módulo → crear lección con markdown (+ ejemplo pareado + `source_code`) → añadir quiz →

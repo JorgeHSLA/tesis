@@ -4,7 +4,7 @@ Plataforma educativa para aprender OpenMP con PyOMP: lecciones, quizzes y
 ejecución de código real en contenedores Docker efímeros y aislados.
 
 Este archivo es un marcador de posición del paquete WP0 (scaffold). La
-documentación completa (prerequisitos, regla ext4, tabla `EHPC_*`, targets de
+documentación completa (prerequisitos, regla ext4, tabla `TELAR_*`, targets de
 `make`, riesgo del socket Docker, guía del instalador desktop y
 troubleshooting) llega con WP11.
 

@@ -331,7 +331,7 @@ export interface JobCreateRequestDto {
   filename?: string | null
   /** Se OMITE si threads_configurable=false (el backend usa su valor fijo). */
   threads?: number | null
-  /** 5..120 (tope servidor EHPC_MAX_TIMEOUT_S). */
+  /** 5..120 (tope servidor TELAR_MAX_TIMEOUT_S). */
   timeout_s?: number | null
   lesson_id?: string | null
 }

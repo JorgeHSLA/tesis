@@ -135,17 +135,17 @@ services:
     build: ./backend
     ports: ["127.0.0.1:8000:8000"]
     environment:
-      EHPC_DB_PATH: /app/data/ehpc.db
+      TELAR_DB_PATH: /app/data/ehpc.db
       # 'null' es necesario para Electron (file://); riesgo residual documentado
       # en api-contract.md §0 — mitigado por el bind a loopback. Las variantes
       # 127.0.0.1 son OBLIGATORIAS: al abrir http://127.0.0.1:8080 el navegador
       # manda ese Origin (no 'localhost'), y sin ellas CORS/WS lo rechazan (BL-12).
-      EHPC_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null"
-      EHPC_CODE_DELIVERY: volume            # 'volume' (compose) | 'bind' (dev nativo)
-      EHPC_SUBMISSIONS_VOLUME: ehpc_submissions
-      EHPC_RUNNER_IMAGE: ehpc-runner:0.5.1
-      EHPC_MAX_TIMEOUT_S: 0                 # 0 = sin límite (tope opcional)
-      EHPC_MAX_CONCURRENT_JOBS: 2
+      TELAR_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null"
+      TELAR_CODE_DELIVERY: volume            # 'volume' (compose) | 'bind' (dev nativo)
+      TELAR_SUBMISSIONS_VOLUME: ehpc_submissions
+      TELAR_RUNNER_IMAGE: ehpc-runner:0.5.1
+      TELAR_MAX_TIMEOUT_S: 0                 # 0 = sin límite (tope opcional)
+      TELAR_MAX_CONCURRENT_JOBS: 2
     volumes:
       - ehpc_data:/app/data
       - ehpc_submissions:/submissions        # rw en backend; el runner lo monta :ro
@@ -176,7 +176,7 @@ volumes:
   # `name:` explícito (BL-02): sin él Compose antepone el prefijo del proyecto
   # (`<proyecto>_ehpc_submissions`) y el runner montaría un volumen vacío
   # distinto del que escribe el backend → todos los jobs fallan con "no such
-  # file or directory". Debe coincidir con EHPC_SUBMISSIONS_VOLUME.
+  # file or directory". Debe coincidir con TELAR_SUBMISSIONS_VOLUME.
   ehpc_submissions:
     name: ehpc_submissions
 ```
@@ -336,7 +336,7 @@ Puntos no negociables del flujo (todos verificados en Fase 0):
 **NUNCA bind-mount de una ruta interna del contenedor backend**: el daemon
 resuelve rutas del **host**, no del backend (trampa de contenedores hermanos,
 `docker-py.md` §2.3). Estrategia con dos modos, encapsulada en `docker_service`
-tras la config `EHPC_CODE_DELIVERY`:
+tras la config `TELAR_CODE_DELIVERY`:
 
 | Modo | Cuándo | Mecanismo |
 |---|---|---|
@@ -480,7 +480,7 @@ Notas:
   Se aplican ambos coherentes con N.
 - **Alcance real de esa reproducibilidad** (precisión de 2026-07-19, decisión
   deliberada): el rango arranca SIEMPRE en el core 0 y no se reparte por slot
-  del semáforo, así que con `EHPC_MAX_CONCURRENT_JOBS > 1` dos jobs
+  del semáforo, así que con `TELAR_MAX_CONCURRENT_JOBS > 1` dos jobs
   concurrentes de N hilos reciben ambos `0-{N-1}` y **comparten los mismos
   cores físicos**. Las cifras de speedup/eficiencia solo son comparables
   entre sí **ejecutando un job a la vez**; bajo concurrencia siguen siendo
@@ -618,8 +618,8 @@ Reglas del parser:
 
 | Parámetro | Default | Tope servidor |
 |---|---|---|
-| `timeout_s` por job | el del fixture del ejemplo (30–90 s según ejemplo; 60 s para código propio) | `EHPC_MAX_TIMEOUT_S` — **opcional**: `0` (por defecto) = sin límite; `> 0` = máximo. El mínimo (5 s) se valida siempre |
-| Jobs concurrentes | `EHPC_MAX_CONCURRENT_JOBS=2` (semáforo asyncio) | cola interna máx. 10 → 429 |
+| `timeout_s` por job | el del fixture del ejemplo (30–90 s según ejemplo; 60 s para código propio) | `TELAR_MAX_TIMEOUT_S` — **opcional**: `0` (por defecto) = sin límite; `> 0` = máximo. El mínimo (5 s) se valida siempre |
+| Jobs concurrentes | `TELAR_MAX_CONCURRENT_JOBS=2` (semáforo asyncio) | cola interna máx. 10 → 429 |
 
 Los timeouts absorben import + JIT (hasta ~5–20 s en funciones no triviales) +
 cómputo real; jamás los 3–5 s típicos de un judge.
@@ -667,7 +667,7 @@ e-hpc/
 │   ├── Dockerfile
 │   └── app/
 │       ├── main.py            # FastAPI + lifespan (DB, docker client, jobs registry, reaper)
-│       ├── config.py          # pydantic-settings (EHPC_*)
+│       ├── config.py          # pydantic-settings (TELAR_*)
 │       ├── routers/           # jobs.py, examples.py, lessons.py, quizzes.py, progress.py, system.py, ws.py
 │       ├── services/
 │       │   ├── docker_service.py   # ÚNICO módulo que importa docker (§5)
@@ -731,21 +731,21 @@ make dist           # vite build + electron-builder --linux
 `aiosqlite>=0.20,<1`. Dev extra (`requirements-dev.txt`): `pytest`,
 `pytest-asyncio`, `pytest-cov`, `httpx`.
 
-### 10.5 Tabla única de variables de entorno `EHPC_*`
+### 10.5 Tabla única de variables de entorno `TELAR_*`
 
 | Variable | Default | Usada por |
 |---|---|---|
-| `EHPC_DB_PATH` | `~/.ehpc/ehpc.db` (dev) / `/app/data/ehpc.db` (compose) | db.py |
-| `EHPC_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null` (incluye las variantes `127.0.0.1` — BL-12) | CORS + validación Origin del WS |
-| `EHPC_CODE_DELIVERY` | `bind` (dev) / `volume` (compose) | docker_service |
-| `EHPC_SUBMISSIONS_VOLUME` | `ehpc_submissions` | docker_service (modo volume) |
-| `EHPC_JOBS_DIR` | `~/.ehpc/jobs` | docker_service (modo bind) |
-| `EHPC_RUNNER_IMAGE` | `ehpc-runner:0.5.1` | docker_service |
-| `EHPC_MAX_TIMEOUT_S` | `0` = **sin límite** (tope opcional; con `> 0` es el máximo de `timeout_s`) | validación jobs |
-| `EHPC_MAX_CONCURRENT_JOBS` | `2` | semáforo job_runner |
-| `EHPC_MAX_CODE_BYTES` | `262144` | validación jobs/upload |
-| `EHPC_MAX_OUTPUT_BYTES` | `262144` | drainer (§3.2) |
-| `EHPC_COMPOSE_DIR` | — (solo desktop) | electron-spec §5.3 |
+| `TELAR_DB_PATH` | `~/.ehpc/ehpc.db` (dev) / `/app/data/ehpc.db` (compose) | db.py |
+| `TELAR_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null` (incluye las variantes `127.0.0.1` — BL-12) | CORS + validación Origin del WS |
+| `TELAR_CODE_DELIVERY` | `bind` (dev) / `volume` (compose) | docker_service |
+| `TELAR_SUBMISSIONS_VOLUME` | `ehpc_submissions` | docker_service (modo volume) |
+| `TELAR_JOBS_DIR` | `~/.ehpc/jobs` | docker_service (modo bind) |
+| `TELAR_RUNNER_IMAGE` | `ehpc-runner:0.5.1` | docker_service |
+| `TELAR_MAX_TIMEOUT_S` | `0` = **sin límite** (tope opcional; con `> 0` es el máximo de `timeout_s`) | validación jobs |
+| `TELAR_MAX_CONCURRENT_JOBS` | `2` | semáforo job_runner |
+| `TELAR_MAX_CODE_BYTES` | `262144` | validación jobs/upload |
+| `TELAR_MAX_OUTPUT_BYTES` | `262144` | drainer (§3.2) |
+| `TELAR_COMPOSE_DIR` | — (solo desktop) | electron-spec §5.3 |
 
 El README raíz documenta: prerrequisitos (Docker, Node 22 vía nvm, Python
 3.12), regla ext4, `make` targets, esta tabla, y el riesgo del socket (§5).

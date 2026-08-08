@@ -17,7 +17,7 @@ const execFileAsync = promisify(execFile)
 
 // Acciones CERRADAS: el renderer solo elige una clave; los argumentos viven aquí.
 // Cada acción es una SECUENCIA de pasos ejecutados en orden (mismo cwd).
-// 'compose:up' es COMPUESTA: en modo repo (EHPC_COMPOSE_DIR → clon con build:)
+// 'compose:up' es COMPUESTA: en modo repo (TELAR_COMPOSE_DIR → clon con build:)
 // primero construye la imagen runner (perfil 'build', que `up` ignoraría) y
 // luego levanta; en modo empaquetado (§6.1, compose solo-image:) el build de
 // runner es un no-op inmediato porque el servicio no tiene clave build.
@@ -32,9 +32,9 @@ const DOCKER_ACTIONS: Readonly<Record<string, readonly (readonly string[])[]>> =
 
 // Dónde vive el compose.yaml: junto a los recursos empaquetados o configurable.
 // Prod: se empaqueta un compose.yaml de despliegue en resources/ (extraResources §6).
-// Dev:  raíz del repo. Override por env EHPC_COMPOSE_DIR (documentado en README).
+// Dev:  raíz del repo. Override por env TELAR_COMPOSE_DIR (documentado en README).
 function composeCwd(): string {
-  if (process.env.EHPC_COMPOSE_DIR) return process.env.EHPC_COMPOSE_DIR
+  if (process.env.TELAR_COMPOSE_DIR) return process.env.TELAR_COMPOSE_DIR
   return app.isPackaged
     ? path.join(process.resourcesPath, PACKAGED_COMPOSE_SUBDIR)
     : path.resolve(process.cwd(), '..')

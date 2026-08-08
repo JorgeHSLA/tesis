@@ -16,7 +16,7 @@ export const WS_BASE = import.meta.env.VITE_WS_BASE
  *    chunks de `features/admin/*` no llegan al bundle.
  *  · Build admin (`VITE_ADMIN=1` | `true`): incluye la autoría.
  *  Ya NO hay login: el acceso es por el item «Autoría» del Sidebar (build admin)
- *  y el backend lo gobierna con EHPC_ADMIN_MODE. */
+ *  y el backend lo gobierna con TELAR_ADMIN_MODE. */
 export const ADMIN_BUILD =
   import.meta.env.VITE_ADMIN === '1' || import.meta.env.VITE_ADMIN === 'true'
 

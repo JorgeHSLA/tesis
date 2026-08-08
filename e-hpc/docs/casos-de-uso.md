@@ -5,7 +5,7 @@
 | Actor | Descripción |
 |---|---|
 | **Estudiante** | Usuario final que aprende: navega el catálogo, lee lecciones, hace quizzes, ejecuta y observa jobs. Es el actor de la app "versión estudiante" (build/imagen sin código admin). |
-| **Administrador / Autor de contenido** | Usa el mismo cliente pero con el despliegue admin habilitado (`EHPC_ADMIN_MODE=1` + build `VITE_ADMIN`); gestiona el contenido del curso. No hay login: el rol lo da el despliegue, no una credencial. |
+| **Administrador / Autor de contenido** | Usa el mismo cliente pero con el despliegue admin habilitado (`TELAR_ADMIN_MODE=1` + build `VITE_ADMIN`); gestiona el contenido del curso. No hay login: el rol lo da el despliegue, no una credencial. |
 | **Usuario de escritorio** | Estudiante o admin que usa la app empaquetada en Electron en vez del navegador; además controla el stack Docker desde la UI (arrancar/parar). |
 | **Sistema (backend)** | Actor no humano: procesos automáticos del backend (orquestación de jobs, reaper de huérfanos, healthcheck) que se disparan por eventos del sistema, no por un click. |
 | **Runner (contenedor efímero)** | Ejecuta el código no confiable; no es un actor con intención propia, pero participa como colaborador externo en los casos de uso de ejecución. |
@@ -208,7 +208,7 @@ estudiante puede seguirlo en vivo.
    opcionalmente, `example_id` si partió de un preset — en ese caso
    `source_kind` queda en `"example"` si el código es byte-idéntico al
    fixture, o `"editor"` si lo modificó).
-3. El backend valida tamaño (`1..EHPC_MAX_CODE_BYTES`, por defecto 256 KB;
+3. El backend valida tamaño (`1..TELAR_MAX_CODE_BYTES`, por defecto 256 KB;
    si no, `413 CODE_TOO_LARGE`), nombre de archivo (patrón estricto
    `^[A-Za-z0-9._-]{1,80}\.py$`), hilos y timeout (defaults: hilos=4,
    timeout=60s si no viene `example_id`).
@@ -379,11 +379,11 @@ sección de historial).
 ## 5. Casos de uso — Administrador / Autoría de contenido (Fase 4)
 
 > Precondición común a todo este bloque: el despliegue está en **modo
-> admin** (`EHPC_ADMIN_MODE=1` en el backend + build `VITE_ADMIN=1` en el
+> admin** (`TELAR_ADMIN_MODE=1` en el backend + build `VITE_ADMIN=1` en el
 > frontend). No hay login: si el despliegue es "estudiante", cualquier
 > `/api/v1/admin/*` responde `401 UNAUTHORIZED` (o `404` si además el
 > artefacto es la imagen backend "estudiante", que ni siquiera compila el
-> código admin — ver `EHPC_ADMIN_BUILD`). El admin entra por el ítem
+> código admin — ver `TELAR_ADMIN_BUILD`). El admin entra por el ítem
 > "Autoría" del Sidebar (`AdminDashboard.tsx`, ruta `#/admin`).
 
 ### CU-13 — Crear un módulo de curso
@@ -613,11 +613,11 @@ congelada en el repositorio (o se detecta la divergencia).
 crea un job. Es el mecanismo interno común a todos ellos.
 
 **Flujo principal:**
-1. `job_runner` adquiere un cupo del semáforo `EHPC_MAX_CONCURRENT_JOBS`
+1. `job_runner` adquiere un cupo del semáforo `TELAR_MAX_CONCURRENT_JOBS`
    (por defecto 2); jobs adicionales quedan `queued` (cola interna máx. 10,
    si se excede → `429 TOO_MANY_JOBS` al crear).
 2. Comprueba `cancel_requested` (ver CU-08) antes de crear el contenedor.
-3. Entrega el código al runner según `EHPC_CODE_DELIVERY`: `bind` (backend
+3. Entrega el código al runner según `TELAR_CODE_DELIVERY`: `bind` (backend
    nativo en dev, escribe en `~/.ehpc/jobs/<job_id>/main.py`) o `volume`
    (compose/prod, escribe en el volumen nombrado `ehpc_submissions`,
    montado por el runner con `subpath=<job_id>`).
@@ -735,7 +735,7 @@ arriba, la UI lo refleja y ofrece levantar el stack (CU-31).
 3. `ipc-docker.ts` valida que el remitente sea el frame principal confiable
    (`file://` en prod o el origin del dev-server) antes de ejecutar nada.
 4. Ejecuta, en secuencia y en el mismo `cwd` (directorio del compose
-   empaquetado o `EHPC_COMPOSE_DIR`): `docker compose --profile build build
+   empaquetado o `TELAR_COMPOSE_DIR`): `docker compose --profile build build
    runner` y luego `docker compose up -d` — vía `execFile` **sin shell**,
    con timeout y `maxBuffer` acotados (el build del runner, ~777 MB, puede
    tardar minutos).

@@ -72,7 +72,7 @@ async def open_db(path: str) -> aiosqlite.Connection:
   quiz-attempt→progress) toma el lock, ejecuta sus statements y hace
   `commit()`/`rollback()` **dentro de él**. Con un solo writer real el coste
   es nulo a esta escala; las lecturas no toman el lock (WAL).
-- Ruta: `EHPC_DB_PATH` (compose: `/app/data/ehpc.db` en el volumen
+- Ruta: `TELAR_DB_PATH` (compose: `/app/data/ehpc.db` en el volumen
   `ehpc_data`; dev: `~/.ehpc/ehpc.db` — ext4, nunca `/mnt/d`).
 - Esquema: `schema.sql` idempotente (`CREATE TABLE IF NOT EXISTS …`)
   ejecutado en el lifespan; `schema_version` gobierna migraciones manuales
@@ -138,7 +138,7 @@ CREATE INDEX IF NOT EXISTS idx_jobs_example  ON jobs (example_id) WHERE example_
 ```
 
 > **Nota (tope de timeout).** El máximo a nivel de aplicación es OPCIONAL
-> (`EHPC_MAX_TIMEOUT_S = 0` ⇒ sin límite, ver api-contract §7.1), pero el
+> (`TELAR_MAX_TIMEOUT_S = 0` ⇒ sin límite, ver api-contract §7.1), pero el
 > `CHECK (timeout_s BETWEEN 5 AND 120)` de arriba **sigue vigente** y es el
 > tope efectivo: un `timeout_s > 120` supera la validación del router y luego
 > falla el `INSERT` con `IntegrityError`. Subir ese techo exige un bloque

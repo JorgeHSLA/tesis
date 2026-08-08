@@ -255,7 +255,7 @@ def _build_client(settings, max_timeout_s: int):
 
 
 def test_timeout_tope_configurable_no_solo_120(settings):
-    """Con ``EHPC_MAX_TIMEOUT_S=30`` el tope es 30, no el viejo 120 fijo."""
+    """Con ``TELAR_MAX_TIMEOUT_S=30`` el tope es 30, no el viejo 120 fijo."""
     with _build_client(settings, 30) as client:
         response = client.post(
             "/api/v1/jobs", json={"code": "print(1)\n", "timeout_s": 60}
@@ -265,7 +265,7 @@ def test_timeout_tope_configurable_no_solo_120(settings):
 
 
 def test_timeout_sin_tope_acepta_lo_que_el_tope_rechazaba(settings, real_content):
-    """``EHPC_MAX_TIMEOUT_S=0`` ⇒ SIN LÍMITE: el mismo valor que con tope 30
+    """``TELAR_MAX_TIMEOUT_S=0`` ⇒ SIN LÍMITE: el mismo valor que con tope 30
     daba 422 ahora se acepta. Es el centinela del refactor."""
     with _build_client(settings, 0) as client:
         response = client.post(

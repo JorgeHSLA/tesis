@@ -6,7 +6,7 @@
 import type { ParserId, QuizOptionKey } from './types'
 
 // El modo autoría ya NO usa login/token (2026-07-26): se gatea por build
-// (VITE_ADMIN) + config del backend (EHPC_ADMIN_MODE). Los DTOs de auth
+// (VITE_ADMIN) + config del backend (TELAR_ADMIN_MODE). Los DTOs de auth
 // (AdminLoginRequest/Result, AdminSessionInfo, AdminLogoutResult) se eliminaron.
 
 // ── §10.2 Fragmentos compartidos ─────────────────────────────────────────────

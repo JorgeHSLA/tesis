@@ -37,8 +37,8 @@ function createWindow(): BrowserWindow {
   attachNavigationGuards(win) // §7.2
   if (!app.isPackaged && DEV_SERVER_URL) {
     void win.loadURL(DEV_SERVER_URL)
-    // DevTools solo si se pide con EHPC_DEVTOOLS=1; por defecto, ventana limpia.
-    if (process.env.EHPC_DEVTOOLS === '1') win.webContents.openDevTools({ mode: 'detach' })
+    // DevTools solo si se pide con TELAR_DEVTOOLS=1; por defecto, ventana limpia.
+    if (process.env.TELAR_DEVTOOLS === '1') win.webContents.openDevTools({ mode: 'detach' })
   } else {
     void win.loadFile(path.join(process.resourcesPath, PACKAGED_FRONTEND_SUBDIR, 'index.html'))
     // HashRouter ⇒ las rutas viven tras '#', loadFile no necesita ajustes por ruta

@@ -19,33 +19,33 @@ services:
     restart: unless-stopped
 
   backend:
-    # Nivel 3 (seguridad por AUSENCIA, ver backend/Dockerfile): EHPC_ADMIN_BUILD
+    # Nivel 3 (seguridad por AUSENCIA, ver backend/Dockerfile): TELAR_ADMIN_BUILD
     # selecciona la imagen desde UN codebase. Por defecto 0 ⇒ build ESTUDIANTE
     # (sin código admin en el artefacto; /api/v1/admin/* → 404). La imagen ADMIN
-    # se construye con `EHPC_ADMIN_BUILD=1 docker compose build backend` (y el
-    # runtime la sigue gateando EHPC_ADMIN_MODE).
+    # se construye con `TELAR_ADMIN_BUILD=1 docker compose build backend` (y el
+    # runtime la sigue gateando TELAR_ADMIN_MODE).
     build:
       context: ./backend
       args:
-        EHPC_ADMIN_BUILD: "${EHPC_ADMIN_BUILD:-0}"
+        TELAR_ADMIN_BUILD: "${TELAR_ADMIN_BUILD:-0}"
     ports: ["127.0.0.1:8000:8000"]
     environment:
-      EHPC_DB_PATH: /app/data/ehpc.db
+      TELAR_DB_PATH: /app/data/ehpc.db
       # Modo autoría (admin): apagado por defecto (=0 ⇒ ESTUDIANTE, /api/v1/admin/*
       # responde 401). Se enciende con la env del shell:
-      #   EHPC_ADMIN_MODE=1 docker compose up -d backend
+      #   TELAR_ADMIN_MODE=1 docker compose up -d backend
       # (Compose es declarativo → recrea el contenedor al cambiar el valor, así
       # `telar` puede alternar estudiante⇄admin). App local en loopback
       # distribuida solo a administradores; sin login/token.
-      EHPC_ADMIN_MODE: "${EHPC_ADMIN_MODE:-0}"
+      TELAR_ADMIN_MODE: "${TELAR_ADMIN_MODE:-0}"
       # 'null' es necesario para Electron (file://); riesgo residual documentado
       # en api-contract.md §0 — mitigado por el bind a loopback.
-      EHPC_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null"
-      EHPC_CODE_DELIVERY: volume            # 'volume' (compose) | 'bind' (dev nativo)
-      EHPC_SUBMISSIONS_VOLUME: ehpc_submissions
-      EHPC_RUNNER_IMAGE: ehpc-runner:0.5.1
-      EHPC_MAX_TIMEOUT_S: 0                 # 0 = sin límite (tope opcional)
-      EHPC_MAX_CONCURRENT_JOBS: 2
+      TELAR_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null"
+      TELAR_CODE_DELIVERY: volume            # 'volume' (compose) | 'bind' (dev nativo)
+      TELAR_SUBMISSIONS_VOLUME: ehpc_submissions
+      TELAR_RUNNER_IMAGE: ehpc-runner:0.5.1
+      TELAR_MAX_TIMEOUT_S: 0                 # 0 = sin límite (tope opcional)
+      TELAR_MAX_CONCURRENT_JOBS: 2
     volumes:
       - ehpc_data:/app/data
       - ehpc_submissions:/submissions        # rw en backend; el runner lo monta :ro
@@ -78,7 +78,7 @@ volumes:
     name: ehpc_data
   # Nombre explícito para DESACTIVAR el prefijo del proyecto Compose: así el
   # volumen real es 'ehpc_submissions' (no '<proyecto>_ehpc_submissions') y
-  # coincide con source=EHPC_SUBMISSIONS_VOLUME que el backend pasa al runner
+  # coincide con source=TELAR_SUBMISSIONS_VOLUME que el backend pasa al runner
   # en docker_service._code_mount_kwargs. Sin esto, backend escribe en el
   # volumen prefijado y el runner monta OTRO volumen vacío → 'no such file'.
   ehpc_submissions:

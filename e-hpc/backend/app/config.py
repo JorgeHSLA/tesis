@@ -1,7 +1,7 @@
 """Configuración del backend Telar.
 
-Tabla única de variables de entorno ``EHPC_*`` — TRANSCRIPCIÓN de
-``docs/architecture/architecture.md`` §10.5 (CONGELADA). ``EHPC_COMPOSE_DIR``
+Tabla única de variables de entorno ``TELAR_*`` — TRANSCRIPCIÓN de
+``docs/architecture/architecture.md`` §10.5 (CONGELADA). ``TELAR_COMPOSE_DIR``
 no aparece aquí: es exclusiva del shell de escritorio (electron-spec §5.3).
 """
 
@@ -13,9 +13,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Settings leídos del entorno con prefijo ``EHPC_``."""
+    """Settings leídos del entorno con prefijo ``TELAR_``."""
 
-    model_config = SettingsConfigDict(env_prefix="EHPC_", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="TELAR_", extra="ignore")
 
     # Persistencia (db.py)
     db_path: str = "~/.ehpc/ehpc.db"  # compose: /app/data/ehpc.db
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     max_output_bytes: int = 262144
 
     # Autoría (admin). VARIANTE DE DESPLIEGUE, no login: el modo admin se
-    # enciende con EHPC_ADMIN_MODE (app local en loopback distribuida solo a
+    # enciende con TELAR_ADMIN_MODE (app local en loopback distribuida solo a
     # admins). Sin la var ⇒ despliegue "estudiante": /admin/* apagado (401).
     # pydantic-settings castea "1"/"true"/"yes" (y variantes) a bool. Ver
     # api-contract §10.0.
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
 
     @property
     def admin_enabled(self) -> bool:
-        """``True`` si el modo admin está habilitado por despliegue (EHPC_ADMIN_MODE)."""
+        """``True`` si el modo admin está habilitado por despliegue (TELAR_ADMIN_MODE)."""
         return self.admin_mode
 
     @property

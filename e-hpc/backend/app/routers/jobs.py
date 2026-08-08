@@ -159,7 +159,7 @@ async def _create_job(
     # --- timeout (§7.4): mínimo SIEMPRE, máximo OPCIONAL ---
     # El default sigue siendo el del ejemplo (o 60 s para código propio): omitir
     # timeout_s nunca deja un slot colgado. El tope, en cambio, es opcional:
-    # EHPC_MAX_TIMEOUT_S <= 0 significa "sin límite".
+    # TELAR_MAX_TIMEOUT_S <= 0 significa "sin límite".
     default_timeout = example.default_timeout_s if example is not None else 60
     eff_timeout = timeout_s if timeout_s is not None else default_timeout
     if eff_timeout < 5:

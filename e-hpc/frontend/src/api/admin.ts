@@ -1,6 +1,6 @@
 // api/admin.ts — capa HTTP del modo autoría (admin, Fase 4).
 // Ya NO hay login ni token: el modo autoría se decide en BUILD (VITE_ADMIN →
-// config.ts ADMIN_BUILD) y el backend lo gobierna con EHPC_ADMIN_MODE. Las
+// config.ts ADMIN_BUILD) y el backend lo gobierna con TELAR_ADMIN_MODE. Las
 // llamadas admin usan `fetchJson` normal, SIN cabecera Authorization ni token.
 // Las LECTURAS del dashboard (lista de módulos, ejemplo por id) reutilizan
 // api/content.ts; solo el quiz con `correct_key` usa el endpoint admin.

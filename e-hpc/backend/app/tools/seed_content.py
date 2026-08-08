@@ -405,7 +405,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--db",
         default=None,
-        help="ruta de la DB SQLite (default: EHPC_DB_PATH de la config)",
+        help="ruta de la DB SQLite (default: TELAR_DB_PATH de la config)",
     )
     parser.add_argument(
         "--content",

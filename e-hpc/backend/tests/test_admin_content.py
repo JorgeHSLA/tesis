@@ -3,7 +3,7 @@
 Monta una app de integración reusando ``conftest.build_app`` (routers públicos +
 estado real sobre ``:memory:`` sembrada desde los fixtures) y le AÑADE el router
 ``admin``. El modo admin es una variante de DESPLIEGUE gateada por
-``EHPC_ADMIN_MODE`` (``Settings(admin_mode=True)``): sin login ni token. No edita
+``TELAR_ADMIN_MODE`` (``Settings(admin_mode=True)``): sin login ni token. No edita
 ``conftest`` (es de A).
 
 Cubre api-contract §10.2-§10.6:
@@ -14,7 +14,7 @@ Cubre api-contract §10.2-§10.6:
 - Subida ``.py``: ``413`` / ``415`` / ``422``.
 - Backward-compat / reload: tras crear vía admin, los GET públicos reflejan el
   contenido nuevo y el quiz público NO trae ``correct_key``.
-- En modo estudiante (sin ``EHPC_ADMIN_MODE``), ``/admin/*`` → ``401``.
+- En modo estudiante (sin ``TELAR_ADMIN_MODE``), ``/admin/*`` → ``401``.
 """
 
 from __future__ import annotations
@@ -164,7 +164,7 @@ def _create_lesson(client, auth, **over):
 
 
 def test_modo_estudiante_todos_los_admin_401(tmp_path):
-    """Despliegue "estudiante" (sin ``EHPC_ADMIN_MODE``): todo ``/admin/*`` → 401."""
+    """Despliegue "estudiante" (sin ``TELAR_ADMIN_MODE``): todo ``/admin/*`` → 401."""
     app = _make_app(tmp_path, admin_mode=False)
     with TestClient(app) as client:
         for method, path in [
@@ -182,7 +182,7 @@ def test_modo_estudiante_todos_los_admin_401(tmp_path):
 
 
 def test_modo_admin_habilitado_permite_acceso(client):
-    """Con ``EHPC_ADMIN_MODE`` habilitado, ``/admin/*`` responde sin token."""
+    """Con ``TELAR_ADMIN_MODE`` habilitado, ``/admin/*`` responde sin token."""
     response = client.get("/api/v1/admin/modules")
     assert response.status_code == 200
 
@@ -697,7 +697,7 @@ def test_admin_example_dto_sin_cap_estatico_de_default_timeout():
     ``le=120``.
 
     El máximo dejó de ser un cap estático del DTO y pasó a ser OPCIONAL vía
-    ``EHPC_MAX_TIMEOUT_S`` (0 = sin límite). El mínimo (5 s) sigue fijo.
+    ``TELAR_MAX_TIMEOUT_S`` (0 = sin límite). El mínimo (5 s) sigue fijo.
 
     NOTA: persistir un valor > 120 aún choca contra el CHECK de ``schema.sql``
     (``content_examples.default_timeout_s BETWEEN 5 AND 120``); esto valida

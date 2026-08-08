@@ -9,7 +9,7 @@ export const DEV_SERVER_ORIGIN = 'http://localhost:5173'
 export const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
 
 /** Origen HTTP del backend local (architecture.md §2.3: resuelto en runtime). */
-export const API_ORIGIN = process.env.EHPC_API_ORIGIN ?? 'http://localhost:8000'
+export const API_ORIGIN = process.env.TELAR_API_ORIGIN ?? 'http://localhost:8000'
 
 /** Origen WS derivado del API (ws://localhost:8000 por defecto). */
 export const WS_ORIGIN = API_ORIGIN.replace(/^http/, 'ws')

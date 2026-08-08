@@ -10,7 +10,7 @@ Residuos que la campaña S1-S5 dejó abiertos y que esta rama
 - **BL-17 (low, consistency)** — ``JobCreateRequest.code`` conservaba un
   ``max_length=262144`` estático mientras la vía admin JSON ya lee
   ``settings.max_code_bytes`` en runtime. ``POST /jobs`` debe respetar
-  ``EHPC_MAX_CODE_BYTES`` (subir Y bajar), manteniendo el 413 ``CODE_TOO_LARGE``.
+  ``TELAR_MAX_CODE_BYTES`` (subir Y bajar), manteniendo el 413 ``CODE_TOO_LARGE``.
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ def _post_code_app(settings, fake_docker, real_content, *, max_code_bytes: int):
 def test_bl17_jobs_json_honra_max_code_bytes_alto(
     settings, fake_docker, real_content
 ):
-    """Paridad JSON↔runtime: subir ``EHPC_MAX_CODE_BYTES`` por encima de 262144
+    """Paridad JSON↔runtime: subir ``TELAR_MAX_CODE_BYTES`` por encima de 262144
     permite código > 262144 por ``POST /jobs`` (sin cap estático de pydantic).
 
     RED contra el código viejo: el ``Field(max_length=262144)`` de
@@ -76,7 +76,7 @@ def test_bl17_jobs_json_honra_max_code_bytes_alto(
 def test_bl17_jobs_json_honra_max_code_bytes_bajo(
     settings, fake_docker, real_content
 ):
-    """Bajar ``EHPC_MAX_CODE_BYTES`` por debajo del tamaño rechaza con
+    """Bajar ``TELAR_MAX_CODE_BYTES`` por debajo del tamaño rechaza con
     413 ``CODE_TOO_LARGE`` (no un 422 genérico), por igual que en multipart."""
     app = _post_code_app(settings, fake_docker, real_content, max_code_bytes=64)
     with TestClient(app) as client:

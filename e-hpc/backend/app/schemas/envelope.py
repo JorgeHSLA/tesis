@@ -31,7 +31,7 @@ ApiErrorCode = Literal[
     "DOCKER_UNAVAILABLE",
     "RUNNER_IMAGE_MISSING",
     # ── Autoría (admin) — Fase 4, api-contract §10 ──
-    "UNAUTHORIZED",             # 401 /admin/* con el modo admin apagado (sin EHPC_ADMIN_MODE)
+    "UNAUTHORIZED",             # 401 /admin/* con el modo admin apagado (sin TELAR_ADMIN_MODE)
     "MODULE_NOT_FOUND",         # 404 id de módulo inexistente
     "DUPLICATE_ID",             # 409 crear con un id ya usado (módulo o lección/ejemplo)
     "ORDER_CONFLICT",           # 409 order de módulo o de lección colisiona

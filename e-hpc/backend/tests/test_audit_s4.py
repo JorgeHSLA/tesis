@@ -7,7 +7,7 @@ transversal), BL-20 (reorden por lote), BL-35 (filename inválido → 415 tambi�
 JSON) y BL-36 (``stream`` inválido → 422 documentado).
 
 Reutiliza los builders/fixtures de ``test_admin_content`` (app admin real sobre
-``:memory:``, modo admin habilitado por ``EHPC_ADMIN_MODE``).
+``:memory:``, modo admin habilitado por ``TELAR_ADMIN_MODE``).
 """
 
 from __future__ import annotations
@@ -127,7 +127,7 @@ def test_bl11_no_gpu_sigue_exigiendo_fixed_threads(client, auth):
 
 
 def test_bl17_json_honra_max_code_bytes_bajo(tmp_path):
-    """Con ``EHPC_MAX_CODE_BYTES`` bajo, la vía JSON también rechaza (413)."""
+    """Con ``TELAR_MAX_CODE_BYTES`` bajo, la vía JSON también rechaza (413)."""
     app = _make_app_code_limit(tmp_path, max_code_bytes=64)
     with TestClient(app) as client:
         auth = {}

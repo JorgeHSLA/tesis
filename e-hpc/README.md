@@ -27,7 +27,7 @@ sobre el mismo build de React:
 5. [Ejecutar la versión ESCRITORIO](#5-ejecutar-la-versión-escritorio)
 6. [Ejecutar los TESTS](#6-ejecutar-los-tests)
 7. [Prueba de humo E2E (`scripts/smoke.sh`)](#7-prueba-de-humo-e2e-scriptssmokesh)
-8. [Variables de entorno `EHPC_*`](#8-variables-de-entorno-ehpc_)
+8. [Variables de entorno `TELAR_*`](#8-variables-de-entorno-ehpc_)
 9. [Modelo de seguridad del runner](#9-modelo-de-seguridad-del-runner)
 10. [Decisiones de diseño clave](#10-decisiones-de-diseño-clave)
 11. [Limitaciones conocidas](#11-limitaciones-conocidas)
@@ -294,7 +294,7 @@ tiene el instalador. Por eso el paquete de escritorio embebe un compose
 | Modo | Cómo llegan las imágenes | Cuándo |
 |---|---|---|
 | **A — Imágenes publicadas** | `docker compose pull` implícito en `up -d` desde GHCR (tags fijos publicados al cortar release). El instalador es autosuficiente. | Distribución a terceros |
-| **B — Repo clonado** (default de la tesis) | `EHPC_COMPOSE_DIR` apunta al clon; la acción compuesta `compose:up` construye el runner y levanta con `build:`. | Desarrollo y demo de la tesis |
+| **B — Repo clonado** (default de la tesis) | `TELAR_COMPOSE_DIR` apunta al clon; la acción compuesta `compose:up` construye el runner y levanta con `build:`. | Desarrollo y demo de la tesis |
 
 Si el usuario instala sin red al registry y sin repo, `dockerUp` falla con
 stderr saneado y el footer muestra el error + enlace a la guía (no cuelga).
@@ -385,29 +385,29 @@ Es **idempotente** (reusa imágenes/volúmenes) y ejecutable en un WSL2 limpio.
 
 ---
 
-## 8. Variables de entorno `EHPC_*`
+## 8. Variables de entorno `TELAR_*`
 
 Transcripción de
 [`docs/architecture/architecture.md`](docs/architecture/architecture.md) §10.5
-(congelada). El backend las lee con prefijo `EHPC_` (pydantic-settings); el
+(congelada). El backend las lee con prefijo `TELAR_` (pydantic-settings); el
 `compose.yaml` fija los valores de despliegue.
 
 | Variable | Default | Usada por |
 |---|---|---|
-| `EHPC_DB_PATH` | `~/.ehpc/ehpc.db` (dev) / `/app/data/ehpc.db` (compose) | `db.py` |
-| `EHPC_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null` | CORS + validación Origin del WS |
-| `EHPC_CODE_DELIVERY` | `bind` (dev) / `volume` (compose) | `docker_service` |
-| `EHPC_SUBMISSIONS_VOLUME` | `ehpc_submissions` | `docker_service` (modo volume) |
-| `EHPC_JOBS_DIR` | `~/.ehpc/jobs` | `docker_service` (modo bind) |
-| `EHPC_RUNNER_IMAGE` | `ehpc-runner:0.5.1` | `docker_service` |
-| `EHPC_MAX_TIMEOUT_S` | `120` | validación de jobs |
-| `EHPC_MAX_CONCURRENT_JOBS` | `2` | semáforo del `job_runner` |
-| `EHPC_MAX_CODE_BYTES` | `262144` | validación jobs/upload |
-| `EHPC_MAX_OUTPUT_BYTES` | `262144` | drainer del stream |
-| `EHPC_ADMIN_MODE` | `0` (**apagado ⇒ modo autoría deshabilitado**) | habilita el modo autoría del despliegue, sin login, Fase 4 (`config.py`) |
-| `EHPC_COMPOSE_DIR` | — (**sólo desktop**) | shell de Electron (`electron-spec` §5.3) |
+| `TELAR_DB_PATH` | `~/.ehpc/ehpc.db` (dev) / `/app/data/ehpc.db` (compose) | `db.py` |
+| `TELAR_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080,null` | CORS + validación Origin del WS |
+| `TELAR_CODE_DELIVERY` | `bind` (dev) / `volume` (compose) | `docker_service` |
+| `TELAR_SUBMISSIONS_VOLUME` | `ehpc_submissions` | `docker_service` (modo volume) |
+| `TELAR_JOBS_DIR` | `~/.ehpc/jobs` | `docker_service` (modo bind) |
+| `TELAR_RUNNER_IMAGE` | `ehpc-runner:0.5.1` | `docker_service` |
+| `TELAR_MAX_TIMEOUT_S` | `120` | validación de jobs |
+| `TELAR_MAX_CONCURRENT_JOBS` | `2` | semáforo del `job_runner` |
+| `TELAR_MAX_CODE_BYTES` | `262144` | validación jobs/upload |
+| `TELAR_MAX_OUTPUT_BYTES` | `262144` | drainer del stream |
+| `TELAR_ADMIN_MODE` | `0` (**apagado ⇒ modo autoría deshabilitado**) | habilita el modo autoría del despliegue, sin login, Fase 4 (`config.py`) |
+| `TELAR_COMPOSE_DIR` | — (**sólo desktop**) | shell de Electron (`electron-spec` §5.3) |
 
-> `EHPC_ALLOWED_ORIGINS` incluye `null` deliberadamente: Electron carga el HTML
+> `TELAR_ALLOWED_ORIGINS` incluye `null` deliberadamente: Electron carga el HTML
 > con `file://`, cuyo `Origin` es la cadena literal `null`. El riesgo residual
 > está mitigado por el bind a loopback (ver [§10](#10-decisiones-de-diseño-clave)).
 
@@ -420,43 +420,43 @@ versionada); los flujos y las respuestas del estudiante **no cambian**.
 
 > **Actualización 2026-07-26 (sin login):** el modo autoría dejó de usar
 > contraseña/login/token. Ahora es una **variante de despliegue**: se gatea por
-> build del frontend (`VITE_ADMIN`) + config del backend (`EHPC_ADMIN_MODE`). La
+> build del frontend (`VITE_ADMIN`) + config del backend (`TELAR_ADMIN_MODE`). La
 > versión estudiante no incluye la UI admin (tree-shaking) ni habilita los
 > endpoints; solo los administradores usan el build/despliegue admin.
 
 > **Actualización 2026-07-26 (Nivel 3 — dos imágenes de backend):** además del
-> gate de *runtime* `EHPC_ADMIN_MODE`, el backend se empaqueta como **dos
-> imágenes desde el mismo código** vía el `ARG` de Docker `EHPC_ADMIN_BUILD`
+> gate de *runtime* `TELAR_ADMIN_MODE`, el backend se empaqueta como **dos
+> imágenes desde el mismo código** vía el `ARG` de Docker `TELAR_ADMIN_BUILD`
 > (`backend/Dockerfile`), replicando en el backend el tree-shaking del frontend:
-> - **`EHPC_ADMIN_BUILD=0`** (default) → imagen **ESTUDIANTE**: los módulos
+> - **`TELAR_ADMIN_BUILD=0`** (default) → imagen **ESTUDIANTE**: los módulos
 >   admin-only (`routers/admin.py`, `routers/admin_deps.py`,
 >   `services/content_writer.py`, `services/markdown_validator.py`) **no se
 >   copian** al artefacto y el router no se registra, así que `/api/v1/admin/*`
 >   responde **404** (la ruta no existe). **Cero código admin en la imagen**
 >   (seguridad por ausencia).
-> - **`EHPC_ADMIN_BUILD=1`** → imagen **ADMIN**: incluye el código admin; el
->   runtime lo sigue gateando `EHPC_ADMIN_MODE`.
+> - **`TELAR_ADMIN_BUILD=1`** → imagen **ADMIN**: incluye el código admin; el
+>   runtime lo sigue gateando `TELAR_ADMIN_MODE`.
 >
 > ```bash
 > docker compose build backend                     # estudiante (ARG=0, default)
-> EHPC_ADMIN_BUILD=1 docker compose build backend   # admin
+> TELAR_ADMIN_BUILD=1 docker compose build backend   # admin
 > ```
-> `desktop/scripts/launch-wsl.sh --admin` ya pasa `EHPC_ADMIN_BUILD=1` al
+> `desktop/scripts/launch-wsl.sh --admin` ya pasa `TELAR_ADMIN_BUILD=1` al
 > reconstruir. El compose empaquetado del desktop usa `image:` (no `build:`):
 > publica la imagen estudiante por defecto y, para autoría, una imagen construida
-> con `EHPC_ADMIN_BUILD=1`. Excepción: `repositories/content_admin.py` queda en
+> con `TELAR_ADMIN_BUILD=1`. Excepción: `repositories/content_admin.py` queda en
 > **ambas** imágenes porque lo usa el flujo de quiz del estudiante
 > (`services/quiz_service.py`); son helpers de repositorio inertes, sin endpoints
 > admin.
 
-- **Habilitar (backend)**: define `EHPC_ADMIN_MODE=1`. Sin ella, todos los
+- **Habilitar (backend)**: define `TELAR_ADMIN_MODE=1`. Sin ella, todos los
   `/api/v1/admin/*` responden `401 UNAUTHORIZED`. Es seguro sin login porque la
   app corre en loopback y solo los admins reciben el build/despliegue admin.
 
   ```bash
   # dev (backend nativo):
-  EHPC_ADMIN_MODE=1 uvicorn app.main:app
-  # web (compose): añade `EHPC_ADMIN_MODE: "1"` al servicio backend.
+  TELAR_ADMIN_MODE=1 uvicorn app.main:app
+  # web (compose): añade `TELAR_ADMIN_MODE: "1"` al servicio backend.
   ```
 
 - **Habilitar (frontend)**: construye el build admin con `npm run build:admin`
@@ -565,7 +565,7 @@ Detalle completo en
 
 6. **Fix de infraestructura — CORS/Origin en `127.0.0.1`.** La UI se sirve en
    `http://127.0.0.1:8080`, un **origin distinto** de `http://localhost:8080`
-   para el navegador. `EHPC_ALLOWED_ORIGINS` incluye **ambas** familias
+   para el navegador. `TELAR_ALLOWED_ORIGINS` incluye **ambas** familias
    (`localhost` **y** `127.0.0.1`, puertos 5173 y 8080) más `null` (Electron
    `file://`). Sin las variantes `127.0.0.1`, el navegador bloquearía las
    llamadas `fetch`/WS de la UI web con error de CORS.
@@ -598,7 +598,7 @@ Detalle completo en
   (~1/s) se emiten por WebSocket **en vivo** pero **no se guardan**; sólo se
   persiste el `metrics_summary` agregado (máximos/promedios). Recargar un job
   terminado no reproduce la serie temporal completa.
-- **Concurrencia acotada.** `EHPC_MAX_CONCURRENT_JOBS=2` por defecto; jobs
+- **Concurrencia acotada.** `TELAR_MAX_CONCURRENT_JOBS=2` por defecto; jobs
   adicionales encolan (tope de cola 10 → `429 TOO_MANY_JOBS`).
 
 ---
@@ -613,7 +613,7 @@ Detalle completo en
 | **AppImage no arranca: `dlopen(): error loading libfuse.so.2`** | Falta FUSE 2 | `sudo apt install libfuse2` (o extrae con `./Telar.AppImage --appimage-extract` y ejecuta el `AppRun`). |
 | **Windows: "Windows protegió su PC" (SmartScreen)** | Instalador **sin firmar** | **Más información → Ejecutar de todas formas**. Es esperado (ver [§5.3](#53-distribución-windows-nsis--portable)). |
 | **`docker compose` da warning "volume already exists but was created for project…"** | Volumen `ehpc_submissions` con `name:` explícito, levantado antes desde otro directorio (proyecto Compose distinto) | **Benigno**: es el mismo volumen real; el job se ejecuta bien. Para silenciarlo, levanta siempre desde el mismo directorio o `docker compose down -v` para recrearlo. |
-| **UI carga pero las llamadas fallan con error de CORS** | Origin no permitido (p.ej. abriste por un host distinto de `127.0.0.1`/`localhost`) | Usa exactamente `http://127.0.0.1:8080`. Los origins válidos están en `EHPC_ALLOWED_ORIGINS` ([§8](#8-variables-de-entorno-ehpc_)). |
+| **UI carga pero las llamadas fallan con error de CORS** | Origin no permitido (p.ej. abriste por un host distinto de `127.0.0.1`/`localhost`) | Usa exactamente `http://127.0.0.1:8080`. Los origins válidos están en `TELAR_ALLOWED_ORIGINS` ([§8](#8-variables-de-entorno-ehpc_)). |
 | **`/system` con `runner_image_present: false` / job falla con `RUNNER_IMAGE_MISSING`** | Falta la imagen `ehpc-runner:0.5.1` | `docker compose --profile build build runner` (o `make build-runner`). |
 | **`scripts/smoke.sh`: "ni jq ni python3 disponibles"** | Entorno sin `jq` ni `python3` | Instala uno de los dos; Python 3.12 ya es prerequisito ([§3.4](#34-python-312)). |
 

@@ -23,7 +23,7 @@ dependencias, cada archivo del repo perteneciente a exactamente un paquete:
 
 | WP | Nombre | Entregable |
 |---|---|---|
-| WP0 | scaffold | Estructura del monorepo, `compose.yaml` (puertos `127.0.0.1`), Dockerfiles (frontend multi-stage, backend root+socket, runner `python:3.12-slim`+`pyomp==0.5.1`), `nginx.conf`, `Makefile` (regla ext4), `config.py` con la tabla `EHPC_*`, `schemas.py` con los DTOs de todo el contrato. |
+| WP0 | scaffold | Estructura del monorepo, `compose.yaml` (puertos `127.0.0.1`), Dockerfiles (frontend multi-stage, backend root+socket, runner `python:3.12-slim`+`pyomp==0.5.1`), `nginx.conf`, `Makefile` (regla ext4), `config.py` con la tabla `TELAR_*`, `schemas.py` con los DTOs de todo el contrato. |
 | WP1 | backend-core | DB SQLite (aiosqlite, WAL) + repositorios, lifespan, `/health` (liveness) y `/api/v1/system`, envelope genérico y catálogo de errores. |
 | WP2 | backend-jobs-runner | `docker_service` (módulo aislado, sandbox de 16 capas), `job_runner` (semáforo, timeout, cancel, drainer), WebSocket por job, 6 parsers de stdout (`sweep_*`, `pair_*`, `none`). |
 | WP3 | backend-cursos-quizzes | Endpoints de módulos, lecciones, quizzes (calificación en servidor, umbral 80 %) y progreso. |
@@ -43,7 +43,7 @@ resueltos sin tocar contratos:
 
 1. **CORS/Origin en `127.0.0.1`.** La UI web se sirve en
    `http://127.0.0.1:8080`, que el navegador trata como un **origin distinto**
-   de `http://localhost:8080`. `EHPC_ALLOWED_ORIGINS` se amplió para incluir las
+   de `http://localhost:8080`. `TELAR_ALLOWED_ORIGINS` se amplió para incluir las
    variantes `127.0.0.1` (puertos 5173 y 8080) junto a `localhost` y `null`
    (Electron `file://`). Sin esto, las llamadas `fetch`/WebSocket de la UI web
    fallaban por CORS.

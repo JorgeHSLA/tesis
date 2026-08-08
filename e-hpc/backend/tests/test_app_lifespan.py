@@ -148,7 +148,7 @@ def test_cors_origins_congelados(settings, fake_docker):
 
 def test_admin_router_ausente_responde_404(settings, fake_docker, monkeypatch):
     """Nivel 3 (seguridad por AUSENCIA): en el build "estudiante"
-    (``EHPC_ADMIN_BUILD=0``) el módulo ``app.routers.admin`` NO se copia a la
+    (``TELAR_ADMIN_BUILD=0``) el módulo ``app.routers.admin`` NO se copia a la
     imagen, así que su import falla. ``_include_routers`` debe tolerar esa
     ausencia y NO registrar el router → cualquier ``/api/v1/admin/*`` responde
     **404** (ruta inexistente), no 401.

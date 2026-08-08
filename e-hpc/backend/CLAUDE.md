@@ -8,7 +8,7 @@ API REST + WebSocket que lanza jobs PyOMP en contenedores Docker efímeros y sir
 export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"   # (no hace falta para python, pero sí si tocas el front)
 # Tests SIN daemon Docker (todo con fakes del Protocol) — copia a ext4 primero si /mnt/d va lento:
 DOCKER_HOST=tcp://127.0.0.1:1 pytest --cov=app --cov-fail-under=80
-uvicorn app.main:app            # arranque local (usa EHPC_DB_PATH / EHPC_JOBS_DIR propios)
+uvicorn app.main:app            # arranque local (usa TELAR_DB_PATH / TELAR_JOBS_DIR propios)
 ```
 
 ## Mapa

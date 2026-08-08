@@ -15,7 +15,7 @@ from .quizzes import QuizOptionKey
 # ═══════════════════ §10 Autoría de cursos (admin) — Fase 4 ══════════════════
 # TRANSCRIPCIÓN de api-contract.md §10 (CONGELADO). ADITIVO: no toca nada de
 # Fase 3. Namespace REST /api/v1/admin; el modo admin es una variante de
-# despliegue gateada por EHPC_ADMIN_MODE (sin login/token).
+# despliegue gateada por TELAR_ADMIN_MODE (sin login/token).
 # Espejo TS: frontend/src/api/admin-types.ts.
 
 #: §10 — ids estables de contenido (== nombre de carpeta, camelCase o m1..m8).
@@ -132,7 +132,7 @@ class AdminExampleCodeRequest(BaseModel):
     filename: str = Field(pattern=FILENAME_PATTERN)
     # BL-17: el tope de bytes se aplica en RUNTIME (settings.max_code_bytes) en
     # content_writer, no como cap estático — así JSON y multipart honran el
-    # mismo límite configurable (subir o bajar EHPC_MAX_CODE_BYTES).
+    # mismo límite configurable (subir o bajar TELAR_MAX_CODE_BYTES).
     source_code: str = Field(min_length=1)
 
 

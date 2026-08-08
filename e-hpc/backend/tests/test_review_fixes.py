@@ -126,7 +126,7 @@ def test_c2_incoherencia_ejemplo_lleva_prefijo_example(client, auth):
 
 
 def test_e2e_admin_crea_estudiante_ve_y_corre(client):
-    auth = {}  # modo admin habilitado por despliegue (EHPC_ADMIN_MODE)
+    auth = {}  # modo admin habilitado por despliegue (TELAR_ADMIN_MODE)
 
     _create_module(client, auth, mid="mE2E", order=96, title="Módulo E2E")
     code = "# ejemplo creado por el admin\nprint('desde el admin')\n"

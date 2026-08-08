@@ -54,14 +54,14 @@ class JobCreateRequest(BaseModel):
     example_id: str | None = None
     # BL-17: sin cap estático de bytes — el tope se aplica en RUNTIME
     # (settings.max_code_bytes) en el router `_create_job`, por igual que la vía
-    # multipart y la admin JSON. Así subir/bajar EHPC_MAX_CODE_BYTES surte efecto
+    # multipart y la admin JSON. Así subir/bajar TELAR_MAX_CODE_BYTES surte efecto
     # también por esta vía; el exceso da 413 CODE_TOO_LARGE (no un 422 genérico).
     code: str | None = Field(default=None, min_length=1)
     filename: str | None = Field(default=None, pattern=FILENAME_PATTERN)
     threads: int | None = Field(default=None, ge=1)  # tope: max_threads (/system)
     # Sin cap estático: el tope es OPCIONAL y se aplica en RUNTIME
     # (settings.max_timeout_s > 0) en el router `_create_job`. Con
-    # EHPC_MAX_TIMEOUT_S <= 0 no hay máximo; el mínimo (5 s) sí es fijo.
+    # TELAR_MAX_TIMEOUT_S <= 0 no hay máximo; el mínimo (5 s) sí es fijo.
     timeout_s: int | None = Field(default=None, ge=5)
     lesson_id: str | None = None
 

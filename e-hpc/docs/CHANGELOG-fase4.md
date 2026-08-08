@@ -16,7 +16,7 @@ estricta). Los contratos se **extendieron** (nunca se rompieron): secciones nuev
   + 60 preguntas desde los fixtures **sin pérdida**; los fixtures quedan como semilla
   versionada. `ContentRepository` se refactoriza a `from_fixtures()` / `load(db)`
   manteniendo su interfaz de lectura → los GET de contenido no cambian.
-- **Auth = admin único por `EHPC_ADMIN_PASSWORD`** (sin la var, modo deshabilitado:
+- **Auth = admin único por `TELAR_ADMIN_PASSWORD`** (sin la var, modo deshabilitado:
   todo `/admin/*` → `401`, indistinguible, sin filtrar el estado). **Bearer + sesiones
   en memoria** (no cookie: la CORS congelada `allow_credentials=False` + Electron
   `file://` lo impiden). Comparación de contraseña en tiempo constante.
@@ -39,7 +39,7 @@ estricta). Los contratos se **extendieron** (nunca se rompieron): secciones nuev
 |---|---|
 | A | `schema.sql` migration 2; `tools/seed_content.py` (idempotente, `--prune`/`--check`); `repositories/content.py` (`from_fixtures`/`load`); `services/content_state.py` (reload atómico); `conftest.py` (siembra + carga desde DB); tests de no-pérdida/idempotencia/goldens. |
 | B/F | DTOs congelados `Admin*` (backend + `api/admin-types.ts`), 6 códigos de error nuevos (`UNAUTHORIZED`, `MODULE_NOT_FOUND`, `DUPLICATE_ID`, `ORDER_CONFLICT`, `MODULE_NOT_EMPTY`, `CONTENT_VALIDATION_ERROR`). |
-| C | `config.py` (`EHPC_ADMIN_PASSWORD`); `services/admin_auth.py` (`AdminSessionStore`, `verify_password` en tiempo constante, `LoginThrottle`); `routers/admin_deps.py` (`require_admin`); `routers/admin_auth.py` (login/logout/session). |
+| C | `config.py` (`TELAR_ADMIN_PASSWORD`); `services/admin_auth.py` (`AdminSessionStore`, `verify_password` en tiempo constante, `LoginThrottle`); `routers/admin_deps.py` (`require_admin`); `routers/admin_auth.py` (login/logout/session). |
 | D | `routers/admin.py` (CRUD módulos/lecciones/quiz/ejemplos + `POST /code`); `services/content_writer.py` (validación §10.6 → persistencia bajo `write_lock` → reload); `services/markdown_validator.py`; `repositories/content_admin.py`. |
 | E | `main.py`: auto-seed condicional + `ContentRepository.load(db)` + `app.state.admin_sessions`/`admin_throttle` + routers admin. |
 | G1/G2 | Rama `/admin` (HashRouter, shell propio + login gate); `api/admin.ts` (Bearer); `stores/adminSessionStore.ts` (sessionStorage); editores de lección (markdown + preview), quiz, y uploader de ejemplo; `lib/pyfile.ts`. |

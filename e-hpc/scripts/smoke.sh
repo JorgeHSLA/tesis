@@ -61,9 +61,9 @@ json_get() {
     # `// empty` NO sirve: colapsaría también los `false`. Sólo null/ausente → "".
     jq -r "try (.${path}) catch null | if . == null then empty else . end" "$file"
   else
-    EHPC_JPATH="$path" python3 - "$file" <<'PY'
+    TELAR_JPATH="$path" python3 - "$file" <<'PY'
 import json, os, sys
-path = os.environ["EHPC_JPATH"].split(".")
+path = os.environ["TELAR_JPATH"].split(".")
 try:
     with open(sys.argv[1]) as fh:
         cur = json.load(fh)

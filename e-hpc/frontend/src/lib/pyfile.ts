@@ -4,7 +4,7 @@
 // Reglas idénticas: extensión .py, ≤ 256 KB (262144 bytes), decodable UTF-8.
 // Los mensajes de error son en español y no deben cambiar (tests Fase 3).
 
-/** Tope de tamaño del código fuente subido (bytes). Espeja EHPC_MAX_CODE_BYTES. */
+/** Tope de tamaño del código fuente subido (bytes). Espeja TELAR_MAX_CODE_BYTES. */
 export const MAX_CODE_BYTES = 262144
 
 export interface PickedFile {
