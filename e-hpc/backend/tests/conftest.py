@@ -77,6 +77,9 @@ def settings(tmp_path: Path) -> Settings:
         allowed_origins="http://localhost:5173,http://localhost:8080,null",
         code_delivery="bind",
         runner_image="ehpc-runner:0.5.1",
+        # Despliegue CON tope (el default de producción es 0 = sin límite).
+        # Se mantiene explícito para que la suite ejercite la rama "tope
+        # activo"; los tests del centinela 0 construyen su propio Settings.
         max_timeout_s=120,
         max_concurrent_jobs=2,
         max_code_bytes=262144,

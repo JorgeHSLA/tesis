@@ -687,3 +687,33 @@ def test_bl38_leccion_completada_y_deshabilitada_no_cuenta(client, auth):
     progress = client.get("/api/v1/progress").json()["data"]
     assert progress["summary"]["lessons_completed"] == 0
     assert "spmd" in progress["lessons"]  # el registro del estudiante persiste
+
+
+# ─────────── tope de timeout OPCIONAL: DTO admin sin cap estático ───────────
+
+
+def test_admin_example_dto_sin_cap_estatico_de_default_timeout():
+    """CONTRATO §10.4: ``AdminExampleBase.default_timeout_s`` ya no lleva
+    ``le=120``.
+
+    El máximo dejó de ser un cap estático del DTO y pasó a ser OPCIONAL vía
+    ``EHPC_MAX_TIMEOUT_S`` (0 = sin límite). El mínimo (5 s) sigue fijo.
+
+    NOTA: persistir un valor > 120 aún choca contra el CHECK de ``schema.sql``
+    (``content_examples.default_timeout_s BETWEEN 5 AND 120``); esto valida
+    solo la capa de contrato/DTO.
+    """
+    import pydantic
+
+    from app.schemas import AdminExampleBase
+
+    base = dict(
+        title="x", filename="x.py", difficulty=1, teaches="x", directives=[],
+        threads_configurable=True, fixed_threads=None, fixed_threads_note=None,
+        sweeps_threads=False, self_measures=False, parser_id="none",
+        est_run_seconds=1, enabled=True, requires_gpu=False,
+        expected_output_note="", takeaways=["x"],
+    )
+    assert AdminExampleBase(**base, default_timeout_s=3600).default_timeout_s == 3600
+    with pytest.raises(pydantic.ValidationError):
+        AdminExampleBase(**base, default_timeout_s=4)

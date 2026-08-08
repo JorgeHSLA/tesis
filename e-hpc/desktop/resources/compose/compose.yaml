@@ -26,7 +26,7 @@ services:
       EHPC_CODE_DELIVERY: volume
       EHPC_SUBMISSIONS_VOLUME: ehpc_submissions
       EHPC_RUNNER_IMAGE: ghcr.io/jorgesierra/ehpc-runner:0.5.1
-      EHPC_MAX_TIMEOUT_S: 120
+      EHPC_MAX_TIMEOUT_S: 0                 # 0 = sin límite (tope opcional)
       EHPC_MAX_CONCURRENT_JOBS: 2
     volumes:
       - ehpc_data:/app/data

@@ -56,6 +56,9 @@ def test_parser_ids_y_flags_coherentes(real_content):
         assert example.parser_id in PARSER_IDS
         assert example.source_code.strip()
         assert example.filename.endswith(".py")
+        # El DTO ya no impone tope (es opcional, EHPC_MAX_TIMEOUT_S); el 120
+        # de aquí es el techo que sigue imponiendo el CHECK de schema.sql
+        # (content_examples.default_timeout_s BETWEEN 5 AND 120).
         assert 5 <= example.default_timeout_s <= 120
         if example.sweeps_threads:
             assert example.threads_configurable is False

@@ -144,7 +144,7 @@ services:
       EHPC_CODE_DELIVERY: volume            # 'volume' (compose) | 'bind' (dev nativo)
       EHPC_SUBMISSIONS_VOLUME: ehpc_submissions
       EHPC_RUNNER_IMAGE: ehpc-runner:0.5.1
-      EHPC_MAX_TIMEOUT_S: 120
+      EHPC_MAX_TIMEOUT_S: 0                 # 0 = sin límite (tope opcional)
       EHPC_MAX_CONCURRENT_JOBS: 2
     volumes:
       - ehpc_data:/app/data
@@ -614,11 +614,11 @@ Reglas del parser:
 - `sumaVectoresGPU` está `enabled=false` por defecto (requiere GPU NVIDIA +
   gcc + `--gpus`; sin ellos aborta con excepción — no degrada a CPU).
 
-### 7.4 Timeouts (doble tope, patrón Judge0)
+### 7.4 Timeouts (tope servidor OPCIONAL)
 
 | Parámetro | Default | Tope servidor |
 |---|---|---|
-| `timeout_s` por job | el del fixture del ejemplo (30–90 s según ejemplo; 60 s para código propio) | `EHPC_MAX_TIMEOUT_S=120` |
+| `timeout_s` por job | el del fixture del ejemplo (30–90 s según ejemplo; 60 s para código propio) | `EHPC_MAX_TIMEOUT_S` — **opcional**: `0` (por defecto) = sin límite; `> 0` = máximo. El mínimo (5 s) se valida siempre |
 | Jobs concurrentes | `EHPC_MAX_CONCURRENT_JOBS=2` (semáforo asyncio) | cola interna máx. 10 → 429 |
 
 Los timeouts absorben import + JIT (hasta ~5–20 s en funciones no triviales) +
@@ -741,7 +741,7 @@ make dist           # vite build + electron-builder --linux
 | `EHPC_SUBMISSIONS_VOLUME` | `ehpc_submissions` | docker_service (modo volume) |
 | `EHPC_JOBS_DIR` | `~/.ehpc/jobs` | docker_service (modo bind) |
 | `EHPC_RUNNER_IMAGE` | `ehpc-runner:0.5.1` | docker_service |
-| `EHPC_MAX_TIMEOUT_S` | `120` | validación jobs |
+| `EHPC_MAX_TIMEOUT_S` | `0` = **sin límite** (tope opcional; con `> 0` es el máximo de `timeout_s`) | validación jobs |
 | `EHPC_MAX_CONCURRENT_JOBS` | `2` | semáforo job_runner |
 | `EHPC_MAX_CODE_BYTES` | `262144` | validación jobs/upload |
 | `EHPC_MAX_OUTPUT_BYTES` | `262144` | drainer (§3.2) |

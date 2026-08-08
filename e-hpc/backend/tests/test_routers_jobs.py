@@ -218,12 +218,87 @@ def test_threads_ignorado_en_fixed(client, fake_docker, real_content):
 # ─────────────────────────── timeout §7.4 ────────────────────────────────────
 
 
-def test_timeout_fuera_de_rango_422(client):
-    for bad in (4, 121):
+def test_timeout_minimo_siempre_422(client):
+    """El MÍNIMO (5 s) se valida SIEMPRE, con o sin tope configurado."""
+    response = client.post(
+        "/api/v1/jobs", json={"code": "print(1)\n", "timeout_s": 4}
+    )
+    assert_error_envelope(response, 422, "VALIDATION_ERROR")
+
+
+def test_timeout_supera_tope_configurado_422(client):
+    """El MÁXIMO es opcional: solo aplica si ``max_timeout_s > 0``.
+
+    La fixture ``settings`` fija ``max_timeout_s=120`` a propósito (despliegue
+    CON tope), así que 121 sigue dando 422 — pero ahora lo rechaza el router
+    contra la config, no un ``le=120`` hardcodeado en el DTO.
+    """
+    response = client.post(
+        "/api/v1/jobs", json={"code": "print(1)\n", "timeout_s": 121}
+    )
+    body = assert_error_envelope(response, 422, "VALIDATION_ERROR")
+    assert "120" in body["error"]["message"]
+
+
+def _build_client(settings, max_timeout_s: int):
+    """TestClient con un ``max_timeout_s`` distinto al de la fixture."""
+    from fastapi.testclient import TestClient
+
+    from conftest import build_app
+    from fakes.fake_docker import FakeDockerService
+
+    app = build_app(
+        settings=settings.model_copy(update={"max_timeout_s": max_timeout_s}),
+        docker=FakeDockerService(),
+    )
+    return TestClient(app)
+
+
+def test_timeout_tope_configurable_no_solo_120(settings):
+    """Con ``EHPC_MAX_TIMEOUT_S=30`` el tope es 30, no el viejo 120 fijo."""
+    with _build_client(settings, 30) as client:
         response = client.post(
-            "/api/v1/jobs", json={"code": "print(1)\n", "timeout_s": bad}
+            "/api/v1/jobs", json={"code": "print(1)\n", "timeout_s": 60}
+        )
+        body = assert_error_envelope(response, 422, "VALIDATION_ERROR")
+        assert "30" in body["error"]["message"]
+
+
+def test_timeout_sin_tope_acepta_lo_que_el_tope_rechazaba(settings, real_content):
+    """``EHPC_MAX_TIMEOUT_S=0`` ⇒ SIN LÍMITE: el mismo valor que con tope 30
+    daba 422 ahora se acepta. Es el centinela del refactor."""
+    with _build_client(settings, 0) as client:
+        response = client.post(
+            "/api/v1/jobs", json={"code": "print(1)\n", "timeout_s": 60}
+        )
+        data = assert_ok_envelope(response, 202)["data"]
+        detail = wait_terminal(client, data["job_id"])
+        assert detail["timeout_s"] == 60
+
+
+def test_timeout_sin_tope_sigue_exigiendo_el_minimo(settings):
+    """Sin límite superior, pero el mínimo de 5 s no se negocia."""
+    with _build_client(settings, 0) as client:
+        response = client.post(
+            "/api/v1/jobs", json={"code": "print(1)\n", "timeout_s": 4}
         )
         assert_error_envelope(response, 422, "VALIDATION_ERROR")
+
+
+def test_dto_job_create_sin_cap_estatico_de_timeout():
+    """CONTRATO: ``JobCreateRequest.timeout_s`` ya no lleva ``le=120``.
+
+    El tope dejó de vivir en el DTO (era estático) y pasó a runtime, así que
+    un valor grande valida a nivel de schema; quien decide es el router según
+    ``settings.max_timeout_s``.
+    """
+    import pydantic
+
+    from app.schemas import JobCreateRequest
+
+    assert JobCreateRequest(code="print(1)\n", timeout_s=36000).timeout_s == 36000
+    with pytest.raises(pydantic.ValidationError):
+        JobCreateRequest(code="print(1)\n", timeout_s=4)
 
 
 def test_timeout_default_del_ejemplo(client, fake_docker, real_content):

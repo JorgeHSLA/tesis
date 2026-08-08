@@ -117,6 +117,11 @@ UI muestra.
 ```
 
 - `max_threads = min(8, cores)` — techo del slider.
+- `limits.max_timeout_s` es el valor crudo de `EHPC_MAX_TIMEOUT_S`. El tope de
+  timeout es **OPCIONAL**: `0` (o cualquier valor ≤ 0) significa **sin límite**
+  y es el valor por defecto. El ejemplo de arriba muestra un despliegue que sí
+  fija tope (`120`); con la config por defecto ese campo vale `0` y el cliente
+  no debe ofrecer/imponer ningún máximo.
 - Errores: `503 DOCKER_UNAVAILABLE` si el daemon no responde (el resto de
   campos se sirven igual con `runner_image_present=false` cuando sea posible).
 
@@ -488,7 +493,7 @@ Validación (pydantic + reglas de negocio):
 | `code` | `1 ≤ bytes ≤ max_code_bytes` UTF-8 (tope `EHPC_MAX_CODE_BYTES`, por defecto 262144; aplicado en **runtime** en el router, por igual que `/upload` y la vía admin JSON — fix de residuos de auditoría, BL-17) → `413 CODE_TOO_LARGE` |
 | `filename` | opcional (default: `filename` del ejemplo, o `main.py`); patrón `^[A-Za-z0-9._-]{1,80}\.py$` |
 | `threads` | **opcional**. Si el ejemplo tiene `threads_configurable=false`, se IGNORA por completo (puede omitirse; el backend usa su valor fijo: `min(8, cores)` para sweep, `fixed_threads` para fixed) y la respuesta lleva `threads_note`. En caso contrario: entero `1..max_threads` (de `/system`), default 4 |
-| `timeout_s` | opcional; `5..120` (tope servidor `EHPC_MAX_TIMEOUT_S`); default = `default_timeout_s` del ejemplo o 60 para código propio |
+| `timeout_s` | opcional; mínimo `5` SIEMPRE. El **máximo es opcional**: solo si `EHPC_MAX_TIMEOUT_S > 0` se rechaza `timeout_s > EHPC_MAX_TIMEOUT_S` → `422 VALIDATION_ERROR`; con `EHPC_MAX_TIMEOUT_S = 0` (por defecto) **no hay tope**. Default = `default_timeout_s` del ejemplo o 60 para código propio |
 | `lesson_id` | opcional; si viene, debe existir → `404 LESSON_NOT_FOUND`; al terminar bien el job se actualiza `lesson_progress.last_job_id` |
 | ejemplo deshabilitado | `409 EXAMPLE_DISABLED` |
 | capacidad | `429 TOO_MANY_JOBS` si la cola interna supera 10 |
@@ -1169,5 +1174,7 @@ salvo donde se indica otro código:
   sweeps_threads=false ∧ requires_gpu=false ⇒ fixed_threads ≥ 1` (los ejemplos GPU
   no usan hilos de CPU, así que quedan exentos de esta regla — fix de auditoría S4,
   BL-11); **GPU**: `requires_gpu=true ⇒ enabled=false`.
-- Rangos por DTO (pydantic): `difficulty 1..5`, `default_timeout_s 5..120`,
-  `pass_threshold ∈ (0,1]`, `takeaways` no vacío, etc. → `422 VALIDATION_ERROR`.
+- Rangos por DTO (pydantic): `difficulty 1..5`, `default_timeout_s ≥ 5` (sin
+  cap estático: el tope es opcional y se aplica en runtime solo si
+  `EHPC_MAX_TIMEOUT_S > 0`), `pass_threshold ∈ (0,1]`, `takeaways` no vacío,
+  etc. → `422 VALIDATION_ERROR`.

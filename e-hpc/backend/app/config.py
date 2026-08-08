@@ -33,7 +33,8 @@ class Settings(BaseSettings):
     runner_image: str = "ehpc-runner:0.5.1"
 
     # Validación de jobs / semáforo / drainer
-    max_timeout_s: int = 120
+    # 0 (o <=0) = sin límite: el tope de timeout por job es OPCIONAL.
+    max_timeout_s: int = 0
     max_concurrent_jobs: int = 2
     max_code_bytes: int = 262144
     max_output_bytes: int = 262144

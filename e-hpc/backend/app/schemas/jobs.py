@@ -59,7 +59,10 @@ class JobCreateRequest(BaseModel):
     code: str | None = Field(default=None, min_length=1)
     filename: str | None = Field(default=None, pattern=FILENAME_PATTERN)
     threads: int | None = Field(default=None, ge=1)  # tope: max_threads (/system)
-    timeout_s: int | None = Field(default=None, ge=5, le=120)
+    # Sin cap estático: el tope es OPCIONAL y se aplica en RUNTIME
+    # (settings.max_timeout_s > 0) en el router `_create_job`. Con
+    # EHPC_MAX_TIMEOUT_S <= 0 no hay máximo; el mínimo (5 s) sí es fijo.
+    timeout_s: int | None = Field(default=None, ge=5)
     lesson_id: str | None = None
 
 

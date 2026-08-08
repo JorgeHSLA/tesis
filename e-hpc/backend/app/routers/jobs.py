@@ -156,14 +156,18 @@ async def _create_job(
                 f"threads debe estar entre 1 y {max_threads}.",
             )
 
-    # --- timeout (doble tope §7.4) ---
+    # --- timeout (§7.4): mínimo SIEMPRE, máximo OPCIONAL ---
+    # El default sigue siendo el del ejemplo (o 60 s para código propio): omitir
+    # timeout_s nunca deja un slot colgado. El tope, en cambio, es opcional:
+    # EHPC_MAX_TIMEOUT_S <= 0 significa "sin límite".
     default_timeout = example.default_timeout_s if example is not None else 60
     eff_timeout = timeout_s if timeout_s is not None else default_timeout
-    max_timeout = min(120, settings.max_timeout_s)
-    if not 5 <= eff_timeout <= max_timeout:
+    if eff_timeout < 5:
+        return _err(422, "VALIDATION_ERROR", "timeout_s debe ser >= 5.")
+    if settings.max_timeout_s > 0 and eff_timeout > settings.max_timeout_s:
         return _err(
             422, "VALIDATION_ERROR",
-            f"timeout_s debe estar entre 5 y {max_timeout}.",
+            f"timeout_s no puede superar {settings.max_timeout_s}.",
         )
 
     # --- capacidad e infraestructura ---

@@ -103,7 +103,7 @@ class _ExampleFx(BaseModel):
     sweeps_threads: bool
     self_measures: bool
     parser_id: ParserId
-    default_timeout_s: int = Field(ge=5, le=120)
+    default_timeout_s: int = Field(ge=5)
     est_run_seconds: int = Field(ge=1)
     enabled: bool
     requires_gpu: bool

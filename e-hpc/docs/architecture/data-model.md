@@ -135,6 +135,18 @@ CREATE INDEX IF NOT EXISTS idx_jobs_created  ON jobs (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_status   ON jobs (status);
 CREATE INDEX IF NOT EXISTS idx_jobs_lesson   ON jobs (lesson_id)  WHERE lesson_id  IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_jobs_example  ON jobs (example_id) WHERE example_id IS NOT NULL;
+```
+
+> **Nota (tope de timeout).** El máximo a nivel de aplicación es OPCIONAL
+> (`EHPC_MAX_TIMEOUT_S = 0` ⇒ sin límite, ver api-contract §7.1), pero el
+> `CHECK (timeout_s BETWEEN 5 AND 120)` de arriba **sigue vigente** y es el
+> tope efectivo: un `timeout_s > 120` supera la validación del router y luego
+> falla el `INSERT` con `IntegrityError`. Subir ese techo exige un bloque
+> `-- migration N` que reconstruya la tabla (SQLite no permite alterar un
+> CHECK in-place). Lo mismo aplica a
+> `content_examples.default_timeout_s CHECK (... BETWEEN 5 AND 120)`.
+
+```sql
 
 ------------------------------------------------------------------------------
 -- quiz_attempts: cada envío de quiz (historial completo)
