@@ -3,7 +3,7 @@
 // documentación.
 //
 // OFFLINE por diseño: no hay enlaces http(s) ni ningún destino de red. En
-// escritorio existe `window.ehpc.openExternal`, pero la app se instala y se usa
+// escritorio existe `window.telar.openExternal`, pero la app se instala y se usa
 // sin conexión y la documentación viaja EN el repositorio, así que la ruta se
 // da como texto seleccionable. Así el diálogo no añade ningún origen nuevo a la
 // CSP ni una petición de red que romperia el criterio de «cero requests».

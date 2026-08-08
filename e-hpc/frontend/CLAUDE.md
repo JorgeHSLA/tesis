@@ -13,8 +13,8 @@ npx vitest run --coverage           # ≥80% en src/ws, src/stores, src/lib, src
 
 ## Convenciones
 
-- **`base: './'` + HashRouter** (no BrowserRouter): imprescindible para que Electron cargue por `file://`. La URL del API se resuelve en **runtime** en `src/config.ts` (`window.ehpc`/`file:` → `localhost:8000`; web → mismo origen). No hardcodear.
-- **Detección de plataforma**: `window.ehpc` existe solo en Electron (hook `usePlatform`).
+- **`base: './'` + HashRouter** (no BrowserRouter): imprescindible para que Electron cargue por `file://`. La URL del API se resuelve en **runtime** en `src/config.ts` (`window.telar`/`file:` → `localhost:8000`; web → mismo origen). No hardcodear.
+- **Detección de plataforma**: `window.telar` existe solo en Electron (hook `usePlatform`).
 - **Theming por `data-variant`** en `<html>` (v1 cálido / v2 app), persistido en localStorage. Selectores `[data-variant="v2"] .x` (NO `.v2 .x`).
 - **Gráficas SVG a mano, SIN librerías** (recharts/d3/etc. prohibidas — es un criterio verificado): `components/viz/*` (SpeedupChart, ComparisonBars, Sparkline, LiveTopology, HomeThreadsDiagram). Colores exactos del handoff §1.6.
 - **Tokens pixel-perfect** del handoff (`styles/tokens.css`), fuentes self-hosted `@fontsource` (cero requests de red), 29 iconos portados literales.
@@ -25,4 +25,4 @@ npx vitest run --coverage           # ≥80% en src/ws, src/stores, src/lib, src
 ## CONGELADO (no editar — el back se adapta al contrato, no al revés)
 
 - `src/api/types.ts`, `src/ws/messages.ts` — transcripción de `api-contract.md` (snake_case, envelope `{success,data,error,meta}`, 8 fases del job).
-- `src/types/ehpc.d.ts` — contrato `window.ehpc`, **byte-idéntico** a `desktop/types/ehpc-api.d.ts` (hay un check de igualdad).
+- `src/types/telar.d.ts` — contrato `window.telar`, **byte-idéntico** a `desktop/types/telar-api.d.ts` (hay un check de igualdad).

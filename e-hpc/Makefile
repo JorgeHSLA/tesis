@@ -11,7 +11,7 @@
 
 SHELL      := /bin/bash
 ROOT       := $(CURDIR)
-BUILD_ROOT ?= $(HOME)/.ehpc-build
+BUILD_ROOT ?= $(HOME)/.telar-build
 NVM        := export NVM_DIR="$$HOME/.nvm" && . "$$NVM_DIR/nvm.sh" &&
 
 RSYNC_EXCLUDES := --exclude node_modules --exclude dist --exclude dist-electron \
@@ -23,8 +23,8 @@ RSYNC_EXCLUDES := --exclude node_modules --exclude dist --exclude dist-electron 
         check-contract
 
 ## ── Dev multi-proceso (backend nativo WSL + Vite + Electron) ────────────────
-dev-backend:            ## uvicorn con reload (nativo WSL; DB y jobs en ~/.ehpc)
-	mkdir -p $(HOME)/.ehpc
+dev-backend:            ## uvicorn con reload (nativo WSL; DB y jobs en ~/.telar)
+	mkdir -p $(HOME)/.telar
 	cd backend && uvicorn app.main:app --reload --port 8000
 
 dev-frontend:           ## Vite dev server :5173
@@ -38,7 +38,7 @@ sync-repo:              ## repo → $(BUILD_ROOT)/repo (ext4)
 	mkdir -p $(BUILD_ROOT)/repo
 	rsync -a --delete $(RSYNC_EXCLUDES) $(ROOT)/ $(BUILD_ROOT)/repo/
 
-build-runner: sync-repo ## construye la imagen ehpc-runner (perfil build)
+build-runner: sync-repo ## construye la imagen telar-runner (perfil build)
 	cd $(BUILD_ROOT)/repo && docker compose --profile build build runner
 
 build-images: sync-repo ## compose build frontend backend + runner
@@ -74,9 +74,9 @@ test:                   ## pytest backend + vitest frontend (en ext4)
 	cd backend && python -m pytest
 	$(NVM) npm --prefix frontend run test
 
-check-contract:         ## ehpc.d.ts (frontend) == ehpc-api.d.ts (desktop)
-	cmp frontend/src/types/ehpc.d.ts desktop/types/ehpc-api.d.ts \
-	  && echo "contrato window.ehpc: OK (idénticos)"
+check-contract:         ## telar.d.ts (frontend) == telar-api.d.ts (desktop)
+	cmp frontend/src/types/telar.d.ts desktop/types/telar-api.d.ts \
+	  && echo "contrato window.telar: OK (idénticos)"
 
 # electron-builder resuelve extraResources '../frontend/dist' relativo a
 # desktop/, por eso build-frontend deja el dist en $(BUILD_ROOT)/frontend/dist.

@@ -27,11 +27,11 @@ cd backend && DOCKER_HOST=tcp://127.0.0.1:1 pytest --cov=app --cov-fail-under=80
 ## Reglas de este entorno (NO obvias — respétalas)
 
 - **Node 22 vía nvm obligatorio** (`. "$NVM_DIR/nvm.sh"` antes de node/npm). v18 rompe electron≥40 y vite≥7.
-- **Builds pesados en ext4, nunca en `/mnt/d`**: rsync a `~/.ehpc-build/<pkg>/` y compila allí (drvfs es ~10x más lento; penaliza npm/node_modules y el JIT de Numba). El `package-lock.json` regenerado se copia de vuelta al repo.
+- **Builds pesados en ext4, nunca en `/mnt/d`**: rsync a `~/.telar-build/<pkg>/` y compila allí (drvfs es ~10x más lento; penaliza npm/node_modules y el JIT de Numba). El `package-lock.json` regenerado se copia de vuelta al repo.
 - **`make` no está instalado**: usar `docker compose` directamente (el Makefile existe pero no se invoca con make).
 - **Puertos ligados a `127.0.0.1`** (backend sin auth + socket Docker montado): no exponer en 0.0.0.0.
-- **Contratos CONGELADOS** en `docs/architecture/` (`api-contract.md` manda). No modificar `backend/app/schemas.py`, `frontend/src/api/types.ts`, `frontend/src/ws/messages.ts`, `frontend/src/types/ehpc.d.ts`: el código se adapta al contrato, no al revés.
-- **Bugs de infra ya corregidos — no re-introducir**: (1) los orígenes CORS/WS deben incluir `http://127.0.0.1:8080` (el navegador manda ese Origin, no `localhost`); (2) el volumen `ehpc_submissions` lleva `name:` explícito en `compose.yaml` para desactivar el prefijo de proyecto de Compose — sin eso el runner monta un volumen vacío distinto y TODOS los jobs fallan con "no such file or directory".
+- **Contratos CONGELADOS** en `docs/architecture/` (`api-contract.md` manda). No modificar `backend/app/schemas.py`, `frontend/src/api/types.ts`, `frontend/src/ws/messages.ts`, `frontend/src/types/telar.d.ts`: el código se adapta al contrato, no al revés.
+- **Bugs de infra ya corregidos — no re-introducir**: (1) los orígenes CORS/WS deben incluir `http://127.0.0.1:8080` (el navegador manda ese Origin, no `localhost`); (2) el volumen `telar_submissions` lleva `name:` explícito en `compose.yaml` para desactivar el prefijo de proyecto de Compose — sin eso el runner monta un volumen vacío distinto y TODOS los jobs fallan con "no such file or directory".
 
 ## Estructura
 

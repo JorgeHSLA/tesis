@@ -1,5 +1,5 @@
 // RuntimeFooter — footer del sidebar (frontend-spec §6.7, §6.0):
-//  - desktop: estado de window.ehpc.dockerStatus() con poll 10 s; caído →
+//  - desktop: estado de window.telar.dockerStatus() con poll 10 s; caído →
 //    botón `Levantar` (dockerUp + re-check).
 //  - web: GET /health cada 30 s → `Backend Telar` / `conectado · N núcleos`.
 // El texto se oculta colapsado (solo dot), como el prototipo.

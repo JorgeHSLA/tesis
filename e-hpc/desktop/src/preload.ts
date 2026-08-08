@@ -1,11 +1,11 @@
-// preload.ts — puente contextBridge → window.ehpc (electron-spec.md §5.2).
-// Expone EXACTAMENTE el contrato de types/ehpc-api.d.ts:
+// preload.ts — puente contextBridge → window.telar (electron-spec.md §5.2).
+// Expone EXACTAMENTE el contrato de types/telar-api.d.ts:
 // { appVersion, platform, dockerStatus, dockerUp, dockerStop, openExternal }.
 // NUNCA se expone ipcRenderer; solo funciones concretas que invocan canales fijos.
 import { contextBridge, ipcRenderer } from 'electron'
-import type { EhpcApi } from '../types/ehpc-api'
+import type { TelarApi } from '../types/telar-api'
 
-const api: EhpcApi = {
+const api: TelarApi = {
   appVersion: __APP_VERSION__, // inyectada por esbuild define (scripts/build.mjs)
   platform: process.platform,
   dockerStatus: () => ipcRenderer.invoke('docker:run', 'compose:ps'),
@@ -14,4 +14,4 @@ const api: EhpcApi = {
   openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
 }
 
-contextBridge.exposeInMainWorld('ehpc', api)
+contextBridge.exposeInMainWorld('telar', api)

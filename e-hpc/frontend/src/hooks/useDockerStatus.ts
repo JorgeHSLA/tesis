@@ -1,7 +1,7 @@
 // useDockerStatus.ts — estado del runtime para el RuntimeFooter
 // (frontend-spec §6.7):
-//  - desktop: window.ehpc.dockerStatus() al montar y cada 10 s;
-//    `Levantar` → window.ehpc.dockerUp() con re-check.
+//  - desktop: window.telar.dockerStatus() al montar y cada 10 s;
+//    `Levantar` → window.telar.dockerUp() con re-check.
 //  - web: GET /health cada 30 s.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getHealth } from '../api/system'
@@ -34,8 +34,8 @@ export function useDockerStatus(): DockerStatusState {
 
   const check = useCallback(async () => {
     try {
-      if (platform === 'desktop' && window.ehpc) {
-        const res = await window.ehpc.dockerStatus()
+      if (platform === 'desktop' && window.telar) {
+        const res = await window.telar.dockerStatus()
         if (!alive.current) return
         const running = res.services.filter((s) => s.state === 'running').length
         setContainers(running)
@@ -64,11 +64,11 @@ export function useDockerStatus(): DockerStatusState {
   }, [check, platform])
 
   const up = useCallback(async () => {
-    if (platform !== 'desktop' || !window.ehpc || lifting) return
+    if (platform !== 'desktop' || !window.telar || lifting) return
     setLifting(true)
     setLiftError(null)
     try {
-      const res = await window.ehpc.dockerUp()
+      const res = await window.telar.dockerUp()
       if (alive.current && !res.ok) setLiftError(res.error ?? 'No se pudo levantar Docker.')
     } catch (err: unknown) {
       if (alive.current) setLiftError(err instanceof Error ? err.message : String(err))

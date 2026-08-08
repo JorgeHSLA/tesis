@@ -22,7 +22,7 @@ const getHealthMock = getHealth as Mock
 
 afterEach(() => {
   setReducedMotion(false)
-  delete (window as { ehpc?: unknown }).ehpc
+  delete (window as { telar?: unknown }).telar
   vi.useRealTimers()
 })
 
@@ -51,14 +51,14 @@ describe('useReducedMotion', () => {
 // ───────────────────────────────── usePlatform ─────────────────────────────
 
 describe('usePlatform', () => {
-  it('web cuando no hay window.ehpc', () => {
+  it('web cuando no hay window.telar', () => {
     expect(getPlatform()).toBe('web')
     const { result } = renderHook(() => usePlatform())
     expect(result.current).toBe('web')
   })
 
-  it('desktop cuando window.ehpc está inyectado', () => {
-    ;(window as { ehpc?: unknown }).ehpc = {}
+  it('desktop cuando window.telar está inyectado', () => {
+    ;(window as { telar?: unknown }).telar = {}
     expect(getPlatform()).toBe('desktop')
   })
 })
@@ -124,7 +124,7 @@ describe('useDockerStatus (desktop)', () => {
       services: [{ state: 'running' }, { state: 'running' }, { state: 'exited' }],
     })
     const dockerUp = vi.fn().mockResolvedValue({ ok: true })
-    ;(window as { ehpc?: unknown }).ehpc = { dockerStatus, dockerUp }
+    ;(window as { telar?: unknown }).telar = { dockerStatus, dockerUp }
 
     const { result } = renderHook(() => useDockerStatus())
     await waitFor(() => expect(result.current.state).toBe('ok'))
@@ -139,7 +139,7 @@ describe('useDockerStatus (desktop)', () => {
   it('up() con dockerUp {ok:false} expone liftError', async () => {
     const dockerStatus = vi.fn().mockResolvedValue({ ok: false, services: [] })
     const dockerUp = vi.fn().mockResolvedValue({ ok: false, error: 'daemon caído' })
-    ;(window as { ehpc?: unknown }).ehpc = { dockerStatus, dockerUp }
+    ;(window as { telar?: unknown }).telar = { dockerStatus, dockerUp }
     const { result } = renderHook(() => useDockerStatus())
     await waitFor(() => expect(result.current.state).toBe('down'))
     await act(async () => {
@@ -151,7 +151,7 @@ describe('useDockerStatus (desktop)', () => {
   it('up() propaga la excepción de dockerUp a liftError', async () => {
     const dockerStatus = vi.fn().mockResolvedValue({ ok: true, services: [{ state: 'running' }] })
     const dockerUp = vi.fn().mockRejectedValue(new Error('spawn ENOENT'))
-    ;(window as { ehpc?: unknown }).ehpc = { dockerStatus, dockerUp }
+    ;(window as { telar?: unknown }).telar = { dockerStatus, dockerUp }
     const { result } = renderHook(() => useDockerStatus())
     await waitFor(() => expect(result.current.state).toBe('ok'))
     await act(async () => {
@@ -162,7 +162,7 @@ describe('useDockerStatus (desktop)', () => {
 
   it('refresh() vuelve a comprobar el estado', async () => {
     const dockerStatus = vi.fn().mockResolvedValue({ ok: true, services: [{ state: 'running' }] })
-    ;(window as { ehpc?: unknown }).ehpc = { dockerStatus, dockerUp: vi.fn() }
+    ;(window as { telar?: unknown }).telar = { dockerStatus, dockerUp: vi.fn() }
     const { result } = renderHook(() => useDockerStatus())
     await waitFor(() => expect(result.current.state).toBe('ok'))
     act(() => result.current.refresh())

@@ -35,7 +35,7 @@ const LAUNCH_ERROR_TEXT: Record<string, string> = {
   EXAMPLE_DISABLED: 'Este ejemplo está deshabilitado en tu equipo (requiere GPU).',
   TOO_MANY_JOBS: 'Hay demasiadas ejecuciones en cola. Espera a que termine alguna.',
   DOCKER_UNAVAILABLE: 'Docker no está disponible: el backend no puede crear el contenedor.',
-  RUNNER_IMAGE_MISSING: 'Falta la imagen ehpc-runner en tu Docker local.',
+  RUNNER_IMAGE_MISSING: 'Falta la imagen telar-runner en tu Docker local.',
 }
 
 export function SimulatorIdle() {
@@ -152,7 +152,7 @@ export function SimulatorIdle() {
               variant="outline"
               size="sm"
               onClick={() => {
-                void window.ehpc?.dockerUp().then(() => {
+                void window.telar?.dockerUp().then(() => {
                   sysRetry()
                   loadModules()
                 })
@@ -229,7 +229,7 @@ export function SimulatorIdle() {
           {showInstructions && (
             <pre className="launch-error-instructions">
               {launchError.code === 'RUNNER_IMAGE_MISSING'
-                ? '# Construye la imagen del runner:\nmake runner-image\n# (o) docker build -t ehpc-runner:0.5.1 runner/'
+                ? '# Construye la imagen del runner:\nmake runner-image\n# (o) docker build -t telar-runner:0.5.1 runner/'
                 : '# Arranca Docker Desktop / el daemon y verifica:\ndocker info\n# Luego reinicia el backend Telar.'}
             </pre>
           )}
