@@ -31,8 +31,19 @@ _REPLAY_LINES_PER_MSG = 200
 _RETRY_WINDOW_S = 0.1  # ventana de transición §3.4: un único reintento
 
 
+# Orígenes opacos del shell de escritorio. Electron carga la UI con `loadFile`
+# (file://) y Chromium NO serializa ese origen igual en las dos vías:
+#   · fetch/XHR  -> `Origin: null`   (de ahí el "null" de TELAR_ALLOWED_ORIGINS)
+#   · WebSocket  -> `Origin: file://`
+# Contemplar solo "null" dejaba el WS del escritorio rechazado con 403 en TODOS
+# los jobs (logs y métricas en vivo muertos), mientras el REST funcionaba —por
+# eso el fallo pasó desapercibido. No debilita el modelo: la rama `origin is
+# None` ya acepta cualquier cliente no-navegador, y el bind es loopback.
+_DESKTOP_ORIGINS = frozenset({"null", "file://"})
+
+
 def _origin_allowed(origin: str | None, allowed: list[str]) -> bool:
-    return origin is None or origin == "null" or origin in allowed
+    return origin is None or origin in _DESKTOP_ORIGINS or origin in allowed
 
 
 def _error_msg(job_id: str, code: str, message: str) -> dict:
