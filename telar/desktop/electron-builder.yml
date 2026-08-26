@@ -36,3 +36,29 @@ linux:
   maintainer: Jorge Sierra <jorgesierralaiton@gmail.com>
   synopsis: Simulador educativo de OpenMP con PyOMP
   syncDesktopName: true
+
+# `deb` es clave de PRIMER NIVEL (hermana de `linux`), igual que `nsis` lo es
+# de `win`: anidarla dentro de `linux` hace fallar la validación del esquema.
+deb:
+  # `depends` REEMPLAZA la lista por defecto de electron-builder, así que hay
+  # que repetirla entera. El añadido es libasound2: el binario de Electron
+  # enlaza libasound.so.2 y la lista por defecto NO la declara. En un Ubuntu
+  # Desktop completo pasa inadvertido (la trae el escritorio), pero en un
+  # sistema mínimo —WSL, Server, contenedor— la app aborta al arrancar con
+  # "error while loading shared libraries: libasound.so.2" (verificado en
+  # WSL Ubuntu 2026-08-25; con las 9 dependencias declaradas instaladas, era
+  # la ÚNICA librería que faltaba).
+  # La alternativa `t64 | clásico` cubre las dos épocas de Ubuntu: 24.04+
+  # renombró el paquete a libasound2t64 y el nombre suelto libasound2 ya no
+  # es instalable ahí.
+  depends:
+    - libasound2t64 | libasound2
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0

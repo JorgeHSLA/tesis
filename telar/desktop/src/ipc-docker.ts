@@ -17,14 +17,27 @@ const execFileAsync = promisify(execFile)
 
 // Acciones CERRADAS: el renderer solo elige una clave; los argumentos viven aquí.
 // Cada acción es una SECUENCIA de pasos ejecutados en orden (mismo cwd).
-// 'compose:up' es COMPUESTA: en modo repo (TELAR_COMPOSE_DIR → clon con build:)
-// primero construye la imagen runner (perfil 'build', que `up` ignoraría) y
-// luego levanta; en modo empaquetado (§6.1, compose solo-image:) el build de
-// runner es un no-op inmediato porque el servicio no tiene clave build.
+//
+// 'compose:up' es COMPUESTA y cubre los DOS modos de despliegue (README §5.4):
+//   1. build  — modo repo (TELAR_COMPOSE_DIR → clon con `build:`): construye la
+//      imagen del runner, que `up` ignoraría por estar tras el perfil 'build'.
+//      En modo empaquetado es un no-op (el servicio solo tiene `image:`).
+//   2. pull   — modo empaquetado (§6.1, compose solo-image:): DESCARGA la imagen
+//      del runner. Sin este paso nunca llega a una máquina limpia: el `build` de
+//      arriba no hace nada y el `up -d` de abajo va SIN `--profile build`, así
+//      que ni siquiera considera el servicio. El síntoma era brutal por lo
+//      silencioso: el backend levantaba sano, el pie de ventana se ponía VERDE,
+//      y el primer job moría con `503 RUNNER_IMAGE_MISSING`
+//      (reproducido 2026-08-25 con el release v1.0.1 en Ubuntu limpio).
+//      `--ignore-pull-failures` es lo que lo hace válido en ambos modos: en modo
+//      repo la imagen local ya se construyó en el paso 1 y un fallo de descarga
+//      (tag no publicado, sin red) no debe romper la cadena.
+//   3. up -d  — levanta backend (+ web si el compose lo trae).
 const DOCKER_ACTIONS: Readonly<Record<string, readonly (readonly string[])[]>> = {
   'compose:ps': [['compose', 'ps', '--format', 'json']],
   'compose:up': [
     ['compose', '--profile', 'build', 'build', 'runner'],
+    ['compose', '--profile', 'build', 'pull', '--ignore-pull-failures', 'runner'],
     ['compose', 'up', '-d'],
   ],
   'compose:stop': [['compose', 'stop']],
