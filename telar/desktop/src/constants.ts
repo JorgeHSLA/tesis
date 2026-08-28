@@ -29,6 +29,11 @@ export const EXEC_TIMEOUT_MS = 600_000
 /** Buffer máximo de stdout/stderr por execFile. */
 export const EXEC_MAX_BUFFER = 4 * 1024 * 1024
 
+/** Espera máxima para detener los servicios AL CERRAR la app (§8).
+ *  Corto a propósito: `compose stop` tarda segundos, y si Docker no responde
+ *  la app debe cerrarse igual en vez de quedarse colgada sin ventana. */
+export const SHUTDOWN_TIMEOUT_MS = 15_000
+
 /** stderr saneado y truncado antes de llegar a UI (electron-spec §5.3). */
 export const STDERR_MAX_CHARS = 500
 

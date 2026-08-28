@@ -32,13 +32,24 @@ const execFileAsync = promisify(execFile)
 //      `--ignore-pull-failures` es lo que lo hace válido en ambos modos: en modo
 //      repo la imagen local ya se construyó en el paso 1 y un fallo de descarga
 //      (tag no publicado, sin red) no debe romper la cadena.
-//   3. up -d  — levanta backend (+ web si el compose lo trae).
+//   3. up -d backend — levanta SÓLO el backend, explícitamente.
+//      El shell de escritorio nunca necesita el nginx del compose del repo: la
+//      UI la sirve Electron desde disco y habla directo al backend (por eso el
+//      compose empaquetado ni siquiera trae ese servicio, electron-spec §6.1).
+//      Con `up -d` a secas, en modo repo Compose intentaba levantar también
+//      nginx y, si el 8080 del host está ocupado, TODO el comando terminaba en
+//      error: el backend quedaba sano pero `dockerUp` devolvía ok:false y la UI
+//      mostraba un fallo que no existía (visto el 2026-08-28 con el 8080 tomado
+//      por otro servicio del sistema). Nombrar el servicio es además la
+//      semántica correcta: se arranca lo que la app usa. En el compose
+//      empaquetado el resultado es idéntico (backend es su único servicio no
+//      gateado por perfil).
 const DOCKER_ACTIONS: Readonly<Record<string, readonly (readonly string[])[]>> = {
   'compose:ps': [['compose', 'ps', '--format', 'json']],
   'compose:up': [
     ['compose', '--profile', 'build', 'build', 'runner'],
     ['compose', '--profile', 'build', 'pull', '--ignore-pull-failures', 'runner'],
-    ['compose', 'up', '-d'],
+    ['compose', 'up', '-d', 'backend'],
   ],
   'compose:stop': [['compose', 'stop']],
 }
@@ -74,32 +85,45 @@ function sanitizeError(err: unknown): string {
   return (raw ?? 'Error desconocido ejecutando docker').slice(0, STDERR_MAX_CHARS)
 }
 
+/** Ejecuta una acción de la whitelist. Extraído del handler IPC para que el
+ *  proceso principal pueda invocarla al cerrar (§8) sin duplicar la lista ni
+ *  relajar nada: la clave sigue siendo una de `DOCKER_ACTIONS` y los argumentos
+ *  siguen viviendo aquí. `timeoutMs` permite acortar la espera al salir, donde
+ *  no se puede bloquear el cierre durante minutos. */
+export async function runDockerAction(
+  action: string,
+  timeoutMs: number = EXEC_TIMEOUT_MS,
+): Promise<DockerStatusResult | DockerActionResult> {
+  const steps = DOCKER_ACTIONS[action]
+  if (!steps) return { ok: false, error: 'Acción no permitida' }
+  try {
+    let stdout = ''
+    for (const step of steps) {
+      // §5.3: acciones = secuencia de pasos
+      ;({ stdout } = await execFileAsync('docker', [...step], {
+        cwd: composeCwd(),
+        timeout: timeoutMs, // el build del runner (~777MB) tarda minutos
+        windowsHide: true,
+        maxBuffer: EXEC_MAX_BUFFER,
+      }))
+    }
+    if (action === 'compose:ps') return { ok: true, services: parseComposePs(stdout) }
+    return { ok: true }
+  } catch (err) {
+    const msg = sanitizeError(err)
+    return action === 'compose:ps'
+      ? { ok: false, services: [], error: msg }
+      : { ok: false, error: msg }
+  }
+}
+
 export function registerDockerIpc(): void {
   ipcMain.handle(
     'docker:run',
     async (event, action: unknown): Promise<DockerStatusResult | DockerActionResult> => {
       assertTrustedSender(event)
-      const steps = typeof action === 'string' ? DOCKER_ACTIONS[action] : undefined
-      if (!steps) return { ok: false, error: 'Acción no permitida' }
-      try {
-        let stdout = ''
-        for (const step of steps) {
-          // §5.3: acciones = secuencia de pasos
-          ;({ stdout } = await execFileAsync('docker', [...step], {
-            cwd: composeCwd(),
-            timeout: EXEC_TIMEOUT_MS, // el build del runner (~777MB) tarda minutos
-            windowsHide: true,
-            maxBuffer: EXEC_MAX_BUFFER,
-          }))
-        }
-        if (action === 'compose:ps') return { ok: true, services: parseComposePs(stdout) }
-        return { ok: true }
-      } catch (err) {
-        const msg = sanitizeError(err)
-        return action === 'compose:ps'
-          ? { ok: false, services: [], error: msg }
-          : { ok: false, error: msg }
-      }
+      if (typeof action !== 'string') return { ok: false, error: 'Acción no permitida' }
+      return runDockerAction(action)
     },
   )
 

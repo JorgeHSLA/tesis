@@ -566,24 +566,38 @@ launch → main crea ventana → renderer monta AppShell
             1. window.telar.dockerStatus()
             2a. ok && backend healthy  → footer: dot verde pulsante
                 'Docker runtime' / '{n} contenedores activos'   (n = services running)
-            2b. ok pero backend exited → footer: dot ámbar 'servicios detenidos'
-                + botón sm 'Levantar' → dockerUp() → spinner 'levantando servicios…'
-                → poll dockerStatus() cada 2 s hasta healthy
-                (timeout 10 MIN — el primer arranque construye/baja la imagen
-                runner de ~777MB y tarda varios minutos; el mensaje del spinner
-                lo avisa. Tras 10 min → error con stderr saneado)
+            2b. ok pero backend exited → AUTOARRANQUE: dockerUp() sin esperar al
+                usuario; dot ámbar 'preparando entorno…' mientras dura
+                (el primer arranque descarga ~1 GB y tarda varios minutos)
             2c. !ok (docker ausente)   → footer: dot rojo 'Docker no disponible'
                 + tooltip con el error saneado + link 'Cómo instalar Docker'
                 (openExternal a la guía https del repo)
             3. re-poll cada 10 s mientras la app esté abierta
+salir → before-quit → compose:stop (timeout SHUTDOWN_TIMEOUT_MS) → app.quit()
 ```
+
+**El autoarranque es de UNA SOLA VEZ por sesión de app** (guard `autoStarted` en
+`useDockerStatus`). Sin ese guard, el re-poll de 10 s volvería a levantar lo que el usuario
+acaba de parar con `Detener`, dejando ese control inservible: detener es una decisión
+explícita y se respeta hasta el siguiente arranque. Tampoco se intenta con Docker ausente
+(2c), donde sólo produciría un error.
+
+El punto de estado del rail es un **disparador**: hover muestra el estado, clic abre un panel
+con `Levantar`/`Detener` según corresponda. (Hasta 2026-08-26 el botón vivía dentro de
+`.sidebar-footer-text`, oculto de forma permanente por el rediseño del rail: era inalcanzable.)
 
 - Las pantallas que necesitan backend (simulador, resultados, catálogo) muestran su ErrorState
   normal si el fetch falla; en desktop el ErrorState añade el CTA `Revisar servicios Docker`
   que enfoca el footer (scroll + highlight) — el usuario tiene un solo lugar para arreglar todo.
-- `dockerStop()` se expone en un menú contextual del footer (`Detener servicios`) — útil al
-  cerrar sesión de práctica; NO se llama automáticamente al salir (otros procesos pueden estar
-  usándolos; decisión: los servicios sobreviven al cierre de la app).
+- `dockerStop()` se expone en el panel del RuntimeFooter (`Detener`) — útil al cerrar sesión
+  de práctica — **y también se invoca automáticamente al salir de la app**
+  (`before-quit` en `main.ts`, timeout `SHUTDOWN_TIMEOUT_MS`).
+
+  > **Cambio 2026-08-28.** Hasta esta fecha los servicios SOBREVIVÍAN al cierre, por si otro
+  > proceso los estaba usando. Se invierte: el caso real de la plataforma es un estudiante con
+  > una sola app, y dejar contenedores corriendo tras cerrar confunde más de lo que ayuda.
+  > Efecto colateral asumido: si hay una pestaña con la versión web abierta contra el mismo
+  > backend, cerrar la app de escritorio también la deja sin servicio.
 - Primer arranque (imagen runner sin construir): `compose:up` construye/baja imágenes → puede
   tardar minutos; el spinner del footer muestra `preparando entorno (primera vez: varios
   minutos)…` mientras `dockerStatus` no reporte healthy.
@@ -639,5 +653,7 @@ web (rutas relativas) en caso contrario (regla congelada en `architecture.md`
 5. `compose ps --format json` parseado como NDJSON en el main; el renderer recibe estructura tipada, nunca stdout crudo (§5.3).
 6. compose.yaml de despliegue empaquetado en `resources/compose` + override por `TELAR_COMPOSE_DIR` (§5.3, §6).
 7. CSP por `onHeadersReceived` solo en desktop; nginx gestiona la suya en web (§7.1).
-8. Los servicios Docker NO se detienen al cerrar la app; stop manual desde el footer (§8).
+8. Los servicios Docker se levantan solos al abrir la app y se detienen al cerrarla; el panel
+   del RuntimeFooter conserva el control manual (§8). *(Revisado el 2026-08-28: antes ni se
+   levantaban ni se detenían de forma automática.)*
 9. Targets: win nsis+portable (imagen wine o host Windows), linux AppImage+deb (WSL2) (§6).

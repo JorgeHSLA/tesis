@@ -3,9 +3,14 @@
 // endurecidas, hardenSession + registerDockerIpc + attachNavigationGuards.
 import { app, BrowserWindow, Menu } from 'electron'
 import path from 'node:path'
-import { registerDockerIpc } from './ipc-docker'
+import { registerDockerIpc, runDockerAction } from './ipc-docker'
 import { hardenSession, attachNavigationGuards } from './security'
-import { DEV_SERVER_URL, PACKAGED_FRONTEND_SUBDIR, WINDOW_BACKGROUND_COLOR } from './constants'
+import {
+  DEV_SERVER_URL,
+  PACKAGED_FRONTEND_SUBDIR,
+  SHUTDOWN_TIMEOUT_MS,
+  WINDOW_BACKGROUND_COLOR,
+} from './constants'
 
 // Render por CPU (software) en TODAS las plataformas: la UI es ligera (texto +
 // SVG, sin 3D), así la app es portable y no depende de la GPU. Evita el
@@ -74,6 +79,34 @@ if (!gotTheLock) {
 }
 
 app.on('window-all-closed', () => {
-  // Los servicios Docker NO se detienen al cerrar la app (decisión §8).
   if (process.platform !== 'darwin') app.quit()
+})
+
+// Al salir se DETIENEN los servicios Docker, para no dejarlos consumiendo
+// recursos en segundo plano (2026-08-28). Invierte la decisión §8/§11 del
+// electron-spec, que los dejaba vivos por si otro proceso los usaba; el caso
+// real de la plataforma es un estudiante con una sola app, y encontrarse
+// contenedores corriendo después de cerrar es más confuso que útil. La vía
+// manual («Detener» en el panel del rail) se conserva.
+//
+// `before-quit` es el único gancho que llega ANTES de que Electron desmonte
+// todo, pero es síncrono: hay que frenar el cierre, esperar al comando y
+// volver a pedir la salida. El flag evita el bucle infinito, porque el
+// segundo app.quit() vuelve a disparar este mismo evento.
+let stoppingServices = false
+app.on('before-quit', (event) => {
+  if (stoppingServices) return // segunda vuelta: dejar salir
+  stoppingServices = true
+  event.preventDefault()
+  void (async () => {
+    try {
+      // Timeout corto: si Docker no responde, la app se cierra igual en vez de
+      // quedarse sin ventana y sin poder salir.
+      await runDockerAction('compose:stop', SHUTDOWN_TIMEOUT_MS)
+    } catch {
+      // Nunca impedir el cierre por un fallo al parar los servicios.
+    } finally {
+      app.quit()
+    }
+  })()
 })

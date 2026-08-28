@@ -59,7 +59,16 @@ export function RuntimeFooter() {
 
   let dotClass = 'status-dot'
   let detail: string
-  if (docker.state === 'checking') {
+  if (docker.lifting) {
+    // Prioridad sobre el estado: durante el autoarranque los servicios siguen
+    // «down», y un punto rojo inmóvil mientras se descargan ~1 GB parece que
+    // la app se colgó. En ámbar se lee como «trabajando».
+    dotClass = 'status-dot status-dot--amber'
+    detail = 'preparando entorno…'
+  } else if (docker.stopping) {
+    dotClass = 'status-dot status-dot--amber'
+    detail = 'deteniendo…'
+  } else if (docker.state === 'checking') {
     dotClass = 'status-dot status-dot--amber'
     detail = 'verificando…'
   } else if (docker.state === 'ok') {
