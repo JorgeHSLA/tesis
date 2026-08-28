@@ -1,8 +1,14 @@
 // useDockerStatus.ts — estado del runtime para el RuntimeFooter
 // (frontend-spec §6.7):
 //  - desktop: window.telar.dockerStatus() al montar y cada 10 s;
-//    `Levantar` → window.telar.dockerUp() con re-check.
+//    `Levantar` → window.telar.dockerUp() con re-check;
+//    `Detener`  → window.telar.dockerStop() con re-check.
 //  - web: GET /health cada 30 s.
+//
+// 2026-08-26: se añade `stop()`. `dockerStop` existía en el contrato de preload
+// desde el principio (electron-spec §5.1) y la spec lo daba por expuesto en el
+// pie (§8, «Detener servicios»), pero NINGÚN componente lo invocaba: era
+// capacidad muerta. Ahora el panel del RuntimeFooter ofrece las dos acciones.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getHealth } from '../api/system'
 import { getPlatform } from './usePlatform'
@@ -18,9 +24,14 @@ export interface DockerStatusState {
   containers: number | null
   /** true mientras corre dockerUp() (spinner del botón Levantar). */
   lifting: boolean
+  /** true mientras corre dockerStop() (spinner del botón Detener). */
+  stopping: boolean
+  /** Error de la ÚLTIMA acción ejecutada (up o stop); null si fue bien. */
   liftError: string | null
   /** Desktop: `docker compose up -d` + re-check. No-op en web. */
   up: () => Promise<void>
+  /** Desktop: `docker compose stop` + re-check. No-op en web. */
+  stop: () => Promise<void>
   refresh: () => void
 }
 
@@ -29,6 +40,7 @@ export function useDockerStatus(): DockerStatusState {
   const [state, setState] = useState<RuntimeHealth>('checking')
   const [containers, setContainers] = useState<number | null>(null)
   const [lifting, setLifting] = useState(false)
+  const [stopping, setStopping] = useState(false)
   const [liftError, setLiftError] = useState<string | null>(null)
   const alive = useRef(true)
 
@@ -78,10 +90,27 @@ export function useDockerStatus(): DockerStatusState {
     }
   }, [check, lifting, platform])
 
+  // Simétrico a up(). Los servicios NO se detienen al cerrar la app (decisión
+  // de electron-spec §8): esta es la vía manual para pararlos.
+  const stop = useCallback(async () => {
+    if (platform !== 'desktop' || !window.telar || stopping) return
+    setStopping(true)
+    setLiftError(null)
+    try {
+      const res = await window.telar.dockerStop()
+      if (alive.current && !res.ok) setLiftError(res.error ?? 'No se pudo detener Docker.')
+    } catch (err: unknown) {
+      if (alive.current) setLiftError(err instanceof Error ? err.message : String(err))
+    } finally {
+      await check()
+      if (alive.current) setStopping(false)
+    }
+  }, [check, platform, stopping])
+
   const refresh = useCallback(() => {
     setState('checking')
     void check()
   }, [check])
 
-  return { state, containers, lifting, liftError, up, refresh }
+  return { state, containers, lifting, stopping, liftError, up, stop, refresh }
 }
