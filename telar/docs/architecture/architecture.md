@@ -84,6 +84,13 @@ Versión ASCII (para la memoria impresa):
 +---------------------------------------------------------------+
 ```
 
+Este diagrama es de **componentes**: describe la estructura lógica. La vista de
+**despliegue** —qué nodos y entornos de ejecución existen, qué artefacto se
+despliega en cada uno y por qué protocolo y puerto hablan, en los tres modos
+(escritorio, web y desarrollo)— está en
+[`deployment-diagram.md`](deployment-diagram.md), con las fuentes UML en
+`diagrams/*.puml`.
+
 ---
 
 ## 2. Topología docker-compose

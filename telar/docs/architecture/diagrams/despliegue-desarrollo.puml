@@ -1,0 +1,80 @@
+@startuml despliegue-desarrollo
+' Telar — Diagrama de despliegue UML · Modo DESARROLLO (WSL2)
+' Fuente de verdad: Makefile (dev-backend/dev-frontend/dev-desktop), backend/app/config.py,
+' desktop/src/constants.ts, architecture.md §2.1 y §3.1.
+' Render (sin Graphviz):  java -jar plantuml.jar -tsvg despliegue-desarrollo.puml
+!pragma layout smetana
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam nodesep 28
+skinparam ranksep 42
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 11
+skinparam node {
+  BackgroundColor #FFFFFF
+  BorderColor #222222
+  BorderThickness 1.4
+  FontStyle bold
+}
+skinparam artifact {
+  BackgroundColor #F7F4F1
+  BorderColor #222222
+  FontStyle plain
+}
+skinparam folder {
+  BackgroundColor #FFFFFF
+  BorderColor #222222
+}
+
+title Telar — Diagrama de despliegue · **modo desarrollo** (WSL2, sin contenedores para el backend)
+
+node "<<device>>\n:EquipoDeDesarrollo\n{Windows + WSL2 Ubuntu · Node 22 vía nvm}" as DEV {
+
+  node "<<executionEnvironment>>\n:Node 22 (WSL)" as NODE {
+    artifact "<<artifact>>\nVite dev server\n{localhost:5173 · HMR}" as VITE
+  }
+
+  node "<<executionEnvironment>>\n:Electron 43 (dev)" as ELECTRON_DEV {
+    artifact "<<artifact>>\nmain.cjs (esbuild watch)\n{carga VITE_DEV_SERVER_URL}" as MAIN_DEV
+  }
+
+  node "<<executionEnvironment>>\n:CPython 3.12 (WSL, nativo)" as UVICORN {
+    artifact "<<artifact>>\nuvicorn app.main:app --reload\n{localhost:8000}" as BACK_DEV
+  }
+
+  folder "<<fileSystem>>\n$HOME/.telar   (ext4)" as FS {
+    artifact "<<artifact>>\ntelar.db\n{SQLite · WAL}" as DB_DEV
+    artifact "<<artifact>>\njobs/<jobId>/main.py" as JOBS_DEV
+  }
+
+  node "<<executionEnvironment>>\n:Docker Engine" as DOCKERD_DEV {
+    node "<<container>>\ntelar-run-<jobId>\n{network=none · user=10001 · cap-drop=ALL}\n{read-only + tmpfs /tmp · mem=512m · pids=128}" as RUNNER_DEV {
+      artifact "<<artifact>>\ntelar-runner:0.5.1" as RUN_IMG_DEV
+    }
+  }
+}
+
+ELECTRON_DEV --> NODE : <<HTTP>>\ncarga la UI de\nhttp://localhost:5173
+NODE --> UVICORN : <<HTTP + WebSocket>>\nlocalhost:8000\n(VITE_API_BASE / VITE_WS_BASE)
+UVICORN --> FS : lee y escribe\nTELAR_DB_PATH · TELAR_JOBS_DIR
+UVICORN --> DOCKERD_DEV : <<docker-py 7.2>>\nsocket local del usuario WSL
+DOCKERD_DEV --> RUNNER_DEV : create · start · wait · kill
+FS --> RUNNER_DEV : <<bind mount ro>>\n$HOME/.telar/jobs/<jobId>/main.py → /work
+
+legend bottom
+  **Por qué el modo desarrollo es otra topología**
+  1 · El backend NO va en contenedor: corre nativo en WSL con recarga en caliente, así
+  que habla con el socket Docker como el propio usuario y desaparece el dilema de
+  montar /var/run/docker.sock dentro de un contenedor.
+  2 · La entrega de código al runner cambia de volumen con nombre a bind mount
+  (TELAR_CODE_DELIVERY=bind): al ser el backend un proceso del host, el daemon resuelve
+  la ruta del host sin ambigüedad.
+  3 · Docker solo ejecuta runners. No hay nginx ni contenedor de backend.
+  4 · La BD, los jobs y node_modules viven en ext4 ($HOME), nunca en /mnt/d: el sistema de
+  archivos 9p multiplica por ~10 los tiempos de E/S.
+endlegend
+
+@enduml

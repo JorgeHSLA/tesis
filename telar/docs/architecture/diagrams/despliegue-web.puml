@@ -1,0 +1,86 @@
+@startuml despliegue-web
+' Telar — Diagrama de despliegue UML · Modo WEB (docker compose completo)
+' Fuente de verdad: compose.yaml (raíz), frontend/nginx.conf, frontend/Dockerfile,
+' backend/Dockerfile, backend/app/services/docker_service.py, architecture.md §2.2/§2.3.
+' Render (sin Graphviz):  java -jar plantuml.jar -tsvg despliegue-web.puml
+!pragma layout smetana
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam nodesep 28
+skinparam ranksep 42
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 11
+skinparam node {
+  BackgroundColor #FFFFFF
+  BorderColor #222222
+  BorderThickness 1.4
+  FontStyle bold
+}
+skinparam artifact {
+  BackgroundColor #F7F4F1
+  BorderColor #222222
+  FontStyle plain
+}
+skinparam database {
+  BackgroundColor #FFFFFF
+  BorderColor #222222
+}
+
+title Telar — Diagrama de despliegue · **modo web** (docker compose completo)
+
+node "<<device>>\n:MáquinaAnfitriona\n{WSL2 / Linux · el MISMO equipo que el cliente}" as HOST {
+
+  node "<<executionEnvironment>>\n:Navegador\n{Chromium / Firefox}" as BROWSER {
+    artifact "<<artifact>>\nindex.html + assets/\n{build Vite · SPA React + HashRouter}" as SPA_W
+  }
+
+  node "<<executionEnvironment>>\n:Docker Engine\n{/var/run/docker.sock}" as DOCKERD {
+
+    node "<<container>>\ntelar-frontend\n{127.0.0.1:8080 → :80 · nginx:alpine}" as NGINX {
+      artifact "<<artifact>>\n/usr/share/nginx/html/\n{estáticos del build Vite}" as STATIC
+      artifact "<<artifact>>\ndefault.conf\n{proxy /api/ /ws/ /health}" as NGINXCONF
+    }
+
+    node "<<container>>\ntelar-backend\n{127.0.0.1:8000 · healthcheck /health}" as BACKEND_W {
+      artifact "<<artifact>>\ntelar-backend\n{FastAPI 0.139 + uvicorn · 1 worker}\n{TELAR_ADMIN_BUILD=0 → build estudiante}" as BACK_IMG_W
+    }
+
+    node "<<container>>\ntelar-run-<jobId>\n{efímero: 1 por job · máx. 2 concurrentes}\n{network=none · user=10001 · cap-drop=ALL}\n{read-only + tmpfs /tmp · mem=512m · pids=128}" as RUNNER_W {
+      artifact "<<artifact>>\ntelar-runner:0.5.1\n{python:3.12-slim + pyomp 0.5.1}" as RUN_IMG_W
+      artifact "<<artifact>>\n/work/main.py\n{código del estudiante · solo lectura}" as CODE_W
+    }
+
+    database "<<volume>>\ntelar_data" as VOLDATA_W {
+      artifact "<<artifact>>\ntelar.db\n{SQLite · WAL}" as DB_W
+    }
+
+    database "<<volume>>\ntelar_submissions" as VOLSUBS_W {
+      artifact "<<artifact>>\n<jobId>/main.py" as SUBS_W
+    }
+  }
+}
+
+BROWSER --> NGINX : <<HTTP>>\nhttp://127.0.0.1:8080\n(estáticos + REST + WS, mismo origen)
+NGINX --> BACKEND_W : <<HTTP>>\nproxy_pass http://backend:8000\n/api/ · /health
+NGINX --> BACKEND_W : <<WebSocket>>\nproxy_pass /ws/ (Upgrade)\nread_timeout=3600s
+BACKEND_W --> DOCKERD : <<docker-py 7.2>>\nsocket Unix montado :rw
+DOCKERD --> RUNNER_W : create · start · wait\nstats · kill · remove
+BACKEND_W --> VOLDATA_W : <<mount rw>>\n/app/data
+BACKEND_W --> VOLSUBS_W : <<mount rw>>\n/submissions
+VOLSUBS_W --> RUNNER_W : <<mount ro>>\nsubpath=<jobId> → /work
+
+legend bottom
+  **Diferencias frente al modo escritorio**
+  1 · El cliente es el navegador y aparece nginx como servidor de estáticos y proxy
+  inverso: el frontend habla con /api y /ws en su MISMO origen (127.0.0.1:8080), no
+  contra el puerto 8000.
+  2 · nginx y backend se resuelven por el DNS interno de la red bridge que crea
+  Compose (el host "backend" del proxy_pass es el nombre del servicio).
+  3 · El resto del despliegue es idéntico: mismo build de Vite, mismo backend, mismo
+  runner efímero, mismos dos volúmenes con nombre explícito.
+endlegend
+
+@enduml

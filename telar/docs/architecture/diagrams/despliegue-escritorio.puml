@@ -1,0 +1,95 @@
+@startuml despliegue-escritorio
+' Telar — Diagrama de despliegue UML · Modo ESCRITORIO (instalador Electron)
+' Fuente de verdad: desktop/resources/compose/compose.yaml, desktop/src/{main,ipc-docker,constants}.ts,
+' backend/app/services/docker_service.py, docs/architecture/architecture.md §1.1/§2.2/§4.
+' Render (sin Graphviz):  java -jar plantuml.jar -tsvg despliegue-escritorio.puml
+' NOTA: en las etiquetas NO se escriben banderas con doble guion ("- -network")
+' porque PlantUML lo interpreta como markup de tachado. Se usa `clave=valor`.
+!pragma layout smetana
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam nodesep 28
+skinparam ranksep 42
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 11
+skinparam node {
+  BackgroundColor #FFFFFF
+  BorderColor #222222
+  BorderThickness 1.4
+  FontStyle bold
+}
+skinparam artifact {
+  BackgroundColor #F7F4F1
+  BorderColor #222222
+  FontStyle plain
+}
+skinparam database {
+  BackgroundColor #FFFFFF
+  BorderColor #222222
+}
+
+title Telar — Diagrama de despliegue · **modo escritorio** (instalador Electron)
+
+node "<<device>>\n:MáquinaDelEstudiante\n{SO = Windows 10+ / Linux x64 · Docker Desktop o Docker Engine}" as HOST {
+
+  node "<<executionEnvironment>>\n:Electron 43" as ELECTRON {
+    node "<<process>>\n:Main (Node)" as MAINP {
+      artifact "<<artifact>>\nmain.cjs\n{ciclo de vida · IPC docker}" as MAIN
+      artifact "<<artifact>>\ncompose/compose.yaml\n{compose de despliegue empaquetado}" as COMPOSE_D
+    }
+    node "<<process>>\n:Renderer (Chromium)\n{contextIsolation · sandbox}" as RENDP {
+      artifact "<<artifact>>\napp-frontend/\n{build Vite · SPA React + HashRouter}" as SPA_D
+      artifact "<<artifact>>\npreload.cjs\n{contextBridge → window.telar}" as PRELOAD
+    }
+  }
+
+  node "<<executionEnvironment>>\n:Docker Engine\n{/var/run/docker.sock}" as DOCKERD {
+
+    node "<<container>>\ntelar-backend\n{puerto publicado 127.0.0.1:8000 → 8000}\n{restart=unless-stopped}" as BACKEND_D {
+      artifact "<<artifact>>\nghcr.io/telar-javeriana/telar-backend:1.0.1\n{FastAPI 0.139 + uvicorn · 1 worker}" as BACK_IMG_D
+    }
+
+    node "<<container>>\ntelar-run-<jobId>\n{efímero: 1 por job · máx. 2 concurrentes}\n{network=none · user=10001 · cap-drop=ALL}\n{read-only + tmpfs /tmp · mem=512m · pids=128}" as RUNNER_D {
+      artifact "<<artifact>>\nghcr.io/telar-javeriana/telar-runner:0.5.1\n{python:3.12-slim + pyomp 0.5.1}" as RUN_IMG_D
+      artifact "<<artifact>>\n/work/main.py\n{código del estudiante · solo lectura}" as CODE_D
+    }
+
+    database "<<volume>>\ntelar_data" as VOLDATA_D {
+      artifact "<<artifact>>\ntelar.db\n{SQLite · WAL}" as DB_D
+    }
+
+    database "<<volume>>\ntelar_submissions" as VOLSUBS_D {
+      artifact "<<artifact>>\n<jobId>/main.py" as SUBS_D
+    }
+  }
+}
+
+node "<<device>>\n:GHCR\n{ghcr.io · registro de imágenes}" as GHCR {
+  artifact "<<artifact>>\ntelar-backend:1.0.1\ntelar-runner:0.5.1" as IMGS
+}
+
+RENDP  --> BACKEND_D : <<HTTP>>\nREST http://localhost:8000/api/v1
+RENDP  --> BACKEND_D : <<WebSocket>>\nws://localhost:8000/ws/jobs/{jobId}
+MAINP  --> DOCKERD   : <<IPC + execFile>>\ndocker compose up -d backend | stop | ps\n(whitelist cerrada de 3 acciones)
+BACKEND_D --> DOCKERD : <<docker-py 7.2>>\nsocket Unix montado :rw
+DOCKERD  --> RUNNER_D : create · start · wait\nstats · kill · remove
+BACKEND_D --> VOLDATA_D : <<mount rw>>\n/app/data
+BACKEND_D --> VOLSUBS_D : <<mount rw>>\n/submissions
+VOLSUBS_D --> RUNNER_D : <<mount ro>>\nsubpath=<jobId> → /work
+DOCKERD ..> GHCR : <<HTTPS:443>>\ndocker pull\n(solo en el 1er arranque)
+
+legend bottom
+  **Restricciones de despliegue**
+  1 · Todo es local: ningún puerto escucha fuera de loopback (127.0.0.1). El backend
+  no tiene autenticación y monta el socket Docker, así que exponerlo daría ejecución
+  de código arbitrario a toda la LAN.
+  2 · El shell de escritorio no despliega nginx: la UI se sirve desde disco con el
+  esquema file:// y habla directo al backend en el puerto 8000.
+  3 · El runner no tiene red (network=none): sus logs y métricas salen por el socket
+  del daemon, no por una conexión al backend.
+endlegend
+
+@enduml
