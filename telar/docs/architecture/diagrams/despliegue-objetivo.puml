@@ -1,0 +1,141 @@
+@startuml despliegue-objetivo
+' Telar — Diagrama de despliegue UML · ARQUITECTURA OBJETIVO (PROPUESTA)
+' ATENCIÓN: esto NO existe en el repo. Es la propuesta de despliegue distribuido
+' (3 servidores + almacenamiento en nube) discutida en deployment-target.md.
+' Los diagramas del estado ACTUAL son despliegue-{escritorio,web,desarrollo}.puml.
+' Render (sin Graphviz):  java -jar plantuml.jar -tsvg despliegue-objetivo.puml
+!pragma layout smetana
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam nodesep 30
+skinparam ranksep 45
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 11
+skinparam node {
+  BackgroundColor #FFFFFF
+  BorderColor #222222
+  BorderThickness 1.4
+  FontStyle bold
+}
+skinparam artifact {
+  BackgroundColor #F7F4F1
+  BorderColor #222222
+  FontStyle plain
+}
+skinparam database {
+  BackgroundColor #FFFFFF
+  BorderColor #222222
+}
+skinparam cloud {
+  BackgroundColor #FFFFFF
+  BorderColor #6B6B6B
+}
+skinparam interface {
+  BackgroundColor #FFFFFF
+  BorderColor #222222
+}
+
+title Telar — Despliegue **OBJETIVO** (propuesta, no implementado)\n<size:11>Los recuadros con línea discontinua son decisiones ABIERTAS · ver deployment-target.md</size>
+
+' ─────────────────────────── Clientes ───────────────────────────
+node "<<device>>\n:EquipoDelEstudiante" as CLI_EST {
+  artifact "<<artifact>>\nNavegador o app Electron\n{build estudiante}" as UI_EST
+}
+
+node "<<device>>\n:EquipoDelProfesor" as CLI_PROF {
+  artifact "<<artifact>>\nNavegador o app Electron\n{build admin · VITE_ADMIN=1}" as UI_PROF
+}
+
+' ───────────────────────── Servidor 1 ───────────────────────────
+node "<<device>>\n:ServidorDeEstudiantes\n{multi-inquilino: N estudiantes}" as SRV_EST {
+  node "<<container>>\ntelar-frontend\n{nginx · TLS}" as NGX_EST
+  node "<<container>>\ntelar-backend\n{modo estudiante · TELAR_ADMIN_MODE=0}\n{REQUIERE autenticación (hoy no existe)}" as BE_EST
+  database "<<relational>>\nDB de aprendizaje" as DB_EST {
+    artifact "<<artifact>>\njobs · quiz_attempts · lesson_progress\n{REQUIERE columna user_id (hoy no existe)}" as T_EST
+  }
+}
+
+' ───────────────────────── Servidor 2 ───────────────────────────
+node "<<device>>\n:ServidorDeProfesores\n{acceso restringido}" as SRV_PROF {
+  node "<<container>>\ntelar-frontend\n{nginx · build admin}" as NGX_PROF
+  node "<<container>>\ntelar-backend\n{TELAR_ADMIN_BUILD=1 · TELAR_ADMIN_MODE=1}" as BE_PROF
+  database "<<relational>>\nDB de autoría" as DB_PROF {
+    artifact "<<artifact>>\nborradores · versiones · auditoría\n{NO duplica el progreso del estudiante}" as T_PROF
+  }
+}
+
+' ───────────────────────── Servidor 3 ───────────────────────────
+node "<<device>>\n:ServidorDeCursos" as SRV_CUR {
+  database "<<documentStore>>\nContenido publicado" as DB_CUR {
+    artifact "<<artifact>>\nmódulos · lecciones · ejemplos · quizzes\n{1 documento por módulo, leído entero}" as DOC_CUR
+  }
+}
+
+' ───────────────── Servidor 4: la pieza que faltaba ─────────────
+node "<<device>>\n:ServidorDeEjecución\n{DECISIÓN ABIERTA: separado o dentro del servidor de estudiantes}" as SRV_EXE #line.dashed {
+  node "<<container>>\ntelar-worker\n{consume la cola · 1 runner por job}" as WORKER
+  node "<<container>>\ntelar-run-<jobId>\n{efímero · network=none · user=10001}\n{cap-drop=ALL · read-only · mem=512m · pids=128}" as RUNNER_T {
+    artifact "<<artifact>>\n/work/main.py\n{código del estudiante · solo lectura}" as CODE_T
+  }
+}
+
+' ───────────────────────── Nube ─────────────────────────────────
+cloud "<<cloud>>\n:AlmacenamientoDeObjetos\n{PROVEEDOR POR DECIDIR}\n\n" as NUBE #line.dashed {
+  artifact "<<artifact>>\nvideos e imágenes de lecciones" as OBJ_MEDIA
+  artifact "<<artifact>>\nadjuntos y entregas" as OBJ_UP
+  artifact "<<artifact>>\ncopias de seguridad de las DB" as OBJ_BAK
+}
+
+' ─────────────────── Interfaces (tipadas, no simétricas) ────────
+interface "IContenido\n(solo lectura)" as I_READ
+interface "IContenido\n(publicación)" as I_WRITE
+
+' ───────────────────────── Conexiones ───────────────────────────
+UI_EST  --> NGX_EST  : <<HTTPS:443>>\nUI + REST + WSS (mismo origen)
+UI_PROF --> NGX_PROF : <<HTTPS:443>>\nUI + REST de autoría
+
+NGX_EST  --> BE_EST  : proxy /api/ /ws/
+NGX_PROF --> BE_PROF : proxy /api/ /ws/
+
+BE_EST  --> DB_EST  : lectura y escritura\ndel progreso
+BE_PROF --> DB_PROF : borradores y auditoría
+
+BE_EST  -( I_READ  : consume
+I_READ  -- DB_CUR
+DB_CUR  -- I_WRITE
+I_WRITE )- BE_PROF : publica
+
+BE_EST  --> WORKER   : <<cola de trabajos>>\nencolar + suscribirse al stream
+WORKER  --> RUNNER_T : create · start · wait\nstats · kill · remove
+
+BE_PROF --> NUBE : sube media al publicar
+BE_EST  --> NUBE : firma URLs de lectura
+
+' Orden de izquierda a derecha igual al del boceto, sin dibujar aristas
+SRV_EST -[hidden]right- SRV_CUR
+SRV_CUR -[hidden]right- SRV_PROF
+CLI_EST -[hidden]right- CLI_PROF
+SRV_EXE -[hidden]right- NUBE
+
+legend bottom
+  **Cinco decisiones que este diagrama deja abiertas** (detalle y recomendación en deployment-target.md)
+  D1 · Identidad: hoy NO hay usuarios. lesson_progress tiene lesson_id como clave primaria, o sea
+  UNA fila por lección para TODA la base: dos estudiantes en el mismo servidor se pisan el progreso.
+  D2 · Ejecución: el runner no aparecía en el boceto y es la pieza cara. ¿Servidor propio o dentro
+  del de estudiantes? Hoy el límite es un semáforo en memoria de 2 jobs por proceso.
+  D3 · Reparto de las dos DB relacionales: aprendizaje (estudiante) y autoría (profesor) NO son
+  copias la una de la otra; si lo fueran, no habría forma de reconciliarlas.
+  D4 · Contenido no relacional: se ganan documentos leídos de una pieza y se pierden las FK y el
+  UNIQUE de "order" que hoy garantizan el orden global de las lecciones.
+  D5 · Nube: el proveedor puede decidirse después SI se fija ya el contrato que debe cumplir:
+  API compatible con S3, URLs firmadas con caducidad y ningún objeto de lectura pública.
+  ---
+  Dos reglas que no se dibujan para no cruzar el diagrama: (a) el navegador descarga el video
+  DIRECTAMENTE de la nube con una URL firmada, sin proxearlo por el backend; (b) el profesor lee el
+  progreso agregado por una API del servidor de estudiantes, nunca abriendo su base de datos.
+endlegend
+
+@enduml

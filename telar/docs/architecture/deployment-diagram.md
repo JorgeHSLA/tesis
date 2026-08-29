@@ -6,6 +6,10 @@ comunican. Complementa el diagrama de **componentes** de
 [`architecture.md` §1.1](architecture.md), que describe la estructura lógica y
 no dice nada sobre dónde vive cada cosa en tiempo de ejecución.
 
+> Para el despliegue **distribuido** que aún no existe (tres servidores y
+> almacenamiento en nube), ver [`deployment-target.md`](deployment-target.md).
+> Este documento describe solo lo que está implementado y verificado.
+
 Telar se despliega en **tres topologías distintas**, no en una. No son variantes
 cosméticas del mismo dibujo: cambia quién sirve la UI, cambia si el backend vive
 en un contenedor y cambia cómo llega el código del estudiante al runner. Por eso
