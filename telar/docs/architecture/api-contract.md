@@ -62,10 +62,20 @@ usan el envelope:
 | 503 | `RUNNER_IMAGE_MISSING` | La imagen `telar-runner` no existe en el daemon |
 | 401 | `UNAUTHORIZED` | **(Fase 4, §10)** Endpoint `/admin/*` con el modo autoría apagado (despliegue "estudiante", sin `TELAR_ADMIN_MODE`). _Nota 2026-07-26: ya no hay login/token; el gate es de despliegue (ver §10.0)_ |
 | 404 | `MODULE_NOT_FOUND` | **(Fase 4, §10)** id de módulo inexistente |
-| 409 | `DUPLICATE_ID` | **(Fase 4, §10)** Crear contenido con un id ya usado (módulo, o lección/ejemplo — comparten namespace) |
-| 409 | `ORDER_CONFLICT` | **(Fase 4, §10)** `order` de módulo o de lección colisiona con otro existente |
+| 409 | `DUPLICATE_ID` | **(Fase 4, §10 · Fase 5, §11)** Crear contenido con un id ya usado, **o** instalar un bundle que reclama un `lesson_id`/`example_id`/id de pregunta que ya pertenece a otro módulo local |
+| 409 | `ORDER_CONFLICT` | **(Fase 4, §10)** `order` de módulo colisiona con otro existente, o `order` de lección colisiona **dentro de su mismo módulo** (E2: desde Fase 5 la unicidad es por `(module_id, order)` sobre las lecciones no archivadas, ya no global) |
 | 409 | `MODULE_NOT_EMPTY` | **(Fase 4, §10)** Borrar un módulo que aún tiene lecciones |
-| 422 | `CONTENT_VALIDATION_ERROR` | **(Fase 4, §10)** Falla una regla de negocio de contenido (refs módulo↔lección, `correct_key` ∈ opciones, `parser_id` válido, markdown fuera del subset, coherencia threads/GPU, unicidad). `details` = lista por campo |
+| 422 | `CONTENT_VALIDATION_ERROR` | **(Fase 4, §10 · Fase 5, §11)** Falla una regla de negocio de contenido (refs módulo↔lección, `correct_key` ∈ opciones, `parser_id` válido, markdown fuera del subset, coherencia threads/GPU, `completion_rule` coherente, `video_url` que no es de YouTube, unicidad). `details` = lista por campo |
+| 404 | `REMOTE_MODULE_NOT_FOUND` | **(Fase 5, §11)** El `module_id` (o la `version` pedida) no está en el catálogo remoto |
+| 404 | `MODULE_NOT_INSTALLED` | **(Fase 5, §11)** Actualizar o desinstalar un módulo sin fila en `installed_modules` |
+| 409 | `MODULE_ALREADY_INSTALLED` | **(Fase 5, §11)** Instalar un módulo ya instalado (la vía es `…/update`) |
+| 409 | `VERSION_CONFLICT` | **(Fase 5, §11)** `version` no monótona: publicar una `version` ≤ la ya publicada, o actualizar a una `to_version` ≤ la instalada |
+| 409 | `CHECKSUM_MISMATCH` | **(Fase 5, §11)** El sha256 del bundle descargado ≠ el del índice o ≠ el `expected_checksum` del request |
+| 413 | `BUNDLE_TOO_LARGE` | **(Fase 5, §11)** Bundle > `TELAR_CATALOG_MAX_BUNDLE_BYTES` |
+| 422 | `BUNDLE_INVALID` | **(Fase 5, §11)** El JSON no parsea, `bundle_format` desconocido, campos extra (`extra="forbid"`), tipos o patrones de id inválidos |
+| 403 | `CATALOG_CREDENTIALS_INVALID` | **(Fase 5, §11)** Publicar sin credencial de escritura utilizable: `TELAR_GCS_CREDENTIALS` vacío, archivo inexistente o ilegible, permisos más laxos que `0600`, JSON que no es clave de cuenta de servicio, o la cuenta sin permiso sobre el bucket |
+| 503 | `CATALOG_DISABLED` | **(Fase 5, §11)** `TELAR_CATALOG_BUCKET` vacío: este despliegue no tiene catálogo remoto |
+| 503 | `CATALOG_UNAVAILABLE` | **(Fase 5, §11)** El bucket no responde: DNS/TLS/timeout, 5xx, 429, bucket privado o inexistente, o corrupción de transporte |
 
 ---
 
@@ -110,6 +120,12 @@ UI muestra.
       "max_timeout_s": 120,
       "max_concurrent_jobs": 2,
       "max_output_bytes": 262144
+    },
+    "catalog": {
+      "enabled": true,
+      "bucket": "telar-modulos",
+      "mode": "anonymous",
+      "last_checked_at": "2026-08-29T12:00:00.000Z"
     }
   },
   "error": null, "meta": null
@@ -117,6 +133,13 @@ UI muestra.
 ```
 
 - `max_threads = min(8, cores)` — techo del slider.
+- **(Fase 5)** `catalog` describe el catálogo remoto de módulos (§11).
+  `enabled:false` (con `bucket:null`) significa que este despliegue no tiene
+  bucket configurado: el frontend **oculta** el item «Módulos disponibles» del
+  rail en vez de mostrarlo roto. `mode` es `"anonymous"` en la imagen del
+  estudiante (solo lectura) y `"admin"` donde hay credencial de escritura.
+  `last_checked_at` es el último sondeo conocido, **nunca** un sondeo hecho
+  dentro de esta petición: `/system` no puede bloquearse por la red.
 - `limits.max_timeout_s` es el valor crudo de `TELAR_MAX_TIMEOUT_S`. El tope de
   timeout es **OPCIONAL**: `0` (o cualquier valor ≤ 0) significa **sin límite**
   y es el valor por defecto. El ejemplo de arriba muestra un despliegue que sí
@@ -213,9 +236,12 @@ Errores: `404 EXAMPLE_NOT_FOUND`.
 
 ## 4. Cursos: módulos y lecciones
 
-Contenido = fixtures (8 módulos, 14 lecciones, 1 lección por ejemplo,
-`lesson_id == example_id`). El progreso (mutable, en SQLite) viene **fusionado**
-para que el catálogo se pinte con una sola llamada.
+Contenido = los **N módulos instalados** en esta máquina (el baseline sembrado
+desde fixtures, más los que el estudiante haya incorporado del catálogo remoto,
+§11). Una lección tiene **0 o 1 ejemplo** (E1: `example_id` es nullable y ya
+**no** coincide con el `lesson_id`) y su `order` es único **por módulo** (E2).
+El progreso (mutable, en SQLite) viene **fusionado** para que el catálogo se
+pinte con una sola llamada.
 
 ### 4.1 `GET /api/v1/modules` — catálogo completo
 
@@ -232,6 +258,9 @@ para que el catálogo se pinte con una sola llamada.
         "title": "Patrón SPMD y false sharing",
         "description": "Reparto manual con omp_get_thread_num; false sharing y su arreglo (privado + critical).",
         "level": "Intermedio",
+        "version": 1,
+        "origin": "local",
+        "update_available": null,
         "lessons": [
           {
             "id": "spmd",
@@ -239,16 +268,19 @@ para que el catálogo se pinte con una sola llamada.
             "title": "π con patrón SPMD (false sharing)",
             "example_id": "spmd",
             "has_quiz": true,
+            "has_video": false,
             "quiz_question_count": 5,
             "estimated_minutes": 20,
             "enabled": true,
+            "completion_rule": "quiz",
             "progress": { "viewed": true, "completed": false, "best_quiz_score": 4, "quiz_total": 5 }
           }
         ]
       }
     ],
     "summary": { "lessons_total": 14, "lessons_enabled": 13, "lessons_completed": 5,
-                 "quizzes_total": 14, "questions_enabled_total": 60 }
+                 "quizzes_total": 14, "questions_enabled_total": 60,
+                 "modules_installed": 8, "modules_updatable": 0 }
   },
   "error": null, "meta": null
 }
@@ -257,6 +289,16 @@ para que el catálogo se pinte con una sola llamada.
 - `progress` es `{"viewed":false,"completed":false,"best_quiz_score":null,"quiz_total":n}`
   si no hay registro.
 - La lección GPU (`sumaVectoresGPU`) aparece con `enabled:false`.
+- **(Fase 5)** `example_id` es **nullable**: una lección conceptual no tiene
+  código y no debe ofrecer affordance de ejecución — no un botón deshabilitado,
+  sino ningún botón.
+- **(Fase 5)** `completion_rule` ∈ `"quiz" | "viewed" | "run"` dice qué cuenta
+  como completar esa lección (E4); `has_video` indica si tiene video de YouTube
+  asociado, sin exponer la URL en el listado.
+- **(Fase 5)** `Module` gana `version` (entero monótono), `origin`
+  (`"local" | "remote"`) y `update_available` (la versión disponible en el
+  bucket, o `null`). `modules."order"` **puede tener huecos**: instalar es à la
+  carte, así que la UI numera por posición, no por el valor de `order`.
 
 ### 4.2 `GET /api/v1/lessons/{lesson_id}` — lección completa
 
@@ -271,11 +313,14 @@ para que el catálogo se pinte con una sola llamada.
     "order": 3,
     "title": "π con patrón SPMD (false sharing)",
     "content_markdown": "# π con SPMD\n\nCalcula el mismo π que `for/` pero SIN `parallel for`…",
+    "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "example_id": "spmd",
     "has_quiz": true,
     "quiz_question_count": 5,
     "estimated_minutes": 20,
     "enabled": true,
+    "completion_rule": "quiz",
+    "archived": false,
     "prev_lesson_id": "for",
     "next_lesson_id": "spmdCritical",
     "recommended": [
@@ -294,6 +339,16 @@ para que el catálogo se pinte con una sola llamada.
 - `content_markdown` = el `info*.md` portado (para `for/`, cuyo info está
   vacío, la lección se redactó desde el código + README — ya prevista en los
   fixtures).
+- **(Fase 5)** `video_url`: URL del video de **esa** lección en YouTube no
+  listado, o `null`. Es **por lección**, no por módulo. El servidor la sirve ya
+  normalizada (extrae el id de 11 caracteres y descarta el resto de la URL
+  recibida) y el cliente reconstruye el embed sobre `youtube-nocookie.com`.
+  Con `null`, el reproductor **no se monta**: no hay marco vacío ni placeholder.
+  Los videos **no se descargan nunca**; el contenido transporta el enlace.
+- **(Fase 5)** `example_id` nullable y `completion_rule` — ver §4.1.
+  `archived: true` marca una lección que desapareció de una versión posterior de
+  su módulo: sigue siendo legible y conserva su progreso, pero queda fuera de la
+  ruta lineal (`prev_lesson_id`/`next_lesson_id` la saltan) — §11.6.
 - Errores: `404 LESSON_NOT_FOUND`.
 
 ---
@@ -445,6 +500,24 @@ Errores: `404 LESSON_NOT_FOUND`, `422 VALIDATION_ERROR`.
 Nota: `completed` también se activa automáticamente al aprobar el quiz (§5.2);
 `viewed` lo marca el frontend al abrir la lección. `best_quiz_score` y
 `last_job_id` NO son escribibles por este endpoint (los gestiona el backend).
+
+**(Fase 5 · E4) `completion_rule` decide quién puede escribir `completed`:**
+
+| `completion_rule` | Qué completa la lección | `completed:true` del cliente |
+|---|---|---|
+| `"quiz"` (por defecto) | Aprobar el quiz (§5.2) | **Se ignora**, y la respuesta trae el registro real |
+| `"viewed"` | El estudiante la marca como leída | **Se acepta**: es la única vía |
+| `"run"` | Terminar bien un job del ejemplo de la lección | **Se ignora**; lo activa el backend al finalizar el job |
+
+Se **ignora**, no se responde `422`, por coherencia con la regla que este mismo
+endpoint ya tiene para `best_quiz_score`/`last_job_id`: los campos que el cliente
+no gobierna se descartan en silencio y la respuesta dice la verdad. El registro
+resultante añade `completed_via ∈ {"quiz","manual","run"} | null`, que es lo que
+permite distinguir «aprobó» de «dijo que la leyó» al actualizar el módulo (§11.6).
+
+Una lección con `completion_rule:"quiz"` pero **sin** quiz sería incompletable:
+esa combinación se rechaza al escribir contenido (`422 CONTENT_VALIDATION_ERROR`,
+§10.6), no al leerlo.
 
 ---
 
@@ -958,6 +1031,19 @@ C:      GET /api/v1/jobs/01a2…   → parsed_timings (curva de speedup)
 | GET | `/api/v1/admin/examples/{id}` | Ejemplo con código (admin) (§10) | 200 | 401, 404 |
 | PUT | `/api/v1/admin/examples/{id}` | Editar metadatos del ejemplo (§10) | 200 | 401, 404, 422 |
 | POST | `/api/v1/admin/examples/{id}/code` | Subir el `.py` del ejemplo (§10) | 200 | 401, 404, 413, 415, 422 |
+| POST | `/api/v1/admin/lessons/{id}/example` | Crear/reemplazar el ejemplo de una lección (§10.4) | 200 | 401, 404, 409, 413, 422 |
+| DELETE | `/api/v1/admin/lessons/{id}/example` | Quitar el ejemplo (la lección pasa a teórica) (§10.4) | 200 | 401, 404 |
+| GET | `/api/v1/catalog/status` | Qué está instalado y qué tiene actualización (**offline-safe**) (§11.4) | 200 | — |
+| POST | `/api/v1/catalog/refresh` | Comprobar el bucket y refrescar el estado (§11.4) | 200 | 422, 503 |
+| GET | `/api/v1/catalog/remote` | Catálogo remoto (red o caché) (§11.5) | 200 | 422, 503 |
+| GET | `/api/v1/catalog/remote/{id}` | Detalle de un módulo remoto, sin instalar (§11.5) | 200 | 404, 409, 413, 422, 503 |
+| POST | `/api/v1/catalog/install` | Incorporar un módulo (§11.6) | 201 | 404, 409, 413, 422, 503 |
+| GET | `/api/v1/catalog/modules/{id}/update/preview` | Diff de actualización: qué conservo, qué pierdo (§11.6) | 200 | 404, 409, 413, 422, 503 |
+| POST | `/api/v1/catalog/modules/{id}/update` | Actualizar conservando el progreso (§11.6) | 200 | 404, 409, 413, 422, 503 |
+| DELETE | `/api/v1/catalog/modules/{id}` | Quitar un módulo incorporado (§11.6) | 200 | 404 |
+| GET | `/api/v1/admin/catalog/credentials` | Estado de la clave de la cuenta de servicio (§11.8) | 200 | 401, 503 |
+| POST | `/api/v1/admin/catalog/import` | Descargar un módulo para editarlo (§11.7) | 201 | 401, 404, 409, 413, 422, 503 |
+| POST | `/api/v1/admin/modules/{id}/publish` | Publicar el módulo en el bucket (§11.8) | 201/200 | 401, 403, 404, 409, 413, 422, 503 |
 
 ---
 
@@ -1020,12 +1106,25 @@ ellos.
 
 ### 10.1 Invariantes de contenido
 
-- **`lesson_id == example_id`** (invariante de dominio de Fase 3) **se mantiene**:
-  cada lección tiene exactamente un ejemplo con su mismo id. Por eso **no existen
-  POST/DELETE de ejemplos independientes**: un ejemplo nace y muere con su
-  lección. `POST /admin/lessons` crea, en una sola transacción, la fila de la
-  lección + la del ejemplo pareado (con `source_code`); `DELETE /admin/lessons/{id}`
-  borra lección + ejemplo + quiz (CASCADE) y limpia `recommended` colgantes.
+- **`lesson_id == example_id` queda DEROGADO en Fase 5** (era invariante de
+  dominio de Fase 3). Ese acoplamiento —el ejemplo compartía clave primaria con
+  la lección— hacía **imposible** una lección sin código, y con ella todo el
+  track conceptual («¿qué es un hilo?», «concurrencia vs paralelismo») que un
+  curso de paralelismo necesita antes del primer `parallel for`. Desde Fase 5:
+  - el ejemplo tiene **id propio** y una columna `lesson_id UNIQUE` nullable:
+    **0 o 1 ejemplo por lección**, y un ejemplo pertenece como mucho a una;
+  - `POST /admin/lessons` acepta `example: null` (lección teórica) y sigue
+    creando lección + ejemplo en una sola transacción cuando se envía;
+  - existen `POST /admin/lessons/{id}/example` y
+    `DELETE /admin/lessons/{id}/example` para añadir o quitar el código de una
+    lección ya creada, sin borrarla;
+  - `DELETE /admin/lessons/{id}` sigue borrando lección + ejemplo + quiz
+    (CASCADE) y limpiando `recommended` colgantes.
+- **El `order` de lección es único por `(module_id, order)`**, ya no global
+  (E2). La unicidad se aplica solo a las lecciones **no archivadas**: una
+  lección archivada (§11.6) libera su hueco. Colisión ⇒ `409 ORDER_CONFLICT`.
+  `modules."order"` **sigue** siendo único global, y por eso el instalador de
+  módulos remotos reasigna el `order` cuando el sugerido ya está tomado.
 - **Purga del estado del estudiante al borrar una lección** *(extensión
   deliberada — fixes de auditoría S2, BL-01)*: `DELETE /admin/lessons/{id}`
   elimina además las filas de `lesson_progress` y `quiz_attempts` de ese
@@ -1037,8 +1136,20 @@ ellos.
   lección; las filas de `jobs` (con su `lesson_id` textual) se conservan como
   telemetría histórica.
 - **`module.lessons` es derivado** (no se envía en el create/update de módulo):
-  la pertenencia es `lessons.module_id` y el orden intra-módulo se deriva del
-  `order` global de las lecciones.
+  la pertenencia es `lessons.module_id` y el orden intra-módulo es el `order`
+  de las lecciones dentro de ese módulo. La ruta lineal del curso
+  (`prev_lesson_id`/`next_lesson_id`) se deriva de `(modules."order",
+  lessons."order")` y **salta las lecciones archivadas**.
+- **`completion_rule` decide qué completa una lección** (E4): `"quiz"` (aprobar
+  el quiz, por defecto), `"viewed"` (el estudiante la marca) o `"run"` (ejecutar
+  bien su ejemplo). Debe ser coherente con lo que la lección tiene: `"quiz"`
+  exige quiz y `"run"` exige ejemplo, o `422 CONTENT_VALIDATION_ERROR` (§10.6).
+  Sin esta regla, una lección teórica con la regla por defecto sería
+  **incompletable** y bloquearía el progreso de su módulo.
+- **`video_url` es opcional y por lección**: URL de YouTube no listado. Se
+  valida y se **normaliza** al escribir (se extrae el id del video y se descarta
+  el resto de la URL). Los videos no se almacenan ni se distribuyen: viaja el
+  enlace.
 - **Efecto de toda escritura**: se valida (§10.4) → se persiste bajo `write_lock`
   → se **recarga atómicamente** el snapshot en memoria de contenido. Tras un
   `2xx`, el **siguiente** GET público (§3–§5) ya sirve el contenido nuevo; el
@@ -1072,7 +1183,7 @@ completo ya reordenado. El mismo `AdminReorderRequest` sirve para lecciones
 (§10.3). *(La UI puede seguir usando el workaround de `order` libre temporal; este
 endpoint lo hace innecesario.)*
 
-### 10.3 Lecciones (unidad lección + ejemplo pareado)
+### 10.3 Lecciones (con ejemplo opcional desde Fase 5)
 
 | Método | Path | Request | Data | Errores |
 |---|---|---|---|---|
@@ -1081,21 +1192,35 @@ endpoint lo hace innecesario.)*
 | PUT | `/admin/lessons/reorder` | `AdminReorderRequest` | `{ "modules": [AdminModule…] }` | 401, 404 `LESSON_NOT_FOUND`, 409 `ORDER_CONFLICT`, 422 |
 | PUT | `/admin/lessons/{id}` | `AdminLessonUpdate` | `AdminLessonDetail` | 401, 404, 409 `ORDER_CONFLICT`, 422 |
 | DELETE | `/admin/lessons/{id}` | — | `{ "deleted": true, "id": "…" }` | 401, 404 |
+| POST | `/admin/lessons/{id}/example` | `AdminExampleBase` + `source_code` | `AdminExample` | 401, 404, 409 `DUPLICATE_ID`, 413 `CODE_TOO_LARGE`, 422 |
+| DELETE | `/admin/lessons/{id}/example` | — | `{ "deleted": true, "lesson_id": "…" }` | 401, 404 |
 
 `AdminLessonBase` = `{ module_id, order, title, estimated_minutes, content_markdown,
-recommended: [{lesson_id,label,tag}] }`. `AdminLessonCreate` = base + `{ id, example:
-AdminExampleBase, source_code }` (crea el ejemplo pareado). `AdminLessonUpdate` = base.
-`AdminLessonDetail` = base + `{ id, enabled, has_quiz, quiz_question_count,
-prev_lesson_id, next_lesson_id, example: AdminExample }`.
+video_url, enabled, completion_rule, recommended: [{lesson_id,label,tag}] }`.
+`AdminLessonCreate` = base + `{ id, example: AdminExampleBase | null, source_code:
+str | null }`. `AdminLessonUpdate` = base.
+`AdminLessonDetail` = base + `{ id, has_quiz, quiz_question_count, archived,
+prev_lesson_id, next_lesson_id, example: AdminExample | null }`.
+
+**Fase 5 — la lección puede no tener ejemplo.** `example` y `source_code` son
+opcionales en `AdminLessonCreate`: enviarlos crea lección + ejemplo en una sola
+transacción (como en Fase 4), omitirlos crea una **lección teórica**.
+`AdminLessonDetail.example` es `null` en ese caso — y `GET /admin/lessons/{id}`
+responde **`200`**, no `404`: la lección existe aunque no tenga código.
+`enabled` deja de derivarse del ejemplo y pasa a ser un campo propio de la
+lección; sin él, una lección sin ejemplo quedaría deshabilitada en silencio.
 
 `PUT /admin/lessons/reorder` reordena lecciones por lote con la misma semántica y
-el mismo `AdminReorderRequest` que los módulos (§10.2): `order` de lección es
-`UNIQUE` global, cada `id` debe existir (`404 LESSON_NOT_FOUND`) y el conjunto
-final de `order` debe ser único y `> 0` (`409 ORDER_CONFLICT`). Devuelve
-`{ "modules": [AdminModule…] }` (el listado admin, con las lecciones ya en su
-nuevo orden intra-módulo).
+el mismo `AdminReorderRequest` que los módulos (§10.2). Desde Fase 5 el `order`
+de lección es único **por módulo**, así que `AdminReorderItem` gana
+**`module_id: str | null`** (opcional; si falta, el servidor lo resuelve contra
+el módulo actual de la lección, de modo que los payloads de Fase 4 siguen siendo
+válidos). Cada `id` debe existir (`404 LESSON_NOT_FOUND`) y el conjunto final de
+`(module_id, order)` debe ser único y con `order > 0` (`409 ORDER_CONFLICT`).
+Enviar `module_id` mueve además la lección a ese módulo. Devuelve
+`{ "modules": [AdminModule…] }`.
 
-### 10.4 Ejemplos (solo edición) y subida de código
+### 10.4 Ejemplos (id propio desde Fase 5) y subida de código
 
 | Método | Path | Request | Data | Errores |
 |---|---|---|---|---|
@@ -1106,8 +1231,11 @@ nuevo orden intra-módulo).
 `AdminExampleBase` (metadatos editables) = `{ title, filename, difficulty, teaches,
 directives[], threads_configurable, fixed_threads, fixed_threads_note, sweeps_threads,
 self_measures, parser_id, default_timeout_s, est_run_seconds, enabled, requires_gpu,
-expected_output_note, takeaways[] }`. `AdminExample` = base + `{ id, module_id, order,
-source_code }`. `POST …/code` reutiliza el **mismo** validador estricto de §7.2
+expected_output_note, takeaways[] }`. `AdminExample` = base + `{ id, lesson_id, module_id, order,
+source_code }`. **Fase 5**: `id` es **propio del ejemplo** y ya no coincide con
+el de su lección; `lesson_id` (`str | null`) dice a qué lección pertenece, con
+unicidad — una lección tiene 0 o 1 ejemplo. `module_id` y `order` se derivan de
+esa lección por `JOIN`, y son `null` para un ejemplo sin lección asignada. `POST …/code` reutiliza el **mismo** validador estricto de §7.2
 (filename `^[A-Za-z0-9._-]{1,80}\.py$`, ≤ 262 144 bytes leídos por chunks, decode
 UTF-8) y guarda `source_code`+`filename` en la fila del ejemplo. `AdminExampleCodeResult`
 = `{ example_id, filename, bytes }`.
@@ -1151,7 +1279,9 @@ devuelto siempre trae los ids ya resueltos. **Este es el único endpoint que exp
 ### 10.6 Reglas de validación de contenido (runtime)
 
 Sustituyen a las invariantes fail-fast de conteo de Fase 3 (14=14=14, 60 preguntas
-dejan de ser obligatorias: el contenido es mutable). Se validan **por escritura**,
+dejan de ser obligatorias: el contenido es mutable). **Desde Fase 5 se aplican
+igual al contenido que llega del bucket** (§11.10): un bundle remoto es entrada
+no confiable y pasa por estas mismas reglas antes de tocar la base de datos. Se validan **por escritura**,
 fail-fast, devolviendo `422 CONTENT_VALIDATION_ERROR` con `details = [{field, reason}]`
 salvo donde se indica otro código:
 
@@ -1161,8 +1291,18 @@ salvo donde se indica otro código:
 - **Unicidad**: `id` nuevo ya usado (namespace compartido lección/ejemplo, o
   módulo) → `409 DUPLICATE_ID`; ids de pregunta duplicados o keys de opción
   duplicadas → `422`.
-- **Orden**: `order` global de lección o `order` de módulo colisiona →
-  `409 ORDER_CONFLICT`.
+- **Orden**: `order` de módulo (único **global**) o `order` de lección (único
+  **por `(module_id, order)`** entre las lecciones no archivadas, E2) colisiona
+  → `409 ORDER_CONFLICT`.
+- **Completitud (E4)**: `completion_rule ∈ {"quiz","viewed","run"}`, coherente
+  con lo que la lección tiene — `"quiz"` exige quiz, `"run"` exige ejemplo. Una
+  lección con `"quiz"` y sin quiz sería incompletable y bloquearía el progreso
+  de su módulo, así que se rechaza al escribir, no al leer.
+- **Video**: `video_url` vacío o `null` ⇒ sin video. Si viene, debe ser una URL
+  `https` de YouTube (`youtube.com/watch?v=`, `youtu.be/`, `/embed/`,
+  `/shorts/`) con un id válido de 11 caracteres; se **normaliza** al guardarla
+  (se conserva el id, se descarta el resto). Cualquier otro host o esquema →
+  `422`. Los videos nunca se descargan ni se sirven desde Telar.
 - **Contenido**: `correct_key ∈ keys(options)`; `parser_id` ∈ los 6 de §3.1;
   `filename` cumple el patrón `.py`; `source_code` `1 ≤ bytes ≤ max_code_bytes`
   (`413 CODE_TOO_LARGE`; el tope es `TELAR_MAX_CODE_BYTES`, por defecto 262144, y se
@@ -1178,3 +1318,1429 @@ salvo donde se indica otro código:
   cap estático: el tope es opcional y se aplica en runtime solo si
   `TELAR_MAX_TIMEOUT_S > 0`), `pass_threshold ∈ (0,1]`, `takeaways` no vacío,
   etc. → `422 VALIDATION_ERROR`.
+
+---
+
+## 11. Catálogo remoto de módulos publicables (Fase 5)
+
+> **Estado: CONGELADO (Fase 5).** Sección **aditiva**:
+> extiende el contrato sin romper §1–§9, pero **sí obliga a editar** §1.1, §2.2,
+> §4.1, §4.2, §9 y §10 (lista exacta de ediciones en §11.12). El módulo del curso
+> pasa a ser la **unidad publicable y distribuible**: un admin lo publica como un
+> JSON en un bucket de Google Cloud Storage; un estudiante ve el catálogo remoto,
+> **elige** qué módulos incorporar, los descarga y más tarde los actualiza **sin
+> perder su progreso**.
+> DTOs: `backend/app/schemas/catalog.py` + `backend/app/schemas/admin_catalog.py`
+> · `frontend/src/api/catalog-types.ts` + `frontend/src/api/admin-types.ts`.
+
+### 11.0 Principios de la sección (leer antes que cualquier endpoint)
+
+1. **El bucket guarda SOLO contenido educativo.** Jamás progreso, identidad ni
+   telemetría. **Cero PII.** Ningún endpoint de §11 envía al bucket nada
+   derivado de `lesson_progress`, `quiz_attempts` o `jobs`.
+2. **SQLite sigue siendo el almacén local de TODO lo local**: jobs, progreso,
+   intentos de quiz y **también el contenido ya instalado**. El JSON es el
+   **formato de intercambio**, no el almacén.
+3. **El manifiesto de selección vive en SQLite**, tabla `installed_modules`
+   (`data-model.md` §8.2), no en un archivo suelto. Qué módulos y en qué versión
+   decidió instalar el estudiante.
+4. **El frontend nunca habla con GCS.** Solo consume los endpoints locales de
+   §11. Razones: la CSP de Electron (`electron-spec.md` §7.1) solo abre
+   `youtube-nocookie.com`; `config.ts` resuelve `API_BASE` en runtime justo para
+   no hornear orígenes; y la validación del contenido no confiable tiene que
+   ocurrir donde vive el `write_lock` y el patrón `_persist`.
+5. **Lectura anónima, escritura con cuenta de servicio.** El estudiante **no se
+   loguea nunca**: el bucket concede `roles/storage.objectViewer` a `allUsers` y
+   se lee sin credencial (dos GET a `storage.googleapis.com`). El **admin**
+   escribe con una **cuenta de servicio** cuya clave JSON vive en
+   `TELAR_GCS_CREDENTIALS` (§11.8.1).
+   *Alternativa descartada — OAuth loopback con la cuenta Google del admin:* es
+   viable (Authorization Code + PKCE contra `127.0.0.1`, RFC 8252) y más vistoso,
+   pero con la pantalla de consentimiento en modo *Testing* la autorización —y su
+   `refresh_token`— **caduca a los 7 días**, y `devstorage.read_write` es un scope
+   sensible que exige verificación de Google para publicar la app. Para un
+   despliegue con **un solo admin**, re-autenticarse cada semana para poder
+   publicar es peor que custodiar un archivo de clave.
+6. **Contenido remoto = ENTRADA NO CONFIABLE.** Se valida con el mismo rigor que
+   el código del estudiante: DTOs con `extra="forbid"`, topes de tamaño **antes**
+   de descargar, y las mismas reglas de §10.6 sobre el contenido del bundle.
+7. **INVARIANTE CENTRAL: los `lesson_id` son ESTABLES entre versiones de un
+   módulo.** El progreso se ancla en `lesson_id`. Actualizar es un **UPSERT**
+   sobre los mismos ids, nunca «borrar y recrear» (eso purgaría
+   `lesson_progress`/`quiz_attempts`, §10.1 BL-01). Un `lesson_id` que
+   desaparece entre versiones es una **pérdida de avance anunciada** (§11.6).
+8. **`/cursos` NO puede bloquearse por el bucket.** El modo offline es un caso de
+   uso, no un fallo (§11.9).
+
+**Alternativa rechazada — jobs + WebSocket para la descarga.** Los bundles están
+acotados a `TELAR_CATALOG_MAX_BUNDLE_BYTES` (4 MiB por defecto): instalar es una
+request **síncrona** con timeout `TELAR_CATALOG_TIMEOUT_S`. No se reutiliza la
+máquina de fases de §7.7 ni el WS de §8 — eso es para ejecuciones de código, no
+para descargas de texto.
+
+### 11.1 Configuración (env vars nuevas, `config.py`)
+
+| Var | Default | Para qué |
+|---|---|---|
+| `TELAR_CATALOG_BUCKET` | `""` | Nombre del bucket. **Vacío ⇒ catálogo remoto DESACTIVADO**: todo §11 responde `503 CATALOG_DISABLED` y `/system` reporta `catalog.enabled=false` |
+| `TELAR_CATALOG_PREFIX` | `"modulos/"` | Prefijo de los objetos de módulo |
+| `TELAR_CATALOG_INDEX` | `"modulos/index.json"` | Objeto del índice del catálogo (§11.10) |
+| `TELAR_CATALOG_MAX_BUNDLE_BYTES` | `4194304` | Tope de bytes de un bundle. Se comprueba **con el `size` del listado, antes de descargar**, y otra vez sobre los bytes recibidos |
+| `TELAR_CATALOG_TIMEOUT_S` | `15` | Timeout por operación contra el bucket |
+| `TELAR_CATALOG_CACHE_TTL_S` | `900` | Frescura del índice cacheado; pasado el TTL, `GET /catalog/remote` sirve caché con `stale=true` |
+| `TELAR_GCS_CREDENTIALS` | `""` | **Solo admin.** Ruta al archivo de clave JSON de la **cuenta de servicio** que publica. Vacío ⇒ publicar responde `403 CATALOG_CREDENTIALS_INVALID`. Se exige `0600` o más restrictivo: si el archivo es legible por otros, el arranque **avisa** y `POST …/publish` responde `403` |
+| `TELAR_GCS_PROJECT_ID` | `""` | **Solo admin.** Opcional: la clave de servicio ya trae `project_id` embebido y es el valor por defecto. Solo hace falta para forzar otro proyecto |
+
+`TELAR_CATALOG_BUCKET` y el prefijo son configuración de **despliegue**, igual que
+`TELAR_ADMIN_MODE`: dos alumnos con buckets distintos son dos despliegues distintos.
+
+### 11.2 Reparto por build (extiende §10.0, «seguridad por AUSENCIA»)
+
+| Archivo | Imagen ESTUDIANTE (`TELAR_ADMIN_BUILD=0`) | Imagen ADMIN (`=1`) |
+|---|---|---|
+| `services/catalog_client.py` (`CatalogReadPort` + adaptador anónimo) | **sí** | sí |
+| `services/module_installer.py` | **sí** | sí |
+| `schemas/catalog.py`, `routers/catalog.py` | **sí** | sí |
+| `services/catalog_publisher.py` (`CatalogWritePort`, SDK + OAuth) | **NO se copia** | sí |
+| `schemas/admin_catalog.py`, `routers/admin_catalog.py` | **NO se copia** | sí |
+
+Consecuencia idéntica a §10.0: en la imagen estudiante `/api/v1/admin/catalog/*`
+y `/api/v1/admin/modules/{id}/publish` responden **`404`** (la ruta no existe), no
+`401`. `google-cloud-storage` solo se instala en la imagen admin (`requirements-admin.txt`): la imagen del estudiante lee el bucket con el `httpx` que el backend ya trae, sin arrastrar `requests`/`urllib3`/`google-auth`.
+
+**Patrón de puerto** (réplica literal de `DockerServicePort`, `services/docker_service.py:108-131`):
+`typing.Protocol` con `listar(prefijo)` / `descargar(object_path, *, generation, tamano_max)`
+para lectura y `publicar(object_path, cuerpo, *, content_type, metadatos, solo_si_no_existe)`
+para escritura. Los tests inyectan un `FakeCatalog` en `app.state` (como
+`tests/fakes/fake_docker.py`); **ningún test toca la red**.
+
+### 11.3 Códigos de error nuevos (se añaden a §1.1)
+
+| HTTP | `error.code` | Cuándo |
+|---|---|---|
+| 404 | `REMOTE_MODULE_NOT_FOUND` | El `module_id` (o la `version` pedida) no está en el catálogo remoto |
+| 404 | `MODULE_NOT_INSTALLED` | Actualizar/desinstalar un módulo sin fila en `installed_modules` |
+| 409 | `MODULE_ALREADY_INSTALLED` | Instalar un módulo que ya está instalado (usar `…/update`) |
+| 409 | `VERSION_CONFLICT` | `version` no monótona: publicar una `version` ≤ la ya publicada (o que ya existe como objeto), o actualizar a una `to_version` ≤ `installed_version` |
+| 409 | `CHECKSUM_MISMATCH` | El sha256 del bundle descargado ≠ el del índice o ≠ `expected_checksum` del request |
+| 409 | `DUPLICATE_ID` | *(reusado de §10)* Un `lesson_id`/`example_id`/id de pregunta del bundle ya pertenece a **otro** módulo local |
+| 413 | `BUNDLE_TOO_LARGE` | Bundle > `TELAR_CATALOG_MAX_BUNDLE_BYTES` (se detecta por `size` antes de descargar cuando el listado lo trae) |
+| 422 | `BUNDLE_INVALID` | El JSON no parsea, `bundle_format` desconocido, campos extra (`extra="forbid"`), tipos o patrones de id inválidos |
+| 422 | `CONTENT_VALIDATION_ERROR` | *(reusado de §10.6)* El contenido del bundle es sintácticamente válido pero rompe una regla de negocio. `details = [{field, reason}]` |
+| 403 | `CATALOG_CREDENTIALS_INVALID` | Publicar sin credencial de escritura utilizable: `TELAR_GCS_CREDENTIALS` vacío, archivo inexistente o ilegible, permisos más laxos que `0600`, JSON que no es una clave de cuenta de servicio, o la cuenta no tiene permiso sobre el bucket (403 de GCS) |
+| 503 | `CATALOG_DISABLED` | `TELAR_CATALOG_BUCKET` vacío: este despliegue no tiene catálogo remoto |
+| 503 | `CATALOG_UNAVAILABLE` | El bucket no responde: DNS/TLS/timeout, 5xx, 429, bucket privado o inexistente, o corrupción de transporte |
+
+**Mapa de excepciones → `CATALOG_UNAVAILABLE`** (verificado contra
+`google-cloud-storage` 3.13.1). El `except` mínimo correcto **no es**
+`except GoogleCloudError`:
+
+```python
+from google.api_core.exceptions import GoogleAPICallError, NotFound, RetryError
+from google.auth.exceptions import GoogleAuthError      # ← imprescindible
+from google.cloud.storage.exceptions import DataCorruption
+from requests.exceptions import RequestException
+```
+
+| Situación real | Excepción | Se traduce a |
+|---|---|---|
+| Bucket u objeto inexistente | `google.api_core.exceptions.NotFound` (404) | `REMOTE_MODULE_NOT_FOUND` (objeto) / `CATALOG_UNAVAILABLE` (bucket) |
+| **Bucket existe pero NO es público** | `google.auth.exceptions.InvalidOperation` («Anonymous credentials cannot be refreshed») — es `GoogleAuthError`, **no** `GoogleAPICallError` | `CATALOG_UNAVAILABLE` |
+| `generation` no coincide (objeto sobreescrito a mitad) | `PreconditionFailed` (412) | `CHECKSUM_MISMATCH` |
+| Checksum crc32c/md5 del transporte | `DataCorruption` | `CATALOG_UNAVAILABLE` (reintentable) |
+| Rate limit | `TooManyRequests` (429) | `CATALOG_UNAVAILABLE` |
+| Timeout/DNS/TLS | `RequestException`, `RetryError` | `CATALOG_UNAVAILABLE` |
+
+`error.details` de `CATALOG_UNAVAILABLE` = `{"reason": "network"|"forbidden"|"corrupt"|"rate_limit"|"server", "retry_after_s": int|null}`.
+**Nunca** el texto crudo de la excepción (mismo criterio que `jobs.error_detail`, §3 de `data-model.md`).
+
+### 11.4 Estado del catálogo (offline-safe) — el endpoint que pinta `/cursos`
+
+#### 11.4.1 `GET /api/v1/catalog/status` — qué está instalado y qué tiene actualización
+
+**Lee SOLO SQLite. Nunca toca la red.** Responde `200` siempre (aunque el bucket
+esté caído, aunque no haya bucket configurado).
+
+`200`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "catalog_enabled": true,
+    "bucket": "telar-modulos",
+    "last_checked_at": "2026-08-29T10:12:00.000Z",
+    "modules": [
+      {
+        "module_id": "m2",
+        "title": "Patrón SPMD y false sharing",
+        "origin": "remote",
+        "state": "update_available",
+        "installed_version": 3,
+        "installed_checksum": "9f2c…",
+        "available_version": 5,
+        "available_checksum": "1ab7…",
+        "object_path": "modulos/m2/v5.json",
+        "installed_at": "2026-08-01T09:00:00.000Z",
+        "updated_at": "2026-08-20T18:40:00.000Z",
+        "last_checked_at": "2026-08-29T10:12:00.000Z",
+        "lessons_total": 3,
+        "lessons_completed": 2
+      },
+      {
+        "module_id": "m1",
+        "title": "Primeros pasos con OpenMP",
+        "origin": "local",
+        "state": "local_only",
+        "installed_version": null,
+        "installed_checksum": null,
+        "available_version": null,
+        "available_checksum": null,
+        "object_path": null,
+        "installed_at": null,
+        "updated_at": null,
+        "last_checked_at": null,
+        "lessons_total": 2,
+        "lessons_completed": 2
+      }
+    ],
+    "summary": { "modules_total": 8, "installed": 5, "updatable": 1,
+                 "local_only": 3, "never_checked": 0 }
+  },
+  "error": null, "meta": null
+}
+```
+
+- `state` ∈ `"local_only" | "installed" | "update_available"` — derivado, **no**
+  almacenado: `local_only` = módulo sin fila en `installed_modules` (baseline
+  sembrado o creado por el admin); `update_available` =
+  `available_version > installed_version`.
+- `lessons_completed` sale de `lesson_progress` — **es local y jamás sale del
+  equipo**. Existe para poder decir *«si actualizas, conservas 2/3»* (§11.6).
+- Sin bucket configurado: `catalog_enabled=false`, `bucket=null`, todos los
+  módulos con `state="local_only"`. **`200`, no error.**
+
+#### 11.4.2 `POST /api/v1/catalog/refresh` — comprobar el bucket (única vía que sale a la red)
+
+Request: `{}` (sin cuerpo). Descarga el índice (§11.10), actualiza
+`available_version` / `available_checksum` / `last_checked_at` de cada fila de
+`installed_modules` en **una sola transacción bajo `write_lock`**, y devuelve el
+**mismo `CatalogStatusResponse`** de §11.4.1.
+
+| Código | Cuándo |
+|---|---|
+| 200 | Índice descargado y estado actualizado |
+| 503 `CATALOG_DISABLED` | Sin `TELAR_CATALOG_BUCKET` |
+| 503 `CATALOG_UNAVAILABLE` | Bucket inalcanzable — **`installed_modules` queda INTACTA** (ni `last_checked_at` se toca) |
+| 422 `BUNDLE_INVALID` | El índice no cumple el esquema de §11.10 |
+
+**Contrato de UI**: `/cursos` llama a `GET /catalog/status` (bloqueante, siempre
+funciona) y **luego**, como efecto no bloqueante, a `POST /catalog/refresh`. Si el
+refresh falla, no hay chips de actualización y **no se pinta ningún `ErrorState`**.
+
+### 11.5 CU-35 · Explorar el catálogo de módulos disponibles (cualquier usuario)
+
+#### 11.5.1 `GET /api/v1/catalog/remote` — listado del bucket
+
+Query: `refresh` (`bool`, default `false`). Con `false` sirve el índice cacheado en
+SQLite si su edad < `TELAR_CATALOG_CACHE_TTL_S`; si está vencido o `refresh=true`,
+va al bucket.
+
+`200`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "bucket": "telar-modulos",
+    "source": "network",
+    "fetched_at": "2026-08-29T10:12:00.000Z",
+    "stale": false,
+    "unavailable_reason": null,
+    "modules": [
+      {
+        "id": "m9",
+        "title": "Tasks y dependencias",
+        "description": "omp task, taskwait y el grafo de dependencias.",
+        "level": "Avanzado",
+        "order_hint": 9,
+        "version": 2,
+        "checksum": "1ab7c0…",
+        "object_path": "modulos/m9/v2.json",
+        "generation": 1755001234567890,
+        "size_bytes": 48211,
+        "published_at": "2026-08-22T11:00:00.000Z",
+        "author_label": "Curso Telar — UN",
+        "lessons_count": 4,
+        "questions_count": 18,
+        "estimated_minutes_total": 75,
+        "requires_gpu": false,
+        "state": "available",
+        "installed_version": null,
+        "installed_checksum": null
+      }
+    ]
+  },
+  "error": null, "meta": null
+}
+```
+
+- `source` ∈ `"network" | "cache"`; `stale=true` ⇔ `source=="cache"` y la caché
+  venció (o el bucket falló y se degradó a caché).
+- `state` es el **cruce** con `installed_modules`: `"available"`, `"installed"`,
+  `"update_available"`. Se calcula en el backend para que el frontend no
+  duplique la lógica de diff en dos sitios.
+- `order_hint` es el orden **sugerido** por el autor. **No es el `order` local**:
+  `modules."order"` es `UNIQUE` global y dos autores pueden publicar ambos con
+  `order = 3`. El instalador **reasigna** (§11.6.1).
+- `meta` es `null` (listado no paginado; el catálogo se dimensiona en decenas).
+
+| Código | Cuándo |
+|---|---|
+| 200 | Listado servido (de red o de caché) |
+| 503 `CATALOG_DISABLED` | Sin bucket configurado |
+| 503 `CATALOG_UNAVAILABLE` | Bucket inalcanzable **y sin caché previa** (si hay caché → `200` + `stale=true` + `unavailable_reason`) |
+| 422 `BUNDLE_INVALID` | Índice fuera de esquema |
+
+#### 11.5.2 `GET /api/v1/catalog/remote/{module_id}` — detalle antes de instalar
+
+Descarga y **valida** el bundle (sin escribir nada en SQLite) para poder mostrar
+qué trae el módulo. Query: `version` (`int`, opcional; default = la última del índice).
+
+`200` — `RemoteModuleDetail` = el summary de §11.5.1 más:
+
+```json
+{
+  "lessons": [
+    { "lesson_id": "task-intro", "order": 1, "title": "La directiva task",
+      "estimated_minutes": 20, "has_example": true, "has_quiz": true,
+      "quiz_question_count": 5, "requires_gpu": false,
+      "completion_rule": "quiz", "status": "new" }
+  ],
+  "content_warnings": []
+}
+```
+
+- `status` de la lección ∈ `"new" | "present" | "changed"` respecto a lo ya
+  instalado (`"present"`/`"changed"` solo si el módulo está instalado).
+- `content_warnings` = lista de `{code, message, lesson_id?}` no bloqueantes
+  (p. ej. `LESSON_ID_REMOVED` si esta versión pierde una lección que hoy tienes).
+
+| Código | Cuándo |
+|---|---|
+| 200 | Bundle descargado y validado (**no instalado**) |
+| 404 `REMOTE_MODULE_NOT_FOUND` | id o `version` inexistentes en el bucket |
+| 409 `CHECKSUM_MISMATCH` | sha256 del bundle ≠ el del índice |
+| 413 `BUNDLE_TOO_LARGE` | > `TELAR_CATALOG_MAX_BUNDLE_BYTES` |
+| 422 `BUNDLE_INVALID` / `CONTENT_VALIDATION_ERROR` | Esquema / reglas de §10.6 |
+| 503 `CATALOG_DISABLED` / `CATALOG_UNAVAILABLE` | — |
+
+### 11.6 CU-36 · Descargar e incorporar un módulo (estudiante) · CU-39 · Actualizar
+
+#### 11.6.1 `POST /api/v1/catalog/install` — incorporar un módulo
+
+Request:
+
+```json
+{ "module_id": "m9", "version": 2, "expected_checksum": "1ab7c0…" }
+```
+
+- `version` opcional (default = la última del índice). `expected_checksum`
+  opcional: si viene, ancla lo que el usuario **vio** en la pantalla y cierra el
+  TOCTOU (bucket reescrito entre el listado y el clic) → `409 CHECKSUM_MISMATCH`.
+- Internamente la descarga usa `if_generation_match=<generation del índice>`
+  cuando se conoce, que es el ancla exacta de versión del objeto.
+
+`201`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "module_id": "m9",
+    "installed_version": 2,
+    "installed_checksum": "1ab7c0…",
+    "object_path": "modulos/m9/v2.json",
+    "local_order": 9,
+    "order_reassigned": false,
+    "lessons_added": ["task-intro", "task-deps", "taskloop", "task-quiz"],
+    "lessons_updated": [],
+    "lessons_removed": [],
+    "questions_total": 18,
+    "progress": { "preserved": [], "reset": [], "orphaned": [] },
+    "installed_at": "2026-08-29T10:15:00.000Z"
+  },
+  "error": null, "meta": null
+}
+```
+
+**Semántica de escritura** (obligatoria, no negociable):
+
+1. Validar **en memoria, fuera del lock**: esquema (`extra="forbid"`), checksum,
+   tamaño, reglas de §10.6 sobre cada lección/ejemplo/quiz, tope
+   `settings.max_code_bytes` por `source_code`.
+2. `async with app.state.write_lock:` → chequeos que **leen** DB (id de módulo
+   libre, `lesson_id`/`example_id` libres, ids de pregunta que no pertenezcan a
+   otra lección) → `content_writer._persist(app, _write)`: **una unidad, un
+   commit**, revalidación del grafo completo con `ContentRepository.load(db)`
+   antes del commit, y swap atómico de `app.state.content`. Un bundle inválido
+   **no deja nada a medias**.
+3. Orden de inserción: `modules → lessons → examples → quiz_questions` (el mismo
+   que ya resuelve el seeder). Todo por `INSERT … ON CONFLICT(id) DO UPDATE`.
+4. **`modules."order"` es `UNIQUE` global**: si el `order_hint` del bundle está
+   tomado, el instalador asigna `MAX("order") + 1` y responde
+   `order_reassigned: true`. Nunca `IntegrityError`.
+5. Se escribe la fila de `installed_modules` (manifiesto de selección) en la
+   **misma** transacción.
+6. **No se toca el marcador `content_seeded_at`** ni el auto-seed del lifespan.
+
+| Código | Cuándo |
+|---|---|
+| 201 | Módulo instalado |
+| 404 `REMOTE_MODULE_NOT_FOUND` | id/`version` no están en el bucket |
+| 409 `MODULE_ALREADY_INSTALLED` | Ya hay fila en `installed_modules` → usar `…/update` |
+| 409 `DUPLICATE_ID` | Un id del bundle (lección, ejemplo o pregunta) ya lo usa **otro** módulo local. `details = [{field, id, owner_module_id}]` |
+| 409 `CHECKSUM_MISMATCH` | sha256 ≠ índice o ≠ `expected_checksum` |
+| 413 `BUNDLE_TOO_LARGE` | — |
+| 422 `BUNDLE_INVALID` / `CONTENT_VALIDATION_ERROR` | — |
+| 503 `CATALOG_DISABLED` / `CATALOG_UNAVAILABLE` | — |
+
+#### 11.6.2 `GET /api/v1/catalog/modules/{module_id}/update/preview` — «qué conservo, qué pierdo»
+
+**Este endpoint sostiene la promesa de producto.** Descarga y valida la versión
+nueva **sin escribir**, y devuelve el diff anclado en `lesson_id`. Query:
+`to_version` (opcional).
+
+`200`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "module_id": "m2",
+    "from_version": 3,
+    "to_version": 5,
+    "to_checksum": "1ab7…",
+    "lessons": [
+      { "lesson_id": "spmd",         "change": "updated",   "progress": "preserved", "reason": null },
+      { "lesson_id": "spmdCritical", "change": "updated",   "progress": "reset",
+        "reason": "QUIZ_CHANGED" },
+      { "lesson_id": "false-sharing","change": "added",     "progress": "none",      "reason": null },
+      { "lesson_id": "spmdViejo",    "change": "removed",   "progress": "orphaned",
+        "reason": "LESSON_ID_REMOVED" }
+    ],
+    "progress_summary": { "preserved": 1, "reset": 1, "orphaned": 1, "unaffected": 0 },
+    "warnings": [
+      { "code": "LESSON_ID_REMOVED", "lesson_id": "spmdViejo",
+        "message": "La versión 5 ya no incluye esta lección; tu avance en ella dejará de mostrarse." }
+    ]
+  },
+  "error": null, "meta": null
+}
+```
+
+Reglas de `progress` (derivadas del mecanismo real, no inventadas):
+
+| `progress` | Cuándo |
+|---|---|
+| `preserved` | El `lesson_id` sigue existiendo y el quiz mantiene **nº de preguntas y `pass_threshold`**. `viewed`, `completed` y `best_quiz_score` intactos |
+| `reset` | El `lesson_id` sigue, pero cambia el nº de preguntas o el `pass_threshold` → `best_quiz_score = NULL` y `completed = false` **en la misma transacción** (regla BL-06 de §10.5: una nota sobre otro total es una nota imposible). `viewed` se conserva **siempre** |
+| `orphaned` | El `lesson_id` desaparece de la versión nueva. La fila de `lesson_progress`/`quiz_attempts` **no se borra** (no hay FK a `lessons`): queda huérfana e invisible, y **se recupera** si una versión futura reintroduce el id |
+| `none` | Lección nueva, sin progreso previo |
+
+#### 11.6.3 `POST /api/v1/catalog/modules/{module_id}/update` — actualizar
+
+Request:
+
+```json
+{ "to_version": 5, "expected_checksum": "1ab7…", "on_removed_lessons": "keep_progress" }
+```
+
+- `to_version` opcional (default = `available_version`). **Debe ser `>` que
+  `installed_version`** → si no, `409 VERSION_CONFLICT` (la versión es monótona;
+  no hay downgrade en este contrato).
+- `on_removed_lessons` ∈ `"keep_progress"` (default) | `"purge"`. Con `purge` se
+  borran también las filas de `lesson_progress`/`quiz_attempts` de las lecciones
+  desaparecidas. **El default conserva**: es la promesa de §11.0.7.
+
+`200` — mismo shape que `InstallResult` (§11.6.1) con `lessons_updated`/
+`lessons_removed` poblados y `progress` detallado.
+
+**Cómo se actualiza (y cómo NO):** UPSERT por PK sobre los mismos `lesson_id`,
+más `replace_quiz` por lección. **Prohibido** el camino «borrar lección + recrear»:
+`DELETE /admin/lessons/{id}` purga `lesson_progress` y `quiz_attempts` a propósito
+(§10.1, BL-01) y destruiría exactamente lo que este caso de uso debe garantizar.
+
+| Código | Cuándo |
+|---|---|
+| 200 | Actualizado |
+| 404 `MODULE_NOT_INSTALLED` | Sin fila en `installed_modules` |
+| 404 `REMOTE_MODULE_NOT_FOUND` | La `to_version` no está en el bucket |
+| 409 `VERSION_CONFLICT` | `to_version ≤ installed_version` |
+| 409 `CHECKSUM_MISMATCH` / `DUPLICATE_ID` | — |
+| 413 `BUNDLE_TOO_LARGE` · 422 `BUNDLE_INVALID`/`CONTENT_VALIDATION_ERROR` | — |
+| 503 `CATALOG_DISABLED` / `CATALOG_UNAVAILABLE` | — |
+
+> **Efecto colateral documentado**: un intento de quiz «en vuelo» sobre una
+> lección que esta actualización toca aborta con `422` (revalidación atómica de
+> §5.2, `_ensure_content_current`). Es el comportamiento correcto; la UI debe
+> mostrar *«el contenido se actualizó, recarga»*, no un error genérico.
+
+#### 11.6.4 `DELETE /api/v1/catalog/modules/{module_id}` — quitar un módulo incorporado
+
+Query: `purge_progress` (`bool`, default `false`).
+
+`200`:
+
+```json
+{ "success": true,
+  "data": { "removed": true, "module_id": "m9", "lessons_removed": 4,
+            "progress_purged": false, "progress_orphaned": 4 },
+  "error": null, "meta": null }
+```
+
+Con `purge_progress=false` (default) el contenido se borra (CASCADE lección →
+ejemplo → quiz) pero **el progreso sobrevive huérfano**: reinstalar el módulo
+restaura el avance, porque los `lesson_id` son estables. La UI debe decirlo:
+*«Quitar módulo — tu progreso se conserva»*.
+
+| Código | Cuándo |
+|---|---|
+| 200 | Desinstalado |
+| 404 `MODULE_NOT_INSTALLED` | El módulo no está en `installed_modules` (un módulo `local_only` **no se desinstala por aquí**: eso es `DELETE /admin/modules/{id}`) |
+
+### 11.7 CU-37 · Descargar un módulo para edición (admin)
+
+Requiere imagen admin (§11.2) + `TELAR_ADMIN_MODE` (§10.0). **No requiere OAuth**:
+leer sigue siendo anónimo.
+
+`POST /api/v1/admin/catalog/import`
+
+```json
+{ "module_id": "m9", "version": 2, "as_module_id": null, "id_prefix": null }
+```
+
+Dos modos, y la diferencia es **el manifiesto**:
+
+| Modo | `as_module_id` | Efecto |
+|---|---|---|
+| **Vinculado** (default) | `null` | Idéntico a `POST /catalog/install`, pero además el módulo queda **editable** por §10 y **conserva la fila de `installed_modules`**: el admin sabe sobre qué versión base está editando y `publish` puede exigir `version = installed_version + 1` |
+| **Bifurcado (fork)** | `"m9bis"` | Se reescriben los ids: el módulo pasa a `as_module_id`, y cada `lesson_id`/`example_id`/id de pregunta se prefija con `id_prefix` (default `as_module_id + "-"`). **Sin fila en `installed_modules`** (no recibe actualizaciones), `modules.version = 1`, `checksum = NULL`, `origin = 'local'`. Es contenido nuevo que se publicará bajo su propio id |
+
+`201`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "mode": "linked",
+    "module": { "id": "m9", "order": 9, "title": "Tasks y dependencias",
+                "description": "…", "level": "Avanzado",
+                "version": 2, "checksum": "1ab7c0…", "origin": "remote",
+                "published_at": "2026-08-22T11:00:00.000Z",
+                "lessons": [ { "id": "task-intro", "order": 1, "title": "La directiva task",
+                               "enabled": true, "has_example": true,
+                               "has_quiz": true, "quiz_question_count": 5 } ] },
+    "base_version": 2,
+    "id_remap": null
+  },
+  "error": null, "meta": null
+}
+```
+
+Con `mode: "forked"`, `id_remap` = `{ "task-intro": "m9bis-task-intro", … }`,
+para que la UI admin pueda mostrar exactamente qué se renombró.
+
+| Código | Cuándo |
+|---|---|
+| 201 | Importado |
+| 401 `UNAUTHORIZED` | Modo admin apagado (imagen estudiante → `404`) |
+| 404 `REMOTE_MODULE_NOT_FOUND` · 409 `MODULE_ALREADY_INSTALLED`/`DUPLICATE_ID`/`CHECKSUM_MISMATCH` | — |
+| 413 `BUNDLE_TOO_LARGE` · 422 `BUNDLE_INVALID`/`CONTENT_VALIDATION_ERROR` | — |
+| 503 `CATALOG_DISABLED` / `CATALOG_UNAVAILABLE` | — |
+
+### 11.8 CU-38 · Publicar un módulo (admin)
+
+#### 11.8.1 Credencial de escritura del admin
+
+La escritura usa una **cuenta de servicio** de Google Cloud. Su clave JSON vive
+en la ruta que indique `TELAR_GCS_CREDENTIALS` y **nunca** en SQLite, en el
+bucket ni en el repositorio.
+
+- Rol mínimo sobre el bucket: **`roles/storage.objectCreator`** si los bundles
+  son inmutables y el índice se reescribe con CAS por `generation`
+  (§11.8.2); **`roles/storage.objectAdmin`** si se quiere poder sobreescribir.
+  `roles/storage.admin` añade gestionar políticas IAM: no hace falta.
+- Se exige que el archivo tenga permisos `0600` o más restrictivos. Si es
+  legible por otros usuarios, el arranque lo registra como aviso y
+  `POST …/publish` responde `403 CATALOG_CREDENTIALS_INVALID`: una clave de
+  servicio legible por todo el sistema no es una credencial.
+- La clave trae `project_id` embebido; `TELAR_GCS_PROJECT_ID` solo sirve para
+  forzar otro proyecto.
+- **Rotación:** basta con sustituir el archivo. No hay estado en la aplicación,
+  no hay token que caduque y no hay flujo interactivo que relanzar — que es
+  justamente lo que se compra renunciando a OAuth (§11.0, principio 5).
+
+| Método | Path | Request | Data (200) | Errores |
+|---|---|---|---|---|
+| GET | `/api/v1/admin/catalog/credentials` | — | `AdminCatalogCredentialStatus` | 401, 503 `CATALOG_DISABLED` |
+
+Es **solo de lectura**: comprueba la credencial configurada y no la modifica.
+No escribe en el bucket; verifica que la clave parsea, que los permisos del
+archivo son correctos y (si `probe=true` en query) que la cuenta puede listar el
+prefijo del catálogo.
+
+`AdminCatalogCredentialStatus`:
+
+```json
+{ "configured": true, "usable": true,
+  "client_email": "telar-publisher@telar-tesis.iam.gserviceaccount.com",
+  "project_id": "telar-tesis", "bucket": "telar-modulos",
+  "file_mode": "0600", "probed": true, "reason": null }
+```
+
+`reason` ∈ `null | "absent" | "unreadable" | "insecure_mode" | "malformed" | "forbidden"`
+— nunca el texto crudo de la excepción (mismo criterio que `jobs.error_detail`).
+
+#### 11.8.2 `POST /api/v1/admin/modules/{module_id}/publish`
+
+Request:
+
+```json
+{ "version": 3, "dry_run": false, "notes": "Añade la lección de taskloop" }
+```
+
+- `version` opcional; default = `modules.version + 1`. Debe ser **estrictamente
+  mayor** que la última publicada, o `409 VERSION_CONFLICT`.
+- `dry_run: true` → **no escribe en el bucket**: valida, serializa, calcula el
+  checksum y devuelve el mismo cuerpo con `published=false`. Es la vía para ver
+  los avisos de ids antes de publicar.
+
+`201` (o `200` con `dry_run`):
+
+```json
+{
+  "success": true,
+  "data": {
+    "published": true,
+    "module_id": "m9",
+    "version": 3,
+    "checksum": "7d3e1f…",
+    "object_path": "modulos/m9/v3.json",
+    "generation": 1755009999999999,
+    "bytes": 51204,
+    "published_at": "2026-08-29T12:00:00.000Z",
+    "index_updated": true,
+    "lesson_ids": ["task-intro", "task-deps", "taskloop"],
+    "warnings": [
+      { "code": "LESSON_ID_REMOVED", "lesson_id": "task-viejo",
+        "message": "La v2 publicada incluía esta lección; quien actualice perderá su avance en ella." }
+    ]
+  },
+  "error": null, "meta": null
+}
+```
+
+Mecánica de escritura en el bucket (fijada por la investigación, no libre):
+
+1. Serialización **canónica**: `json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")`, con `payload` = el bundle **sin** el campo `checksum`. `checksum` = `sha256(bytes).hexdigest()` (64 hex). El mismo algoritmo lo reejecuta el instalador: es la definición del invariante.
+2. `blob.content_type = "application/json"`, `cache_control = "public, max-age=300"`,
+   `metadata = {"telar-module-id", "telar-version", "telar-sha256"}`. Los metadatos
+   del blob son **un índice barato, no la fuente de verdad**: `version` y `checksum`
+   viven **dentro** del JSON, que es lo que se valida y lo que se persiste en SQLite.
+3. Subida con **`if_generation_match=0`** («crear solo si no existe»): una versión
+   publicada es **inmutable**. Si el objeto ya existe → `PreconditionFailed` →
+   `409 VERSION_CONFLICT`.
+4. El índice (`TELAR_CATALOG_INDEX`) sí muta: se reescribe con
+   **`if_generation_match=<generation leída>`** (compare-and-swap optimista). Si
+   falla el CAS, se reintenta una vez releyendo; a la segunda → `409 VERSION_CONFLICT`
+   con `details.stage="index"` (el objeto del módulo **ya está publicado**;
+   `index_updated=false`).
+5. Tras el `201`, `modules.version`, `modules.checksum` y `modules.published_at`
+   se actualizan localmente bajo `write_lock`.
+
+| Código | Cuándo |
+|---|---|
+| 201 / 200 (`dry_run`) | Publicado / validado |
+| 401 `UNAUTHORIZED` | Modo admin apagado (imagen estudiante → `404`) |
+| 403 `CATALOG_CREDENTIALS_INVALID` | Credencial de escritura ausente, ilegible, con permisos laxos, malformada o sin permiso sobre el bucket |
+| 404 `MODULE_NOT_FOUND` | — |
+| 409 `VERSION_CONFLICT` | `version` ≤ la publicada, o el objeto ya existe |
+| 413 `BUNDLE_TOO_LARGE` | El bundle serializado supera el tope |
+| 422 `CONTENT_VALIDATION_ERROR` | El módulo local no pasa §10.6 (**no se publica contenido roto**) |
+| 503 `CATALOG_DISABLED` · 503 `CATALOG_UNAVAILABLE` | — |
+
+**Códigos de `warnings`** (no bloquean; el admin decide):
+`LESSON_ID_REMOVED` (un id publicado desaparece → pérdida de avance aguas abajo),
+`LESSON_ID_ADDED`, `QUIZ_SHAPE_CHANGED` (cambia nº de preguntas o `pass_threshold`
+→ reset de nota aguas abajo), `ORDER_HINT_TAKEN` (el `order` chocará en muchos
+destinos), `GPU_LESSON_INCLUDED`.
+
+### 11.9 Sin red: qué sigue funcionando (requisito de escritorio)
+
+La app de escritorio **debe seguir siendo plenamente usable con lo ya instalado**.
+Regla estructural: **ningún endpoint de §3–§8 toca el bucket, jamás.** Todo el
+contenido se sirve desde SQLite igual que en Fase 4.
+
+| Endpoint | Sin red |
+|---|---|
+| `GET /health`, `GET /api/v1/system` | **200.** `catalog.reachable` no se sondea aquí (sería un bloqueo en el arranque): se reporta `null` o el último valor conocido |
+| §3, §4, §5, §6, §7, §8 (ejemplos, módulos, lecciones, quizzes, progreso, jobs, WS) | **Idénticos.** Cero dependencia del bucket |
+| `GET /api/v1/catalog/status` | **200 siempre** — lee solo SQLite. `last_checked_at` queda viejo; `state` sigue siendo el último conocido |
+| `POST /api/v1/catalog/refresh` | **503 `CATALOG_UNAVAILABLE`**; `installed_modules` **intacta** |
+| `GET /api/v1/catalog/remote` | **200 + `source:"cache"` + `stale:true` + `unavailable_reason`** si hay índice cacheado; **503 `CATALOG_UNAVAILABLE`** si nunca se cacheó |
+| `GET /api/v1/catalog/remote/{id}` | **503 `CATALOG_UNAVAILABLE`** (requiere descargar el bundle) |
+| `POST /catalog/install`, `…/update`, `…/update/preview` | **503 `CATALOG_UNAVAILABLE`**. Ninguna escritura parcial: la validación previa al `write_lock` ni siquiera llega a abrirlo |
+| `DELETE /catalog/modules/{id}` | **200.** Desinstalar es 100 % local |
+| `POST /admin/catalog/import`, `POST /admin/modules/{id}/publish` | **503 `CATALOG_UNAVAILABLE`** |
+| `GET /admin/catalog/credentials` | **200.** Comprobar la credencial es local (parseo del JSON y permisos del archivo); solo `?probe=true` sale a la red y entonces devuelve `usable:false, reason:"forbidden"` |
+| §10 completo (autoría admin local) | **Idéntico.** Crear/editar módulos, lecciones y quizzes es 100 % local |
+
+**Contrato de UI derivado**: la pantalla `/modulos` (catálogo remoto) es la
+**única** que puede mostrar `ErrorState` por falta de red, y con `onRetry`. En
+`/cursos`, un bucket caído solo significa *no hay chips de actualización*.
+
+### 11.10 Formato de intercambio (lo que vive en el bucket)
+
+Layout: `modulos/<module_id>/v<version>.json` (bundle, **inmutable**) +
+`modulos/index.json` (índice, **mutable** por CAS).
+
+**Índice** (`CatalogIndex`, `index_format: 1`):
+
+```json
+{
+  "index_format": 1,
+  "generated_at": "2026-08-29T12:00:00.000Z",
+  "modules": [
+    { "id": "m9", "title": "Tasks y dependencias", "description": "…",
+      "level": "Avanzado", "order_hint": 9, "version": 3,
+      "checksum": "7d3e1f…", "object_path": "modulos/m9/v3.json",
+      "size_bytes": 51204, "published_at": "2026-08-29T12:00:00.000Z",
+      "author_label": "Curso Telar — UN",
+      "lessons_count": 3, "questions_count": 14,
+      "estimated_minutes_total": 60, "requires_gpu": false }
+  ]
+}
+```
+
+El índice es una **conveniencia** (permite listar sin bajar cada módulo); la
+verdad es el bundle, y el `checksum` del índice se **verifica** contra el sha256
+del bundle descargado (`409 CHECKSUM_MISMATCH` si no cuadra).
+
+**Bundle** (`ModuleBundle`, `bundle_format: 1`):
+
+```json
+{
+  "bundle_format": 1,
+  "checksum": "7d3e1f…",
+  "module": {
+    "id": "m9", "order_hint": 9, "title": "Tasks y dependencias",
+    "description": "…", "level": "Avanzado",
+    "version": 3, "published_at": "2026-08-29T12:00:00.000Z",
+    "author_label": "Curso Telar — UN", "notes": "Añade taskloop"
+  },
+  "lessons": [
+    {
+      "id": "taskloop", "order": 3, "title": "taskloop",
+      "estimated_minutes": 25, "content_markdown": "# taskloop\n…",
+      "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "enabled": true, "completion_rule": "quiz", "pass_threshold": 0.6,
+      "recommended": [ { "lesson_id": "task-deps", "label": "Dependencias", "tag": "Práctica" } ],
+      "example": {
+        "id": "taskloopDemo", "filename": "taskloop.py", "title": "taskloop sobre un for",
+        "difficulty": 3, "teaches": "…", "directives": ["taskloop"],
+        "threads_configurable": true, "fixed_threads": null, "fixed_threads_note": null,
+        "sweeps_threads": false, "self_measures": false, "parser_id": "none",
+        "default_timeout_s": 30, "est_run_seconds": 8, "enabled": true,
+        "requires_gpu": false, "expected_output_note": "…",
+        "takeaways": ["…"], "source_code": "from numba import njit\n…"
+      },
+      "quiz": {
+        "pass_threshold": 0.6,
+        "questions": [
+          { "id": "taskloop-q1", "order": 1, "text": "…",
+            "options": [ {"key":"a","text":"…"}, {"key":"b","text":"…"} ],
+            "correct_key": "a", "explanation": "…" }
+        ]
+      }
+    }
+  ]
+}
+```
+
+Reglas del formato (todas verificadas en la validación, entrada no confiable):
+
+- `checksum` se calcula sobre el bundle **sin** ese campo, con la serialización
+  canónica de §11.8.2. Es el único algoritmo aceptado.
+- `example` y `quiz` son **`null`-ables** (E1 y E4: una lección teórica no
+  necesita código ni quiz). `example.id` es **propio**, ya **no** igual al
+  `lesson_id`.
+- `video_url` es **opcional** (`null` = la lección no tiene video) y **por
+  lección**, no por módulo: los guiones de `docs/plan-clases-fundamentos.md`
+  están escritos como un video de 3-5 min por concepto. Solo se aceptan URLs de
+  YouTube (`youtube.com/watch?v=`, `youtu.be/`, `/embed/`, `/shorts/`) sobre
+  `https`; el servidor **extrae el id de 11 caracteres y descarta el resto de la
+  URL**, y el frontend reconstruye el embed canónico sobre
+  `youtube-nocookie.com` (`resolveYouTubeEmbed`). Los videos **no se descargan
+  nunca**: el bundle transporta el enlace, no el medio. Cualquier otra cosa
+  ⇒ `422 CONTENT_VALIDATION_ERROR`.
+- `completion_rule` ∈ `"quiz" | "viewed" | "run"` (E4). Con `quiz` requiere
+  `quiz != null`; con `run` requiere `example != null`. Se rechaza lo contrario
+  (`422 CONTENT_VALIDATION_ERROR`).
+- `lessons[].order` es **único dentro del bundle** y contiguo `1..n` (E2: el
+  `order` es por módulo, ya no global).
+- El bundle **no lleva `order` local ni progreso**: `order_hint` es una sugerencia
+  y el instalador puede reasignarlo. **Cero PII, por construcción del esquema**:
+  ningún campo del bundle puede transportar identidad ni avance.
+- Todos los DTOs de bundle usan `model_config = ConfigDict(extra="forbid")`.
+
+### 11.11 DTOs
+
+#### 11.11.1 pydantic — `backend/app/schemas/catalog.py` (ambas imágenes)
+
+```python
+"""DTOs pydantic (v2) del contrato de API de Telar — §11 Catálogo remoto (Fase 5).
+
+TRANSCRIPCIÓN LITERAL de docs/architecture/api-contract.md §11.
+Los DTOs de BUNDLE validan ENTRADA NO CONFIABLE: extra="forbid" y topes en todo.
+Espejo TS: frontend/src/api/catalog-types.ts.
+"""
+
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from .admin import (
+    ID_PATTERN, QUESTION_ID_PATTERN, AdminExampleBase,
+    AdminQuizQuestion, AdminRecommended,
+)
+
+BUNDLE_FORMAT = 1
+INDEX_FORMAT = 1
+#: sha256 en hex, 64 chars.
+CHECKSUM_PATTERN = r"^[0-9a-f]{64}$"
+#: ruta de objeto en el bucket.
+OBJECT_PATH_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$"
+
+CompletionRule = Literal["quiz", "viewed", "run"]          # E4
+ModuleOrigin = Literal["local", "remote"]
+RemoteState = Literal["available", "installed", "update_available"]
+InstalledState = Literal["local_only", "installed", "update_available"]
+CatalogSource = Literal["network", "cache"]
+ProgressEffect = Literal["preserved", "reset", "orphaned", "none"]
+LessonChange = Literal["added", "updated", "unchanged", "removed"]
+
+
+# ── §11.10 Formato de intercambio (ENTRADA NO CONFIABLE) ─────────────────────
+
+class _Strict(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class BundleExample(_Strict, AdminExampleBase):
+    """Ejemplo del bundle. E1: id PROPIO, ya no == lesson_id."""
+
+    id: str = Field(pattern=ID_PATTERN)
+    source_code: str = Field(min_length=1)                 # tope en runtime
+
+
+class BundleQuizQuestion(_Strict, AdminQuizQuestion):
+    """Idéntico a §10.5; ``id`` opcional (se autogenera ``{lesson_id}-q{order}``)."""
+
+
+class BundleQuiz(_Strict):
+    pass_threshold: float = Field(gt=0.0, le=1.0)
+    questions: list[BundleQuizQuestion] = Field(min_length=1, max_length=50)
+
+
+class BundleLesson(_Strict):
+    id: str = Field(pattern=ID_PATTERN)
+    order: int = Field(ge=1)                               # E2: único POR MÓDULO
+    title: str = Field(min_length=1, max_length=160)
+    estimated_minutes: int = Field(ge=1, le=600)
+    content_markdown: str = Field(min_length=1, max_length=65536)
+    video_url: str | None = Field(default=None, max_length=2048)  # YouTube, por lección
+    enabled: bool = True                                   # E1: columna propia
+    completion_rule: CompletionRule = "quiz"               # E4
+    pass_threshold: float = Field(default=0.6, gt=0.0, le=1.0)
+    recommended: list[AdminRecommended] = Field(default_factory=list, max_length=6)
+    example: BundleExample | None = None                   # E1: opcional
+    quiz: BundleQuiz | None = None
+
+
+class BundleModule(_Strict):
+    id: str = Field(pattern=ID_PATTERN)
+    order_hint: int = Field(ge=1)                          # sugerencia, no el order local
+    title: str = Field(min_length=1, max_length=160)
+    description: str = Field(max_length=2000)
+    level: str = Field(min_length=1, max_length=40)
+    version: int = Field(ge=1)                             # MONÓTONA
+    published_at: str
+    author_label: str = Field(default="", max_length=120)
+    notes: str = Field(default="", max_length=2000)
+
+
+class ModuleBundle(_Strict):
+    """§11.10 — el JSON publicado. ``checksum`` NO entra en su propio cálculo."""
+
+    bundle_format: Literal[1]
+    checksum: str = Field(pattern=CHECKSUM_PATTERN)
+    module: BundleModule
+    lessons: list[BundleLesson] = Field(min_length=1, max_length=100)
+
+
+class CatalogIndexEntry(_Strict):
+    id: str = Field(pattern=ID_PATTERN)
+    title: str
+    description: str = ""
+    level: str = ""
+    order_hint: int = Field(ge=1)
+    version: int = Field(ge=1)
+    checksum: str = Field(pattern=CHECKSUM_PATTERN)
+    object_path: str = Field(pattern=OBJECT_PATH_PATTERN)
+    size_bytes: int = Field(ge=1)
+    published_at: str
+    author_label: str = ""
+    lessons_count: int = Field(ge=0)
+    questions_count: int = Field(ge=0)
+    estimated_minutes_total: int = Field(ge=0)
+    requires_gpu: bool = False
+
+
+class CatalogIndex(_Strict):
+    index_format: Literal[1]
+    generated_at: str
+    modules: list[CatalogIndexEntry] = Field(max_length=500)
+
+
+# ── §11.5 CU-35 Explorar ─────────────────────────────────────────────────────
+
+class RemoteModuleSummary(BaseModel):
+    id: str
+    title: str
+    description: str
+    level: str
+    order_hint: int
+    version: int
+    checksum: str
+    object_path: str
+    generation: int | None            # ancla exacta del objeto (if_generation_match)
+    size_bytes: int
+    published_at: str
+    author_label: str
+    lessons_count: int
+    questions_count: int
+    estimated_minutes_total: int
+    requires_gpu: bool
+    state: RemoteState                # cruce con installed_modules
+    installed_version: int | None
+    installed_checksum: str | None
+
+
+class RemoteCatalogResponse(BaseModel):
+    """§11.5.1 ``GET /api/v1/catalog/remote``."""
+
+    bucket: str | None
+    source: CatalogSource
+    fetched_at: str | None
+    stale: bool
+    unavailable_reason: str | None    # 'network'|'forbidden'|'corrupt'|… | None
+    modules: list[RemoteModuleSummary]
+
+
+class RemoteLessonPreview(BaseModel):
+    lesson_id: str
+    order: int
+    title: str
+    estimated_minutes: int
+    has_example: bool
+    has_quiz: bool
+    quiz_question_count: int
+    requires_gpu: bool
+    completion_rule: CompletionRule
+    status: Literal["new", "present", "changed"]
+
+
+class ContentWarning(BaseModel):
+    code: str
+    message: str
+    lesson_id: str | None = None
+
+
+class RemoteModuleDetail(RemoteModuleSummary):
+    """§11.5.2 ``GET /api/v1/catalog/remote/{module_id}`` — preview sin instalar."""
+
+    lessons: list[RemoteLessonPreview]
+    content_warnings: list[ContentWarning]
+
+
+# ── §11.4 Estado del catálogo (offline-safe) ─────────────────────────────────
+
+class InstalledModuleStatus(BaseModel):
+    module_id: str
+    title: str
+    origin: ModuleOrigin
+    state: InstalledState
+    installed_version: int | None
+    installed_checksum: str | None
+    available_version: int | None
+    available_checksum: str | None
+    object_path: str | None
+    installed_at: str | None
+    updated_at: str | None
+    last_checked_at: str | None
+    lessons_total: int
+    lessons_completed: int             # LOCAL; nunca sale del equipo
+
+
+class CatalogStatusSummary(BaseModel):
+    modules_total: int
+    installed: int
+    updatable: int
+    local_only: int
+    never_checked: int
+
+
+class CatalogStatusResponse(BaseModel):
+    """§11.4.1 ``GET /catalog/status`` y §11.4.2 ``POST /catalog/refresh``."""
+
+    catalog_enabled: bool
+    bucket: str | None
+    last_checked_at: str | None
+    modules: list[InstalledModuleStatus]
+    summary: CatalogStatusSummary
+
+
+# ── §11.6 CU-36 / CU-39 Instalar y actualizar ────────────────────────────────
+
+class InstallRequest(BaseModel):
+    module_id: str = Field(pattern=ID_PATTERN)
+    version: int | None = Field(default=None, ge=1)
+    expected_checksum: str | None = Field(default=None, pattern=CHECKSUM_PATTERN)
+
+
+class UpdateRequest(BaseModel):
+    to_version: int | None = Field(default=None, ge=1)
+    expected_checksum: str | None = Field(default=None, pattern=CHECKSUM_PATTERN)
+    on_removed_lessons: Literal["keep_progress", "purge"] = "keep_progress"
+
+
+class LessonDiffEntry(BaseModel):
+    lesson_id: str
+    change: LessonChange
+    progress: ProgressEffect
+    reason: str | None                 # 'QUIZ_CHANGED' | 'LESSON_ID_REMOVED' | None
+
+
+class ProgressEffectSummary(BaseModel):
+    preserved: int
+    reset: int
+    orphaned: int
+    unaffected: int
+
+
+class ModuleUpdatePreview(BaseModel):
+    """§11.6.2 — «qué conservo, qué pierdo» ANTES de escribir nada."""
+
+    module_id: str
+    from_version: int
+    to_version: int
+    to_checksum: str
+    lessons: list[LessonDiffEntry]
+    progress_summary: ProgressEffectSummary
+    warnings: list[ContentWarning]
+
+
+class InstallResult(BaseModel):
+    """§11.6.1 (201) y §11.6.3 (200)."""
+
+    module_id: str
+    installed_version: int
+    installed_checksum: str
+    object_path: str
+    local_order: int
+    order_reassigned: bool             # order_hint colisionaba (UNIQUE global)
+    lessons_added: list[str]
+    lessons_updated: list[str]
+    lessons_removed: list[str]
+    questions_total: int
+    progress: ProgressEffectSummary
+    installed_at: str
+
+
+class UninstallResult(BaseModel):
+    """§11.6.4 ``DELETE /catalog/modules/{module_id}``."""
+
+    removed: bool
+    module_id: str
+    lessons_removed: int
+    progress_purged: bool
+    progress_orphaned: int
+```
+
+#### 11.11.2 pydantic — `backend/app/schemas/admin_catalog.py` (SOLO imagen admin)
+
+```python
+"""§11.7/§11.8 — importar y publicar. ADMIN-ONLY: este archivo NO se copia a la
+imagen estudiante (TELAR_ADMIN_BUILD=0). Espejo TS: api/admin-types.ts."""
+
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from .admin import ID_PATTERN, AdminModule
+from .catalog import CHECKSUM_PATTERN, OBJECT_PATH_PATTERN, ContentWarning
+
+
+class AdminCatalogCredentialStatus(BaseModel):
+    """§11.8.1 — estado de la clave de la cuenta de servicio. SOLO LECTURA."""
+
+    configured: bool                      # TELAR_GCS_CREDENTIALS no vacío
+    usable: bool                          # parsea, permisos ok y (si probed) autoriza
+    client_email: str | None              # de la clave; identifica a la cuenta
+    project_id: str | None
+    bucket: str | None
+    file_mode: str | None                 # p.ej. "0600"; None si no se pudo leer
+    probed: bool                          # ¿se contactó el bucket? (query ?probe=true)
+    reason: (
+        Literal["absent", "unreadable", "insecure_mode", "malformed", "forbidden"] | None
+    )                                     # NUNCA el texto crudo de la excepción
+
+
+class AdminImportRequest(BaseModel):
+    module_id: str = Field(pattern=ID_PATTERN)
+    version: int | None = Field(default=None, ge=1)
+    as_module_id: str | None = Field(default=None, pattern=ID_PATTERN)  # fork
+    id_prefix: str | None = Field(default=None, max_length=32)
+
+
+class AdminImportResult(BaseModel):
+    mode: Literal["linked", "forked"]
+    module: AdminModule                 # §10.2 (ya con version/checksum/origin)
+    base_version: int | None            # None en fork
+    id_remap: dict[str, str] | None     # None en linked
+
+
+class AdminPublishRequest(BaseModel):
+    version: int | None = Field(default=None, ge=1)   # default: modules.version + 1
+    dry_run: bool = False
+    notes: str = Field(default="", max_length=2000)
+
+
+class AdminPublishResult(BaseModel):
+    published: bool                     # False con dry_run
+    module_id: str
+    version: int
+    checksum: str = Field(pattern=CHECKSUM_PATTERN)
+    object_path: str = Field(pattern=OBJECT_PATH_PATTERN)
+    generation: int | None
+    bytes: int
+    published_at: str
+    index_updated: bool
+    lesson_ids: list[str]
+    warnings: list[ContentWarning]
+```
+
+#### 11.11.3 TypeScript — `frontend/src/api/catalog-types.ts` (nuevo)
+
+```ts
+// api/catalog-types.ts — DTOs de §11 Catálogo remoto (Fase 5).
+// TRANSCRIPCIÓN LITERAL de docs/architecture/api-contract.md §11 (snake_case).
+// Espejo de backend/app/schemas/catalog.py. Los tipos de LECTURA de contenido
+// (ModuleDto, LessonDetailDto…) siguen en types.ts y NO se duplican aquí.
+
+export type CompletionRule = 'quiz' | 'viewed' | 'run'
+export type ModuleOrigin = 'local' | 'remote'
+export type RemoteState = 'available' | 'installed' | 'update_available'
+export type InstalledState = 'local_only' | 'installed' | 'update_available'
+export type CatalogSource = 'network' | 'cache'
+export type ProgressEffect = 'preserved' | 'reset' | 'orphaned' | 'none'
+export type LessonChange = 'added' | 'updated' | 'unchanged' | 'removed'
+
+export interface ContentWarningDto {
+  code: string
+  message: string
+  lesson_id: string | null
+}
+
+/** §11.5.1 GET /api/v1/catalog/remote */
+export interface RemoteModuleSummaryDto {
+  id: string
+  title: string
+  description: string
+  level: string
+  order_hint: number
+  version: number
+  checksum: string
+  object_path: string
+  generation: number | null
+  size_bytes: number
+  published_at: string
+  author_label: string
+  lessons_count: number
+  questions_count: number
+  estimated_minutes_total: number
+  requires_gpu: boolean
+  state: RemoteState
+  installed_version: number | null
+  installed_checksum: string | null
+}
+
+export interface RemoteCatalogResponseDto {
+  bucket: string | null
+  source: CatalogSource
+  fetched_at: string | null
+  stale: boolean
+  unavailable_reason: string | null
+  modules: RemoteModuleSummaryDto[]
+}
+
+/** §11.5.2 GET /api/v1/catalog/remote/{module_id} */
+export interface RemoteLessonPreviewDto {
+  lesson_id: string
+  order: number
+  title: string
+  estimated_minutes: number
+  has_example: boolean
+  has_quiz: boolean
+  quiz_question_count: number
+  requires_gpu: boolean
+  completion_rule: CompletionRule
+  status: 'new' | 'present' | 'changed'
+}
+
+export interface RemoteModuleDetailDto extends RemoteModuleSummaryDto {
+  lessons: RemoteLessonPreviewDto[]
+  content_warnings: ContentWarningDto[]
+}
+
+/** §11.4 Estado del catálogo — OFFLINE-SAFE, solo SQLite. */
+export interface InstalledModuleStatusDto {
+  module_id: string
+  title: string
+  origin: ModuleOrigin
+  state: InstalledState
+  installed_version: number | null
+  installed_checksum: string | null
+  available_version: number | null
+  available_checksum: string | null
+  object_path: string | null
+  installed_at: string | null
+  updated_at: string | null
+  last_checked_at: string | null
+  lessons_total: number
+  lessons_completed: number
+}
+
+export interface CatalogStatusSummaryDto {
+  modules_total: number
+  installed: number
+  updatable: number
+  local_only: number
+  never_checked: number
+}
+
+export interface CatalogStatusResponseDto {
+  catalog_enabled: boolean
+  bucket: string | null
+  last_checked_at: string | null
+  modules: InstalledModuleStatusDto[]
+  summary: CatalogStatusSummaryDto
+}
+
+/** §11.6 Instalar / actualizar / desinstalar. */
+export interface InstallRequestDto {
+  module_id: string
+  version?: number | null
+  expected_checksum?: string | null
+}
+
+export interface UpdateRequestDto {
+  to_version?: number | null
+  expected_checksum?: string | null
+  on_removed_lessons?: 'keep_progress' | 'purge'
+}
+
+export interface LessonDiffEntryDto {
+  lesson_id: string
+  change: LessonChange
+  progress: ProgressEffect
+  reason: string | null
+}
+
+export interface ProgressEffectSummaryDto {
+  preserved: number
+  reset: number
+  orphaned: number
+  unaffected: number
+}
+
+export interface ModuleUpdatePreviewDto {
+  module_id: string
+  from_version: number
+  to_version: number
+  to_checksum: string
+  lessons: LessonDiffEntryDto[]
+  progress_summary: ProgressEffectSummaryDto
+  warnings: ContentWarningDto[]
+}
+
+export interface InstallResultDto {
+  module_id: string
+  installed_version: number
+  installed_checksum: string
+  object_path: string
+  local_order: number
+  order_reassigned: boolean
+  lessons_added: string[]
+  lessons_updated: string[]
+  lessons_removed: string[]
+  questions_total: number
+  progress: ProgressEffectSummaryDto
+  installed_at: string
+}
+
+export interface UninstallResultDto {
+  removed: boolean
+  module_id: string
+  lessons_removed: number
+  progress_purged: boolean
+  progress_orphaned: number
+}
+```
+
+#### 11.11.4 TypeScript — añadidos a `frontend/src/api/admin-types.ts`
+
+```ts
+// ── §11.7/§11.8 Catálogo remoto (admin). Tree-shaken por ADMIN_BUILD. ───────
+import type { ContentWarningDto } from './catalog-types'
+
+export interface AdminCatalogCredentialStatusDto {
+  configured: boolean
+  usable: boolean
+  client_email: string | null
+  project_id: string | null
+  bucket: string | null
+  file_mode: string | null
+  probed: boolean
+  reason: 'absent' | 'unreadable' | 'insecure_mode' | 'malformed' | 'forbidden' | null
+}
+
+export interface AdminImportRequestDto {
+  module_id: string
+  version?: number | null
+  as_module_id?: string | null
+  id_prefix?: string | null
+}
+
+export interface AdminImportResultDto {
+  mode: 'linked' | 'forked'
+  module: AdminModuleDto
+  base_version: number | null
+  id_remap: Record<string, string> | null
+}
+
+export interface AdminPublishRequestDto {
+  version?: number | null
+  dry_run?: boolean
+  notes?: string
+}
+
+export interface AdminPublishResultDto {
+  published: boolean
+  module_id: string
+  version: number
+  checksum: string
+  object_path: string
+  generation: number | null
+  bytes: number
+  published_at: string
+  index_updated: boolean
+  lesson_ids: string[]
+  warnings: ContentWarningDto[]
+}
+```
+
+Y la unión **cerrada** `ApiErrorCode` de `api/types.ts` gana:
+
+```ts
+  // §11 Catálogo remoto — Fase 5
+  | 'REMOTE_MODULE_NOT_FOUND'
+  | 'MODULE_NOT_INSTALLED'
+  | 'MODULE_ALREADY_INSTALLED'
+  | 'VERSION_CONFLICT'
+  | 'CHECKSUM_MISMATCH'
+  | 'BUNDLE_TOO_LARGE'
+  | 'BUNDLE_INVALID'
+  | 'CATALOG_CREDENTIALS_INVALID'
+  | 'CATALOG_DISABLED'
+  | 'CATALOG_UNAVAILABLE'
+```
+
+### 11.12 Ediciones exigidas a los contratos congelados (spec ANTES que código)
+
+#### A · `docs/architecture/api-contract.md`
+
+| Sección | Edición exacta |
+|---|---|
+| **§1.1** (tabla de códigos, ~L46-70) | Añadir las **12 filas** de §11.3, marcadas `**(Fase 5, §11)**` igual que las de Fase 4. Ampliar la fila `409 DUPLICATE_ID` para incluir «o un id que el bundle instalado reclama y ya pertenece a otro módulo» |
+| **§2.2** `GET /api/v1/system` (~L91) | Añadir al `data` el bloque `"catalog": { "enabled": true, "bucket": "telar-modulos", "mode": "anonymous"\|"admin", "last_checked_at": "…Z"\|null }`. Sirve para que el frontend **oculte** el item «Módulos disponibles» del Sidebar cuando no hay bucket. Espejo en `SystemInfoDto` (`types.ts`) y `schemas/system.py` |
+| **§4 encabezado** (L214-218) | Reescribir: deja de ser «8 módulos, 14 lecciones, 1 lección por ejemplo, `lesson_id == example_id`». Pasa a «N módulos instalados; una lección tiene **0 o 1** ejemplo (E1) y su `order` es único **por módulo** (E2)» |
+| **§4.1** `GET /modules` (L220-260) | `ModuleLesson.example_id: str` → **`str \| null`**; añadir `completion_rule` y `has_video: bool` a la lección. `Module` gana `version: int`, `origin: "local"\|"remote"`, `update_available: int \| null` (la versión disponible, o `null`). `ModulesSummary` gana `modules_installed`, `modules_updatable`. Añadir nota: «el `order` del módulo puede tener huecos (instalación à la carte); la UI numera por posición» |
+| **§4.2** `GET /lessons/{id}` (L261-300) | `example_id: str` → **`str \| null`**; añadir `completion_rule: "quiz"\|"viewed"\|"run"` y **`video_url: str \| null`** (URL de YouTube no listado de ESA lección, ya normalizada por el servidor; `null` ⇒ la lección no tiene video y el reproductor **no se monta**). Nota: «sin ejemplo no hay affordance de ejecución; no es un botón deshabilitado» |
+| **§6.2** `PUT /progress/lessons/{id}` (L435-450) | **E4**: `completed=true` enviado por el cliente es legítimo **solo** si `completion_rule != "quiz"`. Con `"quiz"` el backend **lo ignora** y responde el registro real —**decidido así**, no `422`, por coherencia con la regla que §6.2 ya tiene («`best_quiz_score` y `last_job_id` no son escribibles: cualquier valor extra del body se ignora»)—. Con `"run"` el backend lo activa al terminar bien un job del ejemplo de la lección |
+| **§9** tabla congelada (L923-962) | Añadir las **13 filas** de §11.13 |
+| **§10.1** invariantes (L1021-1046) | **Derogar** el bullet «`lesson_id == example_id` se mantiene». Sustituir por: el ejemplo tiene id propio y `lesson_id UNIQUE` (0..1 por lección); existen `POST`/`DELETE /admin/lessons/{id}/example`; el `order` de lección es único **por módulo** |
+| **§10.2** (L1047-1074) | `AdminModule` gana `version`, `checksum`, `origin`, `published_at`. Documentar que `modules."order"` **sigue** siendo `UNIQUE` global y que por eso el instalador reasigna |
+| **§10.3** (L1075-1097) | `AdminLessonCreate.example` y `.source_code` → **opcionales** (`None` ⇒ lección teórica); `AdminLessonDetail.example` → `AdminExample \| None`; `AdminLessonBase` gana `enabled` y `completion_rule`. `AdminReorderItem` gana **`module_id: str | None = None`** (resuelto en servidor contra el módulo actual de la lección cuando falta) — **decidido así** en vez de una ruta nueva, precisamente para que el payload de `tests/test_audit_s4.py::test_bl20_reorder_lecciones_swap` siga validando |
+| **§10.4** (L1098-1122) | `AdminExample` gana `id` propio + `lesson_id: str \| null`. Añadir `POST /admin/lessons/{id}/example` y `DELETE /admin/lessons/{id}/example` |
+| **§10.6** (L1151-1180) | Regla «Orden»: `order` de lección único **por `(module_id, order)`** → `409 ORDER_CONFLICT`. Añadir la regla E4 (`completion_rule` coherente con `quiz`/`example`) y la referencia a §11.10 (mismas reglas sobre bundles) |
+| **§11 (nueva)** | Esta sección |
+
+#### B · `docs/architecture/data-model.md`
+
+| Sección | Edición exacta |
+|---|---|
+| **§3 DDL** (L83-213) | Añadir el bloque `-- migration 5` completo (transcripción literal de `schema.sql`): reconstrucción de `lessons` (E2 `UNIQUE (module_id,"order")`, `enabled` como **columna propia**, `completion_rule`) y de `examples` (E1: `id` propio + `lesson_id TEXT UNIQUE REFERENCES lessons(id) ON DELETE CASCADE`), con el procedimiento `PRAGMA foreign_keys=OFF` → tabla `*_m5` → `INSERT…SELECT` → `DROP` → `RENAME` → recrear índices → `ON` (mismo patrón que la migración 4). Más `ALTER TABLE modules ADD COLUMN version/checksum/origin/published_at` y la tabla `installed_modules` |
+| **§3.1** documentos JSON (L214-241) | Añadir el esquema del **bundle** y del **índice** (§11.10), marcados como **formato de intercambio, no almacén** |
+| **§5** interfaces del repositorio (L402-555) | `Lesson.example_id: str` → **`str \| None`**; `Lesson.enabled` deja de derivarse de `examples.enabled`; `Lesson` gana `completion_rule`; `Example` gana `lesson_id: str \| None` y su `order`/`module_id` salen de un `JOIN … ON l.id = e.lesson_id`. El orden de la ruta lineal pasa a `(modules."order", lessons."order")`. Sustituir las constantes `EXPECTED_LESSON_COUNT=14` / `EXPECTED_ENABLED_QUESTIONS=60` como invariante del **sistema** por invariantes **por módulo** (≥1 lección, `(module_id, order)` único y contiguo, ids estables); mantenerlas exportadas y aplicables solo al **baseline** de fixtures |
+| **§7.2** (L593-625) | Reescribir los bullets de `lessons` y `examples`: ya no `"order" UNIQUE [global]` ni `examples(id PK FK→lessons)`. En «campos derivados NO se almacenan», **quitar** `Lesson.example_id (==id)` y `enabled (de examples.enabled)` |
+| **§7.4** (L649-661) | Añadir que el instalador de bundles usa el **mismo** `content_writer._persist` (una unidad, un commit, revalidación del grafo, swap atómico) y **nunca** `content_state.reload_content` (que hace el swap **sin commit**) |
+| **§8 (nueva) — «Módulos publicables (Fase 5)»** | §8.1 Principio: el bucket guarda solo contenido; SQLite es el almacén de todo lo local. §8.2 DDL de `installed_modules` (manifiesto de selección, `module_id PK REFERENCES modules(id) ON DELETE CASCADE`, `object_path`, `installed_version/checksum`, `available_version/checksum`, `last_checked_at`, `installed_at`, `updated_at`) + caché del índice remoto. §8.3 **Por qué el progreso sobrevive**: `lesson_progress` y `quiz_attempts` **no tienen FK a `lessons`** — es la propiedad que hace viable «actualizar sin perder progreso»; **prohibido añadir esa FK**. §8.4 Instalación/actualización: UPSERT por PK, orden `modules → lessons → examples → quiz_questions`, reasignación de `modules."order"`, detección de colisión de ids de pregunta entre módulos. §8.5 **Cero PII**: enumerar qué campos salen al bucket y por qué ninguno puede transportar identidad ni avance |
+
+#### C · Orden de trabajo (minimiza el daño a los 205 tests del backend)
+
+1. Editar `api-contract.md` (§1.1, §2.2, §4, §6.2, §9, §10, §11) y `data-model.md`
+   (§3, §3.1, §5, §7, §8). **Spec antes que código.**
+2. Bloque `-- migration 5` en `backend/app/schema.sql` + test de backfill
+   (`examples.lesson_id = id`, `lessons.enabled` heredado, `completion_rule`
+   derivado de si hay preguntas). *Un error de sintaxis aquí tumba las 205
+   pruebas de golpe: la migración corre también sobre la DB `:memory:` de todos
+   los tests.*
+3. `ContentRepository.load` (JOIN por `lesson_id`, `ORDER BY` compuesto, `enabled`
+   propio), con `test_seed_no_data_loss` como red: si el round-trip
+   fixtures↔DB sigue byte-idéntico, el 80 % del suite está a salvo. **No
+   renumerar `app/content/catalog.json`**: sus orders 1..14 siguen siendo válidos
+   bajo `UNIQUE(module_id,"order")` y producen la misma secuencia.
+4. `content_admin` + `content_writer` (order por módulo, reorder, lección sin
+   ejemplo, `_lesson_refs` con `LEFT JOIN`, `--prune` del seeder filtrando por
+   `example_ids` y no por `lesson_ids`).
+5. Schemas/routers de §4/§10 (`example_id` nullable, `completion_rule`).
+6. `CatalogReadPort` + `FakeCatalog` + `module_installer` sobre `_persist`; luego
+   `catalog_publisher` (admin-only).
+
+### 11.13 Filas nuevas para la tabla congelada de §9
+
+| Método | Path | Propósito | OK | Errores |
+|---|---|---|---|---|
+| GET | `/api/v1/catalog/status` | Qué está instalado y qué tiene actualización (**offline-safe**) (§11.4) | 200 | — |
+| POST | `/api/v1/catalog/refresh` | Comprobar el bucket y refrescar el estado (§11.4) | 200 | 422, 503 |
+| GET | `/api/v1/catalog/remote` | Catálogo remoto (red o caché) (§11.5) | 200 | 422, 503 |
+| GET | `/api/v1/catalog/remote/{id}` | Detalle de un módulo remoto, sin instalar (§11.5) | 200 | 404, 409, 413, 422, 503 |
+| POST | `/api/v1/catalog/install` | Incorporar un módulo (§11.6) | 201 | 404, 409, 413, 422, 503 |
+| GET | `/api/v1/catalog/modules/{id}/update/preview` | Diff de actualización: qué conservo, qué pierdo (§11.6) | 200 | 404, 409, 413, 422, 503 |
+| POST | `/api/v1/catalog/modules/{id}/update` | Actualizar conservando el progreso (§11.6) | 200 | 404, 409, 413, 422, 503 |
+| DELETE | `/api/v1/catalog/modules/{id}` | Quitar un módulo incorporado (§11.6) | 200 | 404 |
+| GET | `/api/v1/admin/catalog/credentials` | Estado de la clave de la cuenta de servicio (§11.8) | 200 | 401, 503 |
+| POST | `/api/v1/admin/catalog/import` | Descargar un módulo para editarlo (§11.7) | 201 | 401, 404, 409, 413, 422, 503 |
+| POST | `/api/v1/admin/modules/{id}/publish` | Publicar el módulo en el bucket (§11.8) | 201/200 | 401, 403, 404, 409, 413, 422, 503 |
