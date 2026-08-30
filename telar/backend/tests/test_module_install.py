@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any, AsyncIterator
 
 import pytest
+from pydantic import ValidationError as PydanticValidationError
 import pytest_asyncio
 from fastapi import FastAPI
 
@@ -1548,23 +1549,24 @@ async def test_el_modulo_que_se_declara_con_otra_version_se_rechaza(
 async def test_un_id_de_pregunta_derivado_impronunciable_se_rechaza(
     app_vacia, catalogo
 ):
-    """``AdminQuizQuestion.order`` no tiene tope, así que ``{lesson_id}-q{order}``
-    puede pasarse de los 80 chars de QUESTION_ID_PATTERN. Ese id NO pasa por
-    pydantic (lo genera el servidor), así que hay que validarlo a mano."""
-    largo = "l" + "o" * 59  # 60 chars: la lección cabe, el id derivado no
-    montar(
-        catalogo,
-        bundle("m9", leccion(largo, quiz=quiz(pregunta(10**20)))),
-    )
+    """El `order` desmedido se rechaza en el esquema, antes de derivar el id.
 
-    with pytest.raises(ApiException) as excinfo:
-        await install_module(
-            app_vacia, InstallRequest(module_id="m9"), catalog=catalogo
-        )
+    `AdminQuizQuestion.order` ya tiene tope (10 000), así que el bundle ni
+    siquiera parsea: `{lesson_id}-q{order}` no puede pasarse de los 80 chars de
+    QUESTION_ID_PATTERN por construcción. Antes había que cazarlo a mano.
+    """
+    largo = "l" + "o" * 59  # 60 chars: la lección cabe, el id derivado no cabría
 
-    error = error_de(excinfo)
-    assert error.code == "CONTENT_VALIDATION_ERROR"
-    assert error.details[0]["field"] == "lessons[0].quiz.questions[0].id"
+    # Ni siquiera se puede CONSTRUIR el bundle: el tope de `order` lo corta en el
+    # esquema. Antes esto se colaba hasta la derivación del id y había que
+    # atraparlo a mano; ahora el peligro no existe, porque con el order máximo
+    # (10 000) y un lesson_id de 64 chars el id derivado mide 71, bajo los 80 del
+    # patrón. El tope se puso por otra razón —un entero sin cota revienta el
+    # INSERT de SQLite y sale por un 500— y de paso cerró este agujero.
+    with pytest.raises(PydanticValidationError) as excinfo:
+        bundle("m9", leccion(largo, quiz=quiz(pregunta(10**20))))
+
+    assert "less than or equal to" in str(excinfo.value)
     await db_intacta(app_vacia.state.db)
 
 

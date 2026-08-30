@@ -320,7 +320,7 @@ def _issues_de_filename(campo: str, valor: str) -> list[dict]:
     ]
 
 
-def _issues_de_texto(payload: Any) -> list[dict]:
+def issues_de_texto(payload: Any) -> list[dict]:
     """Caracteres prohibidos y formas peligrosas de id, sobre el payload crudo."""
     issues: list[dict] = []
     for ruta, clave, texto in _recorrer_textos(payload):
@@ -538,6 +538,18 @@ def _issues_de_contenido(bundle: ModuleBundle) -> list[dict]:
     issues: list[dict] = _issues_de_orden(bundle)
     for indice, leccion in enumerate(bundle.lessons):
         base = f"lessons[{indice}]"
+        # La vía admin (`content_writer._recommended_issues`) prohíbe que una
+        # lección se recomiende a sí misma. La frontera NO confiable no puede ser
+        # más laxa que la de confianza: sería una tarjeta «sigue con…» que
+        # apunta a donde ya estás.
+        for numero, recomendada in enumerate(leccion.recommended):
+            if recomendada.lesson_id == leccion.id:
+                issues.append(
+                    _issue(
+                        f"{base}.recommended[{numero}].lesson_id",
+                        "una lección no puede recomendarse a sí misma",
+                    )
+                )
         # Subset de markdown: lo decide markdown_validator, el MISMO que usa el
         # camino admin. Se conserva su 'line' y solo se reubica el 'field'.
         for problema in validate_markdown(leccion.content_markdown):
@@ -583,7 +595,7 @@ def parse_bundle(raw: bytes, *, max_bytes: int) -> ModuleBundle:
         _alzar_si_hay(
             BundleInvalid,
             "El bundle contiene caracteres o identificadores prohibidos.",
-            _issues_de_texto(payload),
+            issues_de_texto(payload),
         )
         bundle = _validar_esquema(payload)
     except RecursionError as exc:
@@ -615,4 +627,5 @@ __all__ = [
     "parse_bundle",
     "decodificar_estricto",
     "cargar_json_sin_duplicados",
+    "issues_de_texto",
 ]

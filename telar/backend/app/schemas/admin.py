@@ -39,7 +39,7 @@ class AdminRecommended(BaseModel):
 
 
 class AdminModuleBase(BaseModel):
-    order: int = Field(ge=1)
+    order: int = Field(ge=1, le=10_000)
     title: str = Field(min_length=1, max_length=160)
     description: str = Field(max_length=2000)
     level: str = Field(min_length=1, max_length=40)
@@ -88,7 +88,7 @@ class AdminReorderItem(BaseModel):
     """
 
     id: str
-    order: int = Field(ge=1)
+    order: int = Field(ge=1, le=10_000)
     module_id: str | None = None
 
 
@@ -116,8 +116,10 @@ class AdminExampleBase(BaseModel):
     sweeps_threads: bool
     self_measures: bool
     parser_id: ParserId
-    default_timeout_s: int = Field(ge=5)
-    est_run_seconds: int = Field(ge=1)
+    # `le=` no es cosmético: sin tope, un valor de 2**63 revienta el INSERT de
+    # SQLite (enteros de 64 bits) y sale por un 500 en vez de un 422.
+    default_timeout_s: int = Field(ge=5, le=86_400)
+    est_run_seconds: int = Field(ge=1, le=86_400)
     enabled: bool
     requires_gpu: bool
     expected_output_note: str
@@ -164,7 +166,7 @@ class AdminExampleCodeResult(BaseModel):
 
 class AdminLessonBase(BaseModel):
     module_id: str
-    order: int = Field(ge=1)
+    order: int = Field(ge=1, le=10_000)
     title: str = Field(min_length=1, max_length=160)
     estimated_minutes: int = Field(ge=1, le=600)
     content_markdown: str = Field(min_length=1, max_length=65536)
@@ -235,7 +237,7 @@ class AdminQuizQuestion(BaseModel):
     # §10.5/BL-18: id opcional; si falta, el servidor autogenera
     # ``{lesson_id}-q{order}`` (content_writer). Con valor, cumple el patrón.
     id: str | None = Field(default=None, pattern=QUESTION_ID_PATTERN)
-    order: int = Field(ge=1)
+    order: int = Field(ge=1, le=10_000)
     text: str = Field(min_length=1)
     options: list[AdminQuizOption] = Field(min_length=2, max_length=4)
     correct_key: QuizOptionKey

@@ -45,6 +45,8 @@ porque lo importa ``quiz_service``, que no es admin. Ver
 
 from __future__ import annotations
 
+import asyncio
+
 import json
 import re
 from typing import TYPE_CHECKING, Any, Sequence
@@ -65,10 +67,12 @@ from app.schemas.catalog import (
 )
 from app.services import youtube
 from app.services.bundle_guard import (
+    BundleContentInvalid,
     BundleGuardError,
     BundleInvalid,
     cargar_json_sin_duplicados,
     decodificar_estricto,
+    issues_de_texto,
     parse_bundle,
 )
 from app.services.catalog_client import (
@@ -185,9 +189,16 @@ def parse_index(raw: bytes, *, max_bytes: int) -> CatalogIndex:
     """Bytes de ``modulos/index.json`` → :class:`CatalogIndex` validado.
 
     El índice entra por el MISMO agujero que un bundle, así que recibe el mismo
-    trato: tope de tamaño, UTF-8 estricto sin BOM, JSON sin claves duplicadas y
-    ``extra="forbid"``. Se reutilizan las dos puertas que ``bundle_guard``
-    exporta justo para esto, en vez de reimplementarlas peor.
+    trato: tope de tamaño, UTF-8 estricto sin BOM, JSON sin claves duplicadas,
+    **barrido de texto** (controles, BIDI, ancho cero) y ``extra="forbid"``. Se
+    reutilizan las puertas que ``bundle_guard`` exporta justo para esto, en vez
+    de reimplementarlas peor.
+
+    El barrido de texto faltaba, y este docstring ya afirmaba que estaba: los
+    `title`/`description` del índice solo tenían `max_length`, así que una marca
+    RLO o una secuencia ANSI llegaban **verbatim** a la pantalla «Explorar»
+    —que es lo que el estudiante ve ANTES de instalar nada— y se persistían en
+    la caché. El mismo texto dentro de un bundle daba 422.
     """
     if max_bytes < 1:
         raise ValueError("max_bytes debe ser ≥ 1")
@@ -200,6 +211,11 @@ def parse_index(raw: bytes, *, max_bytes: int) -> CatalogIndex:
         payload = cargar_json_sin_duplicados(decodificar_estricto(raw))
         if not isinstance(payload, dict):
             raise BundleInvalid("La raíz del índice debe ser un objeto JSON.")
+        issues = issues_de_texto(payload)
+        if issues:
+            raise BundleContentInvalid(
+                "El índice del catálogo trae texto no permitido.", details=issues
+            )
         return CatalogIndex.model_validate(payload)
     except BundleGuardError as exc:
         raise _error_de_guard(exc) from exc
@@ -857,7 +873,13 @@ async def install_module(
         catalog, entrada, max_bytes=max_bytes, generation=generation
     )
     try:
-        bundle = parse_bundle(objeto.data, max_bytes=max_bytes)
+        # El parseo de un bundle es trabajo de CPU (decodificar, recorrer texto,
+        # validar markdown de hasta 64 KiB por lección). Hacerlo en la corrutina deja el
+        # event loop parado para TODOS: sin latido de WebSocket, sin /health, sin los
+        # jobs de los demás estudiantes. Va a un hilo.
+        bundle = await asyncio.to_thread(
+            parse_bundle, objeto.data, max_bytes=max_bytes
+        )
     except BundleGuardError as exc:
         raise _error_de_guard(exc) from exc
 

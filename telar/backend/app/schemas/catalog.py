@@ -68,6 +68,29 @@ LessonChange = Literal["added", "updated", "unchanged", "removed"]
 # ── §11.10 Formato de intercambio (ENTRADA NO CONFIABLE) ─────────────────────
 
 
+# ─────────────────────────── topes de los enteros ───────────────────────────
+#
+# `ge=` sin `le=` no es media validación: es un 500. SQLite guarda enteros de 64
+# bits, así que un `version: 2**63` llegaba al INSERT, el driver lanzaba
+# OverflowError, `_persist` lo convertía en INTERNAL_ERROR y el estudiante veía
+# un 500 con un bundle por lo demás impecable. Y no hacía falta ni instalar: un
+# índice con esa versión hacía que `/catalog/refresh` lo escribiera en
+# `installed_modules.available_version`, o sea que el 500 lo disparaba la
+# pantalla del catálogo sin que nadie pidiera nada.
+#
+# Los topes son holgados a propósito: acotan lo absurdo, no lo legítimo.
+#: Versión de módulo. Monótona, pero un curso no llega a un millón de versiones.
+MAX_VERSION = 1_000_000
+#: `order` sugerido y `order` de pregunta: posiciones, no identificadores.
+MAX_ORDEN = 10_000
+#: Segundos. Un día es ya un disparate para un ejercicio de curso.
+MAX_SEGUNDOS = 86_400
+#: Conteos del índice, acotados por los propios topes de listas del bundle.
+MAX_CONTEO = 1_000_000
+#: Bytes anunciados por el índice: por encima del tope de bundle no tiene sentido.
+MAX_BYTES_ANUNCIADOS = 1_073_741_824
+
+
 class _Strict(BaseModel):
     """Base de todo lo que llega del bucket: ningún campo desconocido pasa.
 
@@ -174,11 +197,11 @@ class BundleModule(_Strict):
     """
 
     id: str = Field(pattern=ID_PATTERN)
-    order_hint: int = Field(ge=1)  # sugerencia, no el order local
+    order_hint: int = Field(ge=1, le=MAX_ORDEN)  # sugerencia, no el order local
     title: str = Field(min_length=1, max_length=160)
     description: str = Field(max_length=2000)
     level: str = Field(min_length=1, max_length=40)
-    version: int = Field(ge=1)  # MONÓTONA
+    version: int = Field(ge=1, le=MAX_VERSION)  # MONÓTONA
     published_at: str = Field(pattern=TIMESTAMP_PATTERN)
     author_label: str = Field(default="", max_length=120)
     notes: str = Field(default="", max_length=2000)
@@ -211,16 +234,16 @@ class CatalogIndexEntry(_Strict):
     title: str = Field(max_length=160)
     description: str = Field(default="", max_length=2000)
     level: str = Field(default="", max_length=40)
-    order_hint: int = Field(ge=1)
-    version: int = Field(ge=1)
+    order_hint: int = Field(ge=1, le=MAX_ORDEN)
+    version: int = Field(ge=1, le=MAX_VERSION)
     checksum: str = Field(pattern=CHECKSUM_PATTERN)
     object_path: str = Field(pattern=OBJECT_PATH_PATTERN)
-    size_bytes: int = Field(ge=1)
+    size_bytes: int = Field(ge=1, le=MAX_BYTES_ANUNCIADOS)
     published_at: str = Field(pattern=TIMESTAMP_PATTERN)
     author_label: str = Field(default="", max_length=120)
-    lessons_count: int = Field(ge=0)
-    questions_count: int = Field(ge=0)
-    estimated_minutes_total: int = Field(ge=0)
+    lessons_count: int = Field(ge=0, le=MAX_CONTEO)
+    questions_count: int = Field(ge=0, le=MAX_CONTEO)
+    estimated_minutes_total: int = Field(ge=0, le=MAX_CONTEO)
     requires_gpu: bool = False
 
     @field_validator("object_path")

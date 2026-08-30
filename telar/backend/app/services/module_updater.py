@@ -46,6 +46,8 @@ estudiante *qué* se conservó en vez de pedirle que confíe.
 
 from __future__ import annotations
 
+import asyncio
+
 import json
 import logging
 from collections.abc import Mapping
@@ -1093,7 +1095,9 @@ async def update_module(
         max_bytes=int(settings.catalog_max_bundle_bytes),
         generation=generation,
     )
-    bundle = _parsear(objeto.data, max_bytes=int(settings.catalog_max_bundle_bytes))
+    bundle = await _parsear(
+        objeto.data, max_bytes=int(settings.catalog_max_bundle_bytes)
+    )
     _verificar_identidad(bundle, module_id, destino)
     checksum = verificar_checksum(objeto.data, bundle, esperado=expected_checksum)
     validar_bundle(bundle, max_code_bytes=int(settings.max_code_bytes))
@@ -1306,10 +1310,16 @@ async def _descargar(
         ) from exc
 
 
-def _parsear(crudo: bytes, *, max_bytes: int) -> ModuleBundle:
-    """``bundle_guard.parse_bundle`` con sus errores tipados ya traducidos."""
+async def _parsear(crudo: bytes, *, max_bytes: int) -> ModuleBundle:
+    """``bundle_guard.parse_bundle`` con sus errores tipados ya traducidos.
+
+    El parseo de un bundle es trabajo de CPU (decodificar, recorrer texto,
+    validar markdown de hasta 64 KiB por lección). Hacerlo en la corrutina deja el
+    event loop parado para TODOS: sin latido de WebSocket, sin /health, sin los
+    jobs de los demás estudiantes. Va a un hilo.
+    """
     try:
-        return parse_bundle(crudo, max_bytes=max_bytes)
+        return await asyncio.to_thread(parse_bundle, crudo, max_bytes=max_bytes)
     except BundleGuardError as exc:
         raise ApiException(
             exc.code,

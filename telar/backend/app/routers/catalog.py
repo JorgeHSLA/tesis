@@ -30,6 +30,8 @@ tomado: descargar y validar ocurre fuera, escribir dentro.
 
 from __future__ import annotations
 
+import asyncio
+
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -561,7 +563,13 @@ async def _descargar_bundle(
         raise module_installer.api_error_from_catalog(exc) from exc
 
     try:
-        bundle = parse_bundle(objeto.data, max_bytes=max_bytes)
+        # El parseo de un bundle es trabajo de CPU (decodificar, recorrer texto,
+        # validar markdown de hasta 64 KiB por lección). Hacerlo en la corrutina deja el
+        # event loop parado para TODOS: sin latido de WebSocket, sin /health, sin los
+        # jobs de los demás estudiantes. Va a un hilo.
+        bundle = await asyncio.to_thread(
+            parse_bundle, objeto.data, max_bytes=max_bytes
+        )
     except BundleGuardError as exc:
         raise ApiException(
             exc.code, exc.message, status_code=exc.status_code, details=exc.details
