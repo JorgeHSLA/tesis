@@ -42,6 +42,14 @@ export const SYSTEM_INFO: SystemInfoDto = {
   gpu_examples_enabled: false,
   versions: { backend: '1.0.0', python: '3.12', pyomp: '0.5.1', api: 'v1' },
   limits: { max_code_bytes: 262144, max_timeout_s: 120, max_concurrent_jobs: 10, max_output_bytes: 262144 },
+  // Fase 5 (§11.12.A): despliegue CON bucket. `enabled: false` oculta el item
+  // «Módulos disponibles» del rail.
+  catalog: {
+    enabled: true,
+    bucket: 'telar-demo',
+    mode: 'anonymous',
+    last_checked_at: '2026-07-12T15:04:05.123Z',
+  },
 }
 
 /** Host con menos de 8 núcleos (aviso ámbar del sweep). */

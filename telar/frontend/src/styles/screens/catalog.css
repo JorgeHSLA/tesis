@@ -391,6 +391,46 @@
 }
 .gpu-banner > svg { color: var(--warn); flex-shrink: 0; margin-top: 2px; }
 
+/* ── Tira de actualizaciones (Fase 5) — hermana de `.gpu-banner` ─────────
+   Mismo patrón (icono + texto + fondo teñido), otra rampa: la del `.chip-blue`,
+   `--info` sobre `--surface` con tinta `--info-ink`. Es el ÚNICO par azul del
+   sistema que pasó la auditoría de contraste en los dos temas (5.62:1 claro,
+   6.8:1 oscuro), y por eso se reutiliza tal cual en vez de inventar un color.
+
+   Aparece SOLO cuando hay algo que actualizar. Su ausencia es el estado
+   degradado —bucket caído, sin bucket, sin red—, nunca un error: `/cursos` no
+   pinta `ErrorState` por el catálogo remoto (§11.0.8). Sin animación de
+   entrada, así que no hay nada que apagar bajo `prefers-reduced-motion`. */
+.catalog-updates {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: 0 0 var(--section-gap);
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--info) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--info) 35%, transparent);
+  border-radius: var(--r-md);
+  color: var(--info-ink);
+  font-size: var(--fs-sm);
+}
+.catalog-updates > svg { color: var(--info); flex-shrink: 0; }
+/* Separador decorativo (`aria-hidden` en el .tsx): se atenúa mezclando la
+   propia tinta con transparente, sin introducir un color nuevo. */
+.catalog-updates-sep { color: color-mix(in srgb, var(--info-ink) 55%, transparent); }
+/* Enlace, no botón: lleva a /modulos, que es donde vive la acción. El anillo
+   de foco lo pone la regla global `:focus-visible` de base.css. */
+.catalog-updates-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--info-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.catalog-updates-link:hover { text-decoration-thickness: 2px; }
+
 /* ── Skeleton del catálogo (8 cards) ────────────────────────────────────── */
 .catalog-skeleton {
   display: flex;

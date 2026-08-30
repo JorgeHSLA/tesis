@@ -34,6 +34,7 @@ export function routeMeta(pathname: string): RouteMeta {
   if (pathname.startsWith('/resultados')) return { title: 'Resultados', crumbs: ['Simulador', 'Resultados'] }
   if (/^\/cursos\/.+/.test(pathname)) return { title: 'Aprender', crumbs: ['Aprendizaje', 'Módulo', 'Lección'] }
   if (pathname.startsWith('/cursos')) return { title: 'Aprendizaje · Catálogo', crumbs: ['Aprendizaje', 'Catálogo'] }
+  if (pathname.startsWith('/modulos')) return { title: 'Aprendizaje · Módulos disponibles', crumbs: ['Aprendizaje', 'Módulos'] }
   if (/^\/admin\/lecciones\b/.test(pathname)) return { title: 'Autoría · Lección', crumbs: ['Autoría', 'Lección'] }
   if (/^\/admin\/quiz\b/.test(pathname)) return { title: 'Autoría · Quiz', crumbs: ['Autoría', 'Quiz'] }
   if (/^\/admin\/ejemplos\b/.test(pathname)) return { title: 'Autoría · Ejemplo', crumbs: ['Autoría', 'Ejemplo'] }

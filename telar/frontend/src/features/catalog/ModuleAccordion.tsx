@@ -2,6 +2,7 @@
 // head con número, título, descripción, level-tag y progreso REAL del
 // servidor (progress fusionado de /modules); aria-expanded en el botón.
 // M8 GPU: chip-amber `requiere GPU NVIDIA + gcc` + filas disabled + banner.
+// Fase 5: chip-blue «Actualización · v{n}» cuando el módulo tiene versión nueva.
 import type { ExampleSummaryDto, ModuleDto, ModuleLessonDto } from '../../api/types'
 import { IconAlert, IconChevronRight, IconPlay } from '../../components/icons/icons'
 import { Chip } from '../../components/ui/Chip'
@@ -44,6 +45,14 @@ export interface ModuleAccordionProps {
   query: string
   examplesIndex: Map<string, ExampleSummaryDto> | null
   lastLessonId: string | null
+  /**
+   * Fase 5 — versión publicada que este módulo aún no tiene, o `null` si está
+   * al día (o si no se sabe: el catálogo no respondió). Solo pinta un chip
+   * INFORMATIVO; la acción de actualizar vive en `/modulos`, porque la
+   * cabecera ya es un `<button>` y meterle otro control dentro sería HTML
+   * inválido y dejaría el segundo control fuera del alcance del teclado.
+   */
+  updateVersion?: number | null
   /** gpu_examples_enabled de GET /system (M8). */
   gpuEnabled: boolean
 }
@@ -56,6 +65,7 @@ export function ModuleAccordion({
   query,
   examplesIndex,
   lastLessonId,
+  updateVersion = null,
   gpuEnabled,
 }: ModuleAccordionProps) {
   const done = module.lessons.filter((l) => l.progress.completed).length
@@ -89,6 +99,7 @@ export function ModuleAccordion({
             <span className="mono-small">
               <IconPlay size={10} /> {total} {total === 1 ? 'lección' : 'lecciones'}
             </span>
+            {updateVersion != null && <Chip tone="blue">Actualización · v{updateVersion}</Chip>}
             {requiresGpu && <Chip tone="amber">requiere GPU NVIDIA + gcc</Chip>}
           </span>
         </span>

@@ -49,6 +49,17 @@ export type ApiErrorCode =
   | 'ORDER_CONFLICT'
   | 'MODULE_NOT_EMPTY'
   | 'CONTENT_VALIDATION_ERROR'
+  // §11 Catálogo remoto — Fase 5
+  | 'REMOTE_MODULE_NOT_FOUND'
+  | 'MODULE_NOT_INSTALLED'
+  | 'MODULE_ALREADY_INSTALLED'
+  | 'VERSION_CONFLICT'
+  | 'CHECKSUM_MISMATCH'
+  | 'BUNDLE_TOO_LARGE'
+  | 'BUNDLE_INVALID'
+  | 'CATALOG_CREDENTIALS_INVALID'
+  | 'CATALOG_DISABLED'
+  | 'CATALOG_UNAVAILABLE'
 
 // ─────────────────────────── §2 Salud y sistema ────────────────────────────
 
@@ -79,6 +90,22 @@ export interface SystemLimitsDto {
   max_output_bytes: number
 }
 
+/**
+ * §2.2 (Fase 5, §11.12.A) — bloque `catalog` de `GET /system`.
+ *
+ * Sirve para que el frontend **oculte** el item «Módulos disponibles» del rail
+ * cuando este despliegue no tiene bucket, en vez de mostrarlo roto.
+ * `last_checked_at` es el último sondeo CONOCIDO —el que dejó
+ * `POST /catalog/refresh`—, nunca uno hecho dentro de esta petición:
+ * `/system` no puede bloquearse por la red.
+ */
+export interface SystemCatalogDto {
+  enabled: boolean
+  bucket: string | null
+  mode: 'anonymous' | 'admin'
+  last_checked_at: string | null
+}
+
 export interface SystemInfoDto {
   cores: number
   /** min(8, cores) — techo del slider. */
@@ -88,6 +115,8 @@ export interface SystemInfoDto {
   gpu_examples_enabled: boolean
   versions: SystemVersionsDto
   limits: SystemLimitsDto
+  /** Fase 5: `enabled=false` ⇒ el item del rail se oculta (§11.12.A). */
+  catalog: SystemCatalogDto
 }
 
 // ──────────────────────── §3 Catálogo de ejemplos ──────────────────────────
