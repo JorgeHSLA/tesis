@@ -68,9 +68,11 @@ export function LessonRow({
           )}
         </span>
         <span className="cat-lesson-meta mono-small" style={{ display: 'block' }}>
-          {hasExample && <>Ejemplo · {estRunSeconds != null ? `~${estRunSeconds}s` : '—'}</>}
-          {hasExample && lesson.has_quiz && ' · '}
-          {lesson.has_quiz && <>Quiz · {lesson.quiz_question_count} preguntas</>}
+          {/* `~{n} min` es tiempo de LECTURA (estimated_minutes, C4);
+              `~{n}s` es tiempo de EJECUCIÓN del ejemplo. No son lo mismo. */}
+          ~{lesson.estimated_minutes} min
+          {hasExample && <> · Ejemplo · {estRunSeconds != null ? `~${estRunSeconds}s` : '—'}</>}
+          {lesson.has_quiz && <> · Quiz · {lesson.quiz_question_count} preguntas</>}
           {done && <span className="done-mark"> · Completado</span>}
         </span>
       </span>

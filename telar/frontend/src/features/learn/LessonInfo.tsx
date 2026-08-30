@@ -59,6 +59,21 @@ export function LessonInfo({ lesson, example, runDisabled }: LessonInfoProps) {
       </button>
       {open && (
         <div className="card-pad" style={{ paddingTop: 0 }}>
+          {/* C4: `difficulty` y `directives` se escribían en autoría, viajaban
+              por la API y no se pintaban en ninguna pantalla del estudiante.
+              Las directivas son además la mejor pista de qué enseña el código. */}
+          <div className="lesson-facts">
+            <span className="mono-small">Dificultad {example.difficulty}/5</span>
+            {example.directives.length > 0 && (
+              <span className="lesson-directives">
+                <span className="mono-small">Directivas:</span>
+                {example.directives.map((directive) => (
+                  <code key={directive}>{directive}</code>
+                ))}
+              </span>
+            )}
+          </div>
+
           <div className="tabs" role="tablist" aria-label="Contenido de la lección">
             {TABS.map((t) => (
               <button

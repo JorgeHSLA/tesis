@@ -195,12 +195,19 @@ export default function LearnScreen() {
             <Chip>
               Módulo {module?.order ?? lesson.module_id} · Lección {lessonIndex}
             </Chip>
+            {/* C4: `estimated_minutes` se escribía en autoría y no llegaba a
+                ninguna pantalla. Es el tiempo de LECTURA, distinto del
+                `~{est_run_seconds}s` de ejecución que muestra el catálogo. */}
+            <Chip>~{lesson.estimated_minutes} min</Chip>
             {summary && (
               <span className="mono-small">
                 Progreso: {summary.lessons_completed}/{summary.lessons_total}
               </span>
             )}
           </div>
+          {/* C4: `teaches` es el resumen de una línea de qué enseña la lección;
+              tampoco se mostraba en ningún sitio. */}
+          {example.teaches !== '' && <p className="learn-teaches">{example.teaches}</p>}
         </div>
         <div className="row">
           <Button
