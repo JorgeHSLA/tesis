@@ -6,6 +6,8 @@ Fase 3. Reutiliza ``ParserId`` (§3), ``FILENAME_PATTERN`` (§7) y
 No añadir, quitar ni renombrar campos sin actualizar el contrato primero.
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from .examples import ParserId
@@ -130,8 +132,12 @@ class AdminExample(AdminExampleBase):
     """§10.4 ``GET /admin/examples/{id}`` — con ``source_code`` y derivados."""
 
     id: str
-    module_id: str
-    order: int
+    #: Fase 5 (E1): id propio del ejemplo y relación por columna. ``None`` en un
+    #: ejemplo todavía sin lección asignada.
+    lesson_id: str | None
+    #: Derivados del JOIN con la lección; ``None`` si el ejemplo está suelto.
+    module_id: str | None
+    order: int | None
     source_code: str
 
 
@@ -162,15 +168,39 @@ class AdminLessonBase(BaseModel):
     title: str = Field(min_length=1, max_length=160)
     estimated_minutes: int = Field(ge=1, le=600)
     content_markdown: str = Field(min_length=1, max_length=65536)
+    #: Fase 5: URL de YouTube no listado de esta lección. Se valida y NORMALIZA
+    #: al escribir (se conserva el id del video, se descarta el resto).
+    video_url: str | None = Field(default=None, max_length=2048)
+    #: Fase 5 (E4): columna propia de la lección. Antes se derivaba del ejemplo,
+    #: y una lección sin ejemplo habría nacido deshabilitada en silencio.
+    enabled: bool = True
+    #: Fase 5 (E4): qué cuenta como completarla.
+    completion_rule: Literal["quiz", "viewed", "run"] = "quiz"
     recommended: list[AdminRecommended] = Field(default_factory=list, max_length=6)
 
 
 class AdminLessonCreate(AdminLessonBase):
-    """§10.5 ``POST /admin/lessons`` — crea lección + ejemplo pareado (mismo id)."""
+    """§10.3 ``POST /admin/lessons`` — lección, con ejemplo OPCIONAL.
+
+    Fase 5 (E1): omitir ``example``/``source_code`` crea una **lección
+    conceptual**, que es justo lo que el acoplamiento 1:1 hacía irrepresentable.
+    Enviarlos sigue creando lección + ejemplo en una sola transacción.
+    """
 
     id: str = Field(pattern=ID_PATTERN)
-    example: AdminExampleBase
+    example: AdminExampleBase | None = None
     # BL-17: tope en runtime (settings.max_code_bytes), no cap estático.
+    source_code: str | None = Field(default=None, min_length=1)
+
+
+class AdminLessonExampleCreate(BaseModel):
+    """§10.3 ``POST /admin/lessons/{id}/example`` — dar código a una lección.
+
+    E1: una lección conceptual puede volverse práctica sin recrearla, que es lo
+    que antes obligaba a borrarla —y con ella, el progreso del estudiante—.
+    """
+
+    example: AdminExampleBase
     source_code: str = Field(min_length=1)
 
 
@@ -182,12 +212,15 @@ class AdminLessonDetail(AdminLessonBase):
     """§10.5 ``GET /admin/lessons/{id}`` — lección + ejemplo + derivados."""
 
     id: str
-    enabled: bool
     has_quiz: bool
     quiz_question_count: int
+    #: Fase 5: retirada por una versión posterior de su módulo.
+    archived: bool = False
     prev_lesson_id: str | None
     next_lesson_id: str | None
-    example: AdminExample
+    #: Fase 5 (E1): ``None`` en una lección conceptual. El GET responde **200**,
+    #: no 404: la lección existe aunque no tenga código.
+    example: AdminExample | None
 
 
 # ── §10.6 Quiz (GET admin SÍ trae correct_key/explanation) ───────────────────

@@ -33,6 +33,7 @@ from app.schemas import (
     AdminExampleBase,
     AdminExampleUpdate,
     AdminLessonCreate,
+    AdminLessonExampleCreate,
     AdminLessonDetail,
     AdminLessonUpdate,
     AdminModule,
@@ -45,6 +46,7 @@ from app.schemas import (
     AdminReorderItem,
     QUESTION_ID_PATTERN,
 )
+from app.services import youtube
 from app.services.markdown_validator import validate as validate_markdown
 
 if TYPE_CHECKING:
@@ -120,6 +122,51 @@ def _example_coherence_issues(ex: AdminExampleBase) -> list[dict]:
             }
         )
     return issues
+
+
+def _example_pairing_issues(example, source_code: str | None) -> list[dict]:
+    """``example`` y ``source_code`` viajan juntos o no viajan (E1)."""
+    if (example is None) == (source_code is None):
+        return []
+    falta = "source_code" if source_code is None else "example"
+    return [
+        {
+            "field": falta,
+            "reason": (
+                "El ejemplo y su código van juntos: envía ambos para una "
+                "lección con código, o ninguno para una lección conceptual."
+            ),
+        }
+    ]
+
+
+def _completion_rule_issues(rule: str, *, tiene_ejemplo: bool) -> list[dict]:
+    """E4 — la regla de completitud tiene que ser alcanzable.
+
+    Solo se comprueba ``"run"``. Elegirla es un acto deliberado del autor, y
+    hacerlo sin ejemplo es una incoherencia directa: no hay nada que ejecutar.
+
+    ``"quiz"`` **no** se comprueba aquí, aunque sea el caso que deja una lección
+    incompletable, porque durante la autoría es el estado NORMAL: la lección
+    nace sin quiz y el quiz se añade después con
+    ``PUT /admin/lessons/{id}/quiz``. Bloquear cada edición intermedia
+    convertiría el flujo de trabajo en una pelea con el validador.
+
+    Dónde sí se exige: al **publicar** un módulo y al **instalar** un bundle
+    (§10.6/§11.10), que es cuando el contenido llega a un estudiante y una
+    lección incompletable pasa de borrador a problema real.
+    """
+    if rule == "run" and not tiene_ejemplo:
+        return [
+            {
+                "field": "completion_rule",
+                "reason": (
+                    "'run' exige que la lección tenga ejemplo ejecutable; "
+                    "sin código no hay nada que ejecutar para completarla."
+                ),
+            }
+        ]
+    return []
 
 
 async def _recommended_issues(
@@ -312,7 +359,9 @@ async def create_lesson(
     app: "FastAPI", body: AdminLessonCreate
 ) -> AdminLessonDetail:
     db = app.state.db
-    _check_code_size(app, body.source_code)
+    # E1: sin ejemplo no hay código que medir.
+    if body.source_code is not None:
+        _check_code_size(app, body.source_code)
     async with app.state.write_lock:
         if not await content_admin.module_exists(db, body.module_id):
             raise ApiException(
@@ -330,17 +379,26 @@ async def create_lesson(
                 f"{body.module_id}.",
             )
         issues = validate_markdown(body.content_markdown)
+        issues += youtube.issues(body.video_url)
         # C2: el ejemplo va anidado (body.example); el path del error es
         # 'example.<campo>' para que el editor de lección posicione el hint.
-        issues += [
-            {**it, "field": f"example.{it['field']}"}
-            for it in _example_coherence_issues(body.example)
-        ]
+        if body.example is not None:
+            issues += [
+                {**it, "field": f"example.{it['field']}"}
+                for it in _example_coherence_issues(body.example)
+            ]
+        issues += _completion_rule_issues(
+            body.completion_rule, tiene_ejemplo=body.example is not None
+        )
+        issues += _example_pairing_issues(body.example, body.source_code)
         issues += await _recommended_issues(
             db, body.recommended, self_id=body.id
         )
         if issues:
             raise _content_error(issues)
+        body = body.model_copy(
+            update={"video_url": youtube.normalizar(body.video_url)}
+        )
         await _persist(
             app, lambda: content_admin.insert_lesson_with_example(db, body)
         )
@@ -373,11 +431,19 @@ async def update_lesson(
                 f"{body.module_id}.",
             )
         issues = validate_markdown(body.content_markdown)
+        issues += youtube.issues(body.video_url)
+        issues += _completion_rule_issues(
+            body.completion_rule,
+            tiene_ejemplo=await content_admin.lesson_has_example(db, lesson_id),
+        )
         issues += await _recommended_issues(
             db, body.recommended, self_id=lesson_id
         )
         if issues:
             raise _content_error(issues)
+        body = body.model_copy(
+            update={"video_url": youtube.normalizar(body.video_url)}
+        )
         await _persist(app, lambda: content_admin.update_lesson(db, lesson_id, body))
         result = await content_admin.select_admin_lesson_detail(db, lesson_id)
     assert result is not None
@@ -524,6 +590,66 @@ async def update_example(
         result = await content_admin.select_admin_example(db, example_id)
     assert result is not None
     return result
+
+
+async def add_example_to_lesson(
+    app: "FastAPI", lesson_id: str, body: AdminLessonExampleCreate
+) -> AdminExample:
+    """§10.3 ``POST /admin/lessons/{id}/example`` — dar código a una lección.
+
+    E1: el ejemplo dejó de nacer y morir con su lección, así que una lección
+    conceptual puede convertirse en práctica sin recrearla —y sin que su
+    progreso se pierda, que es lo que pasaría al borrarla y volver a crearla.
+    """
+    db = app.state.db
+    _check_code_size(app, body.source_code)
+    async with app.state.write_lock:
+        if not await content_admin.lesson_exists(db, lesson_id):
+            raise ApiException(
+                "LESSON_NOT_FOUND", f"No existe la lección {lesson_id}."
+            )
+        if await content_admin.lesson_has_example(db, lesson_id):
+            raise ApiException(
+                "DUPLICATE_ID",
+                f"La lección {lesson_id} ya tiene ejemplo; edítalo o bórralo.",
+            )
+        if await content_admin.example_exists(db, lesson_id):
+            raise ApiException(
+                "DUPLICATE_ID", f"El id de ejemplo '{lesson_id}' ya existe."
+            )
+        issues = _example_coherence_issues(body.example)
+        if issues:
+            raise _content_error(issues)
+        await _persist(
+            app,
+            lambda: content_admin.insert_example_for_lesson(
+                db, lesson_id, body.example, body.source_code
+            ),
+        )
+        result = await content_admin.select_admin_example(db, lesson_id)
+    assert result is not None
+    return result
+
+
+async def remove_example_from_lesson(app: "FastAPI", lesson_id: str) -> None:
+    """§10.3 ``DELETE /admin/lessons/{id}/example`` — la lección pasa a teórica.
+
+    Borra SOLO el ejemplo. La lección, su quiz y —sobre todo— el progreso del
+    estudiante siguen intactos: ese es el punto de haber desacoplado los ids.
+    """
+    db = app.state.db
+    async with app.state.write_lock:
+        if not await content_admin.lesson_exists(db, lesson_id):
+            raise ApiException(
+                "LESSON_NOT_FOUND", f"No existe la lección {lesson_id}."
+            )
+        if not await content_admin.lesson_has_example(db, lesson_id):
+            raise ApiException(
+                "EXAMPLE_NOT_FOUND", f"La lección {lesson_id} no tiene ejemplo."
+            )
+        await _persist(
+            app, lambda: content_admin.delete_example_of_lesson(db, lesson_id)
+        )
 
 
 async def set_example_code(

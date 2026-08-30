@@ -32,6 +32,7 @@ from app.schemas import (
     AdminExampleCodeResult,
     AdminExampleUpdate,
     AdminLessonCreate,
+    AdminLessonExampleCreate,
     AdminLessonUpdate,
     AdminModuleCreate,
     AdminModuleUpdate,
@@ -176,6 +177,25 @@ async def delete_lesson(request: Request, lesson_id: str) -> JSONResponse:
     """§10.3 ``DELETE /admin/lessons/{id}`` — borra lección + ejemplo + quiz."""
     await content_writer.delete_lesson(request.app, lesson_id)
     return envelope_ok(AdminDeleteResult(deleted=True, id=lesson_id))
+
+
+@router.post("/lessons/{lesson_id}/example")
+async def add_lesson_example(
+    request: Request, lesson_id: str, body: AdminLessonExampleCreate
+) -> JSONResponse:
+    """§10.3 ``POST /admin/lessons/{id}/example`` — dar código a una lección."""
+    example = await content_writer.add_example_to_lesson(request.app, lesson_id, body)
+    return envelope_ok(example)
+
+
+@router.delete("/lessons/{lesson_id}/example")
+async def delete_lesson_example(request: Request, lesson_id: str) -> JSONResponse:
+    """§10.3 ``DELETE /admin/lessons/{id}/example`` — la lección pasa a teórica.
+
+    No toca la lección, ni su quiz, ni el progreso del estudiante.
+    """
+    await content_writer.remove_example_from_lesson(request.app, lesson_id)
+    return envelope_ok({"deleted": True, "lesson_id": lesson_id})
 
 
 # ────────────────────────────────── quiz ────────────────────────────────────

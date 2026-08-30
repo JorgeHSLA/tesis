@@ -330,14 +330,16 @@ async def reorder_lessons(
 _INSERT_LESSON = """
 INSERT INTO lessons
     (id, module_id, "order", title, estimated_minutes,
-     content_markdown, pass_threshold, recommended_json)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     content_markdown, pass_threshold, recommended_json,
+     video_url, enabled, completion_rule)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 _UPDATE_LESSON = """
 UPDATE lessons SET
     module_id = ?, "order" = ?, title = ?, estimated_minutes = ?,
-    content_markdown = ?, recommended_json = ?
+    content_markdown = ?, recommended_json = ?,
+    video_url = ?, enabled = ?, completion_rule = ?
 WHERE id = ?
 """
 
@@ -404,7 +406,13 @@ def _example_insert_params(
 async def insert_lesson_with_example(
     db: "aiosqlite.Connection", body: AdminLessonCreate
 ) -> None:
-    """Inserta la lección + su ejemplo pareado (mismo id) en la misma unidad."""
+    """Inserta la lección y, si viene, su ejemplo, en la misma unidad.
+
+    E1: ``body.example`` es opcional. Sin él queda una **lección conceptual**,
+    que es exactamente lo que el acoplamiento 1:1 hacía irrepresentable. El
+    ejemplo conserva el id de la lección mientras la UI de autoría no ofrezca
+    uno propio; lo que ya rige es la relación por ``lesson_id``.
+    """
     await db.execute(
         _INSERT_LESSON,
         (
@@ -416,12 +424,43 @@ async def insert_lesson_with_example(
             body.content_markdown,
             DEFAULT_PASS_THRESHOLD,
             _recommended_json(body.recommended),
+            body.video_url,
+            int(body.enabled),
+            body.completion_rule,
         ),
     )
+    if body.example is not None and body.source_code is not None:
+        await db.execute(
+            _INSERT_EXAMPLE,
+            _example_insert_params(body.id, body.example, body.source_code),
+        )
+
+
+async def insert_example_for_lesson(
+    db: "aiosqlite.Connection",
+    lesson_id: str,
+    example: AdminExampleBase,
+    source_code: str,
+) -> None:
+    """``POST /admin/lessons/{id}/example`` — añade código a una lección viva."""
     await db.execute(
-        _INSERT_EXAMPLE,
-        _example_insert_params(body.id, body.example, body.source_code),
+        _INSERT_EXAMPLE, _example_insert_params(lesson_id, example, source_code)
     )
+
+
+async def delete_example_of_lesson(
+    db: "aiosqlite.Connection", lesson_id: str
+) -> None:
+    """``DELETE /admin/lessons/{id}/example`` — la lección pasa a conceptual."""
+    await db.execute("DELETE FROM examples WHERE lesson_id = ?", (lesson_id,))
+
+
+async def lesson_has_example(db: "aiosqlite.Connection", lesson_id: str) -> bool:
+    return (
+        await _scalar(
+            db, "SELECT 1 FROM examples WHERE lesson_id = ?", (lesson_id,)
+        )
+    ) is not None
 
 
 async def update_lesson(
@@ -437,6 +476,9 @@ async def update_lesson(
             body.estimated_minutes,
             body.content_markdown,
             _recommended_json(body.recommended),
+            body.video_url,
+            int(body.enabled),
+            body.completion_rule,
             lesson_id,
         ),
     )
@@ -660,9 +702,13 @@ async def select_admin_module(
 async def select_admin_example(
     db: "aiosqlite.Connection", example_id: str
 ) -> AdminExample | None:
+    # E1: la relación la manda `examples.lesson_id`. LEFT JOIN porque un
+    # ejemplo puede no tener lección: entonces `module_id`/`order` son NULL, y
+    # eso es un estado válido, no un grafo roto.
     cur = await db.execute(
         'SELECT e.*, l.module_id AS module_id, l."order" AS lesson_order '
-        "FROM examples e JOIN lessons l ON l.id = e.id WHERE e.id = ?",
+        "FROM examples e LEFT JOIN lessons l ON l.id = e.lesson_id "
+        "WHERE e.id = ?",
         (example_id,),
     )
     row = await cur.fetchone()
@@ -670,6 +716,7 @@ async def select_admin_example(
         return None
     return AdminExample(
         id=example_id,
+        lesson_id=row["lesson_id"],
         module_id=row["module_id"],
         order=row["lesson_order"],
         source_code=row["source_code"],
@@ -714,16 +761,22 @@ async def select_admin_lesson_detail(
 ) -> AdminLessonDetail | None:
     cur = await db.execute(
         "SELECT id, module_id, \"order\", title, estimated_minutes, "
-        "content_markdown, recommended_json FROM lessons WHERE id = ?",
+        "content_markdown, recommended_json, video_url, enabled, "
+        "completion_rule, archived_at FROM lessons WHERE id = ?",
         (lesson_id,),
     )
     row = await cur.fetchone()
     if row is None:
         return None
-    example = await select_admin_example(db, lesson_id)
-    if example is None:
-        # No debería ocurrir (invariante 1:1) — el grafo estaría roto.
-        return None
+    # E1: la lección puede no tener ejemplo. Antes, no encontrarlo se trataba
+    # como grafo roto y se devolvía None → 404 sobre una lección que EXISTE.
+    cur_ex = await db.execute(
+        "SELECT id FROM examples WHERE lesson_id = ?", (lesson_id,)
+    )
+    fila_ex = await cur_ex.fetchone()
+    example = (
+        await select_admin_example(db, fila_ex["id"]) if fila_ex is not None else None
+    )
     qcount = await quiz_question_count(db, lesson_id)
     prev_id, next_id = await _adjacent_lesson_ids(db, row["order"])
     recommended = [
@@ -741,7 +794,10 @@ async def select_admin_lesson_detail(
         estimated_minutes=row["estimated_minutes"],
         content_markdown=row["content_markdown"],
         recommended=recommended,
-        enabled=example.enabled,
+        video_url=row["video_url"],
+        enabled=bool(row["enabled"]),
+        completion_rule=row["completion_rule"],
+        archived=row["archived_at"] is not None,
         has_quiz=qcount > 0,
         quiz_question_count=qcount,
         prev_lesson_id=prev_id,
