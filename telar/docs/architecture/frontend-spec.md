@@ -178,12 +178,12 @@ const routes = [
 | `/resultados` | `Resultados` | `['Simulador','Resultados']` |
 | `/resultados/:jobId` | `Resultados` | `['Simulador','Resultados']` |
 | `/cursos` | `Aprendizaje · Catálogo` | `['Aprendizaje','Catálogo']` |
-| `/cursos/:leccionId` | `ZINE · Aprender` | `['Aprendizaje', modulo, leccion]` |
+| `/cursos/:leccionId` | `Aprender` | `['Aprendizaje', modulo, leccion]` |
 
 - Navegación conserva el `scrollTo({top:0, behavior:'smooth'})` de `.main` (efecto en AppShell
   sobre cambio de `location.pathname`; con `prefers-reduced-motion` → `behavior:'auto'`).
 - `NAV_ITEMS` del sidebar → rutas: Inicio `/`, Simulador `/simulador`, Resultados `/resultados`,
-  `Aprender (ZINE)` `/cursos`. El item Simulador queda activo también en `/simulador/:jobId`.
+  `Aprender` `/cursos`. El item Simulador queda activo también en `/simulador/:jobId`.
 
 ---
 
@@ -951,7 +951,7 @@ consume `parsed_timings`. **Estados:** 404 → ErrorState; job aún no terminal 
 **Componentes:** `CatalogScreen` → header + `ContinueCard`, `CatalogStats`, `CatalogToolbar`,
 `ModuleAccordion`×8.
 
-**Textos:** eyebrow `ZINE · Aprendizaje`; H2 `Catálogo de contenidos`; párrafo `Las lecciones y
+**Textos:** eyebrow `Aprendizaje`; H2 `Catálogo de contenidos`; párrafo `Las lecciones y
 quizzes del curso de OpenMP con PyOMP, organizados en 8 módulos. Cada lección se ejecuta de
 verdad en el simulador.` ContinueCard: eyebrow `Continuar donde lo dejaste` + título de
 `progressStore.lastLessonId` + meta `[IconLayers] {módulo} · [IconPlay] ~{est_run_seconds}s` +
@@ -996,7 +996,7 @@ directivas OpenMP resaltadas (span con `term-orange` sobre los strings `openmp("
 simple, no highlighter completo) y botón central heredado del play (72px, IconPlay) con label
 `Ejecutar en el simulador` → `/simulador?ejemplo={id}`.
 
-- **Header:** ghost [IconChevronLeft] `Volver al catálogo`; eyebrow `ZINE · Aprender`; H2
+- **Header:** ghost [IconChevronLeft] `Volver al catálogo`; eyebrow `Aprender`; H2
   `{lesson.title}`; chips `chip-orange {módulo}` · `chip Módulo {m} · Lección {n}` · mono-small
   `Progreso: {done}/{totalLecciones}` (del `summary` de `/modules`). Acciones
   `Anterior`/`Siguiente` usan `prev_lesson_id`/`next_lesson_id` de `GET /lessons/{id}`.
@@ -1194,3 +1194,12 @@ Cobertura objetivo: ≥ 80 % en `ws/`, `stores/`, `lib/`, `hooks/`; los componen
 10. `api/types.ts` y `ws/messages.ts` se transcriben LITERALMENTE de api-contract.md (envelope, snake_case, `/api/v1`, 8 fases, `log.lines[]`+`seq`, sin close 4409); tabla única fase→chip en §6.3 — encabezado y §4.2.
 11. Las gráficas de CPU escalan a `threads_effective·100`, jamás a 100 fijo — §8.1/§8.4.
 12. La serie temporal de métricas vive SOLO en memoria del live; Resultados degrada a `metrics_summary` (el backend no persiste muestras) — §6.4/§8.4.
+13. **Se retira «ZINE» de los textos de la app** (2026-08): venía del prototipo del handoff, donde
+    la pantalla de lección se llamaba «ZINE player». Tras el rebrand a Telar no significa nada para
+    el estudiante y era la única marca residual visible en el rail, la barra superior y dos eyebrows.
+    Los textos exactos pasan a `Aprender` y `Aprendizaje` — §2, §6.5, §6.6.
+14. **El video de la lección es un embed de YouTube no listado**, no un `.mp4` empaquetado: viaja
+    como URL dentro del módulo publicado. El reproductor es un `<iframe>` sobre
+    `youtube-nocookie.com`, con la URL normalizada y validada en `resolveYouTubeEmbed` (contenido
+    remoto = entrada no confiable) y `frame-src` acotado en la CSP de Electron
+    (electron-spec.md §7.1). Sin fuente, el bloque de video NO se monta — §6.6.
