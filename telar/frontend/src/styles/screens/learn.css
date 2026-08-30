@@ -73,31 +73,6 @@
   background: var(--term-bg);
   display: block;
 }
-/* Placeholder cuando la lección aún no tiene video (fuente vacía). */
-.lesson-media-placeholder {
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  padding: var(--sp-6);
-  text-align: center;
-  color: var(--term-text);
-}
-.lesson-media-placeholder-icon {
-  width: 56px; height: 56px;
-  border-radius: 50%;
-  display: grid; place-items: center;
-  color: var(--term-text);
-  background: color-mix(in srgb, var(--term-text) 12%, transparent);
-  padding-left: 3px;
-}
-.lesson-media-placeholder-title {
-  font-family: var(--font-sans);
-  font-size: var(--fs-md);
-  font-weight: 600;
-  letter-spacing: .02em;
-}
-.lesson-media-placeholder-sub {
-  font-size: var(--fs-xs);
-  color: var(--term-dim);
-}
 /* Pie: nombre de archivo + CTA SECUNDARIO chico al simulador (no el naranja). */
 .lesson-media-foot {
   display: flex; align-items: center; justify-content: space-between;

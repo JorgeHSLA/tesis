@@ -1,4 +1,5 @@
-// LessonInfo — card colapsable "De qué va esta lección" (frontend-spec §6.6):
+// LessonInfo — card "De qué va esta lección" (frontend-spec §6.6), ABIERTA por
+// defecto y plegable a voluntad:
 // tabs Descripción (content_markdown de GET /lessons/{id}, renderizado con el
 // subset de lib/markdown.ts) · Código (source_code expandido con directivas
 // resaltadas) · Salida esperada (expected_output_note en bloque terminal).
@@ -28,9 +29,11 @@ export interface LessonInfoProps {
 
 export function LessonInfo({ lesson, example, runDisabled }: LessonInfoProps) {
   const navigate = useNavigate()
-  // Colapsada por defecto (2026-07): el estudiante expande "De qué va esta
-  // lección" con un click. El botón sigue siendo accesible (aria-expanded).
-  const [open, setOpen] = useState(false)
+  // 2026-08: nace ABIERTA. Colapsada por defecto (2026-07) tenía sentido cuando
+  // el bloque grande de arriba era un video; con el mapa de videos vacío el
+  // resultado combinado era una lección que no mostraba nada al abrirse
+  // (hallazgo C1). El toggle se conserva: quien quiera plegarla puede.
+  const [open, setOpen] = useState(true)
   const [tab, setTab] = useState<LessonTab>('descripcion')
 
   const markdownHtml = useMemo(() => renderMarkdown(lesson.content_markdown), [lesson.content_markdown])

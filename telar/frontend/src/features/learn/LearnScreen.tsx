@@ -1,10 +1,17 @@
-// LearnScreen — lección (frontend-spec §6.6): LessonMedia (reproductor de video
-// + CTA chico al simulador) + LessonInfo
-// (markdown/código/salida esperada) + QuizRunner (modelo servidor) en la
-// columna principal; LessonSidebar + TracksCard en un DRAWER lateral oculto por
+// LearnScreen — lección (frontend-spec §6.6). Columna principal, en este orden:
+// LessonMedia (reproductor SOLO si la lección tiene video; si no, no se monta),
+// LessonInfo abierta (markdown/código/salida esperada) y QuizRunner (modelo
+// servidor). LessonSidebar + TracksCard van en un DRAWER lateral oculto por
 // defecto (2026-07: "Recomendado para ti" retirado; el panel módulo+progreso se
-// muestra/oculta con un botón). Al montar: progressStore.markViewed(id) →
-// PUT /progress (el backend es la fuente del progreso) y lastLessonId local.
+// muestra/oculta con un botón).
+//
+// C1 (2026-08): antes el primer bloque era un reproductor con placeholder «Video
+// próximamente» y LessonInfo nacía colapsada — con el mapa de videos vacío, la
+// pantalla abría sin mostrar la lección. Ahora el contenido manda y el video es
+// opcional.
+//
+// Al montar: progressStore.markViewed(id) → PUT /progress (el backend es la
+// fuente del progreso) y lastLessonId local.
 import '../../styles/screens/learn.css'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -149,9 +156,11 @@ export default function LearnScreen() {
         <div className={`learn-grid${sideOpen ? ' with-side' : ''}`} aria-hidden="true">
           {/* El skeleton refleja la preferencia persistida del drawer para no
               provocar layout-shift al hidratar (1→2 columnas). */}
+          {/* Silueta: contenido de la lección + quiz. Ya no reserva el hueco
+              16:9 del video, que solo aparece si la lección tiene fuente. */}
           <div className="col" style={{ gap: 20 }}>
-            <Skeleton height={320} radius="var(--r-lg)" />
-            <Skeleton height={220} radius="var(--r-lg)" />
+            <Skeleton height={280} radius="var(--r-lg)" />
+            <Skeleton height={180} radius="var(--r-lg)" />
           </div>
           {sideOpen && (
             <div className="col" style={{ gap: 16 }}>

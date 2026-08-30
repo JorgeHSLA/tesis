@@ -65,12 +65,16 @@ describe('resolveVideoSrc (pura)', () => {
 })
 
 describe('LessonMedia', () => {
-  it('sin fuente → placeholder "Video próximamente" + CTA al simulador', () => {
+  // C1: sin video NO hay bloque. El placeholder «Video próximamente» se retiró
+  // porque, con el mapa de videos vacío, era el primer bloque de las 14
+  // lecciones y la pantalla abría mostrando un hueco en vez de la lección.
+  it('sin fuente → no renderiza NADA (ni marco, ni placeholder, ni CTA)', () => {
     resolveMock.mockReturnValue(null)
     const { container } = renderMedia()
-    expect(screen.getByText('Video próximamente')).toBeInTheDocument()
+    expect(container.querySelector('.lesson-media')).toBeNull()
     expect(container.querySelector('video')).toBeNull()
-    expect(screen.getByRole('button', { name: /Ejecutar en el simulador/ })).toBeInTheDocument()
+    expect(screen.queryByText('Video próximamente')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Ejecutar en el simulador/ })).not.toBeInTheDocument()
   })
 
   it('con fuente → <video> con src resuelto, controles, sin autoplay', () => {
@@ -83,11 +87,10 @@ describe('LessonMedia', () => {
     expect(video).toHaveAttribute('controls')
     expect(video).toHaveAttribute('preload', 'metadata')
     expect(video?.autoplay).toBe(false)
-    expect(screen.queryByText('Video próximamente')).not.toBeInTheDocument()
   })
 
   it('el CTA secundario navega a /simulador con el ejemplo precargado', async () => {
-    resolveMock.mockReturnValue(null)
+    resolveMock.mockReturnValue('https://cdn.x/leccion.mp4')
     const user = userEvent.setup()
     renderMedia()
     await user.click(screen.getByRole('button', { name: /Ejecutar en el simulador/ }))
@@ -95,7 +98,7 @@ describe('LessonMedia', () => {
   })
 
   it('runDisabled deshabilita el CTA al simulador', () => {
-    resolveMock.mockReturnValue(null)
+    resolveMock.mockReturnValue('https://cdn.x/leccion.mp4')
     renderMedia(true)
     expect(screen.getByRole('button', { name: /Ejecutar en el simulador/ })).toBeDisabled()
   })
