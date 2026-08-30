@@ -165,6 +165,10 @@ class QuizService:
                     lesson_id,
                     completed=True if passed else None,  # None = no tocar
                     best_quiz_score=score,  # el repo aplica MAX en SQL
+                    # E4: queda registrado que el aprobado vino del quiz, no de
+                    # que alguien marcara la lección a mano. Al actualizar el
+                    # módulo eso decide si el `completed` sigue justificado.
+                    completed_via="quiz" if passed else None,
                 )
                 await self._db.commit()  # ÚNICO commit de la unidad
             except Exception:

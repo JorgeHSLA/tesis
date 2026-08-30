@@ -55,3 +55,8 @@ class LessonProgressRecord:
     best_quiz_score: int | None
     last_job_id: str | None
     updated_at: str
+    #: Fase 5 (E4): CÓMO se completó. Distinguir «aprobó el quiz» de «dijo que
+    #: la leyó» es lo que permite decidir, al actualizar un módulo, si un
+    #: `completed` sigue estando justificado.
+    completed_via: str | None = None
+    completed_at: str | None = None

@@ -311,9 +311,24 @@ def test_put_progress_viewed(client):
 def test_put_progress_solo_toca_lo_enviado(client):
     client.put("/api/v1/progress/lessons/spmd", json={"viewed": True})
     data = assert_ok_envelope(
+        client.put("/api/v1/progress/lessons/spmd", json={"estimated": "ignorado"})
+    )["data"]
+    assert data["viewed"] is True, "lo no enviado no se pisa"
+
+
+def test_put_progress_no_completa_una_leccion_con_quiz(client):
+    """E4: con `completion_rule='quiz'`, completar es aprobar el quiz.
+
+    Si el cliente pudiera marcarla, el quiz sería opcional y se caería el
+    invariante de que el servidor es la única fuente de la corrección
+    (frontend-spec, decisión 9). Se IGNORA en vez de 422: es un campo que el
+    cliente no gobierna, como `best_quiz_score`, y la respuesta dice la verdad.
+    """
+    data = assert_ok_envelope(
         client.put("/api/v1/progress/lessons/spmd", json={"completed": True})
     )["data"]
-    assert data["viewed"] is True and data["completed"] is True
+    assert data["completed"] is False
+    assert data["completed_via"] is None
 
 
 def test_put_progress_no_escribe_best_score_ni_last_job(client, real_content):
@@ -349,10 +364,14 @@ def test_modules_completed_en_summary(client, real_content):
         if real_content.lesson(lid).enabled
     ]
     assert enabled
+    # E4: estas lecciones se completan aprobando su quiz, que es la única vía
+    # para `completion_rule='quiz'`. Marcarlas por PUT ya no cuela.
     for lesson_id in enabled:
-        client.put(
-            f"/api/v1/progress/lessons/{lesson_id}", json={"completed": True}
+        respuesta = client.post(
+            f"/api/v1/lessons/{lesson_id}/quiz/attempts",
+            json={"answers": correct_answers(real_content, lesson_id)},
         )
+        assert respuesta.status_code == 201, respuesta.text
     data = assert_ok_envelope(client.get("/api/v1/progress"))["data"]
     assert data["summary"]["modules_completed"] == 1
     assert data["summary"]["lessons_completed"] == len(enabled)

@@ -234,3 +234,61 @@ def test_quiz_sin_quiz_no_bloquea_la_autoria(admin_client):
         admin_client, modulo, lesson_id="conQuizFuturo", completion_rule="quiz"
     )
     assert respuesta.status_code == 201, respuesta.text
+
+
+# ─────────── E4: la lección conceptual SÍ se puede completar ─────────────────
+
+
+def test_la_leccion_conceptual_se_completa_marcandola(admin_client):
+    """El punto entero de `completion_rule`.
+
+    Sin esto, una lección sin quiz sería incompletable: nunca aprobaría nada,
+    su módulo nunca llegaría al 100 % y el progreso del track de fundamentos
+    quedaría atascado para siempre.
+    """
+    modulo = _modulo(admin_client)
+    assert _teorica(admin_client, modulo).status_code == 201
+
+    respuesta = admin_client.put(
+        "/api/v1/progress/lessons/queEsUnHilo", json={"viewed": True, "completed": True}
+    )
+    assert respuesta.status_code == 200, respuesta.text
+    datos = respuesta.json()["data"]
+    assert datos["completed"] is True
+    assert datos["completed_via"] == "manual", "queda constancia de CÓMO se completó"
+
+
+def test_completar_a_mano_no_cuela_si_la_regla_es_quiz(admin_client):
+    """La otra mitad: `completion_rule` también PROTEGE.
+
+    Si el estudiante pudiera marcar una lección con quiz, el quiz sería
+    opcional y se caería el invariante de que el servidor es la única fuente de
+    la corrección.
+    """
+    modulo = _modulo(admin_client)
+    assert _teorica(
+        admin_client, modulo, lesson_id="conQuiz", completion_rule="quiz"
+    ).status_code == 201
+
+    datos = admin_client.put(
+        "/api/v1/progress/lessons/conQuiz", json={"completed": True}
+    ).json()["data"]
+    assert datos["completed"] is False
+    assert datos["completed_via"] is None
+
+
+def test_completed_via_no_se_reescribe_al_volver_a_marcar(admin_client):
+    """`completed_at` guarda el PRIMER momento, no el último toque."""
+    modulo = _modulo(admin_client)
+    assert _teorica(admin_client, modulo).status_code == 201
+
+    primero = admin_client.put(
+        "/api/v1/progress/lessons/queEsUnHilo", json={"completed": True}
+    ).json()["data"]
+    segundo = admin_client.put(
+        "/api/v1/progress/lessons/queEsUnHilo", json={"viewed": True}
+    ).json()["data"]
+
+    assert primero["completed_via"] == "manual"
+    assert segundo["completed_via"] == "manual", "no se pierde al tocar otro campo"
+    assert segundo["completed"] is True

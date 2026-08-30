@@ -40,6 +40,7 @@ def _entry(record: Any, quiz_total: int) -> ProgressEntry:
         quiz_total=quiz_total,
         last_job_id=record.last_job_id,
         updated_at=record.updated_at,
+        completed_via=record.completed_via,
     )
 
 
@@ -96,12 +97,35 @@ async def put_lesson_progress(
     content: ContentRepository = Depends(get_content),
     progress_repo: Any = Depends(get_progress_repo),
 ) -> JSONResponse:
-    """§6.2 — solo toca los campos enviados; responde el registro resultante."""
-    if not content.exists_lesson(lesson_id):
+    """§6.2 — solo toca los campos enviados; responde el registro resultante.
+
+    E4: quién puede escribir ``completed`` lo decide la ``completion_rule`` de
+    la lección. Con ``"quiz"`` (el caso por defecto) lo completa aprobar el
+    quiz, y un ``completed:true`` del cliente **se ignora**; con ``"run"`` lo
+    concede el job al terminar bien. Solo ``"viewed"`` deja que el estudiante lo
+    marque, y entonces queda registrado como ``completed_via="manual"``.
+
+    Se ignora en vez de responder 422 por coherencia con la regla que este mismo
+    endpoint ya tenía: los campos que el cliente no gobierna
+    (``best_quiz_score``, ``last_job_id``) se descartan en silencio y la
+    respuesta dice la verdad. Un 422 aquí además sería un error que el
+    estudiante no puede accionar.
+    """
+    lesson = content.lesson(lesson_id)
+    if lesson is None:
         return envelope_error(
             404, "LESSON_NOT_FOUND", f"No existe la lección {lesson_id}"
         )
+    completed = body.completed
+    completed_via = None
+    if completed is not None and lesson.completion_rule != "viewed":
+        completed = None   # no es el cliente quien completa esta lección
+    elif completed:
+        completed_via = "manual"
     record = await progress_repo.upsert(
-        lesson_id, viewed=body.viewed, completed=body.completed
+        lesson_id,
+        viewed=body.viewed,
+        completed=completed,
+        completed_via=completed_via,
     )
     return envelope_ok(_entry(record, quiz_total_for(content, lesson_id)))

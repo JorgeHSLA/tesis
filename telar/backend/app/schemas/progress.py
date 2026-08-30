@@ -18,6 +18,8 @@ class ProgressEntry(BaseModel):
     quiz_total: int
     last_job_id: str | None
     updated_at: str
+    #: Fase 5 (E4): ``"quiz"`` | ``"manual"`` | ``"run"`` | ``None``.
+    completed_via: str | None = None
 
 
 class ProgressSummary(BaseModel):
