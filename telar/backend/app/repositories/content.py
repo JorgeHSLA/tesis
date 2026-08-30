@@ -174,6 +174,12 @@ class Module:
     description: str
     level: str
     lesson_ids: tuple[str, ...]
+    #: Versión publicable del módulo (entero monótono). Los módulos del baseline
+    #: viven en la 1 mientras nadie los publique.
+    version: int = 1
+    #: ``local`` = sembrado desde fixtures o creado por el admin aquí;
+    #: ``remote`` = incorporado desde el catálogo del bucket.
+    origin: str = "local"
 
 
 @dataclass(frozen=True)
@@ -556,6 +562,8 @@ def _load_modules_from_db(rows: list, lesson_ids_by_module: dict) -> tuple:
             description=row["description"],
             level=row["level"],
             lesson_ids=tuple(lesson_ids_by_module.get(row["id"], ())),
+            version=row["version"],
+            origin=row["origin"],
         )
         for row in rows
     )

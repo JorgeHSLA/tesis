@@ -24,11 +24,17 @@ class ModuleLesson(BaseModel):
     id: str
     order: int
     title: str
-    example_id: str
+    #: Fase 5 (E1): ``None`` en una lección conceptual. Sin ejemplo NO hay
+    #: affordance de ejecución, que no es lo mismo que un botón deshabilitado.
+    example_id: str | None
     has_quiz: bool
+    #: Fase 5: si la lección tiene video, sin exponer la URL en el listado.
+    has_video: bool
     quiz_question_count: int
     estimated_minutes: int
     enabled: bool
+    #: Fase 5 (E4): qué cuenta como completar esta lección.
+    completion_rule: str
     progress: LessonProgress
 
 
@@ -38,6 +44,13 @@ class Module(BaseModel):
     title: str
     description: str
     level: str
+    #: Fase 5: versión publicable del módulo (entero monótono).
+    version: int
+    #: Fase 5: ``"local"`` | ``"remote"`` — de dónde salió este módulo.
+    origin: str
+    #: Fase 5: versión disponible en el bucket si es mayor que la instalada;
+    #: ``None`` si está al día o no vino del catálogo remoto.
+    update_available: int | None
     lessons: list[ModuleLesson]
 
 
@@ -47,6 +60,9 @@ class ModulesSummary(BaseModel):
     lessons_completed: int
     quizzes_total: int
     questions_enabled_total: int
+    #: Fase 5: cuántos módulos hay instalados y cuántos tienen versión nueva.
+    modules_installed: int
+    modules_updatable: int
 
 
 class ModulesResponse(BaseModel):
@@ -70,11 +86,20 @@ class LessonDetail(BaseModel):
     order: int
     title: str
     content_markdown: str
-    example_id: str
+    #: Fase 5: URL del video de ESTA lección en YouTube no listado, ya
+    #: normalizada por el servidor. ``None`` ⇒ el reproductor no se monta.
+    video_url: str | None
+    #: Fase 5 (E1): ``None`` en una lección conceptual.
+    example_id: str | None
     has_quiz: bool
     quiz_question_count: int
     estimated_minutes: int
     enabled: bool
+    #: Fase 5 (E4).
+    completion_rule: str
+    #: Fase 5: retirada de una versión posterior de su módulo. Legible y con su
+    #: progreso intacto, pero fuera de la ruta lineal.
+    archived: bool
     prev_lesson_id: str | None
     next_lesson_id: str | None
     recommended: list[RecommendedLesson]

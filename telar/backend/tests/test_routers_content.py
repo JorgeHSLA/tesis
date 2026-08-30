@@ -71,6 +71,10 @@ def test_modules_catalogo_completo(client):
         "lessons_completed": 0,
         "quizzes_total": 14,
         "questions_enabled_total": 60,
+        # Fase 5: los 8 módulos del baseline están «instalados» y ninguno viene
+        # del catálogo remoto, así que ninguno puede tener actualización.
+        "modules_installed": 8,
+        "modules_updatable": 0,
     }
     first = all_lessons[0]
     assert first["progress"] == {
