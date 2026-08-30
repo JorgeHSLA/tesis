@@ -106,12 +106,25 @@ async def module_order_taken(
 
 
 async def lesson_order_taken(
-    db: "aiosqlite.Connection", order: int, *, exclude_id: str | None = None
+    db: "aiosqlite.Connection",
+    module_id: str,
+    order: int,
+    *,
+    exclude_id: str | None = None,
 ) -> bool:
+    """¿Hay ya una lección VIVA con ese ``order`` en ESE módulo? (E2)
+
+    Antes el ``order`` era único global, así que dos módulos no podían tener
+    cada uno su lección 1 — y anteponer un módulo obligaba a renumerar el curso
+    entero. La migración 5 lo pasó a `(module_id, "order")` con un índice
+    parcial; esta consulta es su espejo, incluida la exclusión de las
+    archivadas, que liberan su hueco.
+    """
     row = await _scalar(
         db,
-        'SELECT 1 FROM lessons WHERE "order" = ? AND id != ?',
-        (order, exclude_id or ""),
+        'SELECT 1 FROM lessons '
+        'WHERE module_id = ? AND "order" = ? AND id != ? AND archived_at IS NULL',
+        (module_id, order, exclude_id or ""),
     )
     return row is not None
 
@@ -179,10 +192,27 @@ async def all_module_orders(db: "aiosqlite.Connection") -> dict[str, int]:
     return {row["id"]: int(row["order"]) for row in await cur.fetchall()}
 
 
-async def all_lesson_orders(db: "aiosqlite.Connection") -> dict[str, int]:
-    """``{lesson_id: order}`` de todas las lecciones (para validar el reorder)."""
-    cur = await db.execute('SELECT id, "order" FROM lessons')
-    return {row["id"]: int(row["order"]) for row in await cur.fetchall()}
+async def all_lesson_orders(
+    db: "aiosqlite.Connection",
+) -> dict[str, tuple[str, int]]:
+    """``{lesson_id: (module_id, order)}`` de las lecciones VIVAS.
+
+    La clave del reorden es la pareja, no el order suelto (E2). Las archivadas
+    quedan fuera porque no ocupan hueco en el índice parcial.
+    """
+    cur = await db.execute(
+        'SELECT id, module_id, "order" FROM lessons WHERE archived_at IS NULL'
+    )
+    return {
+        row["id"]: (row["module_id"], int(row["order"]))
+        for row in await cur.fetchall()
+    }
+
+
+async def lesson_module_ids(db: "aiosqlite.Connection") -> dict[str, str]:
+    """``{lesson_id: module_id}`` — resuelve el módulo actual de cada lección."""
+    cur = await db.execute("SELECT id, module_id FROM lessons")
+    return {row["id"]: row["module_id"] for row in await cur.fetchall()}
 
 
 # ──────────────────────────────── módulos ───────────────────────────────────
@@ -259,10 +289,39 @@ async def reorder_modules(
     await _reorder(db, "modules", items)
 
 
-async def reorder_lessons(
-    db: "aiosqlite.Connection", items: list[tuple[str, int]]
+async def _reorder_lessons_con_modulo(
+    db: "aiosqlite.Connection", items: list[tuple[str, str, int]]
 ) -> None:
-    await _reorder(db, "lessons", items)
+    """Reorden de lecciones que puede además MOVERLAS de módulo (E2).
+
+    Mismo estacionamiento en dos fases que ``_reorder``: el ``MAX("order")`` se
+    toma GLOBAL a propósito. Acotarlo por módulo parecería una optimización
+    natural y rompería el lote que toca varios módulos, porque una fila
+    estacionada podría chocar con otra ya movida a su destino.
+    """
+    if not items:
+        return
+    cur = await db.execute('SELECT COALESCE(MAX("order"), 0) AS m FROM lessons')
+    row = await cur.fetchone()
+    park_base = max(int(row["m"]) if row is not None else 0,
+                    max(order for _, _, order in items)) + 1
+    for offset, (lesson_id, _, _) in enumerate(items):  # fase 1: estacionar
+        await db.execute(
+            'UPDATE lessons SET "order" = ? WHERE id = ?',
+            (park_base + offset, lesson_id),
+        )
+    for lesson_id, module_id, order in items:  # fase 2: módulo + order finales
+        await db.execute(
+            'UPDATE lessons SET module_id = ?, "order" = ? WHERE id = ?',
+            (module_id, order, lesson_id),
+        )
+
+
+async def reorder_lessons(
+    db: "aiosqlite.Connection", items: list[tuple[str, str, int]]
+) -> None:
+    """``items`` = ``(lesson_id, module_id, order)``. El módulo puede cambiar."""
+    await _reorder_lessons_con_modulo(db, items)
 
 
 # ─────────────────────────── lecciones + ejemplo ────────────────────────────

@@ -322,9 +322,12 @@ async def create_lesson(
             raise ApiException(
                 "DUPLICATE_ID", f"El id de lección/ejemplo '{body.id}' ya existe."
             )
-        if await content_admin.lesson_order_taken(db, body.order):
+        # E2: el order es único DENTRO del módulo destino, ya no global.
+        if await content_admin.lesson_order_taken(db, body.module_id, body.order):
             raise ApiException(
-                "ORDER_CONFLICT", f"El order {body.order} de lección ya está en uso."
+                "ORDER_CONFLICT",
+                f"El order {body.order} ya está en uso en el módulo "
+                f"{body.module_id}.",
             )
         issues = validate_markdown(body.content_markdown)
         # C2: el ejemplo va anidado (body.example); el path del error es
@@ -359,11 +362,15 @@ async def update_lesson(
             raise ApiException(
                 "MODULE_NOT_FOUND", f"No existe el módulo {body.module_id}."
             )
+        # E2: contra el módulo DESTINO (`body.module_id`), que puede ser otro
+        # si la edición mueve la lección de módulo.
         if await content_admin.lesson_order_taken(
-            db, body.order, exclude_id=lesson_id
+            db, body.module_id, body.order, exclude_id=lesson_id
         ):
             raise ApiException(
-                "ORDER_CONFLICT", f"El order {body.order} de lección ya está en uso."
+                "ORDER_CONFLICT",
+                f"El order {body.order} ya está en uso en el módulo "
+                f"{body.module_id}.",
             )
         issues = validate_markdown(body.content_markdown)
         issues += await _recommended_issues(
@@ -397,16 +404,23 @@ async def _reorder(
     exists,
     get_orders,
     persist_write,
+    clave_final,
+    pares,
     not_found_code: str,
     kind: str,
 ) -> AdminModulesResponse:
     """Valida y aplica un reorden por lote (BL-20, §10.2/§10.3).
 
     Reglas: sin ids repetidos en la petición; cada id existe
-    (``not_found_code``); el conjunto FINAL de ``order`` (filas tocadas +
-    intactas) es único y ``> 0`` (``ORDER_CONFLICT``). La escritura en dos fases
-    del repo evita violar el ``UNIQUE`` a mitad de transacción. Devuelve el
-    listado admin completo ya reordenado.
+    (``not_found_code``); el conjunto FINAL de CLAVES (filas tocadas + intactas)
+    es único (``ORDER_CONFLICT``). La escritura en dos fases del repo evita
+    violar el ``UNIQUE`` a mitad de transacción. Devuelve el listado admin
+    completo ya reordenado.
+
+    La clave depende de la entidad (E2): para módulos es el ``order`` a secas,
+    porque ``modules."order"`` sigue siendo único global; para lecciones es la
+    pareja ``(module_id, order)``. Por eso ``clave_final`` y ``pares`` se
+    inyectan en vez de asumir una forma única.
     """
     db = app.state.db
     async with app.state.write_lock:
@@ -424,15 +438,16 @@ async def _reorder(
                 not_found_code,
                 f"{kind} inexistente(s): {', '.join(missing)}.",
             )
-        current = await get_orders(db)  # {id: order} de TODAS las filas
-        final = {**current, **{it.id: it.order for it in items}}
+        current = await get_orders(db)  # {id: clave} de TODAS las filas
+        nuevas = {it.id: await clave_final(db, it) for it in items}
+        final = {**current, **nuevas}
         if len(set(final.values())) != len(final):
             raise ApiException(
                 "ORDER_CONFLICT",
                 "El reorden deja dos elementos con el mismo order.",
             )
-        pairs = [(it.id, it.order) for it in items]
-        await _persist(app, lambda: persist_write(db, pairs))
+        escrituras = [await pares(db, it) for it in items]
+        await _persist(app, lambda: persist_write(db, escrituras))
         modules = await content_admin.select_admin_modules(db)
     return AdminModulesResponse(modules=modules)
 
@@ -440,12 +455,20 @@ async def _reorder(
 async def reorder_modules(
     app: "FastAPI", items: list[AdminReorderItem]
 ) -> AdminModulesResponse:
+    async def _clave(_db, item: AdminReorderItem) -> int:
+        return item.order
+
+    async def _par(_db, item: AdminReorderItem) -> tuple[str, int]:
+        return (item.id, item.order)
+
     return await _reorder(
         app,
         items,
         exists=content_admin.module_exists,
         get_orders=content_admin.all_module_orders,
         persist_write=content_admin.reorder_modules,
+        clave_final=_clave,
+        pares=_par,
         not_found_code="MODULE_NOT_FOUND",
         kind="módulo",
     )
@@ -454,12 +477,29 @@ async def reorder_modules(
 async def reorder_lessons(
     app: "FastAPI", items: list[AdminReorderItem]
 ) -> AdminModulesResponse:
+    # `module_id` es OPCIONAL en el item (§10.3): si falta, se resuelve contra
+    # el módulo actual de la lección. Así los payloads de Fase 4, que no lo
+    # traían, siguen siendo válidos; enviarlo mueve además la lección de módulo.
+    async def _modulo(db, item: AdminReorderItem) -> str:
+        if item.module_id is not None:
+            return item.module_id
+        actuales = await content_admin.lesson_module_ids(db)
+        return actuales[item.id]
+
+    async def _clave(db, item: AdminReorderItem) -> tuple[str, int]:
+        return (await _modulo(db, item), item.order)
+
+    async def _par(db, item: AdminReorderItem) -> tuple[str, str, int]:
+        return (item.id, await _modulo(db, item), item.order)
+
     return await _reorder(
         app,
         items,
         exists=content_admin.lesson_exists,
         get_orders=content_admin.all_lesson_orders,
         persist_write=content_admin.reorder_lessons,
+        clave_final=_clave,
+        pares=_par,
         not_found_code="LESSON_NOT_FOUND",
         kind="lección",
     )

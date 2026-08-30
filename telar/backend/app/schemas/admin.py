@@ -75,10 +75,19 @@ class AdminModulesResponse(BaseModel):
 
 
 class AdminReorderItem(BaseModel):
-    """Un id de módulo/lección y su nuevo ``order`` (global, ≥1)."""
+    """Un id de módulo/lección y su nuevo ``order`` (≥1).
+
+    Fase 5 (E2): el ``order`` de lección es único **por módulo**, así que el
+    item puede traer ``module_id``. Es OPCIONAL a propósito: si falta, el
+    servidor lo resuelve contra el módulo actual de la lección, y así los
+    payloads de Fase 4 —que no lo llevaban— siguen siendo válidos. Enviarlo
+    mueve además la lección a ese módulo. Para módulos se ignora:
+    ``modules."order"`` sigue siendo único global.
+    """
 
     id: str
     order: int = Field(ge=1)
+    module_id: str | None = None
 
 
 class AdminReorderRequest(BaseModel):
