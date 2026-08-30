@@ -1203,3 +1203,13 @@ Cobertura objetivo: ≥ 80 % en `ws/`, `stores/`, `lib/`, `hooks/`; los componen
     `youtube-nocookie.com`, con la URL normalizada y validada en `resolveYouTubeEmbed` (contenido
     remoto = entrada no confiable) y `frame-src` acotado en la CSP de Electron
     (electron-spec.md §7.1). Sin fuente, el bloque de video NO se monta — §6.6.
+15. **Una lección puede no tener ejemplo** (E1, api-contract §11): `example_id` es nullable en
+    `ModuleLessonDto` y `LessonDetailDto`. La regla de UI es que sin código **no hay affordance
+    de ejecución**: los CTA «Probar en el simulador» y «Descargar» **desaparecen**, no se
+    deshabilitan. Un botón muerto sugiere que falta algo cuando la lección conceptual está
+    completa tal cual. Igual en el resto: sin ejemplo no hay tabs de Código/Salida esperada, ni
+    dificultad, ni directivas, ni entrada en el selector del simulador, y `requires_gpu` no
+    aplica — una lección de teoría se lee en cualquier máquina — §6.5, §6.6.
+16. **`completion_rule` decide quién completa una lección** (E4): con `"viewed"` el estudiante la
+    marca desde la UI; con `"quiz"` o `"run"` el `completed` que envíe el cliente **se ignora** en
+    el servidor, así que la UI no debe ofrecer ese control — §6.6.

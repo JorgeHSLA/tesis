@@ -52,7 +52,10 @@ export function LessonSidebar({ module, currentLessonId, examplesIndex }: Lesson
           {lessons.map((lesson, i) => {
             const current = lesson.id === currentLessonId
             const isDone = lesson.progress.completed
-            const est = examplesIndex?.get(lesson.example_id)?.est_run_seconds
+            const est =
+              lesson.example_id != null
+                ? examplesIndex?.get(lesson.example_id)?.est_run_seconds
+                : undefined
             return (
               <button
                 key={lesson.id}

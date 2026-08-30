@@ -38,7 +38,12 @@ function renderMedia(runDisabled = false) {
           path="*"
           element={
             <>
-              <LessonMedia exampleId="primerEjemplo" filename="helloOpenMP.py" runDisabled={runDisabled} />
+              <LessonMedia
+                lessonId="primerEjemplo"
+                exampleId="primerEjemplo"
+                filename="helloOpenMP.py"
+                runDisabled={runDisabled}
+              />
               <LocationProbe />
             </>
           }
@@ -148,6 +153,7 @@ describe('LessonMedia', () => {
     const { container } = render(
       <MemoryRouter>
         <LessonMedia
+          lessonId="primerEjemplo"
           exampleId="primerEjemplo"
           filename="helloOpenMP.py"
           runDisabled={false}

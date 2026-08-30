@@ -150,13 +150,21 @@ export interface ModuleLessonDto {
   id: string
   order: number
   title: string
-  example_id: string
+  /** Fase 5 (E1): `null` en una lección conceptual, sin código que ejecutar. */
+  example_id: string | null
   has_quiz: boolean
+  /** Fase 5: si tiene video, sin exponer la URL en el listado. */
+  has_video: boolean
   quiz_question_count: number
   estimated_minutes: number
   enabled: boolean
+  /** Fase 5 (E4): qué cuenta como completar esta lección. */
+  completion_rule: CompletionRule
   progress: LessonProgressDto
 }
+
+/** Fase 5 (E4) — qué cuenta como completar una lección. */
+export type CompletionRule = 'quiz' | 'viewed' | 'run'
 
 export interface ModuleDto {
   id: string
@@ -164,6 +172,12 @@ export interface ModuleDto {
   title: string
   description: string
   level: string
+  /** Fase 5: versión publicable del módulo (entero monótono). */
+  version: number
+  /** Fase 5: de dónde salió este módulo. */
+  origin: 'local' | 'remote'
+  /** Fase 5: versión disponible en el bucket, o `null` si está al día. */
+  update_available: number | null
   lessons: ModuleLessonDto[]
 }
 
@@ -173,6 +187,9 @@ export interface ModulesSummaryDto {
   lessons_completed: number
   quizzes_total: number
   questions_enabled_total: number
+  /** Fase 5: módulos instalados y cuántos tienen versión nueva. */
+  modules_installed: number
+  modules_updatable: number
 }
 
 export interface ModulesResponseDto {
@@ -193,11 +210,22 @@ export interface LessonDetailDto {
   order: number
   title: string
   content_markdown: string
-  example_id: string
+  /**
+   * Fase 5: URL del video de ESTA lección en YouTube no listado, ya
+   * normalizada por el servidor. `null` ⇒ el reproductor no se monta.
+   * Los videos nunca se descargan: viaja el enlace.
+   */
+  video_url: string | null
+  /** Fase 5 (E1): `null` en una lección conceptual. */
+  example_id: string | null
   has_quiz: boolean
   quiz_question_count: number
   estimated_minutes: number
   enabled: boolean
+  /** Fase 5 (E4). */
+  completion_rule: CompletionRule
+  /** Fase 5: retirada por una versión posterior de su módulo. */
+  archived: boolean
   prev_lesson_id: string | null
   next_lesson_id: string | null
   recommended: RecommendedLessonDto[]
@@ -276,6 +304,8 @@ export interface ProgressEntryDto {
   quiz_total: number
   last_job_id: string | null
   updated_at: string
+  /** Fase 5 (E4): cómo se completó, o `null` si aún no lo está. */
+  completed_via: 'quiz' | 'manual' | 'run' | null
 }
 
 export interface ProgressSummaryDto {

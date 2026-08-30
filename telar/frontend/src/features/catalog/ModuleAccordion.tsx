@@ -62,8 +62,13 @@ export function ModuleAccordion({
   const total = module.lessons.length
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
   const rows = visibleRows(module, filter, query)
-  const requiresGpu = module.lessons.some(
-    (l) => examplesIndex?.get(l.example_id)?.requires_gpu ?? !l.enabled,
+  // Solo las lecciones CON ejemplo pueden requerir GPU: una conceptual se lee
+  // en cualquier máquina. El `?? !l.enabled` es el respaldo de cuando el índice
+  // de ejemplos aún no cargó.
+  const requiresGpu = module.lessons.some((l) =>
+    l.example_id == null
+      ? false
+      : (examplesIndex?.get(l.example_id)?.requires_gpu ?? !l.enabled),
   )
   const gpuLocked = requiresGpu && !gpuEnabled
   const bodyId = `module-body-${module.id}`
@@ -114,9 +119,18 @@ export function ModuleAccordion({
               key={lesson.id}
               lesson={lesson}
               index={index}
-              estRunSeconds={examplesIndex?.get(lesson.example_id)?.est_run_seconds}
+              estRunSeconds={
+                lesson.example_id != null
+                  ? examplesIndex?.get(lesson.example_id)?.est_run_seconds
+                  : undefined
+              }
               current={lesson.id === lastLessonId}
-              disabled={!lesson.enabled || (gpuLocked && (examplesIndex?.get(lesson.example_id)?.requires_gpu ?? true))}
+              disabled={
+                !lesson.enabled ||
+                (gpuLocked &&
+                  lesson.example_id != null &&
+                  (examplesIndex?.get(lesson.example_id)?.requires_gpu ?? true))
+              }
               /* Con el filtro en «Quizzes», la fila lleva directo a la sección
                  del quiz: el acceso que antes daba la fila duplicada. */
               anchorQuiz={filter === 'quiz'}

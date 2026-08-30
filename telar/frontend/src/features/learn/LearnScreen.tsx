@@ -48,7 +48,8 @@ function readSidePref(): boolean {
 
 interface LoadedLesson {
   lesson: LessonDetailDto
-  example: ExampleDetailDto
+  /** E1: `null` en una lección conceptual — no hay código que mostrar ni correr. */
+  example: ExampleDetailDto | null
 }
 
 export default function LearnScreen() {
@@ -100,7 +101,10 @@ export default function LearnScreen() {
     setError(null)
     getLesson(leccionId)
       .then(async (lesson) => {
-        const example = await getExample(lesson.example_id)
+        // E1: solo se pide el ejemplo si la lección tiene uno. Antes esto era
+        // incondicional porque toda lección traía código.
+        const example =
+          lesson.example_id != null ? await getExample(lesson.example_id) : null
         if (!alive) return
         setLoaded({ lesson, example })
         // markViewed tras confirmar que la lección existe (PUT + refresco).
@@ -178,8 +182,11 @@ export default function LearnScreen() {
   const lessonIndex = module ? [...module.lessons].sort((a, b) => a.order - b.order).findIndex((l) => l.id === lesson.id) + 1 : lesson.order
   // Progreso fresco desde la caché (se actualiza tras el intento de quiz).
   const cachedProgress = module?.lessons.find((l) => l.id === lesson.id)?.progress ?? lesson.progress
-  const gpuLocked = example.requires_gpu && !(system.data?.gpu_examples_enabled ?? false)
-  const runDisabled = gpuLocked || !example.enabled
+  // Sin ejemplo no hay nada que bloquear: la lección se lee igual en cualquier
+  // máquina. `runDisabled` solo tiene sentido cuando hay código.
+  const gpuLocked =
+    example != null && example.requires_gpu && !(system.data?.gpu_examples_enabled ?? false)
+  const runDisabled = gpuLocked || (example != null && !example.enabled)
 
   return (
     <section className="screen learn">
@@ -206,8 +213,11 @@ export default function LearnScreen() {
             )}
           </div>
           {/* C4: `teaches` es el resumen de una línea de qué enseña la lección;
-              tampoco se mostraba en ningún sitio. */}
-          {example.teaches !== '' && <p className="learn-teaches">{example.teaches}</p>}
+              tampoco se mostraba en ningún sitio. Vive en el EJEMPLO, así que
+              una lección conceptual no lo tiene (E1). */}
+          {example != null && example.teaches !== '' && (
+            <p className="learn-teaches">{example.teaches}</p>
+          )}
         </div>
         <div className="row">
           <Button
@@ -248,7 +258,13 @@ export default function LearnScreen() {
               <span>Esta lección requiere GPU NVIDIA + gcc; puedes leerla pero no ejecutarla.</span>
             </div>
           )}
-          <LessonMedia exampleId={example.id} filename={example.filename} runDisabled={runDisabled} />
+          <LessonMedia
+            lessonId={lesson.id}
+            videoUrl={lesson.video_url}
+            exampleId={example?.id ?? null}
+            filename={example?.filename ?? null}
+            runDisabled={runDisabled}
+          />
           <LessonInfo lesson={lesson} example={example} runDisabled={runDisabled} />
           {lesson.has_quiz && (
             <QuizRunner

@@ -24,8 +24,10 @@ export function ContinueCard({ modules, lastLessonId, examplesIndex }: ContinueC
   const targetId = hasProgress ? lesson.id : 'primerEjemplo'
   const title = hasProgress ? lesson.title : '¿Qué es el paralelismo?'
   const moduleTitle = hasProgress ? mod.title : 'Fundamentos'
+  // E1: una lección conceptual no tiene ejemplo, así que tampoco tiene tiempo
+  // de ejecución que anunciar.
   const exampleId = hasProgress ? lesson.example_id : 'primerEjemplo'
-  const est = examplesIndex?.get(exampleId)?.est_run_seconds
+  const est = exampleId != null ? examplesIndex?.get(exampleId)?.est_run_seconds : undefined
 
   return (
     <div className="catalog-continue card">
