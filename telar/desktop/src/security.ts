@@ -19,6 +19,13 @@ const CSP = [
   "font-src 'self' data:",
   `connect-src 'self' ${API_ORIGIN} ${WS_ORIGIN}` +
     (DEV_SERVER_URL ? ' http://localhost:5173 ws://localhost:5173' : ''),
+  // Los videos de las lecciones son embeds de YouTube NO LISTADO (URLs, nunca
+  // .mp4 descargados) → el reproductor es un <iframe> externo, que
+  // `default-src 'self'` bloquearía. Se admite SOLO el dominio nocookie.
+  // `resolveYouTubeEmbed` (frontend) ya normaliza toda URL de video a ese
+  // origen; esta línea es la segunda barrera, por si esa validación fallara
+  // con contenido venido del catálogo remoto (electron-spec.md §7.1).
+  'frame-src https://www.youtube-nocookie.com',
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'none'",
