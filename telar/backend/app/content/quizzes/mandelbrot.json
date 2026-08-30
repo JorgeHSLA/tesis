@@ -25,7 +25,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Explicación literal del info."
+      "explanation": "`+=` no es una operación indivisible: son tres pasos (leer, sumar, escribir). Si dos hilos leen el mismo valor antes de que ninguno haya escrito, una de las dos sumas desaparece. Por eso el área calculada cambia de una corrida a otra."
     },
     {
       "id": "mandelbrot-q2",
@@ -100,7 +100,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Nota del info."
+      "explanation": "No se puede salir con break del bucle que OpenMP paraleliza: necesita saber cuántas iteraciones hay al entrar para repartirlas entre los hilos. Los bucles internos, que cada hilo ejecuta enteros, sí admiten break — como el de iteraciones it."
     },
     {
       "id": "mandelbrot-q5",
@@ -125,7 +125,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "El info: todas las variables del punto (cr, ci, zr, zi, zr2, zi2, it, j) son privadas."
+      "explanation": "Bastaba con olvidar UNA de las variables de trabajo del punto (cr, ci, zr, zi, zr2, zi2, it, j) en la lista private: todos los hilos escribirían sobre la misma variable temporal y tendrías otro data race, esta vez silencioso."
     }
   ]
 }

@@ -25,7 +25,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "El info lo llama \"ESTE es el reparto manual\"; el for es un for de Python normal que OpenMP no toca."
+      "explanation": "El reparto es manual: range(tid, num_steps, nths) hace que cada hilo tome una de cada nths iteraciones (el hilo 0 toma 0, 8, 16…). El for es un for de Python normal, OpenMP no lo toca. Eso es exactamente el patrón SPMD."
     },
     {
       "id": "spmd-q2",
@@ -50,7 +50,7 @@
         }
       ],
       "correct_key": "c",
-      "explanation": "El info: \"eso NO es un bug, es la leccion del ejemplo\"."
+      "explanation": "Las casillas contiguas de partial caen en la misma línea de caché: cada vez que un hilo escribe la suya, invalida la línea para los demás y todos se la pelean. Es false sharing, y no es un bug del código sino la lección del ejemplo. Compáralo con spmdCritical."
     },
     {
       "id": "spmd-q3",
@@ -105,7 +105,7 @@
     {
       "id": "spmd-q5",
       "order": 5,
-      "text": "¿A qué equivale omp_set_num_threads(n) según el info?",
+      "text": "¿A qué equivale omp_set_num_threads(n)?",
       "options": [
         {
           "key": "a",
@@ -125,7 +125,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Fija cuántos hilos usará la siguiente región paralela."
+      "explanation": "A fijar OMP_NUM_THREADS desde el código en vez de desde el entorno. Hace lo mismo y tiene prioridad sobre la variable de entorno."
     }
   ]
 }
