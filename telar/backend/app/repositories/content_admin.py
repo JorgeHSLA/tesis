@@ -280,13 +280,17 @@ UPDATE lessons SET
 WHERE id = ?
 """
 
+# `lesson_id` es la relación REAL desde la migración 5 (E1): el ejemplo ya no
+# comparte clave primaria con su lección. Sin escribirlo, la fila nace con
+# `lesson_id = NULL`, el `ON DELETE CASCADE` no la alcanza al borrar la lección y
+# queda un ejemplo huérfano que bloquea por PK cualquier recreación con ese id.
 _INSERT_EXAMPLE = """
 INSERT INTO examples
-    (id, filename, title, difficulty, teaches, directives_json,
+    (id, lesson_id, filename, title, difficulty, teaches, directives_json,
      threads_configurable, fixed_threads, fixed_threads_note, sweeps_threads,
      self_measures, parser_id, default_timeout_s, est_run_seconds, enabled,
      requires_gpu, expected_output_note, takeaways_json, source_code)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 _UPDATE_EXAMPLE = """
@@ -309,8 +313,12 @@ def _recommended_json(recommended: list[AdminRecommended]) -> str:
 def _example_insert_params(
     example_id: str, ex: AdminExampleBase, source_code: str
 ) -> tuple:
+    # Hoy `example_id == lesson_id` (es lo que hace el backfill de la migración
+    # 5 y lo único que la ruta admin sabe crear todavía). Desacoplarlos de
+    # verdad —lección sin ejemplo, ejemplo con id propio— es el trabajo de C7.
     return (
         example_id,
+        example_id,   # lesson_id
         ex.filename,
         ex.title,
         ex.difficulty,
