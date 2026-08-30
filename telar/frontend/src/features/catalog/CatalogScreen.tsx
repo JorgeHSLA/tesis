@@ -119,10 +119,15 @@ export default function CatalogScreen() {
     )
   }
 
+  // F2: los contadores cuentan LECCIONES, no artefactos. Antes `all` sumaba
+  // lecciones + quizzes y decía 28 donde hay 14 cosas. Se derivan de los módulos
+  // (no del `summary`) para que sigan siendo ciertos cuando una lección pueda
+  // existir sin ejemplo.
+  const allLessons = sorted.flatMap((m) => m.lessons)
   const totals = {
-    all: summary.lessons_total + summary.quizzes_total,
-    examples: summary.lessons_total,
-    quizzes: summary.quizzes_total,
+    all: allLessons.length,
+    examples: allLessons.filter((l) => l.example_id !== null).length,
+    quizzes: allLessons.filter((l) => l.has_quiz).length,
   }
 
   return (
@@ -139,7 +144,7 @@ export default function CatalogScreen() {
         <ContinueCard modules={sorted} lastLessonId={lastLessonId} examplesIndex={examplesIndex} />
       </div>
 
-      <CatalogStats summary={summary} moduleCount={sorted.length} />
+      <CatalogStats summary={summary} moduleCount={sorted.length} exampleCount={totals.examples} />
 
       <CatalogToolbar
         query={query}

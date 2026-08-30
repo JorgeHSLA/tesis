@@ -10,21 +10,29 @@ import { LessonRow } from './LessonRow'
 
 export interface LessonRowSpec {
   lesson: ModuleLessonDto
-  kind: 'example' | 'quiz'
   index: number
 }
 
-/** Filas visibles del módulo según filtro + búsqueda (título lección/módulo). */
+/**
+ * Filas visibles del módulo según filtro + búsqueda (título de lección o de
+ * módulo). UNA fila por lección.
+ *
+ * Antes cada lección generaba DOS filas —«Ejemplo» y «Quiz»— que navegaban a la
+ * misma pantalla y solo se diferenciaban en el ancla, lo que inflaba el catálogo
+ * al doble y hacía que el contador dijera 28 donde hay 14 cosas (hallazgo F2).
+ * Ahora la fila es una y lleva ambas metas; el acceso directo al quiz lo da el
+ * FILTRO: con `filter === 'quiz'` la fila ancla en la sección del quiz.
+ */
 export function visibleRows(module: ModuleDto, filter: CatalogFilter, query: string): LessonRowSpec[] {
   const q = query.trim().toLowerCase()
   const moduleMatches = q === '' || module.title.toLowerCase().includes(q)
   const lessons = [...module.lessons].sort((a, b) => a.order - b.order)
   return lessons.flatMap((lesson, i) => {
     if (!moduleMatches && !lesson.title.toLowerCase().includes(q)) return []
-    const rows: LessonRowSpec[] = []
-    if (filter !== 'quiz') rows.push({ lesson, kind: 'example', index: i + 1 })
-    if (filter !== 'example' && lesson.has_quiz) rows.push({ lesson, kind: 'quiz', index: i + 1 })
-    return rows
+    // El filtro selecciona LECCIONES por lo que contienen, no artefactos sueltos.
+    if (filter === 'quiz' && !lesson.has_quiz) return []
+    if (filter === 'example' && lesson.example_id === null) return []
+    return [{ lesson, index: i + 1 }]
   })
 }
 
@@ -101,15 +109,17 @@ export function ModuleAccordion({
             </div>
           )}
           {rows.length === 0 && <div className="cat-empty mono-small">Sin resultados para este filtro.</div>}
-          {rows.map(({ lesson, kind, index }) => (
+          {rows.map(({ lesson, index }) => (
             <LessonRow
-              key={`${lesson.id}-${kind}`}
+              key={lesson.id}
               lesson={lesson}
-              kind={kind}
               index={index}
               estRunSeconds={examplesIndex?.get(lesson.example_id)?.est_run_seconds}
               current={lesson.id === lastLessonId}
               disabled={!lesson.enabled || (gpuLocked && (examplesIndex?.get(lesson.example_id)?.requires_gpu ?? true))}
+              /* Con el filtro en «Quizzes», la fila lleva directo a la sección
+                 del quiz: el acceso que antes daba la fila duplicada. */
+              anchorQuiz={filter === 'quiz'}
             />
           ))}
         </div>
