@@ -43,6 +43,7 @@ from app.repositories.records import JobRecord
 from app.services.job_runner import JobRunner
 from app.tools.seed_content import seed_content_into
 
+from fakes.fake_catalog import FakeCatalogService
 from fakes.fake_docker import FakeDockerService
 
 CONTENT_DIR = BACKEND_DIR / "app" / "content"
@@ -126,6 +127,17 @@ def fake_docker() -> FakeDockerService:
     return FakeDockerService()
 
 
+@pytest.fixture
+def fake_catalog() -> FakeCatalogService:
+    """Bucket en memoria que cumple ``CatalogReadPort`` (api-contract §11.2).
+
+    Misma costura que ``fake_docker``: el puerto es un ``typing.Protocol`` y
+    ningún test toca la red. Empieza VACÍO; cada test publica lo suyo con
+    ``publicar_indice`` / ``publicar_modulo``.
+    """
+    return FakeCatalogService()
+
+
 # ─────────────────────────── registros de prueba ─────────────────────────────
 
 
@@ -168,6 +180,7 @@ def build_app(
     docker: FakeDockerService,
     content=None,
     content_dir: Path = CONTENT_DIR,
+    catalog: FakeCatalogService | None = None,
     flush_interval_s: float = 0.02,
     subscriber_queue_max: int = 200,
     terminal_retention_s: float = 0.0,
@@ -191,6 +204,10 @@ def build_app(
         app.state.jobs = {}
         app.state.docker = docker
         app.state.docker_service = docker
+        # Puerto de catálogo (§11.2). `None` es el caso por defecto de la suite
+        # —y el de un despliegue sin bucket—: todo §11 responde
+        # 503 CATALOG_DISABLED y §3-§6 siguen intactos.
+        app.state.catalog = catalog
         repo = JobRepository(conn)
         app.state.job_repo = repo
         app.state.progress = ProgressRepository(conn)
@@ -224,6 +241,7 @@ def build_app(
             await conn.close()
 
     from app.routers import (
+        catalog as catalog_router,
         examples,
         jobs,
         lessons,
@@ -244,6 +262,9 @@ def build_app(
     app.include_router(progress.router)
     app.include_router(jobs.router)
     app.include_router(ws.router)
+    # §11.2: viaja en ambas imágenes, así que se registra siempre —igual que en
+    # `main._include_routers`. Sin bucket configurado responde 503, no 404.
+    app.include_router(catalog_router.router)
     return app
 
 

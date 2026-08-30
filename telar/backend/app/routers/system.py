@@ -29,6 +29,9 @@ from app.schemas import (
     SystemLimits,
     SystemVersions,
 )
+# Se importa del módulo y no del paquete a propósito: `app/schemas/__init__.py`
+# lo está tocando otra tanda de Fase 5 y este import no necesita competir por él.
+from app.schemas.system import CatalogInfo
 
 logger = logging.getLogger("telar.system")
 
@@ -137,8 +140,41 @@ async def system_info(request: Request) -> dict:
             max_concurrent_jobs=settings.max_concurrent_jobs,
             max_output_bytes=settings.max_output_bytes,
         ),
+        catalog=await _catalog_info(request, settings),
     )
     return success_envelope(data.model_dump())
+
+
+async def _catalog_info(request: Request, settings: Settings) -> CatalogInfo:
+    """Bloque ``catalog`` de §2.2 (Fase 5, §11.12.A). **Nunca sale a la red.**
+
+    ``last_checked_at`` se LEE de ``installed_modules`` —lo que dejó el último
+    ``POST /catalog/refresh``—; sondear el bucket aquí convertiría el arranque
+    de la UI en rehén de un timeout de 15 s, que es justo lo que §11.9 prohíbe.
+    ``mode`` es ``admin`` allí donde hay credencial de escritura configurada
+    (`TELAR_GCS_CREDENTIALS`) y ``anonymous`` en la imagen del estudiante, que
+    solo lee.
+    """
+    ultimo: str | None = None
+    if settings.catalog_enabled:
+        db = getattr(request.app.state, "db", None)
+        if db is not None:
+            try:
+                cursor = await db.execute(
+                    "SELECT MAX(last_checked_at) FROM installed_modules"
+                )
+                fila = await cursor.fetchone()
+                ultimo = None if fila is None else fila[0]
+            except Exception:
+                # Un /system que revienta porque falta una tabla sería peor que
+                # un /system que dice «no sé cuándo se miró».
+                logger.exception("No se pudo leer last_checked_at del catálogo")
+    return CatalogInfo(
+        enabled=settings.catalog_enabled,
+        bucket=settings.catalog_bucket or None,
+        mode="admin" if settings.gcs_credentials else "anonymous",
+        last_checked_at=ultimo,
+    )
 
 
 def _pyomp_version(runner_image: str) -> str:

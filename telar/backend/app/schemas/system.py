@@ -4,6 +4,8 @@ TRANSCRIPCIÓN LITERAL de ``docs/architecture/api-contract.md`` (CONGELADO).
 No añadir, quitar ni renombrar campos sin actualizar el contrato primero.
 """
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 # ─────────────────────────── §2 Salud y sistema ─────────────────────────────
@@ -31,6 +33,22 @@ class SystemVersions(BaseModel):
     api: str
 
 
+class CatalogInfo(BaseModel):
+    """§2.2 (Fase 5, §11.12.A) — el bloque ``catalog`` de ``GET /system``.
+
+    Sirve para que el frontend **esconda** el item «Módulos disponibles» del
+    rail cuando este despliegue no tiene bucket, en vez de mostrarlo roto.
+    ``last_checked_at`` es el último sondeo CONOCIDO —el que dejó
+    ``POST /catalog/refresh`` en ``installed_modules``—, nunca un sondeo hecho
+    dentro de esta petición: ``/system`` no puede bloquearse por la red.
+    """
+
+    enabled: bool
+    bucket: str | None
+    mode: Literal["anonymous", "admin"]
+    last_checked_at: str | None
+
+
 class SystemLimits(BaseModel):
     max_code_bytes: int
     max_timeout_s: int
@@ -48,6 +66,7 @@ class SystemInfo(BaseModel):
     gpu_examples_enabled: bool
     versions: SystemVersions
     limits: SystemLimits
+    catalog: CatalogInfo  # Fase 5, §11.12.A
 
 
 __all__ = [
@@ -55,5 +74,6 @@ __all__ = [
     "HealthResponse",
     "SystemVersions",
     "SystemLimits",
+    "CatalogInfo",
     "SystemInfo",
 ]

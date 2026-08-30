@@ -46,6 +46,24 @@ DEFAULT_STATUS: dict[str, int] = {
     "ORDER_CONFLICT": 409,
     "MODULE_NOT_EMPTY": 409,
     "CONTENT_VALIDATION_ERROR": 422,
+    # ── Catálogo remoto de módulos — Fase 5, api-contract §11.3 ──
+    # Las 12 filas de §11.3 (§11.12.A las manda añadir a §1.1). Sin ellas
+    # ``ApiException`` degradaría a 500 códigos que SON 4xx: un
+    # "módulo no instalado" se leería como una caída del servidor. Los
+    # servicios de §11 (``module_installer``/``module_updater``) traían su
+    # propio ``ESTADO_HTTP`` justamente porque esta tabla no los tenía; con
+    # estas filas ese mapa local pasa a ser redundante (fuerza el MISMO
+    # status) y puede borrarse cuando su autor lo revise.
+    "REMOTE_MODULE_NOT_FOUND": 404,
+    "MODULE_NOT_INSTALLED": 404,
+    "MODULE_ALREADY_INSTALLED": 409,
+    "VERSION_CONFLICT": 409,
+    "CHECKSUM_MISMATCH": 409,
+    "BUNDLE_TOO_LARGE": 413,
+    "BUNDLE_INVALID": 422,
+    "CATALOG_CREDENTIALS_INVALID": 403,
+    "CATALOG_DISABLED": 503,
+    "CATALOG_UNAVAILABLE": 503,
 }
 
 #: Fallback para HTTPException crudas (rutas inexistentes, 405...): códigos
