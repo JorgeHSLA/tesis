@@ -869,7 +869,7 @@ def test_preview_dice_que_conserva_y_no_escribe(cliente, fake_catalog):
     ] == 1
 
 
-def test_preview_marca_orphaned_la_leccion_retirada_con_avance(
+def test_preview_marca_archived_la_leccion_retirada_con_avance(
     cliente, fake_catalog
 ):
     v1 = bundle("mx", leccion("mx-a", order=1), leccion("mx-b", order=2))
@@ -884,13 +884,13 @@ def test_preview_marca_orphaned_la_leccion_retirada_con_avance(
     )
     retirada = next(f for f in data["lessons"] if f["lesson_id"] == "mx-b")
     assert retirada["change"] == "removed"
-    assert retirada["progress"] == "orphaned"
+    assert retirada["progress"] == "archived"
     assert retirada["reason"] == "LESSON_ID_REMOVED"
-    assert data["progress_summary"]["orphaned"] == 1
+    assert data["progress_summary"]["archived"] == 1
     assert any(a["code"] == "LESSON_ID_REMOVED" for a in data["warnings"])
 
 
-def test_preview_marca_reset_cuando_el_quiz_deja_de_ser_corregible(
+def test_preview_marca_rescored_cuando_el_quiz_deja_de_ser_corregible(
     cliente, fake_catalog
 ):
     """BL-06: una nota sobre otro total es una nota imposible."""
@@ -916,9 +916,9 @@ def test_preview_marca_reset_cuando_el_quiz_deja_de_ser_corregible(
         )
     )
     fila = next(f for f in data["lessons"] if f["lesson_id"] == "mx-a")
-    assert fila["progress"] == "reset"
+    assert fila["progress"] == "rescored"
     assert fila["reason"] == "QUIZ_CHANGED"
-    assert data["progress_summary"]["reset"] == 1
+    assert data["progress_summary"]["rescored"] == 1
 
 
 def test_preview_de_un_modulo_no_instalado_es_404(cliente, fake_catalog):
@@ -1086,7 +1086,7 @@ def test_delete_quita_el_contenido_y_conserva_el_progreso(cliente, fake_catalog)
         "module_id": "mx",
         "lessons_removed": 2,
         "progress_purged": False,
-        "progress_orphaned": 1,
+        "progress_archived": 1,
     }
 
     assert cliente.get("/api/v1/lessons/mx-a").status_code == 404
@@ -1112,7 +1112,7 @@ def test_delete_con_purge_progress_borra_avance_e_intentos(cliente, fake_catalog
             "DELETE", "/api/v1/catalog/modules/mx", params={"purge_progress": True}
         )
     )
-    assert data["progress_purged"] is True and data["progress_orphaned"] == 0
+    assert data["progress_purged"] is True and data["progress_archived"] == 0
 
     ok(cliente.post("/api/v1/catalog/install", json={"module_id": "mx"}), 201)
     assert "mx-a" not in ok(cliente.get("/api/v1/progress"))["lessons"]
@@ -1440,4 +1440,4 @@ def test_preview_no_lista_dos_veces_una_leccion_resucitada(cliente, fake_catalog
     resucitada = next(f for f in data["lessons"] if f["lesson_id"] == "mx-b")
     assert resucitada["change"] == "updated"
     # El avance de la lección archivada seguía ahí y vuelve a contar.
-    assert resucitada["progress"] in ("preserved", "reset")
+    assert resucitada["progress"] in ("preserved", "rescored")

@@ -880,8 +880,8 @@ async def install_module(
         total_preguntas = sum(len(pares) for pares in preguntas.values())
         progreso = ProgressEffectSummary(
             preserved=preservadas,
-            reset=0,
-            orphaned=0,
+            rescored=0,
+            archived=0,
             unaffected=len(lecciones) - preservadas,
         )
         report = {

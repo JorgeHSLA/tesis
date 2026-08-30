@@ -1314,7 +1314,7 @@ async def test_el_objeto_reescrito_a_mitad_da_409_checksum_mismatch(
 # ═══════════════════════ el progreso del estudiante ═════════════════════════
 
 
-async def test_el_progreso_huerfano_sobrevive_y_se_declara_preservado(
+async def test_el_progreso_de_una_leccion_reintroducida_sobrevive_y_se_declara_preservado(
     settings, catalogo
 ):
     """``lesson_progress`` no tiene FK a ``lessons`` (data-model §8.3): quitar un
@@ -1338,8 +1338,8 @@ async def test_el_progreso_huerfano_sobrevive_y_se_declara_preservado(
 
         assert resultado.progress.preserved == 1
         assert resultado.progress.unaffected == 1
-        assert resultado.progress.reset == 0
-        assert resultado.progress.orphaned == 0
+        assert resultado.progress.rescored == 0
+        assert resultado.progress.archived == 0
         fila = (
             await filas(
                 app.state.db,

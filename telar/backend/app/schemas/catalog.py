@@ -57,7 +57,11 @@ ModuleOrigin = Literal["local", "remote"]
 RemoteState = Literal["available", "installed", "update_available"]
 InstalledState = Literal["local_only", "installed", "update_available"]
 CatalogSource = Literal["network", "cache"]
-ProgressEffect = Literal["preserved", "reset", "orphaned", "none"]
+#: §11.6.2 — `archived` y `rescored`, no «huérfano» ni «reset». Una lección
+#: retirada CONSERVA su fila y su progreso (si se borrara, el historial de
+#: jobs quedaría apuntando a un id sin título resoluble), y una nota se
+#: RECALCULA sin que el aprobado ya ganado se revoque nunca.
+ProgressEffect = Literal["preserved", "rescored", "archived", "none"]
 LessonChange = Literal["added", "updated", "unchanged", "removed"]
 
 
@@ -394,7 +398,7 @@ class UpdateRequest(BaseModel):
 
     to_version: int | None = Field(default=None, ge=1)
     expected_checksum: str | None = Field(default=None, pattern=CHECKSUM_PATTERN)
-    on_removed_lessons: Literal["keep_progress", "purge"] = "keep_progress"
+    on_removed_lessons: Literal["archive", "purge"] = "archive"
 
 
 class LessonDiffEntry(BaseModel):
@@ -407,11 +411,11 @@ class LessonDiffEntry(BaseModel):
 
 
 class ProgressEffectSummary(BaseModel):
-    """§11.6.1/§11.6.2 — conteo por efecto. ``orphaned`` es el canario de CU-39."""
+    """§11.6.1/§11.6.2 — conteo por efecto. ``archived`` es el canario de CU-39."""
 
     preserved: int
-    reset: int
-    orphaned: int
+    rescored: int
+    archived: int
     unaffected: int
 
 
@@ -465,7 +469,7 @@ class UninstallResult(BaseModel):
     module_id: str
     lessons_removed: int
     progress_purged: bool
-    progress_orphaned: int
+    progress_archived: int
 
 
 __all__ = [

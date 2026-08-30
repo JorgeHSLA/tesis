@@ -19,8 +19,6 @@ PUENTE CON EL CONTRATO CONGELADO (leer antes de tocar nada)
 texto todavía usa el vocabulario ANTERIOR a R3/R4: ``reset``/``orphaned`` en
 ``ProgressEffect`` y ``keep_progress`` en ``on_removed_lessons``. Aquí se usa el
 posterior. No son dos semánticas distintas, es el mismo mecanismo con el nombre
-corregido, y la correspondencia es 1:1 —``EFECTO_A_CONTRATO`` y
-``POLITICA_DESDE_CONTRATO`` la fijan para que el router traduzca en un sitio y
 no en cinco—. Cuando §11.11.1 se enmiende con R3/R4, esas dos tablas se quedan
 sin uso y se borran; hasta entonces, el que manda en el cable es ``catalog.py``.
 
@@ -69,21 +67,12 @@ UpdateStatus = Literal["preview", "updated", "up_to_date"]
 #: ``409 DUPLICATE_ID`` con ``details = [{field, id, owner_module_id}]``).
 ConflictField = Literal["lesson_id", "example_id", "question_id"]
 
-#: Traducción del efecto interno al valor que viaja por el cable en
-#: ``LessonDiffEntry.progress`` / ``ProgressEffectSummary`` (§11.11.1).
-EFECTO_A_CONTRATO: Mapping[str, str] = MappingProxyType(
-    {
-        "preserved": "preserved",
-        "rescored": "reset",
-        "archived": "orphaned",
-        "none": "none",
-    }
-)
-
-#: Traducción inversa para ``UpdateRequest.on_removed_lessons`` (§11.6.3).
-POLITICA_DESDE_CONTRATO: Mapping[str, str] = MappingProxyType(
-    {"keep_progress": "archive", "purge": "purge"}
-)
+# Aquí vivían dos tablas de traducción entre el vocabulario del plan
+# (`rescored`/`archived`) y el del cable (`reset`/`orphaned`). Existían solo
+# porque §11 del contrato se había quedado con el vocabulario del diseño
+# anterior mientras el código ya implementaba archivar. Corregido el contrato,
+# los dos lados dicen lo mismo y la traducción sobra: un vocabulario, un
+# significado, y ningún sitio donde puedan desincronizarse.
 
 
 class _Plan(BaseModel):
@@ -306,8 +295,6 @@ __all__ = [
     "OnRemovedLessons",
     "UpdateStatus",
     "ConflictField",
-    "EFECTO_A_CONTRATO",
-    "POLITICA_DESDE_CONTRATO",
     "MergeConflict",
     "MergeWarning",
     "LessonMove",

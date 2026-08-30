@@ -63,7 +63,7 @@ from app.schemas.catalog import (
     UninstallResult,
     UpdateRequest,
 )
-from app.schemas.updates import POLITICA_DESDE_CONTRATO, UpdateReport
+from app.schemas.updates import UpdateReport
 from app.services import module_installer, module_updater
 from app.services.bundle_guard import BundleGuardError, parse_bundle
 from app.services.catalog_client import CatalogClientError, CatalogReadPort
@@ -727,9 +727,9 @@ def _efecto_en_avance(
 ) -> tuple[str, str | None]:
     """``(progress, reason)`` de UNA lección, con el vocabulario del CABLE.
 
-    El contrato congelado (§11.11.1) todavía dice ``reset``/``orphaned``; el
-    plan interno dice ``rescored``/``archived`` desde R3/R4 y la traducción es
-    1:1 (``schemas/updates.EFECTO_A_CONTRATO``). Aquí se emite el del cable.
+    Cable y plan comparten vocabulario desde que §11 se corrigió: ``preserved``,
+    ``rescored``, ``archived``, ``none``. Antes había aquí en medio una tabla de
+    traducción, y sobraba.
 
     **Limitación conocida, y es la única de este archivo.** ``UpdateReport`` no
     transporta el efecto POR LECCIÓN, solo los recuentos más
@@ -744,9 +744,9 @@ def _efecto_en_avance(
     if cambio == "added" or not con_avance:
         return "none", None
     if cambio == "removed":
-        return "orphaned", AVISO_LECCION_RETIRADA
+        return "archived", AVISO_LECCION_RETIRADA
     if lesson_id in recalificadas:
-        return "reset", "QUIZ_CHANGED"
+        return "rescored", "QUIZ_CHANGED"
     return "preserved", None
 
 
@@ -819,8 +819,8 @@ async def _a_preview(
         lessons=lecciones,
         progress_summary=ProgressEffectSummary(
             preserved=avance.preserved,
-            reset=avance.rescored,
-            orphaned=avance.archived,
+            rescored=avance.rescored,
+            archived=avance.archived,
             unaffected=avance.unaffected,
         ),
         warnings=[
@@ -904,8 +904,8 @@ async def _a_install_result(
         questions_total=_questions_total(content, report.module_id),
         progress=ProgressEffectSummary(
             preserved=avance.preserved,
-            reset=avance.rescored,
-            orphaned=avance.archived,
+            rescored=avance.rescored,
+            archived=avance.archived,
             unaffected=avance.unaffected,
         ),
         installed_at=manifiesto.installed_at,
@@ -923,9 +923,8 @@ async def catalog_update(
         module_id,
         to_version=body.to_version,
         expected_checksum=body.expected_checksum,
-        # El cable dice `keep_progress`; el plan dice `archive`. Traducción 1:1
         # en UN solo sitio (`schemas/updates`), no en cinco.
-        on_removed_lessons=POLITICA_DESDE_CONTRATO[body.on_removed_lessons],
+        on_removed_lessons=body.on_removed_lessons,
         catalog=port,
     )
     return envelope_ok(await _a_install_result(request.app, report))
@@ -1001,7 +1000,7 @@ async def catalog_uninstall(
             module_id=module_id,
             lessons_removed=len(lecciones),
             progress_purged=purge_progress,
-            progress_orphaned=0 if purge_progress else len(con_avance),
+            progress_archived=0 if purge_progress else len(con_avance),
         )
     )
 

@@ -185,11 +185,8 @@ from .catalog import (
 # ``MergeProgressEffect`` a propósito: el del plan es el vocabulario posterior a
 # R3/R4 (``rescored``/``archived``) y el de §11.11.1 sigue siendo el del cable
 # (``reset``/``orphaned``). Son el mismo mecanismo con distinto nombre y la
-# tabla ``EFECTO_A_CONTRATO`` los traduce; darles el mismo símbolo aquí haría
 # que uno tapara al otro en silencio.
 from .updates import (
-    EFECTO_A_CONTRATO,
-    POLITICA_DESDE_CONTRATO,
     ConflictField,
     InvalidatedScore,
     LessonMove,
@@ -345,8 +342,6 @@ __all__ = [
     "OnRemovedLessons",
     "UpdateStatus",
     "ConflictField",
-    "EFECTO_A_CONTRATO",
-    "POLITICA_DESDE_CONTRATO",
     "MergeConflict",
     "MergeWarning",
     "LessonMove",

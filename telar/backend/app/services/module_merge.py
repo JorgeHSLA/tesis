@@ -34,7 +34,7 @@ LAS REGLAS QUE NO SE NEGOCIAN (algoritmoMerge.md §0, P1–P5):
 
 Vocabulario: el de R3/R4 (``rescored``/``archived``), el mismo de
 ``schemas/updates.py``. La traducción al del cable congelado
-(``reset``/``orphaned``) vive en ``EFECTO_A_CONTRATO``, y la hace el router.
+es el MISMO desde que §11 se corrigió: no hay traducción que hacer.
 """
 
 from __future__ import annotations
