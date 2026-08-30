@@ -43,6 +43,7 @@ from __future__ import annotations
 import ipaddress
 import logging
 import re
+import secrets
 import time
 import zlib
 from dataclasses import dataclass
@@ -71,6 +72,23 @@ GCS_BASE_URL = "https://storage.googleapis.com"
 #: descomprimir con techo, porque el ``Content-Encoding`` de la RESPUESTA lo
 #: decide el servidor, no nosotros.
 DESCARGA_HEADERS = {"Accept-Encoding": "identity", "Accept": "application/json"}
+
+#: Nombre del parámetro que ROMPE la caché de borde de Google en una relectura
+#: forzada. Verificado contra el bucket real: los objetos públicos se sirven con
+#: ``Cache-Control: public, max-age=3600`` por defecto, y esa copia la entrega el
+#: borde de Google **aunque el objeto ya se haya reescrito** — se observó el
+#: índice v1 (``age=227``) mientras el bucket ya tenía el v2. Mandar
+#: ``Cache-Control: no-cache`` en la PETICIÓN no sirve: se probó y el borde
+#: siguió entregando la copia vieja. Lo único que cambia la respuesta es cambiar
+#: la CLAVE de caché, o sea la URL.
+#:
+#: Por qué el publicador no basta: §11.8.2 exige subir el índice con
+#: ``Cache-Control: no-cache``, y eso resuelve el caso bien configurado. Pero el
+#: backend no controla qué metadatos puso el admin, y la promesa de CU-38 —«el
+#: estudiante ve que hay versión nueva»— no puede depender de que alguien se
+#: acordara de una cabecera. Solo se añade en la relectura FORZADA (§11.4.2 y
+#: ``?refresh=true``): la lectura normal sigue aprovechando el borde.
+ANTICACHE_PARAM = "telar_nocache"
 
 #: Codificaciones de contenido que el adaptador sabe deshacer con techo.
 #: Cualquier otra (``br``, ``zstd``, …) ⇒ ``corrupt``: preferimos rechazar a
@@ -205,8 +223,14 @@ class CatalogReadPort(Protocol):
     saber cuál hay detrás.
     """
 
-    async def fetch_index(self, *, max_bytes: int) -> CatalogObject:
-        """Descarga ``TELAR_CATALOG_INDEX`` (§11.10). Devuelve bytes sin parsear."""
+    async def fetch_index(
+        self, *, max_bytes: int, sin_cache: bool = False
+    ) -> CatalogObject:
+        """Descarga ``TELAR_CATALOG_INDEX`` (§11.10). Devuelve bytes sin parsear.
+
+        ``sin_cache`` fuerza a saltarse la caché de borde de Google (ver
+        `ANTICACHE_PARAM`). Solo lo pide la relectura explícita, no la normal.
+        """
         ...
 
     async def fetch_module(
@@ -333,17 +357,22 @@ class _HttpxCatalogClient:
 
     # ---- a implementar por cada driver --------------------------------------
 
-    def _url(self, object_path: str, generation: int | None) -> str:
+    def _url(
+        self, object_path: str, generation: int | None, sin_cache: bool = False
+    ) -> str:
         raise NotImplementedError  # pragma: no cover
 
     # ---- CatalogReadPort ----------------------------------------------------
 
-    async def fetch_index(self, *, max_bytes: int) -> CatalogObject:
+    async def fetch_index(
+        self, *, max_bytes: int, sin_cache: bool = False
+    ) -> CatalogObject:
         return await self._descargar(
             self._settings.catalog_index,
             max_bytes=max_bytes,
             generation=None,
             es_indice=True,
+            sin_cache=sin_cache,
         )
 
     async def fetch_module(
@@ -384,10 +413,11 @@ class _HttpxCatalogClient:
         max_bytes: int,
         generation: int | None,
         es_indice: bool,
+        sin_cache: bool = False,
     ) -> CatalogObject:
         if max_bytes < 1:
             raise ValueError(f"max_bytes debe ser >= 1, no {max_bytes!r}")
-        url = self._url(object_path, generation)
+        url = self._url(object_path, generation, sin_cache)
         # §11.1: TELAR_CATALOG_TIMEOUT_S es el timeout «por operación». El
         # timeout de httpx es por lectura de socket, así que un servidor que
         # gotee 1 byte cada 14 s lo esquiva indefinidamente: hace falta también
@@ -560,7 +590,9 @@ class GcsCatalogClient(_HttpxCatalogClient):
         self._bucket = bucket
         super().__init__(settings, client=client, reloj=reloj)
 
-    def _url(self, object_path: str, generation: int | None) -> str:
+    def _url(
+        self, object_path: str, generation: int | None, sin_cache: bool = False
+    ) -> str:
         # ``safe=""`` codifica también las barras: el nombre del objeto es UN
         # segmento de la ruta de la API JSON, no una jerarquía.
         objeto = quote(object_path, safe="")
@@ -572,6 +604,11 @@ class GcsCatalogClient(_HttpxCatalogClient):
             # ``ifGenerationMatch`` (y no ``generation=``) para que un objeto
             # reescrito dé 412 en vez de servir en silencio otra versión.
             url += f"&ifGenerationMatch={int(generation)}"
+        if sin_cache:
+            # Valor aleatorio y no una marca de reloj: dos relecturas dentro del
+            # mismo milisegundo tienen que dar CLAVES DE CACHÉ distintas, y un
+            # reloj hacia atrás no puede reutilizar una clave ya cacheada.
+            url += f"&{ANTICACHE_PARAM}={secrets.token_hex(8)}"
         return url
 
 
@@ -593,10 +630,13 @@ class LocalHttpCatalogClient(_HttpxCatalogClient):
         self._base = _validar_endpoint_loopback(settings.catalog_endpoint)
         super().__init__(settings, client=client, reloj=reloj)
 
-    def _url(self, object_path: str, generation: int | None) -> str:
+    def _url(
+        self, object_path: str, generation: int | None, sin_cache: bool = False
+    ) -> str:
         # Un servidor de ficheros no versiona objetos: el ancla real sigue
         # siendo ``expected_checksum`` (§11.6.1), que se comprueba aguas arriba.
-        del generation
+        # Y no hay caché de borde que romper: ``sin_cache`` no pinta nada aquí.
+        del generation, sin_cache
         return f"{self._base}/{quote(object_path, safe='/')}"
 
 

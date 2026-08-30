@@ -1441,3 +1441,39 @@ def test_preview_no_lista_dos_veces_una_leccion_resucitada(cliente, fake_catalog
     assert resucitada["change"] == "updated"
     # El avance de la lección archivada seguía ahí y vuelve a contar.
     assert resucitada["progress"] in ("preserved", "rescored")
+
+
+# ══════════ la relectura forzada tiene que llegar hasta el transporte ════════
+
+
+def test_refresh_pide_saltarse_la_cache_de_borde_y_la_lectura_normal_no(
+    cliente, fake_catalog
+):
+    """``POST /catalog/refresh`` ⇒ ``sin_cache=True``; ``GET /remote`` ⇒ ``False``.
+
+    Es la mitad de lectura del hallazgo de §11.8.2. Verificado contra el bucket
+    real: GCS sirve los objetos públicos con ``Cache-Control: public,
+    max-age=3600`` y el borde entrega esa copia AUNQUE el objeto ya se haya
+    reescrito —se observó el índice en v1 con ``age=227`` cuando el bucket ya
+    tenía la v2—. Si el «Actualizar lista» del estudiante no rompe la clave de
+    caché, CU-38 tarda hasta una hora en cumplirse.
+
+    La lectura normal debe seguir SIN romperla: es la que se hace al pintar la
+    pantalla, y el borde es justo lo que mantiene el catálogo dentro del nivel
+    gratuito.
+    """
+    publicar_todo(fake_catalog, bundle("mx", version=1))
+    fake_catalog.index_calls.clear()
+
+    ok(cliente.get("/api/v1/catalog/remote"))
+    assert [c["sin_cache"] for c in fake_catalog.index_calls] == [False]
+
+    fake_catalog.index_calls.clear()
+    ok(cliente.post("/api/v1/catalog/refresh"))
+    assert [c["sin_cache"] for c in fake_catalog.index_calls] == [True]
+
+    # Y `?refresh=true` es el mismo gesto por otra puerta: la que usa la UI al
+    # volver a /modulos después de que el admin publique.
+    fake_catalog.index_calls.clear()
+    ok(cliente.get("/api/v1/catalog/remote?refresh=true"))
+    assert [c["sin_cache"] for c in fake_catalog.index_calls] == [True]

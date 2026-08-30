@@ -117,8 +117,13 @@ class FakeCatalogService:
 
     # ── CatalogReadPort ──────────────────────────────────────────────────────
 
-    async def fetch_index(self, *, max_bytes: int) -> CatalogObject:
-        self.index_calls.append({"max_bytes": max_bytes})
+    async def fetch_index(
+        self, *, max_bytes: int, sin_cache: bool = False
+    ) -> CatalogObject:
+        # Se registra `sin_cache` para que un test pueda exigir que la relectura
+        # forzada lo pida — el fake no tiene caché de borde que romper, pero sí
+        # es donde se comprueba que el router lo propaga.
+        self.index_calls.append({"max_bytes": max_bytes, "sin_cache": sin_cache})
         if self.index_path not in self.objetos and self.index_path not in self.errores:
             # Igual que el adaptador real: el índice no es «un módulo», así que
             # su ausencia es catálogo inservible, no REMOTE_MODULE_NOT_FOUND.

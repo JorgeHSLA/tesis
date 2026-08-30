@@ -630,7 +630,16 @@ Puntos que la investigación deja fijados:
 
 1. **Clasificación *sensitive* de `devstorage.read_only` / `read_write`.** La lista pública de scopes de Google **no los marca** como sensibles, y la doc de verificación no menciona los scopes de GCP. Google dice que la categoría se ve en la consola de Cloud al añadir el scope. **No puedo confirmar ni desmentir** la afirmación; solo puedo decir que la fuente pública no la respalda. Verificación definitiva: entrar a la consola del proyecto, "OAuth consent screen → Data access → Add scopes", y leer la columna de categoría. Es un chequeo de 30 segundos y da la respuesta autoritativa.
 2. **Fecha de release exacta de `google-cloud-storage` 3.13.1.** El JSON de PyPI la trae pero no la pude extraer del fetch. La versión (3.13.1), el `requires_python` (`>=3.10`) y las dependencias sí están confirmados.
-3. **Comportamiento del cliente anónimo contra un bucket que existe, es privado, pero cuya *existencia* es pública.** Probé con `test`, `backup`, `data` y siempre salió `InvalidOperation`; no pude construir un caso controlado que devolviera `Forbidden` (403) limpio. Mi lectura es que GCS devuelve 401 (no 403) a peticiones sin credencial, y que un `Forbidden` solo aparecería con una credencial válida pero sin permiso — o sea, en la ruta del admin, no en la del estudiante. **No lo verifiqué.** El adaptador debe manejar ambos igualmente.
+3. ~~**Comportamiento del cliente anónimo contra un bucket que existe, es privado, pero cuya *existencia* es pública.**~~ **RESUELTA el 2026-08-30** con un caso controlado: el bucket `clasestelar` del propio proyecto, privado (`publicAccessPrevention: enforced`), consultado sin credencial. La lectura de este documento era **correcta**, y ahora está medida:
+
+   | Superficie | Bucket privado, lector anónimo | Bucket inexistente | Bucket público, objeto ausente |
+   |---|---|---|---|
+   | **API JSON** (`/storage/v1/b/<b>/o/<o>?alt=media`) — la que usa el adaptador | **401** `Anonymous caller does not have storage.objects.get access` | 404 | 404 |
+   | **API XML** (`/<bucket>/<objeto>`) | **403** `AccessDenied` | 404 | 404 |
+
+   O sea: el 403 «limpio» que no se pudo construir **sí existe**, pero en la API XML, no en la JSON. Que el adaptador mapee **401 y 403 juntos** a `forbidden` era lo correcto y se queda como está — no por prudencia, sino porque ambos códigos ocurren de verdad según la superficie.
+
+   Corolario que sí obliga a algo: GCS responde **404 tanto para un bucket inexistente como para un objeto ausente**, así que un 404 **no** puede leerse como «no tienes permiso» ni al revés. Fijado en `tests/test_catalog_client.py`.
 4. **Si el `refresh_token` de 7 días en modo Testing aplica a proyectos con consent screen tipo "Internal"** (Workspace/Cloud Identity). La doc habla de "test users", que es una figura del modo External+Testing. Si la universidad tiene Workspace y el proyecto puede ser Internal, el problema de los 7 días probablemente desaparece — **pero no lo pude confirmar**.
 5. **Límite exacto de refresh tokens vivos por combinación client/user.** Google documenta que existen dos límites ("one limit per client/user combination, and another per user across all clients") pero no publica los números en la página que consulté.
 6. **`match_glob` con cliente anónimo.** Está en la firma de `list_blobs` de 3.13.1 y documentado en la API v1, pero **no lo probé en vivo**; solo probé `prefix` y `delimiter`.

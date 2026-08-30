@@ -1534,9 +1534,20 @@ Request: `{}` (sin cuerpo). Descarga el índice (§11.10), actualiza
 | 503 `CATALOG_UNAVAILABLE` | Bucket inalcanzable — **`installed_modules` queda INTACTA** (ni `last_checked_at` se toca) |
 | 422 `BUNDLE_INVALID` | El índice no cumple el esquema de §11.10 |
 
-**Contrato de UI**: `/cursos` llama a `GET /catalog/status` (bloqueante, siempre
+**Contrato de UI**: `/aprender` llama a `GET /catalog/status` (bloqueante, siempre
 funciona) y **luego**, como efecto no bloqueante, a `POST /catalog/refresh`. Si el
 refresh falla, no hay chips de actualización y **no se pinta ningún `ErrorState`**.
+
+**La relectura forzada se salta la caché de borde de Google.** `POST
+/catalog/refresh` —y `GET /catalog/remote?refresh=true`— añaden a la URL un
+parámetro de un solo uso (`telar_nocache=<aleatorio>`), porque cambiar la **clave
+de caché** es lo único que obliga al borde a devolver el objeto vigente: ver la
+medición en §11.8.2. Es defensa en profundidad y no sustituye a publicar el
+índice con `no-cache`; existe porque el backend **no controla** qué metadatos
+puso el admin, y la promesa de CU-38 no puede depender de que alguien se acordara
+de una cabecera. La lectura **normal** no lo añade a propósito: es la que se hace
+al pintar la pantalla, y aprovechar el borde es lo que mantiene el catálogo
+holgadamente dentro del nivel gratuito.
 
 ### 11.5 CU-35 · Explorar el catálogo de módulos disponibles (cualquier usuario)
 
@@ -1961,10 +1972,28 @@ Request:
 Mecánica de escritura en el bucket (fijada por la investigación, no libre):
 
 1. Serialización **canónica**: `json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")`, con `payload` = el bundle **sin** el campo `checksum`. `checksum` = `sha256(bytes).hexdigest()` (64 hex). El mismo algoritmo lo reejecuta el instalador: es la definición del invariante.
-2. `blob.content_type = "application/json"`, `cache_control = "public, max-age=300"`,
+2. `blob.content_type = "application/json"`,
    `metadata = {"telar-module-id", "telar-version", "telar-sha256"}`. Los metadatos
    del blob son **un índice barato, no la fuente de verdad**: `version` y `checksum`
    viven **dentro** del JSON, que es lo que se valida y lo que se persiste en SQLite.
+
+   **`cache_control` no es libre y no es el mismo para los dos tipos de objeto.**
+   Un bundle `modulos/<id>/v<n>.json` es **inmutable** por el punto 3, así que se
+   publica con `public, max-age=31536000, immutable`: cachearlo es correcto y
+   además ahorra operaciones Clase B del nivel gratuito. El índice **muta** en
+   cada publicación (punto 4) y se publica con `no-cache, max-age=0,
+   must-revalidate`.
+
+   Omitirlo **no** es una opción neutra: GCS sirve los objetos públicos con
+   `Cache-Control: public, max-age=3600` por defecto, y la caché de borde de
+   Google entrega esa copia **aunque el objeto ya se haya reescrito**. Medido
+   contra el bucket real el 2026-08-30: publicada la v2, la API JSON seguía
+   devolviendo el índice v1 con `age=227` y la generación anterior. Con el
+   default, el aviso de «hay versión nueva» de §11.6.2 (CU-38) tarda **hasta una
+   hora** en llegarle al estudiante. Mandar `Cache-Control: no-cache` en la
+   *petición* no lo evita: se probó y el borde siguió entregando la copia vieja;
+   lo único que cambia la respuesta es cambiar la **clave de caché**, o sea la
+   URL — que es lo que hace la relectura forzada de §11.4.2.
 3. Subida con **`if_generation_match=0`** («crear solo si no existe»): una versión
    publicada es **inmutable**. Si el objeto ya existe → `PreconditionFailed` →
    `409 VERSION_CONFLICT`.

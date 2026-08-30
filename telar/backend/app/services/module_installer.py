@@ -229,10 +229,17 @@ def parse_index(raw: bytes, *, max_bytes: int) -> CatalogIndex:
         ) from exc
 
 
-async def fetch_index(catalog: CatalogReadPort, *, max_bytes: int) -> CatalogIndex:
-    """Lee y valida el índice del bucket. Traduce todo fallo a ``ApiException``."""
+async def fetch_index(
+    catalog: CatalogReadPort, *, max_bytes: int, sin_cache: bool = False
+) -> CatalogIndex:
+    """Lee y valida el índice del bucket. Traduce todo fallo a ``ApiException``.
+
+    ``sin_cache`` viaja tal cual hasta el adaptador: es la relectura FORZADA, la
+    que no puede quedarse mirando la copia que la caché de borde de Google
+    conserva hasta una hora después de publicar (§11.4.2).
+    """
     try:
-        objeto = await catalog.fetch_index(max_bytes=max_bytes)
+        objeto = await catalog.fetch_index(max_bytes=max_bytes, sin_cache=sin_cache)
     except CatalogClientError as exc:
         raise api_error_from_catalog(exc) from exc
     return parse_index(objeto.data, max_bytes=max_bytes)

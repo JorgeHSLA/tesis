@@ -312,7 +312,7 @@ async def catalog_refresh(request: Request) -> JSONResponse:
     settings = _settings(request)
 
     indice = await module_installer.fetch_index(
-        port, max_bytes=int(settings.catalog_max_bundle_bytes)
+        port, max_bytes=int(settings.catalog_max_bundle_bytes), sin_cache=True
     )
 
     publicado = {entrada.id: entrada for entrada in indice.modules}
@@ -420,7 +420,9 @@ async def _obtener_indice(
 
     try:
         indice = await module_installer.fetch_index(
-            port, max_bytes=int(settings.catalog_max_bundle_bytes)
+            port,
+            max_bytes=int(settings.catalog_max_bundle_bytes),
+            sin_cache=forzar,
         )
     except ApiException as exc:
         if exc.code != "CATALOG_UNAVAILABLE" or cache is None:

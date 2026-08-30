@@ -1258,7 +1258,11 @@ async def test_el_tope_del_puerto_es_el_de_config_no_una_constante(
     await install_module(app_vacia, InstallRequest(module_id="m9"), catalog=catalogo)
 
     tope = app_vacia.state.settings.catalog_max_bundle_bytes
-    assert catalogo.index_calls == [{"max_bytes": tope}]
+    # `sin_cache=False`: instalar NO es una relectura forzada, así que puede (y
+    # debe) aprovechar la caché de borde de Google. Romperla en cada instalación
+    # gastaría operaciones Clase B del nivel gratuito sin ganar nada: el índice
+    # que se acaba de leer para pintar la pantalla es el bueno.
+    assert catalogo.index_calls == [{"max_bytes": tope, "sin_cache": False}]
     assert catalogo.module_calls[-1]["max_bytes"] == tope
 
 

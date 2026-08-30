@@ -24,6 +24,7 @@ import pytest
 
 from app.config import Settings
 from app.services.catalog_client import (
+    ANTICACHE_PARAM,
     GCS_BASE_URL,
     CatalogConfigError,
     CatalogGenerationMismatch,
@@ -736,3 +737,120 @@ async def test_el_fake_acepta_texto_y_se_cierra():
     assert (await fake.fetch_index(max_bytes=64)).data == b"{}"
     await fake.aclose()
     assert fake.cerrado is True
+
+
+# ══════════ la caché de borde de Google, y el mapeo de estados REALES ════════
+#
+# Los dos bloques de abajo fijan comportamiento OBSERVADO contra
+# `storage.googleapis.com` con el bucket real `clasestelar` (2026-08-30), no
+# comportamiento supuesto. Son justo lo que el driver `http_local` no puede
+# enseñar: un servidor estático en loopback no tiene caché de borde ni modelo
+# de permisos.
+
+
+async def test_relectura_forzada_rompe_la_cache_de_borde_de_google():
+    """``sin_cache=True`` cambia la URL, que es lo ÚNICO que cambia la respuesta.
+
+    Verificado contra el bucket real: tras publicar la v2 del índice, el borde
+    seguía sirviendo la v1 con ``age=227`` y ``Cache-Control: public,
+    max-age=3600``. Mandar ``Cache-Control: no-cache`` en la PETICIÓN no cambió
+    nada —se probó—, porque lo que decide es la CLAVE de caché, o sea la URL.
+    Sin esto, el aviso de «hay versión nueva» (CU-38) puede tardar una hora.
+    """
+    vistas: list[httpx.Request] = []
+
+    def handler(request):
+        vistas.append(request)
+        return respuesta(b'{"index_format":1}')
+
+    cliente = cliente_gcs(handler)
+    await cliente.fetch_index(max_bytes=4096)
+    await cliente.fetch_index(max_bytes=4096, sin_cache=True)
+    await cliente.fetch_index(max_bytes=4096, sin_cache=True)
+
+    normal, forzada_1, forzada_2 = (str(v.url) for v in vistas)
+    # La lectura NORMAL no lleva el parámetro: sigue aprovechando el borde, que
+    # es lo correcto para el 99 % de las lecturas.
+    assert ANTICACHE_PARAM not in normal
+    assert f"{ANTICACHE_PARAM}=" in forzada_1
+    # Y dos relecturas forzadas NO comparten clave de caché. Con una marca de
+    # reloj en vez de un valor aleatorio, dos refrescos en el mismo milisegundo
+    # se pisarían y el segundo volvería a leer del borde.
+    assert forzada_1 != forzada_2
+    await cliente.aclose()
+
+
+async def test_el_driver_local_ignora_el_anticache():
+    """No hay borde que romper contra un fichero en loopback: la URL no cambia.
+
+    Importa que sea así y no «por casualidad»: si el driver local añadiera el
+    parámetro, el servidor estático del E2E devolvería 404 y el recorrido
+    dejaría de decir nada sobre producción.
+    """
+    vistas: list[httpx.Request] = []
+
+    def handler(request):
+        vistas.append(request)
+        return respuesta(b"{}")
+
+    ajustes = hacer_settings(
+        catalog_driver="http_local", catalog_endpoint="http://127.0.0.1:8095"
+    )
+    cliente = LocalHttpCatalogClient(
+        ajustes, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    )
+    await cliente.fetch_index(max_bytes=4096)
+    await cliente.fetch_index(max_bytes=4096, sin_cache=True)
+
+    assert str(vistas[0].url) == str(vistas[1].url)
+    assert ANTICACHE_PARAM not in str(vistas[1].url)
+    await cliente.aclose()
+
+
+@pytest.mark.parametrize(
+    "codigo, cuerpo",
+    [
+        # API JSON (la que usa el adaptador), bucket privado, lector anónimo.
+        # Observado: 401 «Anonymous caller does not have storage.objects.get
+        # access». google-auth lo convierte en InvalidOperation, que NO es un
+        # GoogleAPICallError — de ahí el riesgo R-7 del plan.
+        (401, b"Anonymous caller does not have storage.objects.get access"),
+        # API XML sobre el MISMO bucket privado: 403 AccessDenied. Dos códigos
+        # para la misma causa según la superficie; el adaptador no puede
+        # depender de cuál toca.
+        (403, b"<Error><Code>AccessDenied</Code></Error>"),
+    ],
+)
+async def test_bucket_privado_es_forbidden_no_catalogo_caido(codigo, cuerpo):
+    """Un bucket que existe pero no es público ⇒ ``forbidden``, nunca ``server``.
+
+    La distinción no es cosmética: ``forbidden`` es «el admin configuró mal el
+    bucket» —acción: revisarlo— y ``server``/``network`` es «Google está
+    caído» —acción: reintentar—. Confundirlos manda al estudiante a esperar
+    por algo que nadie va a arreglar solo.
+    """
+    cliente = cliente_gcs(lambda _r: httpx.Response(codigo, content=cuerpo))
+    with pytest.raises(CatalogUnavailable) as exc:
+        await cliente.fetch_index(max_bytes=4096)
+    assert exc.value.reason == "forbidden"
+    # El texto crudo de Google NO viaja: filtra el nombre del bucket y la ruta.
+    assert cuerpo.decode()[:20] not in str(exc.value.details)
+    await cliente.aclose()
+
+
+async def test_bucket_o_objeto_inexistente_es_404_y_no_se_confunde_con_privado():
+    """Observado: bucket inexistente y objeto ausente dan los DOS 404.
+
+    O sea, GCS **no** filtra si el bucket existe. Por eso un 404 no puede
+    traducirse a «no tienes permiso» ni al revés: para el índice es catálogo
+    inservible (``server``), y para un módulo es ``REMOTE_MODULE_NOT_FOUND``.
+    """
+    cliente = cliente_gcs(lambda _r: httpx.Response(404, content=b"No such object"))
+    # El índice ausente NO es «módulo no encontrado»: es catálogo inservible.
+    with pytest.raises(CatalogUnavailable) as exc:
+        await cliente.fetch_index(max_bytes=4096)
+    assert exc.value.reason == "server"
+    # Un módulo ausente sí es un 404 de dominio.
+    with pytest.raises(CatalogObjectNotFound):
+        await cliente.fetch_module("mFundamentos", 9, max_bytes=4096)
+    await cliente.aclose()

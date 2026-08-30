@@ -14,6 +14,10 @@ Genera, a partir del contenido REAL del repo:
 Uso:
     python3 preparar-bucket.py <directorio-del-bucket> [--version 1|2]
 
+Si `TELAR_E2E_GCS_BUCKET` está definida, además de escribir el directorio
+local publica lo generado en ese bucket REAL de GCS. Así el mismo recorrido
+E2E sirve para el bucket falso en loopback y para Google, sin tocar la spec.
+
 Con `--version 2` el índice apunta a la v2 de `mFundamentos`, que añade una
 lección conceptual. Es lo que convierte el E2E en una prueba de CU-39: el
 estudiante aprueba un quiz en la v1 y comprueba que su avance sigue ahí tras
@@ -24,7 +28,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
+import shutil
+import subprocess
 import sys
 
 RAIZ = pathlib.Path(__file__).resolve().parents[2]
@@ -33,6 +40,13 @@ sys.path.insert(0, str(RAIZ / "backend"))
 from app.services.catalog_hash import bundle_checksum  # noqa: E402
 
 FECHA = "2026-08-30T12:00:00.000Z"
+
+#: §11.8.2 — el índice es MUTABLE: es lo único que dice cuál es la versión
+#: vigente, así que una copia rancia en el borde de Google rompe CU-38.
+CACHE_INDICE = "no-cache, max-age=0, must-revalidate"
+#: §11.10 — un bundle publicado no se reescribe NUNCA, así que cachearlo un año
+#: es correcto y además ahorra operaciones Clase B del nivel gratuito.
+CACHE_BUNDLE = "public, max-age=31536000, immutable"
 CONTENIDO = RAIZ / "backend" / "app" / "content"
 
 
@@ -193,12 +207,76 @@ def escribir(destino: pathlib.Path, version_fundamentos: int) -> None:
     )
 
 
+def publicar_en_gcs(destino: pathlib.Path, bucket: str) -> None:
+    """Sube lo generado al bucket REAL de GCS (`gs://<bucket>/modulos/`).
+
+    Existe para que el MISMO recorrido E2E que corre contra el bucket falso en
+    loopback pueda correr contra Google sin tocar ni un test: la spec sigue
+    invocando `preparar-bucket.py <dir> --version N`, y es la variable de
+    entorno `TELAR_E2E_GCS_BUCKET` la que decide si además se publica.
+
+    **El `Cache-Control` no es cosmético: sin él CU-38 no funciona.** GCS sirve
+    los objetos públicos con `Cache-Control: public, max-age=3600` por defecto, y
+    la caché de borde de Google entrega esa copia aunque el objeto ya se haya
+    reescrito. Verificado contra este mismo bucket: tras publicar la v2, el
+    índice se seguía sirviendo en v1 con `age=227`. O sea, el estudiante no se
+    entera de que hay versión nueva hasta una hora después de publicarla.
+
+    Por eso se sube con dos políticas distintas, que es lo que exige §11.8.2:
+
+    * `modulos/index.json` **cambia** en cada publicación ⇒ `no-cache`. Es el
+      único objeto cuya frescura importa: es quien anuncia qué versión es la
+      vigente.
+    * `modulos/<id>/v<n>.json` son **inmutables** por contrato (§11.10: una
+      versión publicada no se reescribe jamás) ⇒ caché larga. Aquí cachear no
+      solo es seguro, es lo correcto: ahorra descargas y operaciones Clase B.
+
+    Se sube además como `application/json` y SIN `contentEncoding`, que es lo que
+    espera el adaptador al pedir `Accept-Encoding: identity` para no abrir la
+    puerta a una bomba de descompresión.
+    """
+    gcloud = shutil.which("gcloud")
+    if gcloud is None:
+        raise SystemExit(
+            "TELAR_E2E_GCS_BUCKET está puesto pero no hay `gcloud` en el PATH"
+        )
+    proyecto = os.environ.get("TELAR_E2E_GCS_PROJECT")
+
+    def _subir(origen: pathlib.Path, destino_gcs: str, cache_control: str) -> None:
+        orden = [
+            gcloud, "storage", "cp", "-r", str(origen), destino_gcs,
+            "--content-type=application/json",
+            f"--cache-control={cache_control}",
+        ]
+        if proyecto:
+            orden.append(f"--project={proyecto}")
+        hecho = subprocess.run(orden, capture_output=True, text=True)
+        if hecho.returncode != 0:
+            raise SystemExit(
+                f"no se pudo publicar {origen.name} en {destino_gcs}: "
+                f"{hecho.stderr.strip()[-500:]}"
+            )
+
+    # Primero los bundles (inmutables), después el índice: si el proceso muere a
+    # medias, el índice viejo sigue apuntando a bundles que EXISTEN. Al revés
+    # dejaría el catálogo anunciando una versión que todavía no se subió.
+    for carpeta in sorted((destino / "modulos").iterdir()):
+        if carpeta.is_dir():
+            _subir(carpeta, f"gs://{bucket}/modulos/", CACHE_BUNDLE)
+    _subir(destino / "modulos" / "index.json", f"gs://{bucket}/modulos/index.json",
+           CACHE_INDICE)
+    print(f"publicado en gs://{bucket}/modulos/ (índice {CACHE_INDICE!r})")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("destino", type=pathlib.Path)
     parser.add_argument("--version", type=int, default=1, choices=(1, 2))
     args = parser.parse_args()
     escribir(args.destino, args.version)
+    bucket = os.environ.get("TELAR_E2E_GCS_BUCKET", "").strip()
+    if bucket:
+        publicar_en_gcs(args.destino, bucket)
     return 0
 
 

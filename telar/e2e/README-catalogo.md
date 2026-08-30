@@ -78,6 +78,53 @@ TELAR_E2E_PYTHON=~/.telar-build/bkenv/bin/python \
 Todo en **loopback**, coherente con la restricción del repo: el backend no tiene
 autenticación y monta el socket de Docker.
 
+## Correr el MISMO recorrido contra Google de verdad
+
+El bucket falso comprueba la lógica; no comprueba el transporte. Para correr los
+17 tests contra GCS basta cambiar el driver y dejar que `preparar-bucket.py`
+publique también en el bucket real — la spec **no se toca**:
+
+```bash
+# el bucket tiene que ser legible sin credenciales:
+#   publicAccessPrevention = inherited  +  allUsers → roles/storage.objectViewer
+gcloud storage buckets update gs://clasestelar --no-public-access-prevention
+gcloud storage buckets add-iam-policy-binding gs://clasestelar \
+  --member=allUsers --role=roles/storage.objectViewer
+
+cd backend && TELAR_DB_PATH=$TMP/telar.db TELAR_JOBS_DIR=$TMP/jobs \
+  TELAR_ADMIN_MODE=1 \
+  TELAR_ALLOWED_ORIGINS="http://127.0.0.1:4174,http://localhost:4174,null" \
+  TELAR_CATALOG_BUCKET=clasestelar TELAR_CATALOG_DRIVER=gcs \
+  python -m uvicorn app.main:app --host 127.0.0.1 --port 8015 &
+
+cd ~/.telar-build/e2e && TELAR_E2E_BASE_URL=http://127.0.0.1:4174 \
+  TELAR_E2E_API=http://127.0.0.1:8015 \
+  TELAR_E2E_PREPARAR=$REPO/e2e/scripts/preparar-bucket.py \
+  TELAR_E2E_BUCKET=$TMP/bucket \
+  TELAR_E2E_PYTHON=~/.telar-build/bkenv/bin/python \
+  TELAR_E2E_GCS_BUCKET=clasestelar \
+  TELAR_E2E_GCS_PROJECT=reliable-banner-470503-j7 \
+  npx playwright test catalogo-remoto
+```
+
+Resultado el 2026-08-30: **17/17 en verde contra `storage.googleapis.com`.**
+
+### Lo que solo se ve con el transporte real
+
+El primer intento falló, y el fallo era de verdad. GCS sirve los objetos públicos
+con `Cache-Control: public, max-age=3600` **por defecto**, y la caché de borde de
+Google entrega esa copia aunque el objeto ya se haya reescrito: publicada la v2
+del índice, el backend seguía leyendo la v1 con `age=227`. Traducido al
+estudiante: *el aviso de «hay versión nueva» tarda hasta una hora en aparecer*, y
+CU-38 no se cumple.
+
+Un servidor estático en loopback no tiene caché de borde, así que este fallo era
+**invisible** para el driver `http_local` por bien escrito que estuviera. Se
+arregló por los dos lados (§11.8.2 y §11.4.2): el publicador sube el índice con
+`no-cache` y los bundles —inmutables— con caché de un año, y la relectura forzada
+añade un parámetro de un solo uso que cambia la clave de caché. Mandar
+`Cache-Control: no-cache` en la *petición* no sirve de nada; se probó.
+
 ## Publicar la v2 a mitad del recorrido
 
 El paso de CU-39 necesita que el bucket cambie mientras el estudiante ya tiene
