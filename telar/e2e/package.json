@@ -1,0 +1,15 @@
+{
+  "name": "telar-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Suite E2E de Telar. Vive DENTRO del repo a propósito: la anterior estaba en ~/.telar-verify/e2e, sin versionar, así que nadie más podía correrla ni CI reproducirla.",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  },
+  "engines": { "node": ">=22" }
+}

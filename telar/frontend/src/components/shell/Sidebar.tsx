@@ -87,6 +87,13 @@ export function Sidebar() {
                   to={item.to}
                   className={'nav-item ' + (active ? 'active' : '')}
                   data-tip={item.label}
+                  // El rail es de 56px: `.nav-label` está en `display: none` y
+                  // el tooltip es un `::after` con `content: attr(data-tip)`.
+                  // Ninguna de las dos cosas llega al árbol de accesibilidad,
+                  // así que sin esto los enlaces de la navegación principal no
+                  // tienen NOMBRE: un lector de pantalla anuncia «enlace» y ya
+                  // (WCAG 2.4.4 y 4.1.2). Lo detectó el snapshot de Playwright.
+                  aria-label={item.label}
                   aria-current={active ? 'page' : undefined}
                 >
                   <span className="nav-icon">
