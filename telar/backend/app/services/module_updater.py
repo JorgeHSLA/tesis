@@ -494,7 +494,11 @@ def verificar_checksum(
 
 
 def build_report(
-    plan: MergePlan, local: LocalModuleState, *, status: UpdateStatus
+    plan: MergePlan,
+    local: LocalModuleState,
+    *,
+    status: UpdateStatus,
+    bundle: ModuleBundle | None = None,
 ) -> UpdateReport:
     """Traduce el plan a lo que se le enseña al estudiante y se guarda en la bitácora.
 
@@ -560,12 +564,21 @@ def build_report(
         or lid in local.lesson_ids_con_jobs
     ]
 
+    # Títulos para la vista previa: primero los del bundle entrante —los únicos
+    # que conocen el nombre de una lección NUEVA, que aún no está instalada— y
+    # encima los locales, que cubren las que se archivan porque ya no vienen.
+    titulos: dict[str, str] = {}
+    if bundle is not None:
+        titulos.update({l.id: l.title for l in bundle.lessons})
+    titulos.update({lid: l.title for lid, l in local.lessons.items() if l.title})
+
     return UpdateReport(
         module_id=plan.module_id,
         from_version=plan.from_version,
         to_version=plan.to_version,
         to_checksum=plan.to_checksum,
         status=status,
+        lesson_titles=titulos,
         lessons=lecciones,
         progress=UpdateProgressReport(
             preserved=conteo["preserved"],
@@ -753,7 +766,7 @@ async def apply_plan(
     await _reemplazar_quizzes(db, entrantes)
     await _recalificar(db, plan)
 
-    report = build_report(plan, local, status="updated")
+    report = build_report(plan, local, status="updated", bundle=bundle)
 
     await repo_catalog.upsert_installed_no_commit(
         db,
@@ -1167,7 +1180,7 @@ async def update_module(
             # §11.6.2: ni una sentencia. El plan ya está construido sobre el
             # estado que el lock mantiene quieto, así que el informe describe lo
             # que pasaría si se aceptara ahora mismo.
-            return build_report(plan, local, status="preview")
+            return build_report(plan, local, status="preview", bundle=bundle)
 
         recogido: list[UpdateReport] = []
 

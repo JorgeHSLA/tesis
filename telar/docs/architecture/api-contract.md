@@ -2344,6 +2344,7 @@ class UpdateRequest(BaseModel):
 
 class LessonDiffEntry(BaseModel):
     lesson_id: str
+    title: str | None = None   # legible; el id no le dice nada al estudiante
     change: LessonChange
     progress: ProgressEffect
     reason: str | None                 # 'QUIZ_CHANGED' | 'LESSON_ID_REMOVED' | None
@@ -2580,6 +2581,9 @@ export interface UpdateRequestDto {
 
 export interface LessonDiffEntryDto {
   lesson_id: string
+  /** Título legible. La vista previa existe para que el estudiante ENTIENDA
+   *  qué cambia, y un id como `f1Concurrencia` no comunica nada. */
+  title: string | null
   change: LessonChange
   progress: ProgressEffect
   reason: string | null

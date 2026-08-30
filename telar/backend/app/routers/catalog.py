@@ -780,6 +780,10 @@ def _diff_de_lecciones(
             filas.append(
                 LessonDiffEntry(
                     lesson_id=lesson_id,
+                    # Sin título la fila diría `f1Concurrencia`, que para el
+                    # estudiante no significa nada. El `None` solo queda si no
+                    # se pudo resolver ni por el bundle ni por lo instalado.
+                    title=report.lesson_titles.get(lesson_id),
                     change=cambio,
                     progress=efecto,
                     reason=razon,

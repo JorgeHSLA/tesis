@@ -131,6 +131,12 @@ export interface UpdateRequestDto {
 
 export interface LessonDiffEntryDto {
   lesson_id: string
+  /**
+   * Título legible de la lección. La vista previa existe para que el estudiante
+   * ENTIENDA qué cambia antes de aceptar, y un id como `f1Concurrencia` no le
+   * comunica nada. `null` solo si el servidor no pudo resolverlo.
+   */
+  title: string | null
   change: LessonChange
   progress: ProgressEffect
   reason: string | null

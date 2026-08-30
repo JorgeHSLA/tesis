@@ -251,10 +251,11 @@ const PREVIEW: ModuleUpdatePreviewDto = {
   to_version: 5,
   to_checksum: '1ab7',
   lessons: [
-    { lesson_id: 'spmd', change: 'updated', progress: 'preserved', reason: null },
-    { lesson_id: 'spmdCritical', change: 'updated', progress: 'rescored', reason: 'QUIZ_CHANGED' },
-    { lesson_id: 'false-sharing', change: 'added', progress: 'none', reason: null },
-    { lesson_id: 'spmdViejo', change: 'removed', progress: 'archived', reason: 'LESSON_ID_REMOVED' },
+    { lesson_id: 'spmd', title: 'π con patrón SPMD', change: 'updated', progress: 'preserved', reason: null },
+    { lesson_id: 'spmdCritical', title: 'El arreglo: critical', change: 'updated', progress: 'rescored', reason: 'QUIZ_CHANGED' },
+    { lesson_id: 'false-sharing', title: 'False sharing en detalle', change: 'added', progress: 'none', reason: null },
+    // Sin título resoluble: la fila cae al id, que es el respaldo.
+    { lesson_id: 'spmdViejo', title: null, change: 'removed', progress: 'archived', reason: 'LESSON_ID_REMOVED' },
   ],
   progress_summary: { preserved: 1, rescored: 1, archived: 1, unaffected: 0 },
   warnings: [
@@ -503,7 +504,12 @@ describe('CU-39 · actualizar', () => {
     expect(getUpdatePreviewMock).toHaveBeenCalledWith('m2', 5)
 
     const filas = within(dialogo).getByRole('list', { name: 'Cambios lección por lección' })
-    expect(within(filas).getByText('spmd')).toBeInTheDocument()
+    // La fila dice el TÍTULO, no el id: el diálogo existe para que el estudiante
+    // entienda qué cambia, y `spmd` no le comunica nada.
+    expect(within(filas).getByText('π con patrón SPMD')).toBeInTheDocument()
+    expect(within(filas).getByText('False sharing en detalle')).toBeInTheDocument()
+    // Y cuando el servidor no pudo resolver el título, la fila cae al id.
+    expect(within(filas).getByText('spmdViejo')).toBeInTheDocument()
     expect(within(filas).getByText('Tu avance se conserva')).toBeInTheDocument()
     expect(within(filas).getByText('Retirada')).toBeInTheDocument()
     expect(within(filas).getByText('Se archiva: tu avance se guarda')).toBeInTheDocument()

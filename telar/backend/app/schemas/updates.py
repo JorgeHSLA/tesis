@@ -285,6 +285,12 @@ class UpdateReport(_Plan):
     to_version: int = Field(ge=1)
     to_checksum: str = Field(pattern=CHECKSUM_PATTERN)
     status: UpdateStatus
+    #: ``lesson_id`` → título legible, para que la vista previa pueda decir
+    #: «Concurrencia no es paralelismo» en vez de ``f1Concurrencia``. Lo llena el
+    #: actualizador, que es el único que tiene A LA VEZ el bundle entrante (de
+    #: donde salen los títulos de las lecciones NUEVAS) y el estado local (de
+    #: donde salen los de las que se archivan y ya no vienen en el bundle).
+    lesson_titles: dict[str, str] = Field(default_factory=dict)
     lessons: UpdateLessonsReport = Field(default_factory=UpdateLessonsReport)
     progress: UpdateProgressReport = Field(default_factory=UpdateProgressReport)
     warnings: list[MergeWarning] = Field(default_factory=list)

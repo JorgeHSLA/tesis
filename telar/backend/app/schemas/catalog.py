@@ -428,6 +428,10 @@ class LessonDiffEntry(BaseModel):
     """§11.6.2 — qué le pasa a UNA lección al actualizar, anclado en ``lesson_id``."""
 
     lesson_id: str
+    #: Título legible de la lección. La vista previa existe para que el
+    #: estudiante ENTIENDA qué cambia, y un id como ``f1Concurrencia`` no le dice
+    #: nada. ``None`` solo si el título no se pudo resolver por ninguna vía.
+    title: str | None = None
     change: LessonChange
     progress: ProgressEffect
     reason: str | None  # 'QUIZ_CHANGED' | 'LESSON_ID_REMOVED' | None

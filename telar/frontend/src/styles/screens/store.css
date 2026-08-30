@@ -345,10 +345,17 @@
   background: var(--surface-2);
   border: 1px solid var(--border);
 }
-.store-diff-row > code {
+.store-diff-row > code,
+.store-diff-title {
   flex: 1 1 40%;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+/* El título va en la tipografía de lectura, no en la de código: es prosa que
+   el estudiante lee para decidir, no un identificador que deba copiar. */
+.store-diff-title {
+  font-weight: 500;
+  color: var(--text);
 }
 .store-diff-effect {
   flex: 1 1 100%;

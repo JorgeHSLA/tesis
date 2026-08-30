@@ -547,7 +547,14 @@ function UpdateDialog({
               <ul className="store-diff" aria-label="Cambios lección por lección">
                 {preview.lessons.map((lesson) => (
                   <li key={lesson.lesson_id} className="store-diff-row">
-                    <code className="mono-small">{lesson.lesson_id}</code>
+                    {/* El título manda; el id queda de respaldo cuando el
+                        servidor no pudo resolverlo. Enseñarle `f1Concurrencia`
+                        a quien está decidiendo si actualiza no es informar. */}
+                    {lesson.title !== null ? (
+                      <span className="store-diff-title">{lesson.title}</span>
+                    ) : (
+                      <code className="mono-small">{lesson.lesson_id}</code>
+                    )}
                     <Chip tone={CHANGE_TONE[lesson.change]}>{CHANGE_LABEL[lesson.change]}</Chip>
                     <span className="store-diff-effect">{PROGRESS_LABEL[lesson.progress]}</span>
                   </li>
