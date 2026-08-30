@@ -154,10 +154,10 @@ export default function LearnScreen() {
           </div>
         </div>
         <div className={`learn-grid${sideOpen ? ' with-side' : ''}`} aria-hidden="true">
-          {/* El skeleton refleja la preferencia persistida del drawer para no
-              provocar layout-shift al hidratar (1→2 columnas). */}
-          {/* Silueta: contenido de la lección + quiz. Ya no reserva el hueco
-              16:9 del video, que solo aparece si la lección tiene fuente. */}
+          {/* Silueta: contenido de la lección + quiz. Refleja la preferencia
+              persistida del drawer para no provocar layout-shift al hidratar
+              (1→2 columnas), y ya no reserva el hueco 16:9 del video, que solo
+              aparece si la lección tiene fuente. */}
           <div className="col" style={{ gap: 20 }}>
             <Skeleton height={280} radius="var(--r-lg)" />
             <Skeleton height={180} radius="var(--r-lg)" />
@@ -188,7 +188,7 @@ export default function LearnScreen() {
           <Button variant="ghost" size="sm" style={{ marginBottom: 10, paddingLeft: 6 }} onClick={() => navigate('/cursos')}>
             <IconChevronLeft size={14} /> Volver al catálogo
           </Button>
-          <div className="eyebrow">ZINE · Aprender</div>
+          <div className="eyebrow">Aprender</div>
           <h2 className="display-lg">{lesson.title}</h2>
           <div className="row" style={{ gap: 8, marginTop: 6 }}>
             {module && <Chip tone="orange">{module.title}</Chip>}

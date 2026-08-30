@@ -41,7 +41,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: 'Aprendizaje',
-    items: [{ to: '/cursos', label: 'Aprender (ZINE)', icon: IconBook, match: (p) => p.startsWith('/cursos') }],
+    items: [{ to: '/cursos', label: 'Aprender', icon: IconBook, match: (p) => p.startsWith('/cursos') }],
   },
   // Autoría (admin) — SOLO en el build admin (VITE_ADMIN → ADMIN_BUILD). En el
   // build estudiante ADMIN_BUILD es una constante falsa y el bundler descarta

@@ -129,7 +129,7 @@ export default function CatalogScreen() {
     <section className="screen catalog">
       <div className="screen-head">
         <div>
-          <div className="eyebrow">ZINE · Aprendizaje</div>
+          <div className="eyebrow">Aprendizaje</div>
           <h2 className="display-lg">Catálogo de contenidos</h2>
           <p className="muted" style={{ margin: '6px 0 0', maxWidth: 620 }}>
             Las lecciones y quizzes del curso de OpenMP con PyOMP, organizados en 8 módulos. Cada lección se
