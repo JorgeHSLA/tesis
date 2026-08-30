@@ -1667,7 +1667,7 @@ Request:
     "lessons_updated": [],
     "lessons_removed": [],
     "questions_total": 18,
-    "progress": { "preserved": [], "reset": [], "orphaned": [] },
+    "progress": { "preserved": [], "rescored": [], "archived": [] },
     "installed_at": "2026-08-29T10:15:00.000Z"
   },
   "error": null, "meta": null
@@ -1723,13 +1723,13 @@ nueva **sin escribir**, y devuelve el diff anclado en `lesson_id`. Query:
     "to_checksum": "1ab7…",
     "lessons": [
       { "lesson_id": "spmd",         "change": "updated",   "progress": "preserved", "reason": null },
-      { "lesson_id": "spmdCritical", "change": "updated",   "progress": "reset",
+      { "lesson_id": "spmdCritical", "change": "updated",   "progress": "rescored",
         "reason": "QUIZ_CHANGED" },
       { "lesson_id": "false-sharing","change": "added",     "progress": "none",      "reason": null },
-      { "lesson_id": "spmdViejo",    "change": "removed",   "progress": "orphaned",
+      { "lesson_id": "spmdViejo",    "change": "removed",   "progress": "archived",
         "reason": "LESSON_ID_REMOVED" }
     ],
-    "progress_summary": { "preserved": 1, "reset": 1, "orphaned": 1, "unaffected": 0 },
+    "progress_summary": { "preserved": 1, "rescored": 1, "archived": 1, "unaffected": 0 },
     "warnings": [
       { "code": "LESSON_ID_REMOVED", "lesson_id": "spmdViejo",
         "message": "La versión 5 ya no incluye esta lección; tu avance en ella dejará de mostrarse." }
@@ -1743,25 +1743,42 @@ Reglas de `progress` (derivadas del mecanismo real, no inventadas):
 
 | `progress` | Cuándo |
 |---|---|
-| `preserved` | El `lesson_id` sigue existiendo y el quiz mantiene **nº de preguntas y `pass_threshold`**. `viewed`, `completed` y `best_quiz_score` intactos |
-| `reset` | El `lesson_id` sigue, pero cambia el nº de preguntas o el `pass_threshold` → `best_quiz_score = NULL` y `completed = false` **en la misma transacción** (regla BL-06 de §10.5: una nota sobre otro total es una nota imposible). `viewed` se conserva **siempre** |
-| `orphaned` | El `lesson_id` desaparece de la versión nueva. La fila de `lesson_progress`/`quiz_attempts` **no se borra** (no hay FK a `lessons`): queda huérfana e invisible, y **se recupera** si una versión futura reintroduce el id |
+| `preserved` | El `lesson_id` sigue existiendo y el quiz mantiene **el mismo conjunto de preguntas** y su `pass_threshold`. `viewed`, `completed` y `best_quiz_score` intactos |
+| `rescored` | El `lesson_id` sigue, pero **cambió el conjunto de preguntas** o el `pass_threshold`. La nota vieja deja de ser comparable: se **recalcula** desde `quiz_attempts.answers` si los ids y las opciones lo permiten, y si no se anula (`best_quiz_score = NULL`). `viewed` se conserva **siempre**, y **`completed` NUNCA baja** |
+| `archived` | El `lesson_id` desaparece de la versión nueva. La lección **no se borra**: se marca `archived_at`, sigue siendo legible por URL y conserva su progreso y su historial de jobs, pero queda fuera de la ruta lineal. Si una versión futura reintroduce el id, vuelve a la ruta sin haber perdido nada |
 | `none` | Lección nueva, sin progreso previo |
+
+> **Por qué `archived` y no «huérfano»**, y por qué `rescored` y no `reset` —las
+> dos correcciones que este contrato hace sobre el diseño inicial—:
+>
+> Con la fila de `lessons` borrada, `quiz_attempts.lesson_id` y `jobs.lesson_id`
+> (que no tienen FK) quedan apuntando a un id sin título resoluble: el historial
+> de ejecuciones del estudiante pasaría a decir «lección desconocida». Archivar
+> es reversible a coste cero y no rompe nada aguas abajo.
+>
+> Y **una actualización nunca puede empeorar al estudiante**: por eso el efecto
+> se llama `rescored` y no `reset`. Se recalcula la NOTA, jamás se revoca un
+> aprobado ya ganado. Si actualizar pudiera quitarte lo que ya aprobaste, nadie
+> actualizaría y el mecanismo entero dejaría de tener sentido. El `reset` ciego
+> se conserva **solo** en la ruta admin (§10.5, BL-06), que es un acto del autor
+> sobre su propia máquina, no algo que le ocurra a un estudiante por actualizar.
 
 #### 11.6.3 `POST /api/v1/catalog/modules/{module_id}/update` — actualizar
 
 Request:
 
 ```json
-{ "to_version": 5, "expected_checksum": "1ab7…", "on_removed_lessons": "keep_progress" }
+{ "to_version": 5, "expected_checksum": "1ab7…", "on_removed_lessons": "archive" }
 ```
 
 - `to_version` opcional (default = `available_version`). **Debe ser `>` que
   `installed_version`** → si no, `409 VERSION_CONFLICT` (la versión es monótona;
   no hay downgrade en este contrato).
-- `on_removed_lessons` ∈ `"keep_progress"` (default) | `"purge"`. Con `purge` se
-  borran también las filas de `lesson_progress`/`quiz_attempts` de las lecciones
-  desaparecidas. **El default conserva**: es la promesa de §11.0.7.
+- `on_removed_lessons` ∈ `"archive"` (default) | `"purge"`. Con `archive` la
+  lección retirada se marca `archived_at` y conserva su progreso; con `purge` se
+  borran además las filas de `lesson_progress`/`quiz_attempts` de las lecciones
+  desaparecidas. **El default conserva**: es la promesa de §11.0.7, y `purge`
+  existe solo para quien quiera limpiar a conciencia su propia instalación.
 
 `200` — mismo shape que `InstallResult` (§11.6.1) con `lessons_updated`/
 `lessons_removed` poblados y `progress` detallado.
@@ -1795,7 +1812,7 @@ Query: `purge_progress` (`bool`, default `false`).
 ```json
 { "success": true,
   "data": { "removed": true, "module_id": "m9", "lessons_removed": 4,
-            "progress_purged": false, "progress_orphaned": 4 },
+            "progress_purged": false, "progress_archived": 4 },
   "error": null, "meta": null }
 ```
 
@@ -2127,7 +2144,7 @@ ModuleOrigin = Literal["local", "remote"]
 RemoteState = Literal["available", "installed", "update_available"]
 InstalledState = Literal["local_only", "installed", "update_available"]
 CatalogSource = Literal["network", "cache"]
-ProgressEffect = Literal["preserved", "reset", "orphaned", "none"]
+ProgressEffect = Literal["preserved", "rescored", "archived", "none"]
 LessonChange = Literal["added", "updated", "unchanged", "removed"]
 
 
@@ -2322,7 +2339,7 @@ class InstallRequest(BaseModel):
 class UpdateRequest(BaseModel):
     to_version: int | None = Field(default=None, ge=1)
     expected_checksum: str | None = Field(default=None, pattern=CHECKSUM_PATTERN)
-    on_removed_lessons: Literal["keep_progress", "purge"] = "keep_progress"
+    on_removed_lessons: Literal["archive", "purge"] = "archive"
 
 
 class LessonDiffEntry(BaseModel):
@@ -2334,8 +2351,8 @@ class LessonDiffEntry(BaseModel):
 
 class ProgressEffectSummary(BaseModel):
     preserved: int
-    reset: int
-    orphaned: int
+    rescored: int
+    archived: int
     unaffected: int
 
 
@@ -2375,7 +2392,7 @@ class UninstallResult(BaseModel):
     module_id: str
     lessons_removed: int
     progress_purged: bool
-    progress_orphaned: int
+    progress_archived: int
 ```
 
 #### 11.11.2 pydantic — `backend/app/schemas/admin_catalog.py` (SOLO imagen admin)
@@ -2454,7 +2471,7 @@ export type ModuleOrigin = 'local' | 'remote'
 export type RemoteState = 'available' | 'installed' | 'update_available'
 export type InstalledState = 'local_only' | 'installed' | 'update_available'
 export type CatalogSource = 'network' | 'cache'
-export type ProgressEffect = 'preserved' | 'reset' | 'orphaned' | 'none'
+export type ProgressEffect = 'preserved' | 'rescored' | 'archived' | 'none'
 export type LessonChange = 'added' | 'updated' | 'unchanged' | 'removed'
 
 export interface ContentWarningDto {
@@ -2558,7 +2575,7 @@ export interface InstallRequestDto {
 export interface UpdateRequestDto {
   to_version?: number | null
   expected_checksum?: string | null
-  on_removed_lessons?: 'keep_progress' | 'purge'
+  on_removed_lessons?: 'archive' | 'purge'
 }
 
 export interface LessonDiffEntryDto {
@@ -2570,8 +2587,8 @@ export interface LessonDiffEntryDto {
 
 export interface ProgressEffectSummaryDto {
   preserved: number
-  reset: number
-  orphaned: number
+  rescored: number
+  archived: number
   unaffected: number
 }
 
@@ -2605,7 +2622,7 @@ export interface UninstallResultDto {
   module_id: string
   lessons_removed: number
   progress_purged: boolean
-  progress_orphaned: number
+  progress_archived: number
 }
 ```
 
