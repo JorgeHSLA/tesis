@@ -8,9 +8,11 @@ markdown, coherencia threads/GPU, refs) vive en ``services/content_writer.py``;
 la orquestación bajo ``write_lock`` + ``reload_content`` también.
 
 Contratos:
-- Invariante ``lesson_id == example_id`` (§10.1): al crear una lección se inserta
-  su ejemplo pareado con el MISMO id en la MISMA transacción; el borrado en
-  cascada (FK ``ON DELETE CASCADE``) elimina ejemplo + quiz.
+- El invariante ``lesson_id == example_id`` quedó **derogado** en Fase 5
+  (§10.1): el ejemplo tiene id propio y se relaciona por ``examples.lesson_id``,
+  que es de donde cuelga ahora el ``ON DELETE CASCADE``. La ruta admin todavía
+  crea ambos con el mismo id en la MISMA transacción y no sabe crear una lección
+  sin ejemplo: eso llega en C7. Lo que ya rige es la relación por columna.
 - Listas cortas/opacas (``directives``/``takeaways``/``recommended``/``options``)
   ⇄ JSON TEXT con ``json.dumps(ensure_ascii=False)`` / ``json.loads`` (preserva
   orden y unicode).
@@ -449,6 +451,18 @@ async def update_example(
             _dumps(list(body.takeaways)),
             example_id,
         ),
+    )
+    # `lessons.enabled` es columna propia desde la migración 5 (E4), pero en el
+    # producto actual «ejemplo deshabilitado» SIGUE significando «lección
+    # bloqueada»: es el caso de la lección de GPU, que se puede leer pero no
+    # ejecutar, y la regla §10.6 `requires_gpu ⇒ enabled=false`. Se propaga para
+    # no dejar al admin sin ninguna forma de deshabilitar una lección mientras
+    # `AdminLessonUpdate` no exponga su propio `enabled` (C7). Lo que E4 aporta
+    # ya es que una lección SIN ejemplo también pueda habilitarse o no.
+    await db.execute(
+        "UPDATE lessons SET enabled = ? WHERE id = ("
+        "  SELECT lesson_id FROM examples WHERE id = ?)",
+        (int(body.enabled), example_id),
     )
 
 

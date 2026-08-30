@@ -363,3 +363,155 @@ def test_un_ejemplo_huerfano_no_impide_crear_su_leccion(db_migrada):
     # Ids en tablas distintas: no colisionan. Emparejarlos es un UPDATE, no un choque.
     db_migrada.execute("UPDATE examples SET lesson_id='suelto' WHERE id='suelto'")
     assert _filas(db_migrada, "SELECT lesson_id FROM examples WHERE id='suelto'") == [("suelto",)]
+
+
+# ─────────────── El snapshot leído desde DB (C4) ─────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_snapshot_lee_la_relacion_por_lesson_id_y_el_enabled_propio(tmp_path):
+    """`ContentRepository.load` sobre una DB con la migración 5 aplicada.
+
+    Fija los tres cambios de C4 a la vez: `example_id` sale de
+    `examples.lesson_id` (no de la igualdad de ids), `enabled` sale de la
+    columna de la lección, y una lección sin ejemplo es un `example_id = None`
+    perfectamente válido en vez de un error.
+    """
+    import aiosqlite
+
+    from app.db import apply_schema
+    from app.repositories.content import ContentRepository
+
+    async with aiosqlite.connect(tmp_path / "t.db") as db:
+        db.row_factory = aiosqlite.Row
+        await apply_schema(db)
+        await db.executescript(SEMILLA_FASE4)
+        # La migración 5 ya la aplicó apply_schema; hay que rellenar lo nuevo.
+        await db.execute("UPDATE examples SET lesson_id = id")
+        await db.execute(
+            "UPDATE lessons SET enabled = 0 WHERE id = 'sumaVectoresGPU'"
+        )
+        # Lección conceptual: sin ejemplo, se completa leyéndola.
+        await db.execute(
+            """INSERT INTO lessons (id,module_id,"order",title,estimated_minutes,
+                 content_markdown,pass_threshold,enabled,completion_rule,video_url)
+               VALUES ('queEsUnHilo','m1',3,'¿Qué es un hilo?',5,'# Hilos',0.8,1,
+                       'viewed','https://www.youtube.com/watch?v=dQw4w9WgXcQ')"""
+        )
+        await db.commit()
+
+        repo = await ContentRepository.load(db)
+
+    con_codigo = repo.lesson("primerEjemplo")
+    assert con_codigo is not None
+    assert con_codigo.example_id == "primerEjemplo"
+    assert con_codigo.enabled is True
+    assert con_codigo.completion_rule == "quiz"
+
+    gpu = repo.lesson("sumaVectoresGPU")
+    assert gpu is not None and gpu.enabled is False
+
+    teorica = repo.lesson("queEsUnHilo")
+    assert teorica is not None
+    assert teorica.example_id is None, "una lección puede no tener ejemplo (E1)"
+    assert teorica.enabled is True, "y aun así estar habilitada (E4)"
+    assert teorica.completion_rule == "viewed"
+    assert teorica.video_url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    assert teorica.has_quiz is False
+
+
+@pytest.mark.asyncio
+async def test_snapshot_poda_recommended_a_modulos_no_instalados(tmp_path):
+    """R6: el enlace colgante se descarta, NO tumba la carga.
+
+    Sin esta regla, instalar el m1 del propio repo en una base vacía reventaría
+    con `ContentError` dentro de `_persist` → 500, porque sus `recommended`
+    apuntan a m2, m4 y m6. Sería un fallo garantizado del primer caso de uso.
+    """
+    import aiosqlite
+
+    from app.db import apply_schema
+    from app.repositories.content import ContentRepository
+
+    async with aiosqlite.connect(tmp_path / "t.db") as db:
+        db.row_factory = aiosqlite.Row
+        await apply_schema(db)
+        await db.executescript(SEMILLA_FASE4)
+        await db.execute("UPDATE examples SET lesson_id = id")
+        await db.execute(
+            """UPDATE lessons SET recommended_json =
+                 '[{"lesson_id":"sumaVectoresGPU","label":"GPU","tag":"Avanzado"},
+                   {"lesson_id":"spmd","label":"SPMD","tag":"Práctica"}]'
+               WHERE id = 'primerEjemplo'"""
+        )
+        await db.commit()
+
+        repo = await ContentRepository.load(db)  # no debe lanzar
+
+    leccion = repo.lesson("primerEjemplo")
+    assert leccion is not None
+    destinos = [r.lesson_id for r in leccion.recommended]
+    assert destinos == ["sumaVectoresGPU"], "el enlace a 'spmd' (no instalado) se poda"
+
+
+@pytest.mark.asyncio
+async def test_la_ruta_lineal_salta_las_lecciones_archivadas(tmp_path):
+    """Una lección archivada es legible, pero «Siguiente» no lleva a ella."""
+    import aiosqlite
+
+    from app.db import apply_schema
+    from app.repositories.content import ContentRepository
+
+    async with aiosqlite.connect(tmp_path / "t.db") as db:
+        db.row_factory = aiosqlite.Row
+        await apply_schema(db)
+        await db.executescript(SEMILLA_FASE4)
+        await db.execute("UPDATE examples SET lesson_id = id")
+        await db.execute(
+            """INSERT INTO lessons (id,module_id,"order",title,estimated_minutes,
+                 content_markdown,pass_threshold)
+               VALUES ('tercera','m1',3,'Tercera',5,'# t',0.8)"""
+        )
+        await db.execute(
+            "UPDATE lessons SET archived_at='2026-08-29T00:00:00.000Z' "
+            "WHERE id='sumaVectoresGPU'"
+        )
+        await db.commit()
+
+        repo = await ContentRepository.load(db)
+
+    primera = repo.lesson("primerEjemplo")
+    archivada = repo.lesson("sumaVectoresGPU")
+    assert primera is not None and archivada is not None
+    # Salta la archivada, que estaba justo en medio.
+    assert primera.next_lesson_id == "tercera"
+    assert archivada.archived is True
+    assert (archivada.prev_lesson_id, archivada.next_lesson_id) == (None, None)
+
+
+@pytest.mark.asyncio
+async def test_un_ejemplo_sin_leccion_no_entra_al_snapshot_publico(tmp_path):
+    """Su module_id/order serían NULL y harían reventar el orden de /examples."""
+    import aiosqlite
+
+    from app.db import apply_schema
+    from app.repositories.content import ContentRepository
+
+    async with aiosqlite.connect(tmp_path / "t.db") as db:
+        db.row_factory = aiosqlite.Row
+        await apply_schema(db)
+        await db.executescript(SEMILLA_FASE4)
+        await db.execute("UPDATE examples SET lesson_id = id")
+        await db.execute(
+            """INSERT INTO examples (id,lesson_id,filename,title,difficulty,teaches,
+                 threads_configurable,sweeps_threads,self_measures,parser_id,
+                 default_timeout_s,est_run_seconds,enabled,requires_gpu,
+                 expected_output_note,source_code)
+               VALUES ('suelto',NULL,'s.py','Suelto',1,'t',1,0,0,'none',30,5,1,0,'n','c')"""
+        )
+        await db.commit()
+
+        repo = await ContentRepository.load(db)  # no debe lanzar TypeError
+
+    assert repo.example("suelto") is None
+    assert {e.id for e in repo.examples()} == {"primerEjemplo", "sumaVectoresGPU"}

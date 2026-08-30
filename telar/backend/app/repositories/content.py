@@ -25,7 +25,7 @@ sigue funcionando como en Fase 3, delegando a ``from_fixtures`` — no rompe
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -196,7 +196,9 @@ class Example:
     est_run_seconds: int
     enabled: bool
     requires_gpu: bool
-    lesson_id: str
+    #: E1: a qué lección pertenece, o ``None`` si el ejemplo está suelto. Ya no
+    #: coincide necesariamente con ``id``.
+    lesson_id: str | None
     expected_output_note: str
     takeaways: tuple[str, ...]
     source_code: str
@@ -210,10 +212,25 @@ class Lesson:
     title: str
     estimated_minutes: int
     content_markdown: str
-    example_id: str
+    #: E1 (migración 5): ``None`` cuando la lección es conceptual y no trae
+    #: código. Todo consumidor debe tratarlo: sin ejemplo NO hay affordance de
+    #: ejecución, que no es lo mismo que un botón deshabilitado.
+    example_id: str | None
     has_quiz: bool
     quiz_question_count: int
+    #: E4: columna propia de la lección. Antes se derivaba de
+    #: ``examples.enabled``, y con esa derivación una lección sin ejemplo caería
+    #: a deshabilitada EN SILENCIO — desaparecería de ``lessons_enabled`` y del
+    #: cómputo de módulo completado sin que nada fallara.
     enabled: bool
+    #: E4: qué cuenta como completar la lección (``quiz`` | ``viewed`` | ``run``).
+    completion_rule: str
+    #: URL de YouTube no listado de ESTA lección, ya normalizada. ``None`` = sin
+    #: video: el reproductor no se monta, no hay marco vacío.
+    video_url: str | None
+    #: Lección retirada en una versión posterior de su módulo: sigue siendo
+    #: legible y conserva su progreso, pero queda fuera de la ruta lineal.
+    archived: bool
     recommended: tuple[Recommended, ...]
     prev_lesson_id: str | None
     next_lesson_id: str | None
@@ -495,10 +512,16 @@ def _build_lessons(
             title=fx.title,
             estimated_minutes=fx.estimated_minutes,
             content_markdown=markdown,
+            # En los fixtures del baseline la lección SIEMPRE trae ejemplo
+            # pareado con su mismo id (lo sigue exigiendo `_validate_catalog`).
+            # La opcionalidad de E1 solo aparece por la vía de DB.
             example_id=lesson_id,
             has_quiz=question_count > 0,
             quiz_question_count=question_count,
             enabled=catalog.examples[lesson_id].enabled,
+            completion_rule="quiz",
+            video_url=None,
+            archived=False,
             recommended=tuple(
                 Recommended(lesson_id=r.lesson_id, label=r.label, tag=r.tag)
                 for r in fx.recommended
@@ -542,6 +565,14 @@ def _load_examples_from_db(rows: list) -> dict[str, Example]:
     examples: dict[str, Example] = {}
     for row in rows:
         example_id = row["id"]
+        # E1: un ejemplo puede existir sin lección asignada (`lesson_id IS
+        # NULL`). El snapshot público NO lo lleva: su `module_id` y su `order`
+        # vendrían del LEFT JOIN como NULL y harían reventar cualquier orden
+        # sobre la lista (`'<' not supported between NoneType and int`), que es
+        # un 500 en `GET /examples`. Material así solo se ve por la vía admin,
+        # que lee la tabla directamente y no este snapshot.
+        if row["lesson_id"] is None:
+            continue
         parser_id = row["parser_id"]
         if parser_id not in PARSER_ID_VALUES:
             raise ContentError(
@@ -572,7 +603,7 @@ def _load_examples_from_db(rows: list) -> dict[str, Example]:
             est_run_seconds=row["est_run_seconds"],
             enabled=bool(row["enabled"]),
             requires_gpu=bool(row["requires_gpu"]),
-            lesson_id=example_id,
+            lesson_id=row["lesson_id"],
             expected_output_note=row["expected_output_note"],
             takeaways=tuple(takeaways),
             source_code=row["source_code"],
@@ -620,16 +651,49 @@ def _load_quizzes_from_db(
     return quizzes
 
 
+def _vecinos_de_la_ruta(rows: list) -> list[tuple[str | None, str | None]]:
+    """(prev, next) de cada fila, SALTANDO las lecciones archivadas.
+
+    Una lección archivada sigue siendo legible por URL, pero no forma parte de
+    la ruta lineal del curso: si estuviera, «Siguiente» llevaría al estudiante a
+    contenido que su módulo ya retiró.
+    """
+    vivas = [i for i, row in enumerate(rows) if row["archived_at"] is None]
+    posicion = {indice: orden for orden, indice in enumerate(vivas)}
+    vecinos: list[tuple[str | None, str | None]] = []
+    for indice in range(len(rows)):
+        orden = posicion.get(indice)
+        if orden is None:  # archivada: fuera de la ruta, sin vecinos
+            vecinos.append((None, None))
+            continue
+        anterior = rows[vivas[orden - 1]]["id"] if orden > 0 else None
+        siguiente = rows[vivas[orden + 1]]["id"] if orden + 1 < len(vivas) else None
+        vecinos.append((anterior, siguiente))
+    return vecinos
+
+
 def _load_lessons_from_db(
     rows: list,
-    examples: dict[str, Example],
+    example_ids_by_lesson: dict[str, str],
     quizzes: dict[str, Quiz],
     module_ids: set[str],
 ) -> dict[str, Lesson]:
-    ordered = list(rows)  # ya vienen ORDER BY "order"
-    orders = [row["order"] for row in ordered]
-    if len(orders) != len(set(orders)):
-        raise ContentError("lessons: order global duplicado en DB")
+    ordered = list(rows)  # ya vienen ORDER BY (modules."order", lessons."order")
+    # E2: la unicidad del `order` es POR MÓDULO y solo entre lecciones vivas
+    # (índice parcial de la migración 5). Un `order` repetido entre módulos
+    # distintos es lo normal desde que instalar módulos es à la carte.
+    vivas: set[tuple[str, int]] = set()
+    for row in ordered:
+        if row["archived_at"] is not None:
+            continue
+        clave = (row["module_id"], row["order"])
+        if clave in vivas:
+            raise ContentError(
+                f"lessons: order {row['order']} duplicado en el módulo "
+                f"'{row['module_id']}'"
+            )
+        vivas.add(clave)
+    vecinos = _vecinos_de_la_ruta(ordered)
     lessons: dict[str, Lesson] = {}
     for index, row in enumerate(ordered):
         lesson_id = row["id"]
@@ -645,8 +709,6 @@ def _load_lessons_from_db(
         )
         quiz = quizzes.get(lesson_id)
         question_count = len(quiz.questions) if quiz else 0
-        example = examples.get(lesson_id)
-        enabled = bool(example.enabled) if example is not None else False
         lessons[lesson_id] = Lesson(
             id=lesson_id,
             module_id=row["module_id"],
@@ -654,33 +716,52 @@ def _load_lessons_from_db(
             title=row["title"],
             estimated_minutes=row["estimated_minutes"],
             content_markdown=row["content_markdown"],
-            example_id=lesson_id,
+            # E1: la relación la manda `examples.lesson_id`, no la igualdad de
+            # ids. Una lección sin ejemplo pareado queda con `None`.
+            example_id=example_ids_by_lesson.get(lesson_id),
             has_quiz=question_count > 0,
             quiz_question_count=question_count,
-            enabled=enabled,
+            enabled=bool(row["enabled"]),
+            completion_rule=row["completion_rule"],
+            video_url=row["video_url"],
+            archived=row["archived_at"] is not None,
             recommended=tuple(
                 Recommended(
                     lesson_id=r["lesson_id"], label=r["label"], tag=r["tag"]
                 )
                 for r in recommended_raw
             ),
-            prev_lesson_id=ordered[index - 1]["id"] if index > 0 else None,
-            next_lesson_id=(
-                ordered[index + 1]["id"] if index + 1 < len(ordered) else None
-            ),
+            prev_lesson_id=vecinos[index][0],
+            next_lesson_id=vecinos[index][1],
         )
-    _validate_recommended_from_db(lessons)
-    return lessons
+    return _podar_recommended(lessons)
 
 
-def _validate_recommended_from_db(lessons: dict[str, Lesson]) -> None:
-    for lesson in lessons.values():
-        for rec in lesson.recommended:
-            if rec.lesson_id not in lessons:
-                raise ContentError(
-                    f"lección '{lesson.id}': recommended apunta a lección "
-                    f"inexistente '{rec.lesson_id}'"
-                )
+def _podar_recommended(lessons: dict[str, Lesson]) -> dict[str, Lesson]:
+    """Descarta del snapshot las recomendaciones cuyo destino no está instalado.
+
+    En Fase 4 esto LANZABA ``ContentError``, y era correcto: el catálogo era uno
+    y completo, así que un enlace colgante solo podía ser un error del autor.
+
+    Con módulos instalables à la carte deja de serlo: los ``recommended`` del
+    módulo m1 del propio repo apuntan a m2, m4 y m6, así que instalar m1 en una
+    base vacía reventaría con ``ContentError`` dentro de ``_persist`` → 500. O
+    sea, un fallo garantizado del primer caso de uso.
+
+    Se poda el SNAPSHOT, no el dato: ``lessons.recommended_json`` conserva la
+    lista completa que escribió el autor, de modo que el enlace reaparece solo
+    en cuanto el estudiante instale el módulo que faltaba.
+    """
+    podadas: dict[str, Lesson] = {}
+    for lesson_id, lesson in lessons.items():
+        vivas = tuple(
+            rec for rec in lesson.recommended if rec.lesson_id in lessons
+        )
+        podadas[lesson_id] = (
+            lesson if len(vivas) == len(lesson.recommended)
+            else replace(lesson, recommended=vivas)
+        )
+    return podadas
 
 
 # ────────────────────────────── Repositorio ─────────────────────────────────
@@ -760,15 +841,26 @@ class ContentRepository:
         module_rows = list(
             await (await db.execute('SELECT * FROM modules ORDER BY "order"')).fetchall()
         )
+        # E2: el orden de la ruta lineal es (modules."order", lessons."order"),
+        # ya no el `order` global de lecciones que la migración 5 retiró.
         lesson_rows = list(
-            await (await db.execute('SELECT * FROM lessons ORDER BY "order"')).fetchall()
+            await (
+                await db.execute(
+                    "SELECT l.* FROM lessons l "
+                    "JOIN modules m ON m.id = l.module_id "
+                    'ORDER BY m."order", l."order"'
+                )
+            ).fetchall()
         )
+        # E1: el ejemplo se une por `lesson_id`, no por igualdad de ids. LEFT
+        # JOIN porque un ejemplo puede no tener lección asignada, y entonces su
+        # `module_id`/`order` son NULL.
         example_rows = list(
             await (
                 await db.execute(
                     'SELECT e.*, l.module_id AS module_id, '
                     'l."order" AS lesson_order '
-                    "FROM examples e JOIN lessons l ON l.id = e.id"
+                    "FROM examples e LEFT JOIN lessons l ON l.id = e.lesson_id"
                 )
             ).fetchall()
         )
@@ -787,9 +879,14 @@ class ContentRepository:
         pass_thresholds = {row["id"]: row["pass_threshold"] for row in lesson_rows}
 
         examples = _load_examples_from_db(example_rows)
+        example_ids_by_lesson = {
+            example.lesson_id: example.id
+            for example in examples.values()
+            if example.lesson_id is not None
+        }
         quizzes = _load_quizzes_from_db(quiz_rows, pass_thresholds)
         lessons = _load_lessons_from_db(
-            lesson_rows, examples, quizzes, module_ids
+            lesson_rows, example_ids_by_lesson, quizzes, module_ids
         )
         modules = _load_modules_from_db(module_rows, lesson_ids_by_module)
         return cls(

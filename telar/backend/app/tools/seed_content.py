@@ -69,8 +69,9 @@ ON CONFLICT(id) DO UPDATE SET
 _UPSERT_LESSON = """
 INSERT INTO lessons
     (id, module_id, "order", title, estimated_minutes,
-     content_markdown, pass_threshold, recommended_json)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     content_markdown, pass_threshold, recommended_json,
+     enabled, completion_rule, video_url)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     module_id         = excluded.module_id,
     "order"           = excluded."order",
@@ -78,17 +79,21 @@ ON CONFLICT(id) DO UPDATE SET
     estimated_minutes = excluded.estimated_minutes,
     content_markdown  = excluded.content_markdown,
     pass_threshold    = excluded.pass_threshold,
-    recommended_json  = excluded.recommended_json
+    recommended_json  = excluded.recommended_json,
+    enabled           = excluded.enabled,
+    completion_rule   = excluded.completion_rule,
+    video_url         = excluded.video_url
 """
 
 _UPSERT_EXAMPLE = """
 INSERT INTO examples
-    (id, filename, title, difficulty, teaches, directives_json,
+    (id, lesson_id, filename, title, difficulty, teaches, directives_json,
      threads_configurable, fixed_threads, fixed_threads_note, sweeps_threads,
      self_measures, parser_id, default_timeout_s, est_run_seconds, enabled,
      requires_gpu, expected_output_note, takeaways_json, source_code)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
+    lesson_id            = excluded.lesson_id,
     filename             = excluded.filename,
     title                = excluded.title,
     difficulty           = excluded.difficulty,
@@ -245,6 +250,13 @@ async def _apply_seed_statements(
                         for r in lesson.recommended
                     ]
                 ),
+                # Migración 5: `enabled` deja de derivarse de `examples.enabled`
+                # y pasa a columna propia. El seeder escribe aquí el valor que
+                # el snapshot de fixtures ya calculó, para que el round-trip
+                # fixtures↔DB siga siendo byte-idéntico (SEED-1).
+                int(lesson.enabled),
+                lesson.completion_rule,
+                lesson.video_url,
             ),
         )
 
@@ -253,6 +265,10 @@ async def _apply_seed_statements(
             _UPSERT_EXAMPLE,
             (
                 example.id,
+                # E1: la relación la manda esta columna, ya no la igualdad de
+                # ids. En el baseline de fixtures coinciden, pero escribirla es
+                # lo que hace que el ON DELETE CASCADE alcance al ejemplo.
+                example.lesson_id,
                 example.filename,
                 example.title,
                 example.difficulty,
@@ -300,7 +316,7 @@ async def _apply_seed_statements(
             question_count += 1
 
     if prune_extra:
-        await _prune_extra(db, modules, lessons, repo)
+        await _prune_extra(db, modules, lessons, examples, repo)
 
     # BL-21: el marcador viaja en la MISMA transacción que la siembra —
     # o se confirma todo (contenido + marcador) o nada.
@@ -312,11 +328,16 @@ async def _prune_extra(
     db: "aiosqlite.Connection",
     modules: list,
     lessons: list,
+    examples: list,
     repo: ContentRepository,
 ) -> None:
     """Borra filas cuyo id no está en los fixtures (hijo → padre)."""
     module_ids = [m.id for m in modules]
     lesson_ids = [lesson.id for lesson in lessons]
+    # E1: el ejemplo tiene id PROPIO desde la migración 5. Filtrar `examples`
+    # por los ids de LECCIÓN solo funcionaba mientras ambos coincidían; con ids
+    # desacoplados borraría todos los ejemplos del baseline.
+    example_ids = [example.id for example in examples]
     question_ids = [
         q.id
         for lesson in lessons
@@ -333,7 +354,7 @@ async def _prune_extra(
     # examples y quiz_questions caen por CASCADE al borrar lessons, pero se
     # limpian explícitamente por si sobreviven a una lección aún válida.
     await _delete_not_in("quiz_questions", question_ids)
-    await _delete_not_in("examples", lesson_ids)
+    await _delete_not_in("examples", example_ids)
     await _delete_not_in("lessons", lesson_ids)
     await _delete_not_in("modules", module_ids)
 
