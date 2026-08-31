@@ -16,7 +16,7 @@ Tres invariantes que este archivo sostiene y que se pueden leer como tests:
    estructural, no una promesa: la función no recibe el puerto.
 2. **``DELETE /catalog/modules/{id}`` es 100 % local** y por eso tampoco exige
    catálogo. Desinstalar con el avión en modo avión tiene que funcionar.
-3. **Desinstalar NO borra el progreso** salvo ``purge_progress=true`` explícito.
+3. **Desinstalar NO borra el progreso. Nunca, sin excepción ni parámetro.**
    ``lesson_progress`` y ``quiz_attempts`` no tienen FK a ``lessons``
    (data-model §8.3) — esa ausencia es la propiedad que hace reversible quitar
    un módulo, y por eso el borrado va por SQL propio y **jamás** por
@@ -957,21 +957,22 @@ async def _ids_de_lecciones(
 
 
 @router.delete("/modules/{module_id}")
-async def catalog_uninstall(
-    request: Request,
-    module_id: str,
-    purge_progress: bool = Query(
-        False, description="Borra también lesson_progress y quiz_attempts"
-    ),
-) -> JSONResponse:
+async def catalog_uninstall(request: Request, module_id: str) -> JSONResponse:
     """§11.6.4 — quitar un módulo incorporado. **No exige catálogo ni red.**
 
-    Con el default (``purge_progress=false``) el contenido se borra por CASCADE
-    y el avance **sobrevive huérfano**: reinstalar el módulo lo recupera, porque
-    los ``lesson_id`` son estables (§11.0.7). Por eso el borrado va por SQL
-    propio y no por ``content_admin.delete_lesson``, que purga
-    ``lesson_progress`` y ``quiz_attempts`` a propósito (BL-01) — correcto
-    cuando el AUTOR borra en su máquina, catastrófico aquí.
+    **El avance SIEMPRE sobrevive.** El contenido se borra por CASCADE y las
+    filas de ``lesson_progress``/``quiz_attempts`` quedan huérfanas: reinstalar
+    el módulo las recupera, porque los ``lesson_id`` son estables (§11.0.7).
+
+    Por eso el borrado va por SQL propio y no por ``content_admin.delete_lesson``,
+    que purga el avance a propósito (BL-01) — correcto cuando el AUTOR borra en
+    su máquina, catastrófico aquí.
+
+    Esta ruta tuvo un ``purge_progress=true`` que sí borraba. Se retiró: dejaba
+    que cualquier cliente del estudiante destruyera lo ÚNICO que no se puede
+    volver a bajar del bucket, y contradecía la promesa que la propia pantalla
+    hace al pulsar el botón. Que ya no exista el parámetro es la garantía; que
+    el código no tenga rama de purga es lo que la hace no-relajable.
     """
     app = request.app
     db = _db(request)
@@ -989,17 +990,9 @@ async def catalog_uninstall(
         con_avance = await _lecciones_con_avance(db, lecciones)
 
         async def _escribir() -> None:
-            if purge_progress:
-                for lote in _lotes(lecciones):
-                    marcas = ",".join("?" * len(lote))
-                    await db.execute(
-                        f"DELETE FROM lesson_progress WHERE lesson_id IN ({marcas})",
-                        tuple(lote),
-                    )
-                    await db.execute(
-                        f"DELETE FROM quiz_attempts WHERE lesson_id IN ({marcas})",
-                        tuple(lote),
-                    )
+            # NO hay rama que borre `lesson_progress` ni `quiz_attempts`, y es
+            # deliberado: la única forma de garantizar que desinstalar no pierde
+            # avance es que aquí no exista el DELETE que podría perderlo.
             # CASCADE: lessons → examples/quiz_questions, y installed_modules.
             # `lesson_progress`/`quiz_attempts` NO tienen FK a `lessons`
             # (data-model §8.3): esa ausencia es lo que hace reversible quitar
@@ -1013,8 +1006,8 @@ async def catalog_uninstall(
             removed=True,
             module_id=module_id,
             lessons_removed=len(lecciones),
-            progress_purged=purge_progress,
-            progress_archived=0 if purge_progress else len(con_avance),
+            progress_purged=False,
+            progress_archived=len(con_avance),
         )
     )
 

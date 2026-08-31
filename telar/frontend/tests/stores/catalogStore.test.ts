@@ -455,14 +455,16 @@ describe('update()', () => {
     })
   })
 
-  it('`purge` solo viaja si alguien lo pide explícitamente', async () => {
+  it('nunca manda `on_removed_lessons`: esta ruta no sabe purgar', async () => {
+    // §11.6.3. El store tenía una opción `onRemovedLessons` que dejaba pedir
+    // `purge`, y con ella el backend borraba `lesson_progress` y
+    // `quiz_attempts`. Era la segunda puerta al mismo borrado que
+    // `purge_progress`, y se cerraron las dos: aquí se fija que el cuerpo que
+    // sale NO lleva el campo por ninguna vía.
     useCatalogStore.setState({ status: structuredClone(STATUS), remote: structuredClone(REMOTE) })
-    await useCatalogStore.getState().update('m2', { onRemovedLessons: 'purge' })
-    expect(updateCatalogModuleMock).toHaveBeenCalledWith('m2', {
-      to_version: 5,
-      expected_checksum: '1ab7',
-      on_removed_lessons: 'purge',
-    })
+    await useCatalogStore.getState().update('m2')
+    const [, cuerpo] = updateCatalogModuleMock.mock.calls.at(-1)!
+    expect(cuerpo).not.toHaveProperty('on_removed_lessons')
   })
 
   it('módulo desconocido: cuerpo vacío, el backend decide', async () => {
@@ -496,14 +498,14 @@ describe('remove()', () => {
     useCatalogStore.setState({ status: structuredClone(STATUS), remote: structuredClone(REMOTE) })
   })
 
-  it('por defecto NO purga el progreso («tu progreso se conserva»)', async () => {
+  it('desinstalar NUNCA purga: ya no hay ni cómo pedirlo', async () => {
+    // §11.6.4. `remove` aceptaba un segundo argumento `purgeProgress` que
+    // mandaba `?purge_progress=true`, y con él el backend borraba
+    // `lesson_progress` y `quiz_attempts`. Se quitó de punta a punta: aquí se
+    // fija que la llamada sale con UN solo argumento, o sea que no queda
+    // ninguna forma de pedir el borrado desde el cliente del estudiante.
     await expect(useCatalogStore.getState().remove('m9')).resolves.toBe(true)
-    expect(uninstallModuleMock).toHaveBeenCalledWith('m9', false)
-  })
-
-  it('purga solo si se pide explícitamente', async () => {
-    await useCatalogStore.getState().remove('m9', true)
-    expect(uninstallModuleMock).toHaveBeenCalledWith('m9', true)
+    expect(uninstallModuleMock).toHaveBeenCalledWith('m9')
   })
 
   it('éxito: invalida las dos cachés y la tarjeta vuelve a «disponible»', async () => {

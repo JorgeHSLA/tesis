@@ -1785,11 +1785,19 @@ Request:
 - `to_version` opcional (default = `available_version`). **Debe ser `>` que
   `installed_version`** → si no, `409 VERSION_CONFLICT` (la versión es monótona;
   no hay downgrade en este contrato).
-- `on_removed_lessons` ∈ `"archive"` (default) | `"purge"`. Con `archive` la
-  lección retirada se marca `archived_at` y conserva su progreso; con `purge` se
-  borran además las filas de `lesson_progress`/`quiz_attempts` de las lecciones
-  desaparecidas. **El default conserva**: es la promesa de §11.0.7, y `purge`
-  existe solo para quien quiera limpiar a conciencia su propia instalación.
+- `on_removed_lessons` ∈ `"archive"` **y nada más** en esta ruta. La lección
+  retirada se marca `archived_at` y **conserva su progreso**. Mandar `"purge"`
+  es `422 VALIDATION_ERROR`, no un borrado silencioso.
+
+  Antes se admitía `"purge"`, que borraba las filas de
+  `lesson_progress`/`quiz_attempts` de las lecciones desaparecidas. Se retiró de
+  la ruta del estudiante porque **contradecía lo que la propia UI promete** en
+  esta misma pantalla («tu progreso se conserva»), y porque dejaba dos caminos
+  distintos —este y `purge_progress` de §11.6.4— para destruir lo único que el
+  estudiante no puede recuperar. El motor de merge conserva la política `purge`
+  internamente (`schemas/updates.OnRemovedLessons`): lo que desaparece es la
+  capacidad de **pedirla desde la API del estudiante**. Borrar avance de verdad
+  es del camino admin (§10.1, BL-01).
 
 `200` — mismo shape que `InstallResult` (§11.6.1) con `lessons_updated`/
 `lessons_removed` poblados y `progress` detallado.
@@ -1816,7 +1824,7 @@ más `replace_quiz` por lección. **Prohibido** el camino «borrar lección + re
 
 #### 11.6.4 `DELETE /api/v1/catalog/modules/{module_id}` — quitar un módulo incorporado
 
-Query: `purge_progress` (`bool`, default `false`).
+Sin query params. **Esta ruta no borra progreso jamás.**
 
 `200`:
 
@@ -1827,10 +1835,21 @@ Query: `purge_progress` (`bool`, default `false`).
   "error": null, "meta": null }
 ```
 
-Con `purge_progress=false` (default) el contenido se borra (CASCADE lección →
-ejemplo → quiz) pero **el progreso sobrevive huérfano**: reinstalar el módulo
-restaura el avance, porque los `lesson_id` son estables. La UI debe decirlo:
-*«Quitar módulo — tu progreso se conserva»*.
+El contenido se borra (CASCADE lección → ejemplo → quiz) pero **el progreso
+sobrevive huérfano**: reinstalar el módulo restaura el avance, porque los
+`lesson_id` son estables y `lesson_progress` no tiene FK a `lessons`. La UI ya lo
+promete así: *«Quitar módulo — tu progreso se conserva»*.
+
+`progress_purged` se mantiene en la respuesta y vale **siempre `false`**: es el
+shape estable de §11.6.4 y quitarlo rompería clientes por un campo que ahora es
+una constante honesta.
+
+Antes existía `purge_progress` (`bool`, default `false`), que borraba
+`lesson_progress` y `quiz_attempts`. Se retiró: dejaba que **cualquier cliente
+del estudiante** destruyera el avance que esta misma pantalla promete conservar,
+y que es lo único que el estudiante no puede volver a bajarse del bucket. La
+purga real vive solo en el camino admin (`DELETE /admin/lessons/{id}`, §10.1
+BL-01), que la hace a propósito y exige `TELAR_ADMIN_MODE`.
 
 | Código | Cuándo |
 |---|---|
@@ -2368,7 +2387,7 @@ class InstallRequest(BaseModel):
 class UpdateRequest(BaseModel):
     to_version: int | None = Field(default=None, ge=1)
     expected_checksum: str | None = Field(default=None, pattern=CHECKSUM_PATTERN)
-    on_removed_lessons: Literal["archive", "purge"] = "archive"
+    on_removed_lessons: Literal["archive"] = "archive"
 
 
 class LessonDiffEntry(BaseModel):
@@ -2605,7 +2624,7 @@ export interface InstallRequestDto {
 export interface UpdateRequestDto {
   to_version?: number | null
   expected_checksum?: string | null
-  on_removed_lessons?: 'archive' | 'purge'
+  on_removed_lessons?: 'archive'
 }
 
 export interface LessonDiffEntryDto {

@@ -60,8 +60,6 @@ export interface InstallOptions {
 export interface UpdateOptions {
   toVersion?: number
   expectedChecksum?: string
-  /** Se OMITE por defecto: el backend aplica `archive`, que CONSERVA el avance. */
-  onRemovedLessons?: 'archive' | 'purge'
 }
 
 export interface CatalogState {
@@ -97,8 +95,8 @@ export interface CatalogState {
   install: (moduleId: string, opts?: InstallOptions) => Promise<boolean>
   /** §11.6.3. `true` si se actualizó. El progreso se conserva (default `archive`). */
   update: (moduleId: string, opts?: UpdateOptions) => Promise<boolean>
-  /** §11.6.4. `true` si se quitó. Con `purgeProgress=false` el avance sobrevive. */
-  remove: (moduleId: string, purgeProgress?: boolean) => Promise<boolean>
+  /** §11.6.4. `true` si se quitó. El avance SIEMPRE sobrevive. */
+  remove: (moduleId: string) => Promise<boolean>
   /** Descarta el error de un módulo (al cerrar el banner de la tarjeta). */
   clearOpError: (moduleId: string) => void
 }
@@ -190,9 +188,9 @@ export const useCatalogStore = create<CatalogState>()((set, get) => ({
     const body: UpdateRequestDto = {
       ...(anchor.version != null ? { to_version: anchor.version } : {}),
       ...(anchor.checksum != null ? { expected_checksum: anchor.checksum } : {}),
-      // Sin `on_removed_lessons` el backend archiva, que es lo que sostiene la
-      // copy «Tu progreso se conserva». `purge` SOLO si alguien lo pide.
-      ...(opts.onRemovedLessons ? { on_removed_lessons: opts.onRemovedLessons } : {}),
+      // `on_removed_lessons` no se manda: la ruta del estudiante solo admite
+      // `archive`, que es lo que sostiene la copy «Tu progreso se conserva».
+      // La opción existía y se quitó — ver §11.6.3.
     }
     return runModuleOp(
       set,
@@ -206,13 +204,13 @@ export const useCatalogStore = create<CatalogState>()((set, get) => ({
     )
   },
 
-  remove: (moduleId, purgeProgress = false) =>
+  remove: (moduleId) =>
     runModuleOp(
       set,
       get,
       moduleId,
       'removing',
-      () => uninstallModule(moduleId, purgeProgress),
+      () => uninstallModule(moduleId),
       () => {
         set({
           remote: patchRemote(get().remote, moduleId, (mod) => ({

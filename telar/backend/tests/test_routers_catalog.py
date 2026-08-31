@@ -1033,20 +1033,36 @@ def test_update_con_expected_checksum_distinto_es_409(cliente, fake_catalog):
     )
 
 
-def test_update_con_purge_borra_el_avance_de_las_retiradas(cliente, fake_catalog):
-    """``purge`` hay que pedirlo a mano; el default conserva (§11.0.7)."""
+def test_el_update_del_estudiante_no_sabe_purgar_y_conserva_el_avance(
+    cliente, fake_catalog
+):
+    """§11.6.3 — pedir ``purge`` es 422, y la lección retirada CONSERVA su avance.
+
+    Era la segunda puerta al mismo borrado que ``purge_progress``: la ruta del
+    estudiante podía mandar ``on_removed_lessons: "purge"`` y llevarse
+    ``lesson_progress`` y ``quiz_attempts``. Cerrar solo una de las dos habría
+    sido cosmético — misma API, mismas tablas, misma promesa rota.
+
+    Se comprueban las dos mitades, porque una sin la otra no dice nada: que el
+    valor destructivo se RECHACE, y que el camino que sí funciona CONSERVE.
+    """
     v1 = bundle("mx", leccion("mx-a", order=1), leccion("mx-b", order=2))
     instalar_manifiesto(cliente, fake_catalog, v1)
     ok(cliente.put("/api/v1/progress/lessons/mx-b", json={"viewed": True}))
-
     publicar_todo(fake_catalog, bundle("mx", leccion("mx-a", order=1), version=2))
-    ok(
+
+    # 1 · el valor destructivo ya no es pedible: 422 ruidoso, no borrado callado.
+    falla(
         cliente.post(
             "/api/v1/catalog/modules/mx/update",
             json={"to_version": 2, "on_removed_lessons": "purge"},
-        )
+        ),
+        422,
+        "VALIDATION_ERROR",
     )
-    assert "mx-b" not in ok(cliente.get("/api/v1/progress"))["lessons"]
+    # 2 · y el update que sí se acepta deja el avance de la retirada en su sitio.
+    ok(cliente.post("/api/v1/catalog/modules/mx/update", json={"to_version": 2}))
+    assert "mx-b" in ok(cliente.get("/api/v1/progress"))["lessons"]
 
 
 def test_update_sin_bucket_es_503(client):
@@ -1098,7 +1114,19 @@ def test_delete_quita_el_contenido_y_conserva_el_progreso(cliente, fake_catalog)
     assert ok(cliente.get("/api/v1/progress"))["lessons"]["mx-a"]["completed"] is True
 
 
-def test_delete_con_purge_progress_borra_avance_e_intentos(cliente, fake_catalog):
+def test_desinstalar_conserva_el_avance_aunque_se_pida_purgarlo(
+    cliente, fake_catalog
+):
+    """§11.6.4 — ``purge_progress`` ya no existe, y mandarlo NO borra nada.
+
+    Se manda el parámetro viejo a propósito. Que la ruta lo ignore es la prueba
+    de que la garantía no depende de que el cliente se porte bien: FastAPI
+    descarta el query param desconocido, y como la rama de purga tampoco existe
+    ya en el código, no hay forma de llegar al DELETE aunque se quiera.
+
+    Se comprueban las DOS tablas: ``lesson_progress`` y ``quiz_attempts``. Con
+    mirar solo una, media purga pasaría por conservación.
+    """
     instalar_manifiesto(cliente, fake_catalog, bundle("mx", leccion("mx-a")))
     ok(
         cliente.post(
@@ -1112,11 +1140,13 @@ def test_delete_con_purge_progress_borra_avance_e_intentos(cliente, fake_catalog
             "DELETE", "/api/v1/catalog/modules/mx", params={"purge_progress": True}
         )
     )
-    assert data["progress_purged"] is True and data["progress_archived"] == 0
+    # `progress_purged` sigue en el shape y ahora es una constante honesta.
+    assert data["progress_purged"] is False
+    assert data["progress_archived"] == 1
 
     ok(cliente.post("/api/v1/catalog/install", json={"module_id": "mx"}), 201)
-    assert "mx-a" not in ok(cliente.get("/api/v1/progress"))["lessons"]
-    assert ok(cliente.get("/api/v1/lessons/mx-a/quiz/attempts"))["attempts"] == []
+    assert "mx-a" in ok(cliente.get("/api/v1/progress"))["lessons"]
+    assert ok(cliente.get("/api/v1/lessons/mx-a/quiz/attempts"))["attempts"] != []
 
 
 def test_delete_de_un_modulo_no_incorporado_es_404(cliente):

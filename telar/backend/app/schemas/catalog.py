@@ -414,14 +414,20 @@ class UpdateRequest(BaseModel):
     """§11.6.3 ``POST /api/v1/catalog/modules/{module_id}/update``.
 
     ``to_version`` debe ser ``>`` que ``installed_version`` (versión monótona,
-    no hay downgrade) → si no, ``409 VERSION_CONFLICT``. El default de
-    ``on_removed_lessons`` CONSERVA el progreso: es la promesa de §11.0.7, y el
-    valor destructivo tiene que pedirse explícitamente.
+    no hay downgrade) → si no, ``409 VERSION_CONFLICT``.
+
+    ``on_removed_lessons`` admite **solo** ``"archive"``. El motor de merge sabe
+    purgar (``schemas/updates.OnRemovedLessons``), pero esta ruta es la del
+    ESTUDIANTE y no puede pedirlo: la pantalla que dispara esta llamada promete
+    «tu progreso se conserva», y una API que acepte lo contrario convierte esa
+    promesa en una cortesía del cliente. Mandar ``"purge"`` es 422, que es
+    ruidoso y honesto, y no un borrado silencioso. Purgar de verdad es del
+    camino admin (§10.1, BL-01).
     """
 
     to_version: int | None = Field(default=None, ge=1)
     expected_checksum: str | None = Field(default=None, pattern=CHECKSUM_PATTERN)
-    on_removed_lessons: Literal["archive", "purge"] = "archive"
+    on_removed_lessons: Literal["archive"] = "archive"
 
 
 class LessonDiffEntry(BaseModel):
@@ -487,15 +493,22 @@ class InstallResult(BaseModel):
 class UninstallResult(BaseModel):
     """§11.6.4 ``DELETE /catalog/modules/{module_id}``.
 
-    Con ``purge_progress=false`` (default) el contenido se borra pero el
-    progreso sobrevive HUÉRFANO: reinstalar restaura el avance, porque los
-    ``lesson_id`` son estables y ``lesson_progress`` no tiene FK a ``lessons``.
+    El contenido se borra pero el progreso sobrevive HUÉRFANO: reinstalar
+    restaura el avance, porque los ``lesson_id`` son estables y
+    ``lesson_progress`` no tiene FK a ``lessons``.
+
+    ``progress_purged`` se queda en el shape y vale **siempre False**. No es un
+    resto: es la respuesta a «¿me borraste el avance?» dicha explícitamente en
+    cada desinstalación, y quitarla obligaría a los clientes a deducir por
+    ausencia lo que antes leían.
     """
 
     removed: bool
     module_id: str
     lessons_removed: int
-    progress_purged: bool
+    #: Invariante de §11.6.4: SIEMPRE ``False`` desde que la ruta del estudiante
+    #: dejó de aceptar ``purge_progress``.
+    progress_purged: bool = False
     progress_archived: int
 
 

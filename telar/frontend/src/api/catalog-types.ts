@@ -125,8 +125,8 @@ export interface InstallRequestDto {
 export interface UpdateRequestDto {
   to_version?: number | null
   expected_checksum?: string | null
-  /** Default `archive`: CONSERVA el avance. `purge` hay que pedirlo. */
-  on_removed_lessons?: 'archive' | 'purge'
+  /** Solo `archive`: esta ruta CONSERVA el avance siempre (§11.6.3). */
+  on_removed_lessons?: 'archive'
 }
 
 export interface LessonDiffEntryDto {
@@ -178,6 +178,7 @@ export interface UninstallResultDto {
   removed: boolean
   module_id: string
   lessons_removed: number
+  /** Invariante de §11.6.4: siempre `false`. */
   progress_purged: boolean
   progress_archived: number
 }

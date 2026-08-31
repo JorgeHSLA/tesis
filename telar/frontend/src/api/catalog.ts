@@ -117,8 +117,8 @@ export function getUpdatePreview(
  * §11.6.3 POST /api/v1/catalog/modules/{module_id}/update — actualizar
  * conservando el progreso (200, mismo shape que instalar). `to_version` debe
  * ser `>` que `installed_version` (versión monótona) o el backend responde
- * `409 VERSION_CONFLICT`. El default de `on_removed_lessons` es `archive`, que
- * CONSERVA el avance de las lecciones retiradas.
+ * `409 VERSION_CONFLICT`. `on_removed_lessons` solo admite `archive`: el avance
+ * de las lecciones retiradas se CONSERVA siempre.
  */
 export function updateCatalogModule(
   moduleId: string,
@@ -132,18 +132,19 @@ export function updateCatalogModule(
 
 /**
  * §11.6.4 DELETE /api/v1/catalog/modules/{module_id} — quitar un módulo
- * incorporado. **100 % local: funciona sin red.** Con el default
- * (`purgeProgress=false`) el contenido se borra pero el avance sobrevive
- * huérfano y reinstalar lo recupera, porque los `lesson_id` son estables:
- * por eso la UI dice «Quitar módulo — tu progreso se conserva».
+ * incorporado. **100 % local: funciona sin red.**
+ *
+ * **El avance SIEMPRE sobrevive.** El contenido se borra pero las filas de
+ * progreso quedan huérfanas y reinstalar las recupera, porque los `lesson_id`
+ * son estables: es exactamente lo que la UI promete al pulsar el botón
+ * («Quitar módulo — tu progreso se conserva»).
+ *
+ * La función tomaba un `purgeProgress` que mandaba `?purge_progress=true`. Se
+ * quitó junto con el parámetro del backend: era una vía para que un cliente
+ * del estudiante destruyera lo único que no se puede volver a bajar del bucket.
  */
-export function uninstallModule(
-  moduleId: string,
-  purgeProgress = false,
-): Promise<UninstallResultDto> {
-  const query = new URLSearchParams()
-  if (purgeProgress) query.set('purge_progress', 'true')
-  return fetchJson<UninstallResultDto>(withQuery(`${P}/modules/${enc(moduleId)}`, query), {
+export function uninstallModule(moduleId: string): Promise<UninstallResultDto> {
+  return fetchJson<UninstallResultDto>(`${P}/modules/${enc(moduleId)}`, {
     method: 'DELETE',
   })
 }

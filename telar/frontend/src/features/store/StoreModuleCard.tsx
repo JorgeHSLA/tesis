@@ -226,7 +226,7 @@ export function StoreModuleCard({
 
         {entry.state !== 'available' && entry.state !== 'local_only' && (
           // Ghost neutro, no rojo: quitar un módulo NO destruye el avance
-          // (§11.6.4 con el default `purge_progress=false`). El tono de peligro
+          // (§11.6.4: esa ruta ya no sabe borrar avance). El tono de peligro
           // se reserva a la confirmación, que es donde se explica el alcance.
           <Button
             variant="ghost"

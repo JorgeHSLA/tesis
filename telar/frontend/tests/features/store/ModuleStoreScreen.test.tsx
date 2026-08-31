@@ -609,9 +609,11 @@ describe('CU-39 · quitar', () => {
 
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Quitar módulo' }))
 
-    // `purge_progress=false`: el avance sobrevive huérfano y reinstalar lo
-    // recupera (§11.6.4). Es exactamente lo que la copy acaba de prometer.
-    await waitFor(() => expect(uninstallModuleMock).toHaveBeenCalledWith('m7', false))
+    // El avance sobrevive huérfano y reinstalar lo recupera (§11.6.4). La
+    // llamada sale con UN solo argumento: desde que se quitó `purge_progress`
+    // no existe forma de pedir el borrado, así que la copy de arriba dejó de
+    // ser una promesa del cliente y pasó a ser una propiedad de la API.
+    await waitFor(() => expect(uninstallModuleMock).toHaveBeenCalledWith('m7'))
     expect(await screen.findByText(/se quitó de este equipo/)).toBeInTheDocument()
   })
 
