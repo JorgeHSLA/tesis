@@ -109,6 +109,18 @@ cd ~/.telar-build/e2e && TELAR_E2E_BASE_URL=http://127.0.0.1:4174 \
 
 Resultado el 2026-08-30: **17/17 en verde contra `storage.googleapis.com`.**
 
+### Las dos suites NO comparten base de datos
+
+`catalogo-remoto.spec.ts` instala `mFundamentos`, cuyo título es **«Fundamentos
+de paralelismo»**; el escenario de `catalogo.spec.ts`/`leccion.spec.ts` (ver
+`e2e/README.md`) crea a mano el módulo `f1` con **ese mismo título**. Corridas
+contra la MISMA base de datos, los localizadores por texto encuentran dos
+módulos y Playwright falla por modo estricto — cuatro tests en rojo que no
+tienen nada que ver con el código.
+
+Cada suite con su `TELAR_DB_PATH`. Verificado: en bases separadas van 17/17 y
+22/22.
+
 ### Lo que solo se ve con el transporte real
 
 El primer intento falló, y el fallo era de verdad. GCS sirve los objetos públicos

@@ -1,4 +1,4 @@
-/* screens/catalog.css — Catálogo (/#/cursos). Rediseño 2026-07-25:
+/* screens/catalog.css — Catálogo (/#/aprender). Rediseño 2026-07-25:
    · ancho y padding los pone `.screen` (contenedor fluido).
    · la tira de stats usa auto-fit/minmax → llena la ventana a 1440/1920 y se
      reparte sola en 2 o 1 columna al estrechar (adiós al @media 980).
@@ -398,7 +398,7 @@
    6.8:1 oscuro), y por eso se reutiliza tal cual en vez de inventar un color.
 
    Aparece SOLO cuando hay algo que actualizar. Su ausencia es el estado
-   degradado —bucket caído, sin bucket, sin red—, nunca un error: `/cursos` no
+   degradado —bucket caído, sin bucket, sin red—, nunca un error: `/aprender` no
    pinta `ErrorState` por el catálogo remoto (§11.0.8). Sin animación de
    entrada, así que no hay nada que apagar bajo `prefers-reduced-motion`. */
 .catalog-updates {

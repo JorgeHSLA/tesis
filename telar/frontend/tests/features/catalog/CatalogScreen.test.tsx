@@ -1,8 +1,8 @@
 // features/catalog/CatalogScreen.test.tsx — el aviso de actualizaciones de
-// `/cursos` y, sobre todo, LO QUE NO PUEDE PASAR: que el catálogo remoto
+// `/aprender` y, sobre todo, LO QUE NO PUEDE PASAR: que el catálogo remoto
 // bloquee la pantalla del curso.
 //
-// El primero es el test que importa. `/cursos` es la pantalla donde el
+// El primero es el test que importa. `/aprender` es la pantalla donde el
 // estudiante estudia; convertirla en un `ErrorState` porque un bucket de GCS no
 // responde sería un fallo de producto, no de red (§11.0.8). Y es justo la clase
 // de regresión que se cuela sin que nadie la note, porque en desarrollo el
@@ -175,7 +175,7 @@ beforeEach(() => {
 
 function montar() {
   return render(
-    <MemoryRouter initialEntries={['/cursos']}>
+    <MemoryRouter initialEntries={['/aprender']}>
       <CatalogScreen />
     </MemoryRouter>,
   )
@@ -191,7 +191,7 @@ async function catalogoResuelto(): Promise<void> {
 
 // ─────────────────────────────── los tests ──────────────────────────────────
 
-describe('CatalogScreen · el catálogo remoto NO puede bloquear /cursos', () => {
+describe('CatalogScreen · el catálogo remoto NO puede bloquear /aprender', () => {
   it('con el bucket caído la pantalla se pinta ENTERA: sin ErrorState y sin chips', async () => {
     preparar({ status: 'error', refresh: 'error' })
     montar()
@@ -213,7 +213,7 @@ describe('CatalogScreen · el catálogo remoto NO puede bloquear /cursos', () =>
     expect(screen.queryByText(/con actualización/)).toBeNull()
   })
 
-  it('el único ErrorState de /cursos sigue siendo el de GET /modules', async () => {
+  it('el único ErrorState de /aprender sigue siendo el de GET /modules', async () => {
     // El catálogo responde perfectamente; quien se cae es el contenido local.
     preparar({ modules: 'error' })
     montar()

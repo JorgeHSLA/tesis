@@ -36,7 +36,7 @@ export function ContinueCard({ modules, lastLessonId, examplesIndex }: ContinueC
       <div className="continue-meta mono-small">
         <IconLayers size={11} /> {moduleTitle} · <IconPlay size={9} /> {est != null ? `~${est}s` : '—'}
       </div>
-      <Button variant="primary" size="sm" style={{ marginTop: 10 }} onClick={() => navigate(`/cursos/${targetId}`)}>
+      <Button variant="primary" size="sm" style={{ marginTop: 10 }} onClick={() => navigate(`/aprender/${targetId}`)}>
         <IconPlay size={13} /> {hasProgress ? 'Reanudar' : 'Empezar'}
       </Button>
     </div>

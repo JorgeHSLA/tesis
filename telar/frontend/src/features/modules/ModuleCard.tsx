@@ -1,4 +1,4 @@
-// StoreModuleCard — UNA tarjeta del catálogo remoto de módulos (§11.5.1).
+// ModuleCard — UNA tarjeta del catálogo remoto de módulos (§11.5.1).
 // Presentación pura: recibe la fila ya clasificada por `lib/catalogDiff` y
 // devuelve al padre la intención del usuario. No conoce el store ni la red.
 //
@@ -25,7 +25,7 @@ import type { CatalogEntry } from '../../lib/catalogDiff'
 import { fmtBytes } from '../../lib/format'
 import type { CatalogFailure, CatalogOp } from '../../stores/catalogStore'
 
-export interface StoreModuleCardProps {
+export interface ModuleCardProps {
   entry: CatalogEntry
   /** Operación en vuelo sobre ESTE módulo: deshabilita todos sus botones. */
   op?: CatalogOp
@@ -48,7 +48,7 @@ interface StateSpec {
  * pueda accionar. El `message` del backend queda de reserva: es correcto pero
  * está escrito para quien conoce el mecanismo.
  *
- * Se exporta porque el diálogo de actualizar (ModuleStoreScreen) tiene que
+ * Se exporta porque el diálogo de actualizar (ModulesScreen) tiene que
  * decir exactamente lo mismo que la tarjeta ante el mismo código.
  */
 export function catalogErrorText(failure: CatalogFailure): string {
@@ -106,7 +106,7 @@ const OP_LABEL: Record<CatalogOp, string> = {
   removing: 'Quitando…',
 }
 
-export function StoreModuleCard({
+export function ModuleCard({
   entry,
   op,
   error,
@@ -115,11 +115,11 @@ export function StoreModuleCard({
   onUpdate,
   onRemove,
   onDismissError,
-}: StoreModuleCardProps) {
+}: ModuleCardProps) {
   const { remote, installed } = entry
   const spec = stateSpec(entry)
   const busy = op !== undefined
-  const titleId = `store-card-${entry.moduleId}`
+  const titleId = `mods-card-${entry.moduleId}`
 
   // Metadatos: solo los que este estado CONOCE de verdad.
   const meta: ReactNode[] = []
@@ -140,45 +140,45 @@ export function StoreModuleCard({
   }
 
   return (
-    <Card className="store-card" aria-labelledby={titleId}>
-      <div className="store-card-body">
-        <div className="store-card-head">
-          <h3 className="store-card-title" id={titleId}>
+    <Card className="mods-card" aria-labelledby={titleId}>
+      <div className="mods-card-body">
+        <div className="mods-card-head">
+          <h3 className="mods-card-title" id={titleId}>
             {entry.title}
           </h3>
           <Chip tone={spec.tone}>{spec.label}</Chip>
         </div>
 
-        {remote?.description ? <p className="store-card-desc">{remote.description}</p> : null}
+        {remote?.description ? <p className="mods-card-desc">{remote.description}</p> : null}
 
-        {meta.length > 0 && <ul className="store-card-meta">{meta}</ul>}
+        {meta.length > 0 && <ul className="mods-card-meta">{meta}</ul>}
 
-        <div className="store-card-tags">
+        <div className="mods-card-tags">
           {remote?.requires_gpu === true && <Chip tone="blue">Requiere GPU</Chip>}
-          {remote?.author_label ? <span className="store-card-author">{remote.author_label}</span> : null}
+          {remote?.author_label ? <span className="mods-card-author">{remote.author_label}</span> : null}
         </div>
 
         {/* El avance propio, junto al botón de quitar: es lo que la copy de la
             confirmación promete conservar, y verlo aquí la hace creíble. */}
         {installed != null && installed.lessons_total > 0 && (
-          <p className="store-card-progress">
+          <p className="mods-card-progress">
             {installed.lessons_completed} de {installed.lessons_total} lecciones completadas
           </p>
         )}
 
         {entry.state === 'unpublished' && (
-          <p className="store-card-note">
+          <p className="mods-card-note">
             Sigue funcionando en tu equipo, pero ya no está en el catálogo: no recibirá más actualizaciones.
           </p>
         )}
 
         {error != null && (
-          <div className="store-card-error" role="alert">
+          <div className="mods-card-error" role="alert">
             <IconAlert size={14} />
             <span>{catalogErrorText(error)}</span>
             <button
               type="button"
-              className="store-dismiss"
+              className="mods-dismiss"
               onClick={onDismissError}
               aria-label={`Descartar el aviso de ${entry.title}`}
             >
@@ -188,7 +188,7 @@ export function StoreModuleCard({
         )}
       </div>
 
-      <div className="store-card-actions">
+      <div className="mods-card-actions">
         {entry.state === 'available' && (
           <Button
             variant="primary"

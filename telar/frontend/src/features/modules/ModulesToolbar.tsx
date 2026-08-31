@@ -1,5 +1,5 @@
-// StoreToolbar — buscador + filtros + «Actualizar lista» del catálogo remoto.
-// Mismo lenguaje visual que la toolbar de `/cursos` (buscador con borde de
+// ModulesToolbar — buscador + filtros + «Actualizar lista» del catálogo remoto.
+// Mismo lenguaje visual que la toolbar de `/aprender` (buscador con borde de
 // affordance + píldoras con contador), pero con clases PROPIAS: `.fpill` vive
 // en `styles/screens/catalog.css`, que solo carga el chunk de esa pantalla, y
 // entrar directo a `/#/modulos` no lo trae. Reusar el nombre habría funcionado
@@ -11,21 +11,21 @@ import { useEffect, useRef } from 'react'
 import { IconSearch } from '../../components/icons/icons'
 import { Button } from '../../components/ui/Button'
 
-export type StoreFilter = 'all' | 'available' | 'installed' | 'updates'
+export type ModulesFilter = 'all' | 'available' | 'installed' | 'updates'
 
-export interface StoreCounts {
+export interface ModulesCounts {
   all: number
   available: number
   installed: number
   updates: number
 }
 
-export interface StoreToolbarProps {
+export interface ModulesToolbarProps {
   query: string
   onQuery: (q: string) => void
-  filter: StoreFilter
-  onFilter: (f: StoreFilter) => void
-  counts: StoreCounts
+  filter: ModulesFilter
+  onFilter: (f: ModulesFilter) => void
+  counts: ModulesCounts
   /** Vuelve a consultar el bucket (`?refresh=true` + `POST /catalog/refresh`). */
   onRefresh: () => void
   /** Hay una consulta al bucket en vuelo. */
@@ -34,14 +34,14 @@ export interface StoreToolbarProps {
   autoFocus?: boolean
 }
 
-const PILLS: { id: StoreFilter; label: string; count: (c: StoreCounts) => number }[] = [
+const PILLS: { id: ModulesFilter; label: string; count: (c: ModulesCounts) => number }[] = [
   { id: 'all', label: 'Todo', count: (c) => c.all },
   { id: 'available', label: 'Disponibles', count: (c) => c.available },
   { id: 'installed', label: 'Instalados', count: (c) => c.installed },
   { id: 'updates', label: 'Con actualización', count: (c) => c.updates },
 ]
 
-export function StoreToolbar({
+export function ModulesToolbar({
   query,
   onQuery,
   filter,
@@ -50,7 +50,7 @@ export function StoreToolbar({
   onRefresh,
   refreshing,
   autoFocus = false,
-}: StoreToolbarProps) {
+}: ModulesToolbarProps) {
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -58,8 +58,8 @@ export function StoreToolbar({
   }, [autoFocus])
 
   return (
-    <div className="store-toolbar">
-      <div className="store-search">
+    <div className="mods-toolbar">
+      <div className="mods-search">
         <IconSearch size={14} />
         <input
           ref={searchRef}
@@ -71,16 +71,16 @@ export function StoreToolbar({
         />
       </div>
 
-      <div className="store-filters" role="group" aria-label="Filtrar módulos">
+      <div className="mods-filters" role="group" aria-label="Filtrar módulos">
         {PILLS.map((pill) => (
           <button
             key={pill.id}
             type="button"
-            className={`store-pill ${filter === pill.id ? 'active' : ''}`}
+            className={`mods-pill ${filter === pill.id ? 'active' : ''}`}
             aria-pressed={filter === pill.id}
             onClick={() => onFilter(pill.id)}
           >
-            {pill.label} <span className="store-pill-n">{pill.count(counts)}</span>
+            {pill.label} <span className="mods-pill-n">{pill.count(counts)}</span>
           </button>
         ))}
       </div>

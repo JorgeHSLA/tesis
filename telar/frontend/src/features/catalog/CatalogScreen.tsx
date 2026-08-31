@@ -6,7 +6,7 @@
 // FASE 5 — aviso de actualizaciones (§11.0.8). Esta pantalla consulta el
 // catálogo, pero NO DEPENDE de él: el único `ErrorState` que puede pintar
 // sigue siendo el de `GET /modules`. Si el bucket está caído, si no hay bucket
-// configurado o si no hay red, `/cursos` se pinta EXACTAMENTE igual que hoy y
+// configurado o si no hay red, `/aprender` se pinta EXACTAMENTE igual que hoy y
 // simplemente se queda sin chips ni tira. Esa degradación silenciosa es el
 // requisito de escritorio, no un descuido: hay un test que la defiende.
 import '../../styles/screens/catalog.css'
@@ -83,7 +83,7 @@ export default function CatalogScreen() {
     }
   }, [hydrateCatalogStatus])
 
-  // location.key cambia en CADA navegación, también /cursos → /cursos: pulsar
+  // location.key cambia en CADA navegación, también /aprender → /aprender: pulsar
   // «Buscar» estando ya en el catálogo vuelve a enfocar.
   //
   // Tras consumirla, la bandera se BORRA del history state. Si no, la entrada

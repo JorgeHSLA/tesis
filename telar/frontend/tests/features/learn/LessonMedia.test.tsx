@@ -32,7 +32,7 @@ function LocationProbe() {
 
 function renderMedia(runDisabled = false) {
   return render(
-    <MemoryRouter initialEntries={['/cursos/primerEjemplo']}>
+    <MemoryRouter initialEntries={['/aprender/primerEjemplo']}>
       <Routes>
         <Route
           path="*"

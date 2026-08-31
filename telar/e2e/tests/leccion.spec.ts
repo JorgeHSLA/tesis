@@ -13,9 +13,9 @@
 import { expect, test } from '@playwright/test'
 
 /** Lección práctica del baseline: markdown + código + quiz. */
-const LECCION_PRACTICA = '#/cursos/spmd'
+const LECCION_PRACTICA = '#/aprender/spmd'
 /** Lección conceptual creada para esta verificación: sin código, con video. */
-const LECCION_TEORICA = '#/cursos/queEsUnHilo'
+const LECCION_TEORICA = '#/aprender/queEsUnHilo'
 
 test.describe('C1 · la lección abre mostrando la lección', () => {
   test('el contenido está a la vista sin desplegar nada', async ({ page }) => {
@@ -54,7 +54,7 @@ test.describe('C1 · la lección abre mostrando la lección', () => {
 
 test.describe('F1 · «ZINE» ya no aparece por ninguna parte', () => {
   for (const [nombre, ruta] of [
-    ['catálogo', '#/cursos'],
+    ['catálogo', '#/aprender'],
     ['lección', LECCION_PRACTICA],
   ] as const) {
     test(`no está en ${nombre}`, async ({ page }) => {
@@ -70,7 +70,7 @@ test.describe('F1 · «ZINE» ya no aparece por ninguna parte', () => {
     // `.nav-label` está en `display: none`. Esta aserción es además la que
     // defiende que los enlaces del rail tengan nombre (WCAG 2.4.4/4.1.2).
     const enlace = page.locator('.sidebar').getByRole('link', { name: 'Aprender', exact: true })
-    await expect(enlace).toHaveAttribute('href', '#/cursos')
+    await expect(enlace).toHaveAttribute('href', '#/aprender')
   })
 
   test('todos los enlaces del rail tienen nombre accesible', async ({ page }) => {

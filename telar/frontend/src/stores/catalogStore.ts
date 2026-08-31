@@ -16,7 +16,7 @@
 //    ES (`api/content.ts`) que nadie más invalida, y sin ella los metas
 //    `Ejemplo · ~{n}s` se quedan en `—` hasta recargar la app entera.
 //
-// Además, `/cursos` NO puede bloquearse por el bucket (§11.0.8): por eso los
+// Además, `/aprender` NO puede bloquearse por el bucket (§11.0.8): por eso los
 // errores están separados —`statusError` jamás pinta un `ErrorState`, solo
 // `remoteError` puede, y únicamente en `/modulos` (ver `shouldShowRemoteError`).
 import { create } from 'zustand'
@@ -71,7 +71,7 @@ export interface CatalogState {
   stale: boolean
   loadingStatus: boolean
   loadingRemote: boolean
-  /** `POST /catalog/refresh` en vuelo (efecto NO bloqueante de `/cursos`). */
+  /** `POST /catalog/refresh` en vuelo (efecto NO bloqueante de `/aprender`). */
   refreshing: boolean
   /**
    * Fallo de `/status` o `/refresh`. **Diagnóstico, nunca un `ErrorState`**: si

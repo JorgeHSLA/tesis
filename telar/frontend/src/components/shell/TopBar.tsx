@@ -23,7 +23,7 @@ interface RouteMeta {
 }
 
 /** Tabla título/crumbs por ruta (frontend-spec §2). Más específica primero.
- *  Para /cursos/:leccionId los crumbs dinámicos (módulo/lección) los aporta
+ *  Para /aprender/:leccionId los crumbs dinámicos (módulo/lección) los aporta
  *  WP7 dentro de la pantalla; el topbar usa el literal del handoff §0.4.
  *  Las entradas «Autoría · …» solo se ejercitan en el build admin (las rutas
  *  /admin/* únicamente existen ahí), pero se dejan siempre en la tabla. */
@@ -32,8 +32,8 @@ export function routeMeta(pathname: string): RouteMeta {
   if (/^\/simulador\/.+/.test(pathname)) return { title: 'Simulador · En vivo', crumbs: ['Simulador', 'En vivo'] }
   if (pathname.startsWith('/simulador')) return { title: 'Simulador · Configurar', crumbs: ['Simulador', 'Configurar'] }
   if (pathname.startsWith('/resultados')) return { title: 'Resultados', crumbs: ['Simulador', 'Resultados'] }
-  if (/^\/cursos\/.+/.test(pathname)) return { title: 'Aprender', crumbs: ['Aprendizaje', 'Módulo', 'Lección'] }
-  if (pathname.startsWith('/cursos')) return { title: 'Aprendizaje · Catálogo', crumbs: ['Aprendizaje', 'Catálogo'] }
+  if (/^\/aprender\/.+/.test(pathname)) return { title: 'Aprender', crumbs: ['Aprendizaje', 'Módulo', 'Lección'] }
+  if (pathname.startsWith('/aprender')) return { title: 'Aprendizaje · Catálogo', crumbs: ['Aprendizaje', 'Catálogo'] }
   if (pathname.startsWith('/modulos')) return { title: 'Aprendizaje · Módulos disponibles', crumbs: ['Aprendizaje', 'Módulos'] }
   if (/^\/admin\/lecciones\b/.test(pathname)) return { title: 'Autoría · Lección', crumbs: ['Autoría', 'Lección'] }
   if (/^\/admin\/quiz\b/.test(pathname)) return { title: 'Autoría · Quiz', crumbs: ['Autoría', 'Quiz'] }
@@ -67,11 +67,11 @@ export function TopBar() {
         type="button"
         className="btn btn-ghost btn-sm"
         onClick={() =>
-          navigate('/cursos', {
+          navigate('/aprender', {
             state: { focusSearch: true } satisfies CatalogNavState,
             // Estando ya en el catálogo, `replace` evita apilar una entrada de
             // historial por cada pulsación (el usuario solo quiere el foco).
-            replace: pathname === '/cursos',
+            replace: pathname === '/aprender',
           })
         }
       >

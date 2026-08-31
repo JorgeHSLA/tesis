@@ -36,7 +36,7 @@ async function publicarVersion(version: 1 | 2) {
 }
 
 test.describe('CU-35 · explorar el catálogo del bucket', () => {
-  test('la tienda de módulos lista lo que hay publicado', async ({ page }) => {
+  test('los módulos disponibles lista lo que hay publicado', async ({ page }) => {
     await page.goto('#/modulos')
 
     await expect(page.getByText('Fundamentos de paralelismo')).toBeVisible()
@@ -48,13 +48,13 @@ test.describe('CU-35 · explorar el catálogo del bucket', () => {
 
     // El estudiante decide con información: cuántas lecciones, cuántas
     // preguntas y cuánto tiempo. Si no, «incorporar» es un salto al vacío.
-    const tarjeta = page.locator('.store-card', { hasText: 'Fundamentos de paralelismo' })
+    const tarjeta = page.locator('.mods-card', { hasText: 'Fundamentos de paralelismo' })
     await expect(tarjeta).toContainText('2')
     await expect(tarjeta).toContainText(/lecciones?/)
   })
 
   test('el catálogo local no muestra todavía el módulo remoto', async ({ page }) => {
-    await page.goto('#/cursos')
+    await page.goto('#/aprender')
     await expect(page.locator('.cat-module').first()).toBeVisible()
     await expect(
       page.locator('.cat-module', { hasText: 'Fundamentos de paralelismo' }),
@@ -66,19 +66,19 @@ test.describe('CU-36 · incorporar el módulo que se elige', () => {
   test('incorporar uno lo instala y deja el otro fuera', async ({ page }) => {
     await page.goto('#/modulos')
 
-    const fundamentos = page.locator('.store-card', { hasText: 'Fundamentos de paralelismo' })
+    const fundamentos = page.locator('.mods-card', { hasText: 'Fundamentos de paralelismo' })
     await fundamentos.getByRole('button', { name: /Incorporar/ }).click()
 
     // Queda instalado…
     await expect(fundamentos.getByText(/Instalado/)).toBeVisible({ timeout: 20_000 })
 
     // …y el otro sigue disponible: incorporar es una ELECCIÓN, no un todo o nada.
-    const extra = page.locator('.store-card', { hasText: 'Módulo que nadie incorpora' })
+    const extra = page.locator('.mods-card', { hasText: 'Módulo que nadie incorpora' })
     await expect(extra.getByRole('button', { name: /Incorporar/ })).toBeVisible()
   })
 
   test('el módulo aparece en el catálogo con sus lecciones', async ({ page }) => {
-    await page.goto('#/cursos')
+    await page.goto('#/aprender')
 
     const modulo = page.locator('.cat-module', { hasText: 'Fundamentos de paralelismo' })
     await expect(modulo).toBeVisible()
@@ -87,7 +87,7 @@ test.describe('CU-36 · incorporar el módulo que se elige', () => {
   })
 
   test('la lección conceptual del bucket se lee, sin ofrecer ejecutarla', async ({ page }) => {
-    await page.goto('#/cursos/f1Hilo')
+    await page.goto('#/aprender/f1Hilo')
 
     await expect(page.locator('.markdown')).toContainText('unidad de ejecución')
     // Sin código no hay affordance de ejecución: no un botón muerto, ninguno.
@@ -95,7 +95,7 @@ test.describe('CU-36 · incorporar el módulo que se elige', () => {
   })
 
   test('su video llega como iframe al dominio sin cookies, ya normalizado', async ({ page }) => {
-    await page.goto('#/cursos/f1Hilo')
+    await page.goto('#/aprender/f1Hilo')
 
     const marco = page.locator('iframe.lesson-media-video')
     await expect(marco).toBeVisible()
@@ -121,7 +121,7 @@ test.describe('el estudiante avanza en el módulo incorporado', () => {
       ]),
     )
 
-    await page.goto('#/cursos/f1Practica')
+    await page.goto('#/aprender/f1Practica')
     await page.getByRole('button', { name: /Empezar quiz/ }).click()
 
     for (const [qid, clave] of Object.entries(claves)) {
@@ -134,7 +134,7 @@ test.describe('el estudiante avanza en el módulo incorporado', () => {
   })
 
   test('el catálogo refleja el avance', async ({ page }) => {
-    await page.goto('#/cursos')
+    await page.goto('#/aprender')
     const modulo = page.locator('.cat-module', { hasText: 'Fundamentos de paralelismo' })
     // Una de las dos lecciones completada. Se compara con el texto EXACTO: un
     // `not.toContainText('0%')` daría por bueno cualquier cosa menos «0%»… y
@@ -150,12 +150,12 @@ test.describe('CU-38 y CU-39 · llega una versión nueva', () => {
     await page.goto('#/modulos')
     await page.getByRole('button', { name: 'Actualizar lista' }).click()
 
-    const tarjeta = page.locator('.store-card', { hasText: 'Fundamentos de paralelismo' })
+    const tarjeta = page.locator('.mods-card', { hasText: 'Fundamentos de paralelismo' })
     await expect(tarjeta.getByText(/Actualización/)).toBeVisible({ timeout: 20_000 })
   })
 
   test('el aviso también aparece en el catálogo, sin sacarlo de ahí', async ({ page }) => {
-    await page.goto('#/cursos')
+    await page.goto('#/aprender')
 
     const modulo = page.locator('.cat-module', { hasText: 'Fundamentos de paralelismo' })
     await expect(modulo.getByText(/Actualización/)).toBeVisible({ timeout: 20_000 })
@@ -163,7 +163,7 @@ test.describe('CU-38 y CU-39 · llega una versión nueva', () => {
 
   test('«ver qué cambia» promete que el progreso se conserva', async ({ page }) => {
     await page.goto('#/modulos')
-    const tarjeta = page.locator('.store-card', { hasText: 'Fundamentos de paralelismo' })
+    const tarjeta = page.locator('.mods-card', { hasText: 'Fundamentos de paralelismo' })
     await tarjeta.getByRole('button', { name: /Ver qué cambia/ }).click()
     const dialogo = page.getByRole('dialog')
 
@@ -178,7 +178,7 @@ test.describe('CU-38 y CU-39 · llega una versión nueva', () => {
 
   test('actualiza y el avance sigue intacto', async ({ page, request }) => {
     await page.goto('#/modulos')
-    const tarjeta = page.locator('.store-card', { hasText: 'Fundamentos de paralelismo' })
+    const tarjeta = page.locator('.mods-card', { hasText: 'Fundamentos de paralelismo' })
     await tarjeta
       .getByRole('button', { name: 'Actualizar Fundamentos de paralelismo' })
       .click()
@@ -200,7 +200,7 @@ test.describe('CU-38 y CU-39 · llega una versión nueva', () => {
     expect(practica.completed_via).toBe('quiz')
 
     // Y se ve en la pantalla, que es lo que esta suite añade sobre pytest.
-    await page.goto('#/cursos')
+    await page.goto('#/aprender')
     const modulo = page.locator('.cat-module', { hasText: 'Fundamentos de paralelismo' })
     await modulo.locator('.cat-module-head').click()
     await expect(modulo.locator('.cat-lesson')).toHaveCount(3) // creció
@@ -210,19 +210,19 @@ test.describe('CU-38 y CU-39 · llega una versión nueva', () => {
   })
 
   test('la lección nueva llegó y es legible', async ({ page }) => {
-    await page.goto('#/cursos/f1Concurrencia')
+    await page.goto('#/aprender/f1Concurrencia')
     await expect(page.locator('.markdown')).toContainText('barista')
   })
 })
 
 test.describe('el modo sin red es un caso de uso, no un fallo', () => {
-  test('con el bucket caído, /cursos sigue completo y sin error', async ({ page }) => {
+  test('con el bucket caído, /aprender sigue completo y sin error', async ({ page }) => {
     // Se corta el bucket a nivel de red, no del backend: es lo que le pasa a un
     // estudiante en un tren, y la app de escritorio debe seguir sirviendo lo ya
     // instalado.
     await page.route('**/catalog/**', (route) => route.abort())
 
-    await page.goto('#/cursos')
+    await page.goto('#/aprender')
 
     await expect(page.locator('.cat-module').first()).toBeVisible()
     await expect(page.locator('.error-state')).toHaveCount(0)
@@ -233,7 +233,7 @@ test.describe('el modo sin red es un caso de uso, no un fallo', () => {
   test('la lección instalada se lee igual sin red', async ({ page }) => {
     await page.route('**/catalog/**', (route) => route.abort())
 
-    await page.goto('#/cursos/f1Hilo')
+    await page.goto('#/aprender/f1Hilo')
     await expect(page.locator('.markdown')).toContainText('unidad de ejecución')
   })
 

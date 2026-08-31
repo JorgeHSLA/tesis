@@ -59,7 +59,7 @@ function navSections(catalogEnabled: boolean): NavSection[] {
     {
       label: 'Aprendizaje',
       items: [
-        { to: '/cursos', label: 'Aprender', icon: IconBook, match: (p) => p.startsWith('/cursos') },
+        { to: '/aprender', label: 'Aprender', icon: IconBook, match: (p) => p.startsWith('/aprender') },
         // IconDownload y no IconLayers: las capas ya son «Autoría» en este mismo
         // rail, y dos items con el mismo icono en 56px son indistinguibles.
         ...(catalogEnabled

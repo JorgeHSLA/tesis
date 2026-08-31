@@ -220,7 +220,7 @@ describe('isInstalled', () => {
   })
 })
 
-describe('pendingUpdates — chips de /cursos (solo SQLite, offline-safe)', () => {
+describe('pendingUpdates — chips de /aprender (solo SQLite, offline-safe)', () => {
   it('mapea module_id → versión disponible de los actualizables', () => {
     const filas = [
       instalado({ state: 'update_available', available_version: 5 }),

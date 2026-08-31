@@ -62,7 +62,7 @@ export function LessonSidebar({ module, currentLessonId, examplesIndex }: Lesson
                 type="button"
                 className={`lesson-side ${current ? 'current' : ''}${isDone ? ' done' : ''}`}
                 aria-current={current ? 'true' : undefined}
-                onClick={() => navigate(`/cursos/${lesson.id}`)}
+                onClick={() => navigate(`/aprender/${lesson.id}`)}
               >
                 <span className="lesson-num-badge">
                   {isDone ? <IconCheck size={11} /> : <span className="mono">{String(i + 1).padStart(2, '0')}</span>}

@@ -39,7 +39,7 @@ export function LessonRow({
   const hasExample = lesson.example_id !== null
 
   const open = () => {
-    navigate(`/cursos/${lesson.id}`, anchorQuiz ? { state: { anchor: 'quiz' } } : undefined)
+    navigate(`/aprender/${lesson.id}`, anchorQuiz ? { state: { anchor: 'quiz' } } : undefined)
   }
 
   return (

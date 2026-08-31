@@ -85,7 +85,7 @@ export function diffCatalog(
   const entries: CatalogEntry[] = []
   const seen = new Set<string>()
 
-  // 1) El bucket manda el orden de la tienda.
+  // 1) El bucket manda el orden de el catálogo remoto.
   for (const mod of remote ?? []) {
     // El índice es ENTRADA NO CONFIABLE (§11.0.6): con ids repetidos gana el
     // primero, en vez de duplicar tarjetas o pisar la clasificación.
@@ -115,7 +115,7 @@ export function diffCatalog(
 
 /**
  * Mapa `module_id → versión disponible` para los chips «Actualización · v{n}»
- * de `/cursos`. Se calcula SOLO con `/catalog/status`, que es offline-safe:
+ * de `/aprender`. Se calcula SOLO con `/catalog/status`, que es offline-safe:
  * esa pantalla no puede depender del bucket ni bloquearse por él (§11.0.8).
  */
 export function pendingUpdates(

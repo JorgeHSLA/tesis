@@ -1,4 +1,4 @@
-// tests/features/store/ModuleStoreScreen.test.tsx — la pantalla `/modulos`
+// tests/features/modules/ModulesScreen.test.tsx — la pantalla `/modulos`
 // (CU-35 explorar · CU-36 incorporar · CU-39 actualizar y quitar).
 //
 // Lo que se verifica aquí no es «que pinte»: son las tres reglas de producto
@@ -19,7 +19,7 @@
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import ModuleStoreScreen from '@/features/store/ModuleStoreScreen'
+import ModulesScreen from '@/features/modules/ModulesScreen'
 import { Sidebar } from '@/components/shell/Sidebar'
 import { ApiError } from '@/api/client'
 import { useCatalogStore } from '@/stores/catalogStore'
@@ -297,8 +297,8 @@ function renderScreen() {
   return render(
     <MemoryRouter initialEntries={['/modulos']}>
       <Routes>
-        <Route path="/modulos" element={<ModuleStoreScreen />} />
-        <Route path="/cursos" element={<div>PANTALLA APRENDER</div>} />
+        <Route path="/modulos" element={<ModulesScreen />} />
+        <Route path="/aprender" element={<div>PANTALLA APRENDER</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -415,7 +415,7 @@ describe('CU-35 · explorar el catálogo', () => {
     await renderCatalogo()
 
     // m1 es `origin: local` en /status y no está en el bucket (§11.6.4 daría
-    // 404 MODULE_NOT_INSTALLED). Su sitio es /cursos, no esta pantalla.
+    // 404 MODULE_NOT_INSTALLED). Su sitio es /aprender, no esta pantalla.
     expect(screen.queryByText('Primeros pasos con OpenMP')).toBeNull()
   })
 
@@ -440,13 +440,13 @@ describe('CU-35 · explorar el catálogo', () => {
     expect(screen.queryByText('Vectorización con SIMD')).toBeNull()
   })
 
-  it('«Actualizar lista» consulta el bucket Y refresca el estado de /cursos', async () => {
+  it('«Actualizar lista» consulta el bucket Y refresca el estado de /aprender', async () => {
     await renderCatalogo()
 
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar lista' }))
 
     await waitFor(() => expect(getRemoteCatalogMock).toHaveBeenCalledWith(true))
-    // §11.4.2: los chips «Actualización» de /cursos salen de SQLite, y solo
+    // §11.4.2: los chips «Actualización» de /aprender salen de SQLite, y solo
     // POST /catalog/refresh los pone al día. Un clic, las dos vistas.
     expect(refreshCatalogMock).toHaveBeenCalled()
   })

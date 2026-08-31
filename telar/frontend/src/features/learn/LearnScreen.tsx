@@ -140,7 +140,7 @@ export default function LearnScreen() {
           detail={error.message}
           onRetry={error.notFound ? undefined : () => setReloadKey((k) => k + 1)}
         >
-          <Button variant="outline" size="sm" onClick={() => navigate('/cursos')}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/aprender')}>
             Volver al catálogo
           </Button>
         </ErrorState>
@@ -192,7 +192,7 @@ export default function LearnScreen() {
     <section className="screen learn">
       <div className="screen-head">
         <div>
-          <Button variant="ghost" size="sm" style={{ marginBottom: 10, paddingLeft: 6 }} onClick={() => navigate('/cursos')}>
+          <Button variant="ghost" size="sm" style={{ marginBottom: 10, paddingLeft: 6 }} onClick={() => navigate('/aprender')}>
             <IconChevronLeft size={14} /> Volver al catálogo
           </Button>
           <div className="eyebrow">Aprender</div>
@@ -235,14 +235,14 @@ export default function LearnScreen() {
           <Button
             variant="outline"
             disabled={lesson.prev_lesson_id == null}
-            onClick={() => lesson.prev_lesson_id && navigate(`/cursos/${lesson.prev_lesson_id}`)}
+            onClick={() => lesson.prev_lesson_id && navigate(`/aprender/${lesson.prev_lesson_id}`)}
           >
             <IconChevronLeft size={14} /> Anterior
           </Button>
           <Button
             variant="primary"
             disabled={lesson.next_lesson_id == null}
-            onClick={() => lesson.next_lesson_id && navigate(`/cursos/${lesson.next_lesson_id}`)}
+            onClick={() => lesson.next_lesson_id && navigate(`/aprender/${lesson.next_lesson_id}`)}
           >
             Siguiente <IconChevronRight size={14} />
           </Button>

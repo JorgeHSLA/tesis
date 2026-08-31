@@ -1,4 +1,4 @@
-// ModuleStoreScreen — `/modulos`, el catálogo remoto visto por el estudiante:
+// ModulesScreen — `/modulos`, el catálogo remoto visto por el estudiante:
 // CU-35 (explorar), CU-36 (incorporar) y CU-39 (actualizar / quitar).
 //
 // TRES REGLAS DE PRODUCTO, y las tres se leen en el código de esta pantalla:
@@ -19,8 +19,8 @@
 // Lo LOCAL queda fuera de esta pantalla: los módulos `local_only` (baseline o
 // creados en autoría) no se incorporan ni se quitan por §11.6.4 —respondería
 // `404 MODULE_NOT_INSTALLED`—, así que enseñarlos aquí sería ofrecer botones
-// que no funcionan. Su sitio es `/cursos`.
-import '../../styles/screens/store.css'
+// que no funcionan. Su sitio es `/aprender`.
+import '../../styles/screens/modules.css'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { getUpdatePreview } from '../../api/catalog'
@@ -41,13 +41,13 @@ import {
   useCatalogStore,
   type CatalogFailure,
 } from '../../stores/catalogStore'
-import { catalogErrorText, StoreModuleCard } from './StoreModuleCard'
-import { StoreToolbar, type StoreCounts, type StoreFilter } from './StoreToolbar'
+import { catalogErrorText, ModuleCard } from './ModuleCard'
+import { ModulesToolbar, type ModulesCounts, type ModulesFilter } from './ModulesToolbar'
 
 /** La promesa de §11.6.2/§11.6.4, palabra por palabra. Se usa en los DOS diálogos. */
 const PROGRESS_PROMISE = 'Tu progreso se conserva'
 
-export default function ModuleStoreScreen() {
+export default function ModulesScreen() {
   const status = useCatalogStore((s) => s.status)
   const remote = useCatalogStore((s) => s.remote)
   const stale = useCatalogStore((s) => s.stale)
@@ -66,7 +66,7 @@ export default function ModuleStoreScreen() {
   const clearOpError = useCatalogStore((s) => s.clearOpError)
 
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState<StoreFilter>('all')
+  const [filter, setFilter] = useState<ModulesFilter>('all')
   /** Confirmación de quitar (CU-39): id del módulo, no la fila (se recalcula). */
   const [removeId, setRemoveId] = useState<string | null>(null)
   /** Diálogo de actualizar: es TAMBIÉN la confirmación, por la regla 2. */
@@ -92,7 +92,7 @@ export default function ModuleStoreScreen() {
 
   const entries = useMemo(() => diff.entries.filter((e) => e.state !== 'local_only'), [diff])
 
-  const counts: StoreCounts = useMemo(
+  const counts: ModulesCounts = useMemo(
     () => ({
       all: entries.length,
       available: diff.byState.available.length,
@@ -115,7 +115,7 @@ export default function ModuleStoreScreen() {
   const handleRefresh = useCallback(() => {
     // Las DOS: `/remote?refresh=true` trae el índice del bucket (esta pantalla)
     // y `/catalog/refresh` reescribe el estado en SQLite, que es de donde salen
-    // los chips de actualización de `/cursos`. Un solo clic, las dos vistas al día.
+    // los chips de actualización de `/aprender`. Un solo clic, las dos vistas al día.
     void loadRemote(true)
     void refreshStatus()
   }, [loadRemote, refreshStatus])
@@ -202,13 +202,13 @@ export default function ModuleStoreScreen() {
   if (remote === null && remoteError?.code === 'CATALOG_DISABLED') {
     return (
       <section className="screen store">
-        <StoreHead />
+        <ModulesHead />
         <EmptyState
           icon={<IconDownload size={20} />}
           title="Este equipo no tiene catálogo de módulos"
           body="No hay un repositorio de módulos configurado, así que no hay nada que incorporar. Tus lecciones instaladas siguen disponibles en Aprender."
           action={
-            <Link className="btn btn-outline btn-sm" to="/cursos">
+            <Link className="btn btn-outline btn-sm" to="/aprender">
               Ir a Aprender
             </Link>
           }
@@ -222,8 +222,8 @@ export default function ModuleStoreScreen() {
   if ((remote === null && remoteError === null) || (status === null && statusError === null)) {
     return (
       <section className="screen store" aria-busy="true">
-        <StoreHead />
-        <div className="store-grid" aria-hidden="true">
+        <ModulesHead />
+        <div className="mods-grid" aria-hidden="true">
           {Array.from({ length: 6 }, (_, i) => (
             <Skeleton key={i} height={196} radius="var(--r-lg)" />
           ))}
@@ -236,14 +236,14 @@ export default function ModuleStoreScreen() {
   if (remoteError !== null && shouldShowRemoteError({ remote, remoteError })) {
     return (
       <section className="screen store">
-        <StoreHead />
+        <ModulesHead />
         <ErrorState
           title="No se pudo consultar el catálogo"
           message={catalogErrorText(remoteError)}
           detail={`${remoteError.code} · ${remoteError.message}`}
           onRetry={handleRefresh}
         >
-          <Link className="btn btn-ghost btn-sm" to="/cursos">
+          <Link className="btn btn-ghost btn-sm" to="/aprender">
             Seguir con lo instalado
           </Link>
         </ErrorState>
@@ -258,10 +258,10 @@ export default function ModuleStoreScreen() {
 
   return (
     <section className="screen store">
-      <StoreHead
+      <ModulesHead
         right={
-          <div className="store-summary">
-            <span className="store-summary-n">{counts.all}</span>
+          <div className="mods-summary">
+            <span className="mods-summary-n">{counts.all}</span>
             <span className="muted">{counts.all === 1 ? 'módulo en el catálogo' : 'módulos en el catálogo'}</span>
             {lastChecked !== null && <span className="mono-small">consultado {fmtRelative(lastChecked)}</span>}
           </div>
@@ -269,7 +269,7 @@ export default function ModuleStoreScreen() {
       />
 
       {showCacheNote && (
-        <p className="store-note" role="status">
+        <p className="mods-note" role="status">
           <IconAlert size={14} />
           <span>
             Estás viendo la última lista guardada
@@ -280,17 +280,17 @@ export default function ModuleStoreScreen() {
       )}
 
       {announcement !== null && (
-        <p className="store-announce" role="status">
+        <p className="mods-announce" role="status">
           <IconCheck size={14} />
           <span>{announcement.text}</span>
           {announcement.toCatalog && (
-            <Link className="btn btn-ghost btn-sm" to="/cursos">
+            <Link className="btn btn-ghost btn-sm" to="/aprender">
               Ir a Aprender
             </Link>
           )}
           <button
             type="button"
-            className="store-dismiss"
+            className="mods-dismiss"
             onClick={() => setAnnouncement(null)}
             aria-label="Descartar el aviso"
           >
@@ -299,7 +299,7 @@ export default function ModuleStoreScreen() {
         </p>
       )}
 
-      <StoreToolbar
+      <ModulesToolbar
         query={query}
         onQuery={setQuery}
         filter={filter}
@@ -333,9 +333,9 @@ export default function ModuleStoreScreen() {
           }
         />
       ) : (
-        <div className="store-grid">
+        <div className="mods-grid">
           {visible.map((entry) => (
-            <StoreModuleCard
+            <ModuleCard
               key={entry.moduleId}
               entry={entry}
               op={ops[entry.moduleId]}
@@ -386,13 +386,13 @@ export default function ModuleStoreScreen() {
 
 // ── cabecera ────────────────────────────────────────────────────────────────
 
-function StoreHead({ right }: { right?: ReactNode }) {
+function ModulesHead({ right }: { right?: ReactNode }) {
   return (
     <div className="screen-head">
       <div>
         <div className="eyebrow">Aprendizaje</div>
         <h2 className="display-lg">Módulos disponibles</h2>
-        <p className="muted store-lead">
+        <p className="muted mods-lead">
           Elige qué módulos quieres en este equipo. Puedes incorporarlos, actualizarlos y quitarlos cuando
           quieras: <strong>{PROGRESS_PROMISE.toLowerCase()}</strong>.
         </p>
@@ -406,7 +406,7 @@ function StoreHead({ right }: { right?: ReactNode }) {
 
 interface Announcement {
   text: string
-  /** Añade el CTA a `/cursos`: tras incorporar o actualizar, ahí está el contenido. */
+  /** Añade el CTA a `/aprender`: tras incorporar o actualizar, ahí está el contenido. */
   toCatalog: boolean
 }
 
@@ -487,11 +487,11 @@ function UpdateDialog({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="card dialog" role="dialog" aria-modal="true" aria-labelledby="store-update-title">
+      <div className="card dialog" role="dialog" aria-modal="true" aria-labelledby="mods-update-title">
         <div className="card-head">
           <IconDownload size={16} />
           <div>
-            <div className="card-title" id="store-update-title">
+            <div className="card-title" id="mods-update-title">
               Actualizar «{entry.title}»
             </div>
             {fromVersion != null && toVersion != null && (
@@ -504,7 +504,7 @@ function UpdateDialog({
 
         <div className="dialog-body">
           {/* Copy OBLIGATORIA (regla 2): sin esta frase nadie pulsa el botón. */}
-          <p className="store-promise">
+          <p className="mods-promise">
             <IconCheck size={14} />
             <span>
               <strong>{PROGRESS_PROMISE}.</strong> Las lecciones que ya completaste siguen completadas, y las
@@ -521,7 +521,7 @@ function UpdateDialog({
           )}
 
           {loading && (
-            <div className="store-diff-skeleton" aria-hidden="true">
+            <div className="mods-diff-skeleton" aria-hidden="true">
               <Skeleton height={18} />
               <Skeleton height={18} />
               <Skeleton height={18} />
@@ -529,7 +529,7 @@ function UpdateDialog({
           )}
 
           {previewError !== null && (
-            <p className="store-dialog-error" role="alert">
+            <p className="mods-dialog-error" role="alert">
               <IconAlert size={14} />
               <span>No se pudo consultar qué cambia: {catalogErrorText(previewError)}</span>
             </p>
@@ -544,25 +544,25 @@ function UpdateDialog({
                 <b>{preview.progress_summary.unaffected}</b> sin cambios
               </p>
 
-              <ul className="store-diff" aria-label="Cambios lección por lección">
+              <ul className="mods-diff" aria-label="Cambios lección por lección">
                 {preview.lessons.map((lesson) => (
-                  <li key={lesson.lesson_id} className="store-diff-row">
+                  <li key={lesson.lesson_id} className="mods-diff-row">
                     {/* El título manda; el id queda de respaldo cuando el
                         servidor no pudo resolverlo. Enseñarle `f1Concurrencia`
                         a quien está decidiendo si actualiza no es informar. */}
                     {lesson.title !== null ? (
-                      <span className="store-diff-title">{lesson.title}</span>
+                      <span className="mods-diff-title">{lesson.title}</span>
                     ) : (
                       <code className="mono-small">{lesson.lesson_id}</code>
                     )}
                     <Chip tone={CHANGE_TONE[lesson.change]}>{CHANGE_LABEL[lesson.change]}</Chip>
-                    <span className="store-diff-effect">{PROGRESS_LABEL[lesson.progress]}</span>
+                    <span className="mods-diff-effect">{PROGRESS_LABEL[lesson.progress]}</span>
                   </li>
                 ))}
               </ul>
 
               {preview.warnings.length > 0 && (
-                <ul className="store-warnings">
+                <ul className="mods-warnings">
                   {preview.warnings.map((w, i) => (
                     <li key={`${w.code}-${w.lesson_id ?? i}`}>
                       <IconAlert size={14} /> {w.message}
@@ -574,7 +574,7 @@ function UpdateDialog({
           )}
 
           {opError != null && (
-            <p className="store-dialog-error" role="alert">
+            <p className="mods-dialog-error" role="alert">
               <IconAlert size={14} />
               <span>{catalogErrorText(opError)}</span>
             </p>
@@ -600,7 +600,7 @@ function UpdateDialog({
 
 function filterEntries(
   entries: readonly CatalogEntry[],
-  filter: StoreFilter,
+  filter: ModulesFilter,
   query: string,
 ): CatalogEntry[] {
   const q = query.trim().toLowerCase()

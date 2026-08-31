@@ -1,31 +1,31 @@
-/* screens/store.css — «Módulos disponibles» (/#/modulos): el catálogo remoto
-   (§11.5-§11.6). Chunk propio de la pantalla, cargado por ModuleStoreScreen.
+/* screens/modules.css — «Módulos disponibles» (/#/modulos): el catálogo remoto
+   (§11.5-§11.6). Chunk propio de la pantalla, cargado por ModulesScreen.
 
    CERO hex y cero rgba: todo color sale de tokens.css, así que la pantalla se
    da la vuelta sola con el tema y hereda los contrastes ya auditados.
 
    Por qué las píldoras y el buscador NO reusan `.fpill`/`.catalog-search`:
    esas clases viven en `screens/catalog.css`, que solo entra con el chunk de
-   `/cursos`. Entrando directo a `/#/modulos` no se carga, y la toolbar
+   `/aprender`. Entrando directo a `/#/modulos` no se carga, y la toolbar
    aparecería sin estilo. Misma receta, tokens idénticos, nombre propio.
 
    Motion: solo transiciones de color/sombra, ya neutralizadas por la regla
    global de `prefers-reduced-motion` de base.css. */
 
-.store-lead {
+.mods-lead {
   margin: 6px 0 0;
   max-width: var(--measure-narrow);
 }
 
 /* ── Resumen de la derecha del encabezado ───────────────────────────────── */
-.store-summary {
+.mods-summary {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: var(--sp-2);
   font-size: var(--fs-sm);
 }
-.store-summary-n {
+.mods-summary-n {
   font-family: var(--font-mono);
   font-size: var(--fs-xl);
   font-weight: 600;
@@ -37,8 +37,8 @@
 /* ── Tiras informativas (caché / confirmación) ──────────────────────────────
    NO son errores: la caché es un modo de uso legítimo (§11.9) y la
    confirmación es una buena noticia. De ahí el tinte suave, no el rojo. */
-.store-note,
-.store-announce {
+.mods-note,
+.mods-announce {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -49,31 +49,31 @@
   font-size: var(--fs-sm);
   line-height: 1.5;
 }
-.store-note {
+.mods-note {
   background: var(--warn-soft);
   color: var(--warn-ink);
   border: 1px solid color-mix(in srgb, var(--warn) 28%, transparent);
 }
-.store-announce {
+.mods-announce {
   background: var(--success-soft);
   color: var(--success-ink);
   border: 1px solid color-mix(in srgb, var(--success) 28%, transparent);
 }
-.store-note > svg,
-.store-announce > svg {
+.mods-note > svg,
+.mods-announce > svg {
   flex-shrink: 0;
 }
-.store-note > span,
-.store-announce > span {
+.mods-note > span,
+.mods-announce > span {
   flex: 1 1 260px;
   min-width: 0;
 }
-.store-announce .btn {
+.mods-announce .btn {
   margin-left: auto;
 }
 
 /* Descartar: acción terciaria, tinta heredada del contenedor que la aloja. */
-.store-dismiss {
+.mods-dismiss {
   flex-shrink: 0;
   padding: 2px 6px;
   border: none;
@@ -85,12 +85,12 @@
   text-decoration: underline;
   cursor: pointer;
 }
-.store-dismiss:hover {
+.mods-dismiss:hover {
   background: color-mix(in srgb, currentColor 12%, transparent);
 }
 
 /* ── Toolbar ────────────────────────────────────────────────────────────── */
-.store-toolbar {
+.mods-toolbar {
   display: flex;
   gap: var(--sp-3);
   align-items: center;
@@ -98,7 +98,7 @@
   margin-bottom: var(--grid-gap);
 }
 /* El buscador ES un control → borde de affordance (--border-input, ≥3:1). */
-.store-search {
+.mods-search {
   flex: 1 1 260px;
   min-width: min(100%, 240px);
   display: flex;
@@ -112,11 +112,11 @@
   box-shadow: var(--shadow-inset);
   transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
 }
-.store-search:focus-within {
+.mods-search:focus-within {
   border-color: var(--primary);
   box-shadow: var(--focus-ring);
 }
-.store-search input {
+.mods-search input {
   flex: 1;
   min-width: 0;
   border: none;
@@ -126,12 +126,12 @@
   color: var(--text);
   background: transparent;
 }
-.store-filters {
+.mods-filters {
   display: flex;
   gap: var(--sp-2);
   flex-wrap: wrap;
 }
-.store-pill {
+.mods-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -147,18 +147,18 @@
   transition: color .15s var(--ease), border-color .15s var(--ease),
     background .15s var(--ease), box-shadow .15s var(--ease);
 }
-.store-pill:hover {
+.mods-pill:hover {
   color: var(--text);
   border-color: var(--border-strong);
   box-shadow: var(--elevation-2);
 }
 /* --text se INVIERTE con el tema, así que la tinta de dentro es la inversa. */
-.store-pill.active {
+.mods-pill.active {
   background: var(--text);
   color: var(--on-inverse);
   border-color: var(--text);
 }
-.store-pill-n {
+.mods-pill-n {
   padding: 1px 6px;
   border-radius: 4px;
   background: var(--surface-2);
@@ -167,16 +167,16 @@
   font-size: var(--fs-2xs);
   font-variant-numeric: tabular-nums;
 }
-.store-pill.active .store-pill-n {
+.mods-pill.active .mods-pill-n {
   background: color-mix(in srgb, var(--on-inverse) 18%, transparent);
   color: var(--on-inverse);
 }
 @media (pointer: coarse) {
-  .store-pill { min-height: 44px; }
+  .mods-pill { min-height: 44px; }
 }
 
 /* ── Rejilla de tarjetas ────────────────────────────────────────────────── */
-.store-grid {
+.mods-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--col-min-panel)), 1fr));
   gap: var(--grid-gap);
@@ -185,27 +185,27 @@
 
 /* La tarjeta crece con su contenido pero las acciones quedan SIEMPRE al pie:
    así los botones de todas las tarjetas de una fila caen a la misma altura. */
-.store-card {
+.mods-card {
   display: flex;
   flex-direction: column;
 }
-.store-card:hover {
+.mods-card:hover {
   box-shadow: var(--elevation-2);
 }
-.store-card-body {
+.mods-card-body {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
   padding: var(--card-pad);
 }
-.store-card-head {
+.mods-card-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--sp-3);
 }
-.store-card-title {
+.mods-card-title {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--fs-lg);
@@ -214,17 +214,17 @@
   line-height: 1.3;
   color: var(--text);
 }
-.store-card-head .chip {
+.mods-card-head .chip {
   flex-shrink: 0;
 }
-.store-card-desc {
+.mods-card-desc {
   margin: 0;
   font-size: var(--fs-sm);
   line-height: 1.55;
   color: var(--text-muted);
 }
 /* Metadatos: lista real (semántica) presentada en línea y separada por puntos. */
-.store-card-meta {
+.mods-card-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -235,39 +235,39 @@
   font-size: var(--fs-xs);
   color: var(--text-muted);
 }
-.store-card-meta li + li::before {
+.mods-card-meta li + li::before {
   content: '·';
   margin-right: var(--sp-2);
   color: var(--border-strong);
 }
-.store-card-meta .mono-small {
+.mods-card-meta .mono-small {
   font-size: var(--fs-xs);
 }
-.store-card-tags {
+.mods-card-tags {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-2);
 }
-.store-card-tags:empty {
+.mods-card-tags:empty {
   display: none;
 }
-.store-card-author {
+.mods-card-author {
   font-size: var(--fs-xs);
   color: var(--text-muted);
 }
-.store-card-progress {
+.mods-card-progress {
   margin: 0;
   font-size: var(--fs-xs);
   color: var(--success-ink);
 }
-.store-card-note {
+.mods-card-note {
   margin: 0;
   font-size: var(--fs-xs);
   line-height: 1.5;
   color: var(--text-muted);
 }
-.store-card-error {
+.mods-card-error {
   display: flex;
   align-items: flex-start;
   gap: var(--sp-2);
@@ -279,16 +279,16 @@
   font-size: var(--fs-xs);
   line-height: 1.5;
 }
-.store-card-error > svg {
+.mods-card-error > svg {
   flex-shrink: 0;
   margin-top: 1px;
 }
-.store-card-error > span {
+.mods-card-error > span {
   flex: 1;
   min-width: 0;
 }
 /* Pie de acciones = sub-superficie: separa el «qué es» del «qué puedo hacer». */
-.store-card-actions {
+.mods-card-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -303,7 +303,7 @@
 
 /* La promesa que sostiene CU-39. Verde de éxito, no gris de nota al pie: es
    la razón por la que alguien se atreve a pulsar «Actualizar ahora». */
-.store-promise {
+.mods-promise {
   display: flex;
   align-items: flex-start;
   gap: var(--sp-2);
@@ -316,18 +316,18 @@
   font-size: var(--fs-sm);
   line-height: 1.55;
 }
-.store-promise > svg {
+.mods-promise > svg {
   flex-shrink: 0;
   margin-top: 2px;
 }
 
-.store-diff-skeleton {
+.mods-diff-skeleton {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
 }
 
-.store-diff {
+.mods-diff {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
@@ -335,7 +335,7 @@
   padding: 0;
   list-style: none;
 }
-.store-diff-row {
+.mods-diff-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -345,25 +345,25 @@
   background: var(--surface-2);
   border: 1px solid var(--border);
 }
-.store-diff-row > code,
-.store-diff-title {
+.mods-diff-row > code,
+.mods-diff-title {
   flex: 1 1 40%;
   min-width: 0;
   overflow-wrap: anywhere;
 }
 /* El título va en la tipografía de lectura, no en la de código: es prosa que
    el estudiante lee para decidir, no un identificador que deba copiar. */
-.store-diff-title {
+.mods-diff-title {
   font-weight: 500;
   color: var(--text);
 }
-.store-diff-effect {
+.mods-diff-effect {
   flex: 1 1 100%;
   font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
-.store-warnings {
+.mods-warnings {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
@@ -374,17 +374,17 @@
   line-height: 1.5;
   color: var(--warn-ink);
 }
-.store-warnings li {
+.mods-warnings li {
   display: flex;
   align-items: flex-start;
   gap: var(--sp-2);
 }
-.store-warnings svg {
+.mods-warnings svg {
   flex-shrink: 0;
   margin-top: 1px;
 }
 
-.store-dialog-error {
+.mods-dialog-error {
   display: flex;
   align-items: flex-start;
   gap: var(--sp-2);
@@ -397,17 +397,17 @@
   font-size: var(--fs-sm);
   line-height: 1.5;
 }
-.store-dialog-error > svg {
+.mods-dialog-error > svg {
   flex-shrink: 0;
   margin-top: 2px;
 }
 
 /* ── Móvil: las acciones ocupan el ancho para no quedar apretadas ───────── */
 @media (max-width: 640px) {
-  .store-card-actions {
+  .mods-card-actions {
     justify-content: stretch;
   }
-  .store-card-actions .btn {
+  .mods-card-actions .btn {
     flex: 1 1 auto;
     justify-content: center;
   }

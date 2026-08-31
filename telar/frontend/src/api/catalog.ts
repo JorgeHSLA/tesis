@@ -32,7 +32,7 @@ function withQuery(path: string, query: URLSearchParams): string {
  * §11.4.1 GET /api/v1/catalog/status — qué está instalado y qué tiene
  * actualización. **Lee SOLO SQLite y responde 200 SIEMPRE**: sin bucket
  * configurado devuelve `catalog_enabled=false`, no un error. Es la llamada
- * bloqueante que pinta `/cursos`.
+ * bloqueante que pinta `/aprender`.
  */
 export function getCatalogStatus(): Promise<CatalogStatusResponseDto> {
   return fetchJson<CatalogStatusResponseDto>(`${P}/status`)
@@ -40,7 +40,7 @@ export function getCatalogStatus(): Promise<CatalogStatusResponseDto> {
 
 /**
  * §11.4.2 POST /api/v1/catalog/refresh — única vía que sale a la red desde
- * `/cursos`. Devuelve el MISMO shape que `/status`.
+ * `/aprender`. Devuelve el MISMO shape que `/status`.
  *
  * Contrato de UI: se llama como efecto NO bloqueante después de
  * `getCatalogStatus()`. Si falla (503 `CATALOG_DISABLED`/`CATALOG_UNAVAILABLE`)

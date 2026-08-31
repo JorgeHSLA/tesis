@@ -18,7 +18,7 @@ const SimulatorScreen = lazy(() => import('./features/simulator/SimulatorScreen'
 const ResultsList = lazy(() => import('./features/results/ResultsList'))
 const ResultsScreen = lazy(() => import('./features/results/ResultsScreen'))
 const CatalogScreen = lazy(() => import('./features/catalog/CatalogScreen'))
-const ModuleStoreScreen = lazy(() => import('./features/store/ModuleStoreScreen'))
+const ModulesScreen = lazy(() => import('./features/modules/ModulesScreen'))
 const LearnScreen = lazy(() => import('./features/learn/LearnScreen'))
 
 function screen(Component: ComponentType) {
@@ -68,15 +68,15 @@ export const router = createHashRouter([
       { path: 'simulador/:jobId', element: screen(SimulatorScreen) },
       { path: 'resultados', element: screen(ResultsList) },
       { path: 'resultados/:jobId', element: screen(ResultsScreen) },
-      { path: 'cursos', element: screen(CatalogScreen) },
-      { path: 'cursos/:leccionId', element: screen(LearnScreen) },
+      { path: 'aprender', element: screen(CatalogScreen) },
+      { path: 'aprender/:leccionId', element: screen(LearnScreen) },
 
-      // Catálogo remoto (Fase 5, §11.5-§11.6). HERMANA de /cursos, NO anidada
-      // bajo ella: `cursos/:leccionId` es un comodín sobre ids que vienen del
+      // Catálogo remoto (Fase 5, §11.5-§11.6). HERMANA de /aprender, NO anidada
+      // bajo ella: `aprender/:leccionId` es un comodín sobre ids que vienen del
       // BUCKET, así que un módulo publicado con una lección llamada `modulos`
       // dejaría esta pantalla inalcanzable para siempre. Como ruta de primer
       // nivel, ningún contenido remoto puede taparla.
-      { path: 'modulos', element: screen(ModuleStoreScreen) },
+      { path: 'modulos', element: screen(ModulesScreen) },
 
       ...adminRoutes(),
 

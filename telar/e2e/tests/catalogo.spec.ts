@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test'
 
 test.describe('F2 · una fila por lección, contadores que cuentan lecciones', () => {
   test('el contador «Todo» no cuenta las cosas dos veces', async ({ page }) => {
-    await page.goto('#/cursos')
+    await page.goto('#/aprender')
 
     const todo = page.getByRole('button', { name: /^Todo/ })
     await expect(todo).toBeVisible()
@@ -30,7 +30,7 @@ test.describe('F2 · una fila por lección, contadores que cuentan lecciones', (
   })
 
   test('un módulo abierto pinta tantas filas como lecciones anuncia', async ({ page }) => {
-    await page.goto('#/cursos')
+    await page.goto('#/aprender')
 
     const modulo = page.locator('.cat-module').first()
     await expect(modulo).toBeVisible()
@@ -48,7 +48,7 @@ test.describe('F2 · una fila por lección, contadores que cuentan lecciones', (
   })
 
   test('la fila lleva las dos metas juntas, no en filas separadas', async ({ page }) => {
-    await page.goto('#/cursos')
+    await page.goto('#/aprender')
     const modulo = page.locator('.cat-module').first()
     if (!(await modulo.evaluate((el) => el.classList.contains('open')))) {
       await modulo.locator('.cat-module-head').click()
@@ -63,12 +63,12 @@ test.describe('F2 · una fila por lección, contadores que cuentan lecciones', (
 
 test.describe('E1 · el módulo conceptual convive con los prácticos', () => {
   test('aparece en el catálogo', async ({ page }) => {
-    await page.goto('#/cursos')
+    await page.goto('#/aprender')
     await expect(page.getByText('Fundamentos de paralelismo')).toBeVisible()
   })
 
   test('su lección no anuncia un ejemplo que no tiene', async ({ page }) => {
-    await page.goto('#/cursos')
+    await page.goto('#/aprender')
 
     const modulo = page.locator('.cat-module', { hasText: 'Fundamentos de paralelismo' })
     await modulo.locator('.cat-module-head').click()
@@ -80,7 +80,7 @@ test.describe('E1 · el módulo conceptual convive con los prácticos', () => {
   })
 
   test('el filtro «Ejemplos» la deja fuera; «Todo» la incluye', async ({ page }) => {
-    await page.goto('#/cursos')
+    await page.goto('#/aprender')
     const modulo = page.locator('.cat-module', { hasText: 'Fundamentos de paralelismo' })
     await modulo.locator('.cat-module-head').click()
 
@@ -95,12 +95,12 @@ test.describe('E1 · el módulo conceptual convive con los prácticos', () => {
   })
 
   test('desde el catálogo se llega a la lección conceptual', async ({ page }) => {
-    await page.goto('#/cursos')
+    await page.goto('#/aprender')
     const modulo = page.locator('.cat-module', { hasText: 'Fundamentos de paralelismo' })
     await modulo.locator('.cat-module-head').click()
     await modulo.locator('.cat-lesson', { hasText: '¿Qué es un hilo?' }).click()
 
-    await expect(page).toHaveURL(/#\/cursos\/queEsUnHilo$/)
+    await expect(page).toHaveURL(/#\/aprender\/queEsUnHilo$/)
     await expect(page.locator('h2.display-lg', { hasText: '¿Qué es un hilo?' })).toBeVisible()
   })
 })

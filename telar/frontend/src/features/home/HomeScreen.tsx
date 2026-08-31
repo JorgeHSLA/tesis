@@ -45,7 +45,7 @@ export default function HomeScreen() {
             <Button variant="primary" size="xl" onClick={() => navigate('/simulador')}>
               <IconZap size={18} /> Empezar ejecución
             </Button>
-            <Button variant="outline" size="xl" onClick={() => navigate('/cursos')}>
+            <Button variant="outline" size="xl" onClick={() => navigate('/aprender')}>
               <IconBook size={18} /> Explorar lecciones
             </Button>
           </div>

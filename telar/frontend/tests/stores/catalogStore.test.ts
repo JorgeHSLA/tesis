@@ -5,7 +5,7 @@
 //  - todo éxito invalida LAS DOS cachés de contenido (progreso + índice de
 //    ejemplos), porque la segunda es una promesa memoizada que nadie más toca,
 //  - el store NO persiste nada: el manifiesto vive en SQLite,
-//  - `/cursos` no se rompe porque el bucket esté caído.
+//  - `/aprender` no se rompe porque el bucket esté caído.
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { ApiError } from '@/api/client'
 import { selectCatalogDiff, shouldShowRemoteError, useCatalogStore } from '@/stores/catalogStore'
@@ -260,7 +260,7 @@ describe('hydrateStatus()', () => {
   })
 })
 
-describe('refreshStatus() — efecto NO bloqueante de /cursos', () => {
+describe('refreshStatus() — efecto NO bloqueante de /aprender', () => {
   it('éxito: reemplaza el estado y limpia el error', async () => {
     useCatalogStore.setState({ statusError: { code: 'CATALOG_UNAVAILABLE', message: 'x' } })
     await useCatalogStore.getState().refreshStatus()
@@ -269,7 +269,7 @@ describe('refreshStatus() — efecto NO bloqueante de /cursos', () => {
     expect(useCatalogStore.getState().refreshing).toBe(false)
   })
 
-  it('bucket caído: NO pinta ErrorState ni borra lo ya cargado (regla de /cursos)', async () => {
+  it('bucket caído: NO pinta ErrorState ni borra lo ya cargado (regla de /aprender)', async () => {
     useCatalogStore.setState({ status: structuredClone(STATUS) })
     refreshCatalogMock.mockRejectedValueOnce(
       new ApiError('CATALOG_UNAVAILABLE', 'El bucket no responde.', 503),
@@ -446,7 +446,7 @@ describe('update()', () => {
     expect(useCatalogStore.getState().ops.m2).toBeUndefined()
   })
 
-  it('sin catálogo remoto se ancla en lo que dijo SQLite (el caso de /cursos)', async () => {
+  it('sin catálogo remoto se ancla en lo que dijo SQLite (el caso de /aprender)', async () => {
     useCatalogStore.setState({ status: structuredClone(STATUS), remote: null })
     await useCatalogStore.getState().update('m2')
     expect(updateCatalogModuleMock).toHaveBeenCalledWith('m2', {
