@@ -17,6 +17,7 @@ import { ErrorState } from '../../components/ui/ErrorState'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { IconLayers, IconPlus } from '../../components/icons/icons'
 import { ModuleGroup } from './dashboard/ModuleGroup'
+import { ImportModuleDialog } from './dashboard/ImportModuleDialog'
 import { ModuleFormDialog } from './dashboard/ModuleFormDialog'
 
 type ToastTone = 'default' | 'error'
@@ -33,6 +34,7 @@ export default function AdminDashboard() {
   const { data, loading, error, reload } = useAdminResource(() => getModules(), [])
   const [openId, setOpenId] = useState<string | null>(null)
   const [dialog, setDialog] = useState<DialogState>(null)
+  const [importando, setImportando] = useState(false)
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -153,10 +155,15 @@ export default function AdminDashboard() {
             del estudiante.
           </p>
         </div>
-        <Button variant="primary" size="md" onClick={() => setDialog({ mode: 'create' })}>
-          <IconPlus size={16} />
-          Nuevo módulo
-        </Button>
+        <div className="admin-dashboard-head-actions">
+          <Button variant="outline" size="md" onClick={() => setImportando(true)}>
+            Importar del catálogo
+          </Button>
+          <Button variant="primary" size="md" onClick={() => setDialog({ mode: 'create' })}>
+            <IconPlus size={16} />
+            Nuevo módulo
+          </Button>
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -207,6 +214,17 @@ export default function AdminDashboard() {
       )}
       {dialog?.mode === 'edit' && (
         <ModuleFormDialog mode="edit" initial={dialog.module} onClose={() => setDialog(null)} onSaved={onSaved} />
+      )}
+
+      {importando && (
+        <ImportModuleDialog
+          existingIds={existingIds}
+          onClose={() => setImportando(false)}
+          onImported={(mensaje) => {
+            setImportando(false)
+            onSaved(mensaje)
+          }}
+        />
       )}
 
       {toast != null && (

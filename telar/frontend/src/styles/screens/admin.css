@@ -473,3 +473,47 @@
   font-family: var(--font-mono);
   font-size: 12px;
 }
+
+/* ── §11.7 · diálogo de importación ──────────────────────────────────────────
+   Los dos modos se presentan como opciones EXPLICADAS y no como una casilla:
+   elegir mal no da un error, da un comportamiento distinto meses después (el
+   módulo vinculado recibe actualizaciones que pisan lo editado; la copia no).
+   El texto de cada opción es, por eso, parte del control. */
+.admin-dashboard-head-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.import-modos {
+  border: 0;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.import-modo {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+}
+
+.import-modo:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--surface-2, transparent);
+}
+
+.import-modo > span {
+  display: grid;
+  gap: 3px;
+}
+
+.import-modo .field-hint {
+  margin: 0;
+}

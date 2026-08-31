@@ -220,3 +220,23 @@ export interface AdminPublishResultDto {
   lesson_ids: string[]
   warnings: ContentWarningDto[]
 }
+
+/** §11.7 `POST /admin/catalog/import`. */
+export interface AdminImportRequestDto {
+  module_id: string
+  /** Default: la versión vigente del índice. */
+  version?: number
+  /** Presente ⇒ FORK: ids propios y sin vínculo con el bucket. */
+  as_module_id?: string | null
+  /** Default `as_module_id + "-"`. Un `""` explícito deja los ids como están. */
+  id_prefix?: string | null
+}
+
+export interface AdminImportResultDto {
+  mode: 'linked' | 'forked'
+  module: AdminModuleDto
+  /** `null` en fork: una copia con ids propios no tiene versión base que seguir. */
+  base_version: number | null
+  /** `null` en vinculado. En fork, qué id pasó a ser cuál. */
+  id_remap: Record<string, string> | null
+}

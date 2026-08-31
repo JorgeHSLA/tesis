@@ -23,6 +23,8 @@ import type {
   AdminReorderItemDto,
   AdminReorderRequestDto,
   AdminCatalogCredentialStatusDto,
+  AdminImportRequestDto,
+  AdminImportResultDto,
   AdminPublishRequestDto,
   AdminPublishResultDto,
 } from './admin-types'
@@ -149,6 +151,27 @@ export function publishModule(
   body: AdminPublishRequestDto = {},
 ): Promise<AdminPublishResultDto> {
   return fetchJson<AdminPublishResultDto>(`${P}/modules/${enc(moduleId)}/publish`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/**
+ * §11.7 `POST /admin/catalog/import` — traer un módulo del bucket para editarlo.
+ *
+ * Sin `as_module_id` el import es **vinculado**: equivale a incorporarlo, y el
+ * módulo conserva su fila en `installed_modules`, que es lo que le dice al admin
+ * sobre qué versión base está editando. Con `as_module_id` es un **fork**: ids
+ * propios, `origin='local'` y sin manifiesto — contenido nuevo que ya no recibe
+ * actualizaciones del bucket y se publicará bajo su id.
+ *
+ * **No exige credencial de escritura**: leer el catálogo sigue siendo anónimo
+ * (§11.7), así que se puede importar sin poder publicar.
+ */
+export function importCatalogModule(
+  body: AdminImportRequestDto,
+): Promise<AdminImportResultDto> {
+  return fetchJson<AdminImportResultDto>(`${P}/catalog/import`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
