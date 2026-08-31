@@ -22,6 +22,9 @@ import type {
   AdminQuizUpsertDto,
   AdminReorderItemDto,
   AdminReorderRequestDto,
+  AdminCatalogCredentialStatusDto,
+  AdminPublishRequestDto,
+  AdminPublishResultDto,
 } from './admin-types'
 
 const P = '/api/v1/admin'
@@ -110,6 +113,42 @@ export function uploadExampleCode(
   body: AdminExampleCodeRequestDto,
 ): Promise<AdminExampleCodeResultDto> {
   return fetchJson<AdminExampleCodeResultDto>(`${P}/examples/${enc(id)}/code`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+// ── §11.8 Catálogo admin: credencial y publicación ──────────────────────────
+
+/**
+ * §11.8.1 `GET /admin/catalog/credentials` — ¿se puede publicar, y con qué
+ * cuenta? **Responde 200 siempre**, incluso sin clave: que falte es un estado
+ * normal de un despliegue, no una avería, y el diálogo necesita poder decir
+ * POR QUÉ no se puede publicar antes de que el admin escriba nada.
+ *
+ * Con `probe` sale a la red para comprobar que la cuenta autoriza sobre el
+ * bucket; sin él solo mira el archivo (existe, permisos, forma).
+ */
+export function getCatalogCredentials(
+  probe = false,
+): Promise<AdminCatalogCredentialStatusDto> {
+  const query = probe ? '?probe=true' : ''
+  return fetchJson<AdminCatalogCredentialStatusDto>(`${P}/catalog/credentials${query}`)
+}
+
+/**
+ * §11.8.2 `POST /admin/modules/{id}/publish` — publica el módulo en el bucket.
+ *
+ * **Publicar es irreversible**: una versión publicada es inmutable, así que
+ * republicarla da `409 VERSION_CONFLICT`. Por eso existe `dry_run`, que recorre
+ * el MISMO camino sin escribir y devuelve los avisos — en particular
+ * `LESSON_ID_REMOVED`, que anuncia que quien actualice perderá su avance.
+ */
+export function publishModule(
+  moduleId: string,
+  body: AdminPublishRequestDto = {},
+): Promise<AdminPublishResultDto> {
+  return fetchJson<AdminPublishResultDto>(`${P}/modules/${enc(moduleId)}/publish`, {
     method: 'POST',
     body: JSON.stringify(body),
   })

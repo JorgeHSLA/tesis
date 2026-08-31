@@ -445,3 +445,31 @@
     transition: none;
   }
 }
+
+/* ── §11.8 · diálogo de publicación ──────────────────────────────────────────
+   Los avisos son el contenido principal del diálogo, no un adorno: son lo único
+   que separa a un autor de retirarle el avance a sus estudiantes sin enterarse.
+   Por eso los graves llevan el color de peligro y no un gris de nota al pie. */
+.publish-warnings {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.publish-warnings li {
+  border-left: 3px solid var(--border);
+  padding: 6px 0 6px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.publish-warnings li.grave {
+  border-left-color: var(--danger);
+}
+
+.publish-warnings code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
