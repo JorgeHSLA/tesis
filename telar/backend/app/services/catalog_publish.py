@@ -65,6 +65,12 @@ logger = logging.getLogger("telar.catalog_publish")
 AVISO_LECCION_RETIRADA = "LESSON_ID_REMOVED"
 AVISO_LECCION_NUEVA = "LESSON_ID_ADDED"
 AVISO_QUIZ_CAMBIADO = "QUIZ_SHAPE_CHANGED"
+#: §11.8.2 — el ejemplo tenía el id de su propia lección y se publica derivado.
+AVISO_EJEMPLO_RENOMBRADO = "EXAMPLE_ID_RENAMED"
+
+#: Sufijo del id derivado. Corto y legible: el admin tiene que reconocer el
+#: ejemplo en el bundle publicado sin traducir nada.
+SUFIJO_EJEMPLO = "-ej"
 
 
 def _normalizar_saltos(valor: Any) -> Any:
@@ -136,15 +142,21 @@ def _recomendadas(leccion: "Lesson") -> list[BundleRecommended]:
     ]
 
 
-def _ejemplo(content: "ContentRepository", leccion: "Lesson") -> BundleExample | None:
-    """El ejemplo de la lección, o ``None`` si es teórica (E1)."""
+def _ejemplo(
+    content: "ContentRepository", leccion: "Lesson", id_publicado: str | None = None
+) -> BundleExample | None:
+    """El ejemplo de la lección, o ``None`` si es teórica (E1).
+
+    ``id_publicado`` permite subirlo con un id distinto del local: ver
+    `_resolver_ids_de_ejemplo`.
+    """
     if leccion.example_id is None:
         return None
     ej = content.example(leccion.example_id)
     if ej is None:  # pragma: no cover - el snapshot es coherente por construcción
         return None
     return BundleExample(
-        id=ej.id,
+        id=id_publicado or ej.id,
         filename=ej.filename,
         title=ej.title,
         difficulty=ej.difficulty,
@@ -186,6 +198,45 @@ def _quiz(content: "ContentRepository", leccion: "Lesson") -> BundleQuiz | None:
     )
 
 
+def _resolver_ids_de_ejemplo(
+    content: "ContentRepository", lecciones: "list[Lesson]"
+) -> tuple[dict[str, str], list[ContentWarning]]:
+    """``{lesson_id: id_del_ejemplo_a_publicar}`` + los avisos del renombrado.
+
+    Lecciones y ejemplos comparten espacio de nombres (§10.6), pero el contenido
+    histórico del repo tiene ``examples.id == lessons.id`` (backfill de la
+    migración 5). Un bundle con esa colisión lo rechaza `bundle_guard` en la
+    máquina del ESTUDIANTE, así que sin resolverla aquí ninguno de los 8 módulos
+    del baseline sería publicable — verificado, no supuesto.
+
+    Se renombra solo lo que choca, y se avisa de cada caso: el renombrado afecta
+    únicamente al bundle publicado (la base local no se toca), pero cambia lo que
+    devolverá una reimportación, y eso el admin tiene que saberlo.
+    """
+    ids_de_leccion = {l.id for l in lecciones}
+    resuelto: dict[str, str] = {}
+    avisos: list[ContentWarning] = []
+    for leccion in lecciones:
+        if leccion.example_id is None:
+            continue
+        if leccion.example_id not in ids_de_leccion:
+            resuelto[leccion.id] = leccion.example_id
+            continue
+        derivado = f"{leccion.id}{SUFIJO_EJEMPLO}"
+        resuelto[leccion.id] = derivado
+        avisos.append(
+            ContentWarning(
+                code=AVISO_EJEMPLO_RENOMBRADO,
+                lesson_id=leccion.id,
+                message=(
+                    f"El ejemplo '{leccion.example_id}' usa el id de su propia "
+                    f"lección; se publica como '{derivado}'."
+                ),
+            )
+        )
+    return resuelto, avisos
+
+
 def construir_bundle(
     content: "ContentRepository",
     module_id: str,
@@ -194,8 +245,8 @@ def construir_bundle(
     published_at: str,
     notes: str = "",
     author_label: str = "",
-) -> ModuleBundle:
-    """Snapshot local → ``ModuleBundle`` de §11.10, ya firmado.
+) -> tuple[ModuleBundle, list[ContentWarning]]:
+    """Snapshot local → ``ModuleBundle`` de §11.10 ya firmado, + avisos de ids.
 
     Se excluyen las lecciones **archivadas**: una lección archivada es contenido
     que el autor retiró, y publicarla la resucitaría en la instalación de todos
@@ -227,6 +278,8 @@ def construir_bundle(
             details=[{"module_id": module_id, "issue": "sin lecciones activas"}],
         )
 
+    ids_ejemplo, avisos_ids = _resolver_ids_de_ejemplo(content, lecciones)
+
     bundle = ModuleBundle(
         bundle_format=BUNDLE_FORMAT,
         checksum="0" * 64,
@@ -255,7 +308,7 @@ def construir_bundle(
                     q.pass_threshold if (q := _quiz(content, l)) is not None else 0.6
                 ),
                 recommended=_recomendadas(l),
-                example=_ejemplo(content, l),
+                example=_ejemplo(content, l, ids_ejemplo.get(l.id)),
                 quiz=_quiz(content, l),
             )
             for l in lecciones
@@ -265,7 +318,7 @@ def construir_bundle(
     bundle = ModuleBundle.model_validate(
         _normalizar_saltos(bundle.model_dump(mode="json"))
     )
-    return bundle.model_copy(update={"checksum": bundle_checksum(bundle)})
+    return bundle.model_copy(update={"checksum": bundle_checksum(bundle)}), avisos_ids
 
 
 # ══════════════════════════ 2 · los avisos de §11.8.2 ════════════════════════
@@ -421,7 +474,7 @@ async def publish_module(
         )
 
     publicado_en = _ahora_iso()
-    bundle = construir_bundle(
+    bundle, avisos_ids = construir_bundle(
         content, module_id, version=version, published_at=publicado_en, notes=body.notes
     )
     datos = bytes_publicables(bundle)
@@ -435,7 +488,7 @@ async def publish_module(
             details={"bytes": len(datos), "max_bytes": tope},
         )
 
-    avisos = calcular_avisos(bundle, bundle_publicado)
+    avisos = avisos_ids + calcular_avisos(bundle, bundle_publicado)
     object_path = object_path_for(settings.catalog_prefix, module_id, version)
     lesson_ids = [l.id for l in bundle.lessons]
 

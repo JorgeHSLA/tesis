@@ -1988,6 +1988,19 @@ Request:
 }
 ```
 
+**Renombrado de ids de ejemplo al publicar.** Lecciones y ejemplos comparten
+espacio de nombres (§10.6), pero el contenido histórico del repo tiene
+`examples.id == lessons.id` — es lo que dejó el backfill de la migración 5. Un
+bundle con esa colisión lo rechaza `bundle_guard` en la máquina del estudiante,
+así que sin tratarla **ninguno de los 8 módulos del baseline sería publicable**.
+
+El publicador la resuelve al construir el bundle: si el id de un ejemplo choca
+con el de alguna lección del propio bundle, se publica como `<lesson_id>-ej` y se
+emite un `EXAMPLE_ID_RENAMED` por cada caso. El renombrado afecta **solo al
+bundle publicado**; la base local no se toca. Consecuencia que el admin debe
+conocer, y por eso es un aviso y no un silencio: reimportar (§11.7) un módulo
+propio traerá el id derivado, no el original.
+
 Mecánica de escritura en el bucket (fijada por la investigación, no libre):
 
 1. Serialización **canónica**: `json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")`, con `payload` = el bundle **sin** el campo `checksum`. `checksum` = `sha256(bytes).hexdigest()` (64 hex). El mismo algoritmo lo reejecuta el instalador: es la definición del invariante.
@@ -2036,6 +2049,8 @@ Mecánica de escritura en el bucket (fijada por la investigación, no libre):
 | 503 `CATALOG_DISABLED` · 503 `CATALOG_UNAVAILABLE` | — |
 
 **Códigos de `warnings`** (no bloquean; el admin decide):
+`EXAMPLE_ID_RENAMED` (el ejemplo tenía el id de su propia lección y se publica
+con `<lesson_id>-ej`; ver abajo),
 `LESSON_ID_REMOVED` (un id publicado desaparece → pérdida de avance aguas abajo),
 `LESSON_ID_ADDED`, `QUIZ_SHAPE_CHANGED` (cambia nº de preguntas o `pass_threshold`
 → reset de nota aguas abajo), `ORDER_HINT_TAKEN` (el `order` chocará en muchos

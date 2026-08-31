@@ -303,19 +303,6 @@ def test_el_modo_autoria_apagado_deja_publicar_fuera(
 # ═══════════ el bundle publicado es INSTALABLE por el estudiante ═════════════
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BLOQUEANTE CONOCIDO, pendiente de decisión: los 8 módulos del baseline "
-        "tienen `examples.id == lessons.id` (backfill de la migración 5) y "
-        "`bundle_guard` prohíbe esa colisión porque lecciones y ejemplos "
-        "comparten espacio de nombres (§10.6). Consecuencia: NINGÚN módulo del "
-        "baseline se puede publicar todavía. No se silencia con un cambio "
-        "unilateral porque las tres salidas —renombrar al publicar, migrar los "
-        "ids, o relajar el guard— tocan el contenido, el modelo de datos o el "
-        "contrato."
-    ),
-    strict=True,
-)
 def test_lo_publicado_lo_puede_instalar_el_estudiante(cliente, raiz):
     """La prueba que cierra el círculo: publicar → el bundle pasa el guard.
 
@@ -334,3 +321,25 @@ def test_lo_publicado_lo_puede_instalar_el_estudiante(cliente, raiz):
     bundle = parse_bundle(crudo, max_bytes=4_194_304)
     assert bundle.module.id == "m1"
     assert bundle.checksum == bundle_checksum(bundle)
+
+    # §11.8.2 — los ids de ejemplo del baseline chocan con los de su lección
+    # (backfill de la migración 5) y el guard prohíbe esa colisión. El publicador
+    # los deriva, y lo AVISA: sin el aviso, el admin descubriría el cambio al
+    # reimportar y no sabría de dónde salió.
+    for leccion in bundle.lessons:
+        if leccion.example is not None:
+            assert leccion.example.id != leccion.id
+            assert leccion.example.id == f"{leccion.id}-ej"
+
+
+def test_el_renombrado_de_ids_se_avisa_y_no_toca_la_base_local(cliente):
+    """El renombrado es del BUNDLE, no del contenido: local sigue como estaba."""
+    data = ok(cliente.post("/api/v1/admin/modules/m1/publish", json={"dry_run": True}))
+
+    renombrados = [w for w in data["warnings"] if w["code"] == "EXAMPLE_ID_RENAMED"]
+    assert renombrados, data["warnings"]
+    assert all(w["lesson_id"] for w in renombrados)
+
+    # La base local NO se toca: el ejemplo sigue teniendo su id de siempre.
+    ejemplos = ok(cliente.get("/api/v1/examples"))
+    assert any(e["id"] == "primerEjemplo" for e in ejemplos["examples"])
