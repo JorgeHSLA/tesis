@@ -504,3 +504,66 @@ async def rescore_progress_no_commit(
         },
     )
     return cursor.rowcount > 0
+
+
+# ═══════════════ §11.8.2 · estado de PUBLICACIÓN de un módulo local ══════════
+#
+# Distinto de `installed_modules`, y la diferencia importa: aquella tabla dice
+# «qué me bajé del bucket», y estas columnas de `modules` dicen «qué he
+# publicado YO». Un módulo que el admin escribe aquí y publica nunca tiene fila
+# en `installed_modules` — no se lo bajó de ningún sitio.
+
+
+@dataclass(frozen=True, slots=True)
+class PublishedState:
+    """Lo último que este equipo publicó de un módulo (§11.8.2 paso 5)."""
+
+    version: int
+    checksum: str | None
+    published_at: str | None
+
+    @property
+    def nunca_publicado(self) -> bool:
+        """Sin ``published_at`` no hay versión publicada, valga lo que valga
+        ``version``: los módulos del baseline nacen en la 1 sin haber salido
+        jamás al bucket, y tratar ese 1 como «ya publicada» haría que la primera
+        publicación fuese la v2."""
+        return self.published_at is None
+
+
+async def get_published_state(
+    db: "aiosqlite.Connection", module_id: str
+) -> PublishedState | None:
+    """``modules.version/checksum/published_at``, o ``None`` si no existe."""
+    cursor = await db.execute(
+        "SELECT version, checksum, published_at FROM modules WHERE id = ?",
+        (module_id,),
+    )
+    fila = await cursor.fetchone()
+    if fila is None:
+        return None
+    return PublishedState(
+        version=int(fila["version"]),
+        checksum=fila["checksum"],
+        published_at=fila["published_at"],
+    )
+
+
+async def set_published_no_commit(
+    db: "aiosqlite.Connection",
+    module_id: str,
+    *,
+    version: int,
+    checksum: str,
+    published_at: str,
+) -> None:
+    """§11.8.2 paso 5 — deja constancia local de lo que se acaba de publicar.
+
+    Sin esto el admin no puede saber en qué versión va sin preguntarle al
+    bucket, y el default de `version` (`la publicada + 1`) no tendría de dónde
+    salir.
+    """
+    await db.execute(
+        "UPDATE modules SET version = ?, checksum = ?, published_at = ? WHERE id = ?",
+        (version, checksum, published_at, module_id),
+    )

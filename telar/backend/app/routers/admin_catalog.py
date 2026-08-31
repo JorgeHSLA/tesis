@@ -1,0 +1,227 @@
+"""Catálogo del lado ADMIN — api-contract §11.7, §11.8, §11.13.
+
+Tres endpoints, todos detrás de ``require_admin`` (§10.0: el modo autoría es una
+variante de DESPLIEGUE, no un login):
+
+* ``GET  /api/v1/admin/catalog/credentials`` — ¿se puede publicar, y con qué
+  cuenta? Local salvo ``?probe=true``.
+* ``POST /api/v1/admin/catalog/import``      — §11.7 CU-37, traer un módulo del
+  bucket para editarlo.
+* ``POST /api/v1/admin/modules/{id}/publish`` — §11.8 CU-38, publicarlo.
+
+Como ``routers/admin.py``, este módulo es OPCIONAL a nivel de artefacto: el
+``Dockerfile`` no lo copia con ``TELAR_ADMIN_BUILD=0``, su import falla y
+``/api/v1/admin/catalog/*`` responde **404** — la ruta no existe, que es más
+fuerte que un 401 (§11.2, seguridad por AUSENCIA).
+
+Dos decisiones que se leen como tests:
+
+1. **``GET /credentials`` responde 200 SIEMPRE**, incluso sin clave y sin bucket
+   (§11.9). Que falte la credencial es un estado normal, no un fallo del
+   servidor, y el diálogo de autoría necesita poder decir *por qué* no se puede
+   publicar antes de que el admin escriba nada.
+2. **Publicar NO sostiene el ``write_lock`` mientras sube.** La red va fuera del
+   lock; dentro solo se persiste el resultado. Un bucket lento no puede congelar
+   los jobs de un estudiante que esté usando el simulador.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
+from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import JSONResponse
+
+from app.config import Settings, get_settings
+from app.errors import ApiException
+from app.repositories import catalog as catalog_repo
+from app.routers.admin_deps import require_admin
+from app.routers.modules import envelope_ok
+from app.schemas.admin_catalog import (
+    AdminCatalogCredentialStatus,
+    AdminPublishRequest,
+    AdminPublishResult,
+)
+from app.schemas.catalog import ModuleBundle
+from app.services import catalog_publish
+from app.services.content_writer import _persist
+from app.services.catalog_publisher import (
+    PublisherUnavailable,
+    build_publisher,
+    inspeccionar_credencial,
+)
+
+if TYPE_CHECKING:  # pragma: no cover - solo tipos
+    from fastapi import FastAPI
+
+logger = logging.getLogger("telar.admin_catalog")
+
+router = APIRouter(
+    prefix="/api/v1/admin", tags=["admin-catalog"], dependencies=[Depends(require_admin)]
+)
+
+
+def _settings(request: Request) -> Settings:
+    settings = getattr(request.app.state, "settings", None)
+    return settings if settings is not None else get_settings()
+
+
+# ═══════════════ §11.8.1 GET /admin/catalog/credentials (200 SIEMPRE) ════════
+
+
+@router.get("/catalog/credentials")
+async def admin_catalog_credentials(
+    request: Request,
+    probe: bool = Query(False, description="Contacta el bucket para comprobar permisos"),
+) -> JSONResponse:
+    """§11.8.1 — estado de la clave de la cuenta de servicio.
+
+    Sin ``?probe=true`` **no sale a la red**: solo mira el archivo (existe,
+    permisos, forma). Con ``probe`` intenta leer el índice con esa credencial,
+    que es la operación más barata que demuestra que la cuenta autoriza sobre el
+    bucket, y devuelve ``usable:false, reason:"forbidden"`` si no.
+
+    La respuesta **nunca** lleva la ruta de la clave ni el texto de una
+    excepción: solo el correo de la cuenta (que es lo que el admin necesita para
+    reconocerla) y un ``reason`` de vocabulario cerrado.
+    """
+    settings = _settings(request)
+    credencial = inspeccionar_credencial(settings)
+    bucket = settings.catalog_bucket or None
+
+    estado = AdminCatalogCredentialStatus(
+        configured=bool(settings.gcs_credentials.strip()),
+        usable=credencial.usable,
+        client_email=credencial.client_email,
+        project_id=credencial.project_id,
+        bucket=bucket,
+        file_mode=credencial.file_mode,
+        probed=False,
+        reason=credencial.reason,
+    )
+
+    if probe and credencial.usable and settings.catalog_enabled:
+        publisher = build_publisher(settings, credencial)
+        try:
+            await publisher.read_index()
+            estado = estado.model_copy(update={"probed": True})
+        except PublisherUnavailable as exc:
+            logger.warning("probe de credencial falló: reason=%s", exc.reason)
+            estado = estado.model_copy(
+                update={
+                    "probed": True,
+                    "usable": False,
+                    "reason": "forbidden" if exc.forbidden else None,
+                }
+            )
+        finally:
+            await publisher.aclose()
+
+    return envelope_ok(estado)
+
+
+# ═══════════════ §11.8.2 POST /admin/modules/{id}/publish ════════════════════
+
+
+async def _bundle_publicado(
+    app: "FastAPI", settings: Settings, module_id: str, version: int | None
+) -> ModuleBundle | None:
+    """El bundle de la ÚLTIMA versión publicada, para poder comparar (§11.8.2).
+
+    Se lee por el puerto de LECTURA, que ya está inyectado y sabe de topes y de
+    traducción de errores. Si no se puede traer, se devuelve ``None`` y se
+    publica **sin avisos** en vez de fallar: no poder comparar con la versión
+    anterior no es motivo para impedir publicar la siguiente — pero sí se
+    registra, porque significa que el admin no verá `LESSON_ID_REMOVED`.
+    """
+    if version is None:
+        return None
+    port = getattr(app.state, "catalog", None)
+    if port is None:
+        return None
+    try:
+        objeto = await port.fetch_module(
+            module_id, version, max_bytes=int(settings.catalog_max_bundle_bytes)
+        )
+        return ModuleBundle.model_validate_json(objeto.data)
+    except Exception as exc:
+        logger.warning(
+            "no se pudo leer la v%s publicada de %s (%s): se publica sin avisos",
+            version, module_id, type(exc).__name__,
+        )
+        return None
+
+
+@router.post("/modules/{module_id}/publish", status_code=201)
+async def admin_publish_module(
+    request: Request, module_id: str, body: AdminPublishRequest
+) -> JSONResponse:
+    """§11.8.2 — publica un módulo local en el bucket.
+
+    El ``201`` es «publicado»; con ``dry_run`` el status baja a ``200`` porque no
+    se creó nada. Que el mismo endpoint sirva para ensayar y para publicar es
+    deliberado: el ensayo tiene que recorrer EXACTAMENTE el mismo camino
+    —construir, validar, serializar, firmar— o no probaría nada de lo que va a
+    pasar al publicar de verdad.
+    """
+    app = request.app
+    settings = _settings(request)
+    credencial = inspeccionar_credencial(settings)
+
+    if not credencial.usable:
+        # §11.8.1: sin credencial utilizable no se publica, y se dice POR QUÉ
+        # con vocabulario cerrado. Se comprueba antes de construir el bundle:
+        # serializar un módulo entero para descubrir después que no hay clave es
+        # trabajo tirado y un error que llega tarde.
+        raise ApiException(
+            "CATALOG_CREDENTIALS_INVALID",
+            "No hay una credencial de escritura utilizable para publicar.",
+            status_code=403,
+            details={"reason": credencial.reason},
+        )
+
+    db = app.state.db
+    estado = await catalog_repo.get_published_state(db, module_id)
+    if estado is None:
+        raise ApiException(
+            "MODULE_NOT_FOUND", f"No existe el módulo '{module_id}'.", status_code=404
+        )
+    # `version` cuenta lo PUBLICADO, no lo local: un módulo del baseline nace en
+    # la 1 sin haber salido nunca al bucket, y tomar ese 1 por «ya publicada»
+    # haría que la primera publicación fuese la v2.
+    version_publicada = None if estado.nunca_publicado else estado.version
+    publicado = await _bundle_publicado(app, settings, module_id, version_publicada)
+
+    publisher = build_publisher(settings, credencial)
+    try:
+        # La red va FUERA del write_lock: subir puede tardar segundos y el
+        # backend tiene un solo worker.
+        resultado: AdminPublishResult = await catalog_publish.publish_module(
+            app.state.content,
+            settings,
+            publisher,
+            module_id,
+            body,
+            version_publicada=version_publicada,
+            bundle_publicado=publicado,
+        )
+    finally:
+        await publisher.aclose()
+
+    if resultado.published:
+        # §11.8.2 paso 5. Dentro del lock y por `_persist`, como toda escritura:
+        # una unidad, un commit, y el snapshot se cambia después del commit.
+        async def _escribir() -> None:
+            await catalog_repo.set_published_no_commit(
+                db,
+                module_id,
+                version=resultado.version,
+                checksum=resultado.checksum,
+                published_at=resultado.published_at,
+            )
+
+        async with app.state.write_lock:
+            await _persist(app, _escribir)
+
+    return envelope_ok(resultado, status_code=200 if body.dry_run else 201)

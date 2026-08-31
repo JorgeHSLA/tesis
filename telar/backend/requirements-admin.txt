@@ -1,0 +1,10 @@
+# Dependencias EXCLUSIVAS de la imagen admin (§11.2, §11.8.1).
+#
+# Están fuera de `requirements.txt` a propósito: la imagen del ESTUDIANTE no
+# publica, y arrastrar el SDK de Google a su árbol de producción metería
+# `requests`, `urllib3`, `google-auth` y `google-crc32c` solo para una operación
+# que esa imagen no puede ejecutar. Leer el catálogo se hace con el `httpx` que
+# ya trae `fastapi[standard]` (ver `services/catalog_client`).
+#
+# Instalación (solo build admin):  pip install -r requirements-admin.txt
+google-cloud-storage>=3.13,<4

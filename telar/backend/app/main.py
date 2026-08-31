@@ -241,6 +241,16 @@ def _include_routers(app: FastAPI) -> None:
     except ImportError:
         _admin = None
 
+    # §11.7/§11.8: el catálogo ADMIN sigue la misma regla de artefacto que
+    # `routers/admin`. Se importa aparte y no dentro del `try` de arriba porque
+    # son dos archivos independientes: en un build admin podría faltar uno y no
+    # el otro, y un solo `try` haría que la ausencia de este apagara también el
+    # CRUD de §10.
+    try:
+        from app.routers import admin_catalog as _admin_catalog
+    except ImportError:
+        _admin_catalog = None
+
     app.include_router(system_router.router)
     app.include_router(examples.router)
     app.include_router(modules.router)
@@ -257,6 +267,8 @@ def _include_routers(app: FastAPI) -> None:
     app.include_router(catalog.router)
     if _admin is not None:
         app.include_router(_admin.router)  # §10.2-§10.6 CRUD admin (gate runtime TELAR_ADMIN_MODE)
+    if _admin_catalog is not None:
+        app.include_router(_admin_catalog.router)  # §11.7-§11.8 (gate runtime idéntico)
 
 
 app = create_app()
