@@ -46,6 +46,7 @@ porque lo importa ``quiz_service``, que no es admin. Ver
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 
 import json
 import re
@@ -830,30 +831,63 @@ async def _escribir(
     )
 
 
+# Alias PÚBLICOS de las sentencias y constructores que comparte CU-37
+# (`services/catalog_import`). Un fork escribe exactamente las MISMAS filas de
+# lección, ejemplo y pregunta que una incorporación; lo único que cambia es la
+# cabecera del módulo, que va con `origin='local'` y sin manifiesto. Se exponen
+# con alias en vez de renombrarlos para no tocar las referencias internas ya
+# probadas, y se declaran aquí —y no en `catalog_import`— porque el dueño de
+# «cómo se escribe un bundle» es este módulo.
+UPSERT_LESSON = _UPSERT_LESSON
+UPSERT_EXAMPLE = _UPSERT_EXAMPLE
+UPSERT_QUESTION = _UPSERT_QUESTION
+params_leccion = _params_leccion
+params_ejemplo = _params_ejemplo
+dumps_json = _dumps
+
+
 # ──────────────────────────── caso de uso CU-36 ─────────────────────────────
 
 
-async def install_module(
+@dataclass(frozen=True, slots=True)
+class BundleTraido:
+    """Un bundle del bucket ya descargado, verificado y listo para escribir.
+
+    Agrupa las cuatro cosas que la fase de red produce y que la de escritura
+    necesita, para que extraerla no obligue a devolver una tupla anónima de
+    cuatro elementos que hay que recordar en orden.
+    """
+
+    bundle: ModuleBundle
+    objeto: CatalogObject
+    checksum: str
+    preguntas: dict[str, list[tuple[str, BundleQuizQuestion]]]
+
+
+async def descargar_y_validar(
     app: "FastAPI",
     body: InstallRequest,
     *,
     catalog: CatalogReadPort,
     index: CatalogIndex | None = None,
     generation: int | None = None,
-) -> InstallResult:
-    """Incorpora un módulo del catálogo remoto (``POST /api/v1/catalog/install``).
+) -> BundleTraido:
+    """Trae un bundle del bucket y lo valida. **No escribe nada, no toma el lock.**
 
-    ``index`` permite pasar el índice ya cacheado (``repositories/catalog`` lo
-    guarda en ``app_meta``) para no volver a salir a la red; si falta, se
-    descarga. ``generation`` ancla el objeto exacto cuando el listado la trae.
+    Es la fase 1 de §11.6.1, extraída porque la comparten dos casos de uso que
+    escriben distinto: incorporar (CU-36, `install_module`) e importar para
+    editar (CU-37, `services/catalog_import`). Compartirla no es estética — es
+    que las comprobaciones que hace son la frontera con contenido que viene de
+    FUERA del equipo: tope de bytes, guard del bundle, checksum contra el
+    índice, identidad, reglas de §10.6 e ids de pregunta únicos. Una segunda
+    copia de esa lista sería una segunda copia que se olvida de actualizar.
 
-    Quien decide que este despliegue NO tiene catálogo (``503 CATALOG_DISABLED``)
-    es el router: aquí ya llega un puerto construido.
+    Que no tome el ``write_lock`` es parte del contrato: la red **nunca** se
+    sostiene con el lock tomado, o un bucket lento congelaría los jobs de todos.
     """
     settings = app.state.settings
     max_bytes = int(settings.catalog_max_bundle_bytes)
 
-    # ── 1. FUERA del write_lock: red y validación en memoria ────────────────
     indice = index if index is not None else await fetch_index(
         catalog, max_bytes=max_bytes
     )
@@ -895,7 +929,33 @@ async def install_module(
     )
     _verificar_identidad(bundle, entrada)
     _verificar_contenido(app, bundle)
-    preguntas = _ids_de_preguntas(bundle)
+    return BundleTraido(bundle, objeto, checksum, _ids_de_preguntas(bundle))
+
+
+async def install_module(
+    app: "FastAPI",
+    body: InstallRequest,
+    *,
+    catalog: CatalogReadPort,
+    index: CatalogIndex | None = None,
+    generation: int | None = None,
+) -> InstallResult:
+    """Incorpora un módulo del catálogo remoto (``POST /api/v1/catalog/install``).
+
+    ``index`` permite pasar el índice ya cacheado (``repositories/catalog`` lo
+    guarda en ``app_meta``) para no volver a salir a la red; si falta, se
+    descarga. ``generation`` ancla el objeto exacto cuando el listado la trae.
+
+    Quien decide que este despliegue NO tiene catálogo (``503 CATALOG_DISABLED``)
+    es el router: aquí ya llega un puerto construido.
+    """
+    # ── 1. FUERA del write_lock: red y validación en memoria ────────────────
+    traido = await descargar_y_validar(
+        app, body, catalog=catalog, index=index, generation=generation
+    )
+    bundle, objeto, checksum, preguntas = (
+        traido.bundle, traido.objeto, traido.checksum, traido.preguntas
+    )
 
     # ── 2. DENTRO del write_lock: leer la base y escribir ───────────────────
     db = app.state.db
@@ -959,5 +1019,12 @@ __all__ = [
     "api_error_from_catalog",
     "parse_index",
     "fetch_index",
+    "descargar_y_validar",
+    "UPSERT_LESSON",
+    "UPSERT_EXAMPLE",
+    "UPSERT_QUESTION",
+    "params_leccion",
+    "params_ejemplo",
+    "BundleTraido",
     "install_module",
 ]

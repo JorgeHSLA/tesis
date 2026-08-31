@@ -40,11 +40,13 @@ from app.routers.admin_deps import require_admin
 from app.routers.modules import envelope_ok
 from app.schemas.admin_catalog import (
     AdminCatalogCredentialStatus,
+    AdminImportRequest,
+    AdminImportResult,
     AdminPublishRequest,
     AdminPublishResult,
 )
 from app.schemas.catalog import ModuleBundle
-from app.services import catalog_publish
+from app.services import catalog_import, catalog_publish
 from app.services.content_writer import _persist
 from app.services.catalog_publisher import (
     PublisherUnavailable,
@@ -54,6 +56,8 @@ from app.services.catalog_publisher import (
 
 if TYPE_CHECKING:  # pragma: no cover - solo tipos
     from fastapi import FastAPI
+
+    from app.services.catalog_client import CatalogReadPort
 
 logger = logging.getLogger("telar.admin_catalog")
 
@@ -119,6 +123,53 @@ async def admin_catalog_credentials(
             await publisher.aclose()
 
     return envelope_ok(estado)
+
+
+# ═══════════════════ §11.7 POST /admin/catalog/import ════════════════════════
+
+
+def _require_catalog(request: Request) -> "CatalogReadPort":
+    """El puerto de LECTURA, o el 503 que corresponda (§11.7).
+
+    Importar solo lee del bucket: **no exige credencial de escritura**. Es lo que
+    dice §11.7 —«no requiere OAuth: leer sigue siendo anónimo»— y la razón de que
+    este endpoint no pase por `inspeccionar_credencial`: un admin puede querer
+    bajarse un módulo para estudiarlo sin tener permiso para publicar nada.
+    """
+    settings = _settings(request)
+    if not settings.catalog_enabled:
+        raise ApiException(
+            "CATALOG_DISABLED", "Este despliegue no tiene catálogo remoto configurado."
+        )
+    port = getattr(request.app.state, "catalog", None)
+    if port is None:
+        raise ApiException(
+            "CATALOG_UNAVAILABLE",
+            "El catálogo remoto no está disponible en este despliegue.",
+            details={"reason": "server", "retry_after_s": None},
+        )
+    return port
+
+
+@router.post("/catalog/import", status_code=201)
+async def admin_catalog_import(
+    request: Request, body: AdminImportRequest
+) -> JSONResponse:
+    """§11.7 CU-37 — traer un módulo del bucket para editarlo.
+
+    Sin ``as_module_id`` el import es **vinculado**: equivale a incorporarlo, y
+    el módulo conserva su fila en ``installed_modules``, que es lo que le dice al
+    admin sobre qué versión base edita. Con ``as_module_id`` es un **fork**: ids
+    propios, ``origin='local'`` y sin manifiesto, o sea contenido nuevo que se
+    publicará bajo su id.
+
+    La red va FUERA del ``write_lock``; el servicio se encarga.
+    """
+    port = _require_catalog(request)
+    resultado: AdminImportResult = await catalog_import.import_module(
+        request.app, body, catalog=port
+    )
+    return envelope_ok(resultado, status_code=201)
 
 
 # ═══════════════ §11.8.2 POST /admin/modules/{id}/publish ════════════════════
