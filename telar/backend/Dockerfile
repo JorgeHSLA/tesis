@@ -20,19 +20,30 @@ COPY app ./app
 # Nivel 3 (seguridad por AUSENCIA): DOS imágenes desde UN codebase, como el
 # tree-shaking del frontend.
 #   TELAR_ADMIN_BUILD=0 (default, ESTUDIANTE) → se BORRAN del artefacto los
-#     módulos admin-only (router /admin, sus deps y el motor de escritura de
-#     contenido). main.py detecta la ausencia (ModuleNotFoundError) y NO registra
-#     el router → /api/v1/admin/* responde 404. Cero código admin en la imagen.
+#     ROUTERS admin y los servicios que solo ellos usan. main.py detecta la
+#     ausencia (ImportError) y NO registra los routers → /api/v1/admin/*
+#     responde 404: la ruta no existe, que es más fuerte que un 401.
 #   TELAR_ADMIN_BUILD=1 (ADMIN) → se conservan; el runtime los sigue gateando con
 #     TELAR_ADMIN_MODE (variante de despliegue, api-contract.md §10.0).
-# NOTA: app/repositories/content_admin.py NO se borra: lo importa el módulo
-# NO-admin app/services/quiz_service.py (lee umbral e ids del quiz para la
-# revalidación atómica del intento, api-contract §5.2). Borrarlo rompería el
-# build estudiante (son helpers inertes: sin endpoints ni orquestación de escritura).
+#
+# Lo que se borra son las SUPERFICIES (routers) y lo que cuelga solo de ellas.
+# Los helpers que también usa código del estudiante se QUEDAN, aunque su nombre
+# suene a admin: sin router que los invoque son inertes.
+#
+# NO se borran, y borrarlos rompe el arranque del build estudiante:
+#   repositories/content_admin.py  → lo usa services/quiz_service (§5.2).
+#   services/markdown_validator.py → lo usa services/bundle_guard, que valida
+#     los bundles que llegan DEL BUCKET en la máquina del estudiante (§11.6.1).
+#   services/content_writer.py     → routers/catalog y module_installer importan
+#     `_persist`, la unidad de escritura de toda incorporación (§11.6).
+# Las dos últimas eran admin-only en Fase 4 y dejaron de serlo en Fase 5: el
+# catálogo remoto puso al estudiante a validar y a escribir contenido.
 ARG TELAR_ADMIN_BUILD=0
 RUN if [ "$TELAR_ADMIN_BUILD" != "1" ]; then \
       rm -f app/routers/admin.py app/routers/admin_deps.py \
-            app/services/content_writer.py app/services/markdown_validator.py ; \
+            app/routers/admin_catalog.py \
+            app/services/catalog_publisher.py app/services/catalog_publish.py \
+            app/services/catalog_import.py app/schemas/admin_catalog.py ; \
     fi
 
 EXPOSE 8000

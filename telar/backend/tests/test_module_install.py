@@ -1636,22 +1636,48 @@ async def test_el_m1_real_del_repo_se_instala_tal_cual(app_vacia, catalogo):
 # ═════════════════════ reparto por build (§11.2) ════════════════════════════
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BLOQUEANTE: §11.2 exige module_installer en la imagen ESTUDIANTE, "
-    "pero el Dockerfile borra ahí content_writer.py (de donde sale _persist) y "
-    "markdown_validator.py (que usa bundle_guard). El arreglo es quitarlos del "
-    "`rm -f`, con el mismo precedente que ya documenta el propio Dockerfile "
-    "para content_admin.py. Cuando se arregle, este test pasará (XPASS) y hay "
-    "que borrar el marker.",
-)
-def test_la_imagen_estudiante_conserva_lo_que_importa_el_instalador():
+def _borrados_en_imagen_estudiante() -> set[str]:
+    """Los ficheros que el Dockerfile quita con ``TELAR_ADMIN_BUILD=0``."""
     dockerfile = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text(
         encoding="utf-8"
     )
-    borrados = set(re.findall(r"app/[\w/]+\.py", dockerfile))
+    return set(re.findall(r"app/[\w/]+\.py", dockerfile))
+
+
+def test_la_imagen_estudiante_conserva_lo_que_importa_el_instalador():
+    """§11.2 — borrar de más rompe el ARRANQUE de la imagen del estudiante.
+
+    Estos dos eran admin-only en Fase 4 y dejaron de serlo en Fase 5, cuando el
+    catálogo remoto puso al estudiante a validar y a escribir contenido:
+    ``bundle_guard`` valida los bundles que bajan del bucket, y ``_persist`` es
+    la unidad de escritura de toda incorporación. Con ellos fuera, importar
+    ``app.main`` lanza ``ModuleNotFoundError`` y el backend no levanta — no es
+    que falle un endpoint, es que no hay backend.
+    """
     necesarios = {
         "app/services/content_writer.py",  # _persist, _check_code_size
         "app/services/markdown_validator.py",  # vía bundle_guard
     }
-    assert not (borrados & necesarios), sorted(borrados & necesarios)
+    sobran = _borrados_en_imagen_estudiante() & necesarios
+    assert not sobran, f"la imagen estudiante no arrancaría sin: {sorted(sobran)}"
+
+
+def test_la_imagen_estudiante_no_lleva_el_codigo_de_publicar():
+    """§11.2 — y borrar de MENOS mete código admin en la imagen del estudiante.
+
+    El otro lado de la misma moneda. La seguridad de §11.2 es por AUSENCIA: las
+    rutas admin responden 404 porque el fichero no está, no porque un guard diga
+    que no. Si estos viajaran en la imagen del estudiante, esa promesa pasaría a
+    depender solo de que la cadena de imports siga rompiéndose por casualidad.
+    """
+    admin_only = {
+        "app/routers/admin.py",
+        "app/routers/admin_deps.py",
+        "app/routers/admin_catalog.py",       # §11.7 importar · §11.8 publicar
+        "app/services/catalog_publisher.py",  # el puerto de ESCRITURA y la credencial
+        "app/services/catalog_publish.py",
+        "app/services/catalog_import.py",
+        "app/schemas/admin_catalog.py",
+    }
+    faltan = admin_only - _borrados_en_imagen_estudiante()
+    assert not faltan, f"viajarían en la imagen del estudiante: {sorted(faltan)}"
