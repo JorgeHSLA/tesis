@@ -20,3 +20,17 @@ dist/
 # settings.local.json (config por máquina) y skills locales.
 .claude/
 .coverage
+
+# ── Credenciales · NUNCA en el repositorio (api-contract §11.8.1) ────────────
+# Las claves de cuenta de servicio viven fuera del árbol (p. ej. ~/.telar-secrets/)
+# y se apuntan con TELAR_GCS_CREDENTIALS. Estos patrones son la red por si alguna
+# vez se copia una aquí por comodidad: que git la ignore antes de que se note.
+*.credentials.json
+*service-account*.json
+*service_account*.json
+telar-*.json
+gcs-*.json
+.telar-secrets/
+secrets/
+*.pem
+*.key
