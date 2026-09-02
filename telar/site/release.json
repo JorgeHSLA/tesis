@@ -1,0 +1,56 @@
+{
+  "version": "1.0.3",
+  "tag": "v1.0.3",
+  "name": "Telar 1.0.3",
+  "publishedAt": "2026-08-28T23:54:31Z",
+  "notesUrl": "https://github.com/telar-javeriana/telar/releases/tag/v1.0.3",
+  "repo": "telar-javeriana/telar",
+  "checksumsUrl": "https://github.com/telar-javeriana/telar/releases/download/v1.0.3/SHA256SUMS-1.0.3.txt",
+  "generatedAt": "2026-09-02T00:27:43.497Z",
+  "downloads": [
+    {
+      "file": "Telar-1.0.3.AppImage",
+      "url": "https://github.com/telar-javeriana/telar/releases/download/v1.0.3/Telar-1.0.3.AppImage",
+      "size": 128208077,
+      "os": "linux",
+      "kind": "portable",
+      "recommended": false,
+      "label": "AppImage",
+      "hint": "Cualquier distribución, sin permisos de administrador.",
+      "sha256": "650b82ad2255b3effc8f7064b58e435d20841d760fef682721a93035b34fbc9d"
+    },
+    {
+      "file": "telar-desktop_1.0.3_amd64.deb",
+      "url": "https://github.com/telar-javeriana/telar/releases/download/v1.0.3/telar-desktop_1.0.3_amd64.deb",
+      "size": 100102448,
+      "os": "linux",
+      "kind": "installer",
+      "recommended": true,
+      "label": "Instalador .deb",
+      "hint": "Debian, Ubuntu, Mint y derivadas.",
+      "sha256": "2f20da59c9ec1ea0d9bc59d1df786ed5c09f445fac880f5bc1ed4b7a07a04bd3"
+    },
+    {
+      "file": "Telar.1.0.3.exe",
+      "url": "https://github.com/telar-javeriana/telar/releases/download/v1.0.3/Telar.1.0.3.exe",
+      "size": 100478164,
+      "os": "windows",
+      "kind": "portable",
+      "recommended": false,
+      "label": "Portable",
+      "hint": "No instala nada: se ejecuta tal cual.",
+      "sha256": "c639e4e7d3e04847df4f1e84eb07473fa2ee5f154ff7077de7113aeed644b5ff"
+    },
+    {
+      "file": "Telar.Setup.1.0.3.exe",
+      "url": "https://github.com/telar-javeriana/telar/releases/download/v1.0.3/Telar.Setup.1.0.3.exe",
+      "size": 100651899,
+      "os": "windows",
+      "kind": "installer",
+      "recommended": true,
+      "label": "Instalador",
+      "hint": "Se instala y queda en el menú de inicio.",
+      "sha256": "76175204a7c1af2de38e49e54bc6af122c19c3cb0bceb523272451a8a052dc7d"
+    }
+  ]
+}
