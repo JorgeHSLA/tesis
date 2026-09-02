@@ -1,0 +1,3 @@
+# Los scripts de shell DEBEN ir con LF: con CRLF, Linux falla con
+# "bad interpreter: /bin/bash^M" al ejecutarlos.
+*.sh text eol=lf

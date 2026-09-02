@@ -28,6 +28,9 @@ nsis:
   oneClick: true
   perMachine: false
   deleteAppDataOnUninstall: false
+  # customUnInstall en resources/installer.nsh: al desinstalar (no al
+  # actualizar) para y borra el contenedor y las imágenes Docker de Telar.
+  include: resources/installer.nsh
 
 linux:
   target: [AppImage, deb]
@@ -62,3 +65,11 @@ deb:
     - libatspi2.0-0
     - libuuid1
     - libsecret-1-0
+  # electron-builder no tiene un campo con nombre propio para el hook PREVIO
+  # al borrado (solo declara afterInstall/afterRemove); se pasa como flag
+  # crudo de fpm, que lo traduce al script prerm de dpkg. Al desinstalar (no
+  # al actualizar) para y borra el contenedor y las imágenes Docker de Telar
+  # — resources/before-remove.sh, corre ANTES de que dpkg borre
+  # /opt/Telar/resources/compose/compose.yaml.
+  fpm:
+    - --before-remove=resources/before-remove.sh

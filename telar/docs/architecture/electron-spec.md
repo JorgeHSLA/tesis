@@ -453,6 +453,44 @@ docker run --rm -it -v ~/dev/telar:/project -w /project/desktop \
 Nota: el build de Windows del artefacto FINAL se recomienda en el host Windows (evita Wine y
 problemas de symlinks); WSL2 + imagen wine vale para iteración.
 
+### 6.2 Limpieza de Docker al desinstalar
+
+Al desinstalar Telar (no al actualizar), el instalador para y borra el
+contenedor y las imágenes Docker de la app: `docker compose --profile build
+down --rmi all` contra el compose empaquetado (§6.1). Deliberadamente
+**sin `-v`**: los volúmenes (`telar_data` con el progreso de quizzes,
+`telar_submissions`) no se tocan — es una decisión independiente de
+`deleteAppDataOnUninstall`, que solo gobierna `%APPDATA%`, no Docker.
+
+Cada plataforma engancha esto en el punto correcto del gestor de paquetes,
+verificado leyendo el código fuente de electron-builder (no solo su docs):
+
+| Plataforma | Mecanismo | Archivo | Corre... |
+|---|---|---|---|
+| Windows (NSIS) | `nsis.include` → macro `customUnInstall` | `resources/installer.nsh` | ANTES de borrar `$INSTDIR` (confirmado en `uninstaller.nsh` de electron-builder: el macro se inserta antes del borrado de archivos) |
+| Linux (`.deb`) | `deb.fpm: ["--before-remove=…"]` → prerm de dpkg | `resources/before-remove.sh` | ANTES de que dpkg borre los archivos del paquete (electron-builder no tiene un campo con nombre propio para esto — su `LinuxTargetSpecificOptions` solo declara `afterInstall`/`afterRemove`; se pasa como flag crudo de fpm) |
+
+En los dos casos hay que distinguir una desinstalación real de una
+ACTUALIZACIÓN, porque electron-builder/dpkg invocan el mismo gancho también
+cuando una versión nueva se instala encima:
+
+- NSIS: `${isUpdated}` — la misma variable que electron-builder ya usa en su
+  lógica de `KEEP_APP_DATA`; se pone en verdadero cuando el instalador nuevo
+  invocó este desinstalador en silencio con `--updated`.
+- dpkg: `$1` — prerm recibe `remove` en una desinstalación real y
+  `upgrade <version-nueva>` cuando una versión nueva se instala encima.
+
+Sin esa comprobación, cada actualización pararía y borraría los contenedores
+e imágenes que la versión nueva necesita segundos después: el usuario vería
+"preparando entorno…" y una descarga de ~1 GB en cada actualización, no solo
+en la primera instalación.
+
+**Sin gancho posible en AppImage ni en el `.exe` portable de Windows**: son
+un solo archivo sin instalador ni desinstalador, y por diseño no tocan nada
+fuera de sí mismos ("no instala nada" es justo lo que se documenta en las
+notas de release). Un usuario de esas variantes que quiera limpiar Docker lo
+hace a mano (§10, limitación nueva).
+
 ---
 
 ## 7. Seguridad
@@ -641,6 +679,9 @@ web (rutas relativas) en caso contrario (regla congelada en `architecture.md`
    `app://`, history API, CSP más estricta sin `Origin: null`).
 7. **Fuses**: si el paso post-pack de @electron/fuses complica el pipeline (Wine), se documenta
    como pendiente; el riesgo residual (runAsNode) exige acceso local al binario.
+8. **AppImage y el `.exe` portable de Windows no limpian Docker al "desinstalarse"**: no tienen
+   instalador/desinstalador del sistema donde enganchar nada (§6.2). Solo el `.deb` y el NSIS
+   paran y borran el contenedor + imágenes al desinstalar de verdad.
 
 ---
 
@@ -657,3 +698,6 @@ web (rutas relativas) en caso contrario (regla congelada en `architecture.md`
    del RuntimeFooter conserva el control manual (§8). *(Revisado el 2026-08-28: antes ni se
    levantaban ni se detenían de forma automática.)*
 9. Targets: win nsis+portable (imagen wine o host Windows), linux AppImage+deb (WSL2) (§6).
+10. Al desinstalar (NSIS `customUnInstall` / `.deb` prerm, no al actualizar) se para y borra el
+    contenedor y las imágenes Docker; los volúmenes con datos de usuario NUNCA se tocan desde
+    ahí (§6.2).
