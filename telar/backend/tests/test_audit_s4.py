@@ -239,8 +239,16 @@ def test_bl18_id_cliente_colisiona_con_autogenerado_422(client, auth):
 
 
 def test_bl18_id_autogenerado_demasiado_largo_422(client, auth):
-    """Un lesson_id de 64 chars + order enorme daría un id > 80 chars: se
-    rechaza como 422 en vez de persistir un id fuera de patrón."""
+    """Un `order` absurdo ya no llega a generar un id imposible.
+
+    Antes esto se atrapaba a mano, comprobando el largo del id derivado. Ahora
+    `AdminQuizQuestion.order` tiene tope (10 000), así que pydantic lo rechaza
+    ANTES —con `VALIDATION_ERROR` de esquema en vez de `CONTENT_VALIDATION_ERROR`
+    de negocio— y el peligro deja de ser algo que haya que cazar: con un
+    `lesson_id` de 64 caracteres y el order máximo, el id derivado mide 71, por
+    debajo de los 80 del patrón. El tope se puso porque un entero sin cota
+    superior revienta el INSERT de SQLite y sale por un 500.
+    """
     long_id = "l" + "a" * 63  # 64 chars (máximo de ID_PATTERN)
     _create_module(client, auth, mid="mLong", order=99)
     _create_lesson(client, auth, lid=long_id, module_id="mLong", order=100)
@@ -257,7 +265,7 @@ def test_bl18_id_autogenerado_demasiado_largo_422(client, auth):
         ],
     }
     resp = client.put(f"/api/v1/admin/lessons/{long_id}/quiz", json=quiz, headers=auth)
-    _err(resp, 422, "CONTENT_VALIDATION_ERROR")
+    _err(resp, 422, "VALIDATION_ERROR")
 
 
 # ─────────────────────────── BL-19 · lock dedicado ──────────────────────────

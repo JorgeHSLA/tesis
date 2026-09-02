@@ -25,7 +25,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Según el info: \"no ejecutes esta función como Python normal, compílala a código máquina nativo\"; por eso sirve para medir rendimiento real."
+      "explanation": "@njit compila la función a código máquina nativo antes de ejecutarla, así que lo que corre ya no lo interpreta Python. Por eso los tiempos que midas son de código real y no del intérprete."
     },
     {
       "id": "primerEjemplo-q2",
@@ -50,7 +50,7 @@
         }
       ],
       "correct_key": "c",
-      "explanation": "El info lo dice explícitamente y muestra nproc = 8 → 8 líneas de output."
+      "explanation": "Sin OMP_NUM_THREADS, OpenMP crea tantos hilos como procesadores lógicos vea el sistema, que es lo que devuelve nproc. En la máquina de referencia son 8, y por eso salen 8 líneas."
     },
     {
       "id": "primerEjemplo-q3",
@@ -100,7 +100,7 @@
         }
       ],
       "correct_key": "c",
-      "explanation": "El info: \"El bloque with marca el inicio y el fin de una región paralela\"."
+      "explanation": "El bloque `with openmp(\"parallel\"):` marca el inicio y el fin de la región paralela: al entrar se crea el equipo de hilos y al salir se destruye. Es el modelo fork-join."
     }
   ]
 }

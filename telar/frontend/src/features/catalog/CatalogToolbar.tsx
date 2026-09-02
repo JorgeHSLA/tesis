@@ -1,5 +1,7 @@
-// CatalogToolbar — búsqueda + fpills (frontend-spec §6.5): cada lección
-// aporta 1 ejemplo + 1 quiz al conteo; el filtro muestra/oculta filas.
+// CatalogToolbar — búsqueda + fpills (frontend-spec §6.5). Los contadores
+// cuentan LECCIONES: `Todo` son todas, `Ejemplos` las que traen código y
+// `Quizzes` las que traen quiz (una misma lección cuenta en las tres). El
+// filtro selecciona lecciones por lo que contienen, no artefactos sueltos.
 // Este buscador es también el destino del botón «Buscar» del TopBar: cuando
 // llega con `autoFocus`, se enfoca al montar (el montaje ocurre cuando el
 // catálogo ya tiene datos, así que el foco nunca se pierde contra el skeleton).

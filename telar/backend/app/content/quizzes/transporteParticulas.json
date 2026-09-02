@@ -25,7 +25,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Comparación explícita del info: \"los simuladores Monte Carlo son el caso ideal para OpenMP\"."
+      "explanation": "Monte Carlo es compute-bound: hace mucho cálculo por cada byte de memoria que toca, así que los ocho núcleos trabajan de verdad. El stencil es memory-bound: los hilos pasan el tiempo esperando a la RAM, y añadir hilos no añade ancho de banda."
     },
     {
       "id": "transporteParticulas-q2",
@@ -50,7 +50,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Física literal del info."
+      "explanation": "dist = -ln(r)/σt, con r uniforme en (0,1]. Es la transformada inversa de una distribución exponencial de media 1/σt, que es el camino libre medio: la distancia típica que recorre la partícula antes de chocar."
     },
     {
       "id": "transporteParticulas-q3",
@@ -75,7 +75,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "El info lo destaca: \"si, se puede poner una lista\"."
+      "explanation": "Que reduction acepta una LISTA de variables: los tres contadores se reducen a la vez con una sola cláusula, cada uno con su copia privada por hilo y su suma final automática."
     },
     {
       "id": "transporteParticulas-q4",
@@ -100,7 +100,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "El info: \"carga irregular, y aun asi escala perfecto\"."
+      "explanation": "Porque cada hilo procesa millones de partículas: unas viven mucho y otras poco, pero en el promedio de millones las cargas se igualan. La irregularidad se nota cuando hay pocas unidades de trabajo por hilo, no cuando hay millones."
     },
     {
       "id": "transporteParticulas-q5",
@@ -125,7 +125,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "El info lo aclara: la física es estable entre corridas."
+      "explanation": "Cada hilo arranca con una semilla distinta, así que el conjunto de números aleatorios cambia con el número de hilos. Esa variación en el segundo decimal es ruido estadístico normal de Monte Carlo, no un error del paralelismo."
     }
   ]
 }

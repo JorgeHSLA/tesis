@@ -25,7 +25,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "El info invita a probarlo."
+      "explanation": "Con umbral 2, casi cada llamada recursiva crea una tarea: se generan millones de tareas cuyo trabajo útil es menor que el costo de crearlas, encolarlas y robarlas. El programa acaba siendo más lento que la versión secuencial."
     },
     {
       "id": "fibonacciTareas-q2",
@@ -50,7 +50,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Matiz explícito del info (\"Ojo\")."
+      "explanation": "taskwait espera solo a las tareas hijas DIRECTAS de la tarea que lo ejecuta, no a los nietos. Por eso cada nivel de la recursión pone el suyo: sin él, un padre podría sumar resultados que sus propios nietos aún no han calculado."
     },
     {
       "id": "fibonacciTareas-q3",
@@ -75,12 +75,12 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "La \"gracia pedagógica\" del info."
+      "explanation": "parallel for necesita un rango de iteraciones conocido al entrar para repartirlo. Aquí no hay bucle: hay un árbol de llamadas que se descubre al ejecutarse y cuyas ramas cuestan muy distinto. Las tareas se crean sobre la marcha y el work stealing equilibra la carga solo."
     },
     {
       "id": "fibonacciTareas-q4",
       "order": 4,
-      "text": "¿De dónde proviene este ejemplo según el info?",
+      "text": "¿De qué documento procede este ejemplo?",
       "options": [
         {
           "key": "a",
@@ -100,7 +100,7 @@
         }
       ],
       "correct_key": "c",
-      "explanation": "Es EL ejemplo canónico de tasking."
+      "explanation": "Del documento oficial del OpenMP ARB «OpenMP Application Programming Interface Examples», capítulo de tasking: es el ejemplo canónico de recursión con tareas."
     }
   ]
 }

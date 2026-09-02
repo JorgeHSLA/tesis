@@ -25,7 +25,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Advertencia central del info."
+      "explanation": "Cada hilo calcula sus propias filas y usa j, k y tmp como variables de trabajo. Si fueran compartidas, un hilo pisaría el contador o el acumulador de otro a mitad de cálculo y el resultado sería basura."
     },
     {
       "id": "matrices-q2",
@@ -55,7 +55,7 @@
     {
       "id": "matrices-q3",
       "order": 3,
-      "text": "Nuestro triple bucle paralelo pierde contra np.dot (BLAS). ¿Cuál es la lección según el info?",
+      "text": "Nuestro triple bucle paralelo pierde contra np.dot (BLAS). ¿Cuál es la lección?",
       "options": [
         {
           "key": "a",
@@ -75,7 +75,7 @@
         }
       ],
       "correct_key": "c",
-      "explanation": "Lección 2 literal del info."
+      "explanation": "Que paralelizar no basta para batir a una biblioteca madura: BLAS lleva décadas de bloqueo de caché, SIMD y ajuste por arquitectura. OpenMP está para el código que NO tiene biblioteca: tus simuladores, tus kernels propios."
     },
     {
       "id": "matrices-q4",
@@ -100,7 +100,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Explicación del info."
+      "explanation": "Acumular en un escalar privado deja el valor en un registro; escribir C[i, j] en cada vuelta de k obliga a ir a memoria en cada iteración. Menos tráfico de memoria, más velocidad."
     }
   ]
 }

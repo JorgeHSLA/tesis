@@ -1,45 +1,107 @@
-// lessonVideos.ts — fuente de video por lección (queja #3, 2026-07).
+// lessonVideos.ts — fuente de video por lección: URLs de YouTube NO LISTADO.
 //
-// El bloque grande de la lección es un REPRODUCTOR DE VIDEO. La fuente se
-// declara aquí, keyed por `example_id`, y admite DOS FORMAS:
+// Los videos NO se descargan ni se empaquetan: son enlaces a YouTube en modo
+// «no listado» (visibles solo con el enlace, fuera de búsquedas y del canal).
+// El reproductor es un <iframe>, no un <video>.
 //
-//   1) URL externa:   'https://cdn.ejemplo.com/leccion.mp4'
-//   2) .mp4 EN DISCO:  ruta relativa a `public/` (se bundlea en `dist/`), p.ej.
-//      'media/videos/primerEjemplo.mp4'. Coloca el archivo en
-//      `frontend/public/media/videos/` y referéncialo con esa ruta.
+// La URL cruda puede llegar en cualquiera de las formas que YouTube reparte
+// (`watch?v=`, `youtu.be/`, `/embed/`, `/shorts/`) y —importante— acabará
+// viniendo del catálogo remoto, es decir de CONTENIDO NO CONFIABLE. Por eso
+// aquí no se interpola nunca la URL recibida: se EXTRAE el id del video, se
+// valida contra el formato de id de YouTube y se reconstruye una URL de embed
+// canónica sobre `youtube-nocookie.com`. Cualquier cosa que no encaje devuelve
+// `null` y la lección simplemente no muestra bloque de video.
 //
-// Si una lección NO está en el mapa (o su valor está vacío) → el reproductor
-// muestra el placeholder "Video próximamente". Se resuelve en frontend (sin
-// tocar los contratos congelados); cuando haya videos, basta con añadir aquí la
-// entrada (o subir el .mp4 a public/media/videos/).
-const LESSON_VIDEOS: Readonly<Record<string, string>> = {
-  // Ejemplos (comentados hasta que existan los videos):
-  // primerEjemplo: 'media/videos/primerEjemplo.mp4',   // .mp4 en disco
-  // spmd: 'https://cdn.ejemplo.com/spmd.mp4',           // URL externa
-}
+// Segunda barrera, independiente: la CSP de Electron solo permite
+// `frame-src https://www.youtube-nocookie.com` (electron-spec.md §7.1).
 
-// Externa = URL con ESQUEMA explícito (https://, http://). Se exige el esquema a
-// propósito: así una ruta en disco mal tecleada con doble slash ('//media/…') NO
-// se confunde con una URL protocol-relative (que apuntaría al host "media" y daría
-// un video roto en silencio); cualquier '//…' se trata como ruta local.
-const ABSOLUTE_URL_RE = /^[a-z][a-z0-9+.-]*:\/\//i
+/** Id de video de YouTube: 11 caracteres del alfabeto base64url. */
+const YOUTUBE_ID_RE = /^[A-Za-z0-9_-]{11}$/
+
+/** Hosts de YouTube aceptados, ya sin el prefijo `www.`/`m.`. */
+const YOUTUBE_HOSTS = new Set(['youtube.com', 'youtube-nocookie.com'])
+
+/** Origen canónico del embed: el dominio sin cookies de seguimiento. */
+const EMBED_ORIGIN = 'https://www.youtube-nocookie.com/embed/'
 
 /**
- * Resuelve una fuente de video cruda a un `src` usable, o `null` si está vacía.
- * Una URL externa (con esquema) se devuelve tal cual; una ruta en disco se
- * resuelve contra `BASE_URL` (el build usa base './'), de modo que funcione
- * tanto en web (nginx) como en Electron (carga por `file://`). Los slashes
- * iniciales de la ruta se normalizan. Pura (sin el mapa) → testeable.
+ * Mapa local `example_id → URL de YouTube`. Es el puente provisional hasta que
+ * el video sea un campo de la lección servido por la API (y publicado por el
+ * admin junto al resto del módulo). Cuando eso ocurra, `LessonMedia` recibirá
+ * la URL por prop y este mapa desaparece sin tocar el resolver.
  */
-export function resolveVideoSrc(raw: string | undefined): string | null {
-  const value = raw?.trim()
-  if (!value) return null
-  if (ABSOLUTE_URL_RE.test(value)) return value
-  const base = import.meta.env.BASE_URL || './'
-  return base.replace(/\/?$/, '/') + value.replace(/^\/+/, '')
+const LESSON_VIDEOS: Readonly<Record<string, string>> = {
+  // primerEjemplo: 'https://www.youtube.com/watch?v=XXXXXXXXXXX',
 }
 
-/** Fuente de video de un ejemplo según el mapa, o `null` si no hay ninguna. */
+/** Extrae el id de video de una URL de YouTube, o `null` si no lo es. */
+function extractVideoId(url: URL): string | null {
+  // Solo https: descarta de golpe javascript:, data:, file: y http en claro.
+  if (url.protocol !== 'https:') return null
+
+  const host = url.hostname.toLowerCase().replace(/^(www\.|m\.)/, '')
+
+  // Forma corta: youtu.be/<id>
+  if (host === 'youtu.be') {
+    const id = url.pathname.slice(1)
+    return YOUTUBE_ID_RE.test(id) ? id : null
+  }
+
+  if (!YOUTUBE_HOSTS.has(host)) return null
+
+  // youtube.com/watch?v=<id>
+  if (url.pathname === '/watch') {
+    const id = url.searchParams.get('v') ?? ''
+    return YOUTUBE_ID_RE.test(id) ? id : null
+  }
+
+  // youtube.com/embed/<id>  ·  youtube.com/shorts/<id>
+  const segments = url.pathname.split('/').filter(Boolean)
+  if (segments.length === 2 && (segments[0] === 'embed' || segments[0] === 'shorts')) {
+    return YOUTUBE_ID_RE.test(segments[1]) ? segments[1] : null
+  }
+
+  return null
+}
+
+/** Segundo de arranque (`?t=` o `?start=`), solo si es un entero no negativo. */
+function extractStartSeconds(url: URL): number | null {
+  const raw = url.searchParams.get('start') ?? url.searchParams.get('t')
+  if (raw === null || !/^\d+$/.test(raw)) return null
+  const seconds = Number.parseInt(raw, 10)
+  return Number.isSafeInteger(seconds) && seconds > 0 ? seconds : null
+}
+
+/**
+ * Normaliza una URL de YouTube a su embed canónico en `youtube-nocookie.com`,
+ * o `null` si no es una URL de video de YouTube válida.
+ *
+ * `rel=0` limita los vídeos sugeridos del final al mismo canal y
+ * `modestbranding=1` reduce el marcaje de YouTube: para una lección, lo que
+ * aparezca al terminar no debería sacar al estudiante del curso.
+ */
+export function resolveYouTubeEmbed(raw: string | null | undefined): string | null {
+  const value = raw?.trim()
+  if (!value) return null
+
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    return null // no es una URL absoluta: se descarta sin más
+  }
+
+  const id = extractVideoId(url)
+  if (id === null) return null
+
+  const params = new URLSearchParams({ rel: '0', modestbranding: '1' })
+  const start = extractStartSeconds(url)
+  if (start !== null) params.set('start', String(start))
+
+  return `${EMBED_ORIGIN}${id}?${params.toString()}`
+}
+
+/** Embed de un ejemplo según el mapa local, o `null` si no tiene video. */
 export function resolveLessonVideo(exampleId: string): string | null {
-  return resolveVideoSrc(LESSON_VIDEOS[exampleId])
+  return resolveYouTubeEmbed(LESSON_VIDEOS[exampleId])
 }

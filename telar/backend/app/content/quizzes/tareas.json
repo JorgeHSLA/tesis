@@ -25,7 +25,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Regla literal del info."
+      "explanation": "Crear una tarea cuesta. Por debajo de cierto tamaño, el trozo se calcula más rápido en secuencial que lo que se tarda en encolar y repartir la tarea. Regla práctica: en paralelismo recursivo, siempre umbral."
     },
     {
       "id": "tareas-q2",
@@ -50,7 +50,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Explicación literal del info."
+      "explanation": "shared(sum1) porque el resultado tiene que verse desde fuera de la tarea. firstprivate en los límites porque la tarea puede ejecutarse mucho después de crearse: necesita una foto de esos valores en el momento de la creación, no los que haya cuando arranque."
     },
     {
       "id": "tareas-q3",
@@ -75,7 +75,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "El info lo dice explícitamente."
+      "explanation": "Sin taskwait, el padre haría sum1 + sum2 antes de que las tareas hijas terminen de calcularlos: sumaría valores a medio escribir. El resultado sería basura y además distinto en cada corrida."
     },
     {
       "id": "tareas-q4",
@@ -100,7 +100,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "El \"combo mágico\" del info."
+      "explanation": "Para que UN solo hilo siembre el árbol. Sin single, cada hilo del equipo crearía su propio árbol completo y el trabajo se haría ocho veces. Los demás no quedan ociosos: desde la barrera del single roban tareas y las ejecutan."
     },
     {
       "id": "tareas-q5",
@@ -125,7 +125,7 @@
         }
       ],
       "correct_key": "c",
-      "explanation": "Verificado en tests oficiales según el info; taskloop/taskgroup/depend/taskyield NO."
+      "explanation": "pyomp 0.5.x soporta task con shared/private/firstprivate/default y taskwait. No implementa taskloop, taskgroup, depend ni taskyield."
     }
   ]
 }

@@ -50,7 +50,7 @@
         }
       ],
       "correct_key": "c",
-      "explanation": "Exclusión mutua: según el info, \"los demás esperan en la puerta\"."
+      "explanation": "critical da exclusión mutua: solo un hilo a la vez ejecuta el bloque y los demás esperan a la puerta. Es lo que impide que dos sumas simultáneas se pisen."
     },
     {
       "id": "spmdCritical-q3",
@@ -75,7 +75,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "El info: \"Se hace UNA vez por hilo (no una por iteracion!!)\"."
+      "explanation": "El critical está FUERA del bucle: cada hilo acumula su parte en una variable privada y entra una sola vez, al final, a sumarla al total. Ocho entradas en toda la ejecución no se notan; una por iteración sí."
     },
     {
       "id": "spmdCritical-q4",
@@ -100,7 +100,7 @@
         }
       ],
       "correct_key": "c",
-      "explanation": "Nota explícita del info: atomic no está implementado en pyomp 0.5.x."
+      "explanation": "atomic no está implementado en pyomp 0.5.x. La alternativa es critical, o mejor reduction cuando el patrón es una acumulación, porque el compilador la resuelve sin serializar a los hilos."
     },
     {
       "id": "spmdCritical-q5",
@@ -125,7 +125,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "El info: \"correctisimo pero lentisimo\"."
+      "explanation": "El resultado seguiría siendo correcto, pero cada iteración tendría que esperar su turno: el programa se volvería secuencial y encima con el sobrecoste del cerrojo. Correcto y lentísimo."
     }
   ]
 }

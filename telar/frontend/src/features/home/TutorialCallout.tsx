@@ -19,7 +19,7 @@ export function TutorialCallout() {
           contexto para entender qué estás ejecutando.
         </p>
       </div>
-      <Button variant="primary" size="sm" onClick={() => navigate('/cursos/primerEjemplo')}>
+      <Button variant="primary" size="sm" onClick={() => navigate('/aprender/primerEjemplo')}>
         <IconPlay size={12} /> Ver lección
       </Button>
     </div>

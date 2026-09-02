@@ -159,8 +159,8 @@ const routes = [
     { path: 'simulador/:jobId',  lazy: () => import('./features/simulator/SimulatorScreen') },   // live
     { path: 'resultados',        lazy: () => import('./features/results/ResultsList') },         // historial
     { path: 'resultados/:jobId', lazy: () => import('./features/results/ResultsScreen') },
-    { path: 'cursos',            lazy: () => import('./features/catalog/CatalogScreen') },
-    { path: 'cursos/:leccionId', lazy: () => import('./features/learn/LearnScreen') },
+    { path: 'aprender',            lazy: () => import('./features/catalog/CatalogScreen') },
+    { path: 'aprender/:leccionId', lazy: () => import('./features/learn/LearnScreen') },
     { path: '*',                 element: <NotFound/> },                                          // vuelve a '/'
   ]},
 ]
@@ -177,13 +177,13 @@ const routes = [
 | `/simulador/:jobId` | `Simulador · En vivo` | `['Simulador','En vivo']` |
 | `/resultados` | `Resultados` | `['Simulador','Resultados']` |
 | `/resultados/:jobId` | `Resultados` | `['Simulador','Resultados']` |
-| `/cursos` | `Aprendizaje · Catálogo` | `['Aprendizaje','Catálogo']` |
-| `/cursos/:leccionId` | `ZINE · Aprender` | `['Aprendizaje', modulo, leccion]` |
+| `/aprender` | `Aprendizaje · Catálogo` | `['Aprendizaje','Catálogo']` |
+| `/aprender/:leccionId` | `Aprender` | `['Aprendizaje', modulo, leccion]` |
 
 - Navegación conserva el `scrollTo({top:0, behavior:'smooth'})` de `.main` (efecto en AppShell
   sobre cambio de `location.pathname`; con `prefers-reduced-motion` → `behavior:'auto'`).
 - `NAV_ITEMS` del sidebar → rutas: Inicio `/`, Simulador `/simulador`, Resultados `/resultados`,
-  `Aprender (ZINE)` `/cursos`. El item Simulador queda activo también en `/simulador/:jobId`.
+  `Aprender` `/aprender`. El item Simulador queda activo también en `/simulador/:jobId`.
 
 ---
 
@@ -700,21 +700,21 @@ Literales nuevos que aplican a varias pantallas (los específicos van en cada pa
 - Sub: `Ejecutamos tu código OpenMP real en tu computadora, aislado en contenedores Docker.
   Escribe código, elige cuántos hilos, ejecútalo — y aprende por qué acelera (o por qué no).`
 - Botones: primary-xl [IconZap] `Empezar ejecución` → `/simulador` · outline-xl [IconBook]
-  `Explorar lecciones` → `/cursos`.
+  `Explorar lecciones` → `/aprender`.
 - Caption del diagrama: chip-orange `omp parallel` + mono-small `4 hilos · fork-join`.
 - Tut-tabs: 01 IconUpload `Elige o sube tu código` / `Un ejemplo del curso o tu archivo .py.` ·
   02 IconCpu `Configura los hilos` / `Decide cuántos hilos quieres.` · 03 IconPlay
   `Ejecuta y aprende` / `Observa la salida y las métricas en vivo.`
 - Callout: `¿Primera vez aquí?` / `Te recomendamos empezar por la lección "¿Qué es el
   paralelismo?" — te da todo el contexto para entender qué estás ejecutando.` + botón
-  `Ver lección` → `/cursos/primerEjemplo`. **Regla**: todas las rutas `/cursos/:leccionId`
+  `Ver lección` → `/aprender/primerEjemplo`. **Regla**: todas las rutas `/aprender/:leccionId`
   usan los IDs LITERALES del catálogo (camelCase, = nombre de carpeta) — jamás slugificar.
 - QuickCards: orange IconCpu `Configurar una ejecución` / `Elige un ejemplo del curso, define
   los hilos y ejecútalo en un contenedor aislado.` CTA `Configurar` → `/simulador` · green
   IconPlay `Ver ejecución en vivo` / `Observa la salida, el CPU y la memoria de tu código en
   tiempo real.` CTA `Abrir monitor` → `/simulador` · blue IconBook `Continuar aprendiendo` /
   texto dinámico `Retomas en: {título}. {quizzesRestantes} quizzes pendientes en tu módulo.`
-  CTA `Continuar` → `/cursos/{lastLessonId}` (si no hay progreso: `Empieza por: ¿Qué es el
+  CTA `Continuar` → `/aprender/{lastLessonId}` (si no hay progreso: `Empieza por: ¿Qué es el
   paralelismo?`).
 - `HomeThreadsDiagram`: mismo SVG del handoff §4.4 con labels `master` y `t0..t3` (antes
   head-node/w0..w3).
@@ -893,7 +893,7 @@ chips por `status`: `completed` → chip-green [IconCheck] `Exit 0 · éxito`; `
 [IconDownload] `Descargar output` → `GET /api/v1/jobs/{id}/output` (link/descarga directa; el
 backend pone el Content-Disposition) · outline `Re-ejecutar` → `/simulador?ejemplo={example_id}`
 (o con el código del job precargado si `source_kind≠example`) · primary `Siguiente lección`
-[IconArrowRight] → `/cursos/{next_lesson_id}` (de `GET /lessons/{lesson_id}` si el job tiene
+[IconArrowRight] → `/aprender/{next_lesson_id}` (de `GET /lessons/{lesson_id}` si el job tiene
 lección asociada; sin lección, el botón se oculta).
 
 **Métricas (4 `MetricCard`)** — los agregados salen de `metrics_summary` (persistido), NUNCA de
@@ -946,12 +946,12 @@ El **parser de stdout vive en el backend** (una sola fuente de verdad); el front
 consume `parsed_timings`. **Estados:** 404 → ErrorState; job aún no terminal → redirect a
 `/simulador/{jobId}`; `parsed_timings=null` → cards degradan como se indicó.
 
-### 6.5 Catálogo (`/cursos`)
+### 6.5 Catálogo (`/aprender`)
 
 **Componentes:** `CatalogScreen` → header + `ContinueCard`, `CatalogStats`, `CatalogToolbar`,
 `ModuleAccordion`×8.
 
-**Textos:** eyebrow `ZINE · Aprendizaje`; H2 `Catálogo de contenidos`; párrafo `Las lecciones y
+**Textos:** eyebrow `Aprendizaje`; H2 `Catálogo de contenidos`; párrafo `Las lecciones y
 quizzes del curso de OpenMP con PyOMP, organizados en 8 módulos. Cada lección se ejecuta de
 verdad en el simulador.` ContinueCard: eyebrow `Continuar donde lo dejaste` + título de
 `progressStore.lastLessonId` + meta `[IconLayers] {módulo} · [IconPlay] ~{est_run_seconds}s` +
@@ -978,13 +978,13 @@ progressStore) — el backend es la fuente única. Acordeón de un módulo abier
 **Filas de lección:** por lección dos filas — ejemplo (`.cat-lesson` icon video→IconPlay,
 meta `Ejemplo · ~{est_run_seconds}s`) y quiz (icon IconHelp, meta
 `Quiz · {quiz_question_count} preguntas`). Estados done/current del handoff §7.5 con el fix
-`--success` (done = `progress.completed`). Click → `/cursos/{leccionId}` (el quiz ancla a la
+`--success` (done = `progress.completed`). Click → `/aprender/{leccionId}` (el quiz ancla a la
 sección quiz). Filtro sin resultados: `Sin resultados para este filtro.`
 
 **Datos:** `GET /api/v1/modules` (shape api-contract §4.1, con `progress` y `summary`) +
 `useSystemInfo` (para M8). **Estados:** carga → skeleton de 8 cards; error → ErrorState con retry.
 
-### 6.6 Learn (`/cursos/:leccionId`)
+### 6.6 Learn (`/aprender/:leccionId`)
 
 **Componentes:** `LearnScreen` → `LessonInfo` (columna principal), `LessonSidebar` +
 `RecommendedCard` + `TracksCard` (lateral), `QuizRunner`.
@@ -996,7 +996,7 @@ directivas OpenMP resaltadas (span con `term-orange` sobre los strings `openmp("
 simple, no highlighter completo) y botón central heredado del play (72px, IconPlay) con label
 `Ejecutar en el simulador` → `/simulador?ejemplo={id}`.
 
-- **Header:** ghost [IconChevronLeft] `Volver al catálogo`; eyebrow `ZINE · Aprender`; H2
+- **Header:** ghost [IconChevronLeft] `Volver al catálogo`; eyebrow `Aprender`; H2
   `{lesson.title}`; chips `chip-orange {módulo}` · `chip Módulo {m} · Lección {n}` · mono-small
   `Progreso: {done}/{totalLecciones}` (del `summary` de `/modules`). Acciones
   `Anterior`/`Siguiente` usan `prev_lesson_id`/`next_lesson_id` de `GET /lessons/{id}`.
@@ -1194,3 +1194,22 @@ Cobertura objetivo: ≥ 80 % en `ws/`, `stores/`, `lib/`, `hooks/`; los componen
 10. `api/types.ts` y `ws/messages.ts` se transcriben LITERALMENTE de api-contract.md (envelope, snake_case, `/api/v1`, 8 fases, `log.lines[]`+`seq`, sin close 4409); tabla única fase→chip en §6.3 — encabezado y §4.2.
 11. Las gráficas de CPU escalan a `threads_effective·100`, jamás a 100 fijo — §8.1/§8.4.
 12. La serie temporal de métricas vive SOLO en memoria del live; Resultados degrada a `metrics_summary` (el backend no persiste muestras) — §6.4/§8.4.
+13. **Se retira «ZINE» de los textos de la app** (2026-08): venía del prototipo del handoff, donde
+    la pantalla de lección se llamaba «ZINE player». Tras el rebrand a Telar no significa nada para
+    el estudiante y era la única marca residual visible en el rail, la barra superior y dos eyebrows.
+    Los textos exactos pasan a `Aprender` y `Aprendizaje` — §2, §6.5, §6.6.
+14. **El video de la lección es un embed de YouTube no listado**, no un `.mp4` empaquetado: viaja
+    como URL dentro del módulo publicado. El reproductor es un `<iframe>` sobre
+    `youtube-nocookie.com`, con la URL normalizada y validada en `resolveYouTubeEmbed` (contenido
+    remoto = entrada no confiable) y `frame-src` acotado en la CSP de Electron
+    (electron-spec.md §7.1). Sin fuente, el bloque de video NO se monta — §6.6.
+15. **Una lección puede no tener ejemplo** (E1, api-contract §11): `example_id` es nullable en
+    `ModuleLessonDto` y `LessonDetailDto`. La regla de UI es que sin código **no hay affordance
+    de ejecución**: los CTA «Probar en el simulador» y «Descargar» **desaparecen**, no se
+    deshabilitan. Un botón muerto sugiere que falta algo cuando la lección conceptual está
+    completa tal cual. Igual en el resto: sin ejemplo no hay tabs de Código/Salida esperada, ni
+    dificultad, ni directivas, ni entrada en el selector del simulador, y `requires_gpu` no
+    aplica — una lección de teoría se lee en cualquier máquina — §6.5, §6.6.
+16. **`completion_rule` decide quién completa una lección** (E4): con `"viewed"` el estudiante la
+    marca desde la UI; con `"quiz"` o `"run"` el `completed` que envíe el cliente **se ignora** en
+    el servidor, así que la UI no debe ofrecer ese control — §6.6.

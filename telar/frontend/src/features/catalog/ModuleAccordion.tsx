@@ -2,6 +2,7 @@
 // head con número, título, descripción, level-tag y progreso REAL del
 // servidor (progress fusionado de /modules); aria-expanded en el botón.
 // M8 GPU: chip-amber `requiere GPU NVIDIA + gcc` + filas disabled + banner.
+// Fase 5: chip-blue «Actualización · v{n}» cuando el módulo tiene versión nueva.
 import type { ExampleSummaryDto, ModuleDto, ModuleLessonDto } from '../../api/types'
 import { IconAlert, IconChevronRight, IconPlay } from '../../components/icons/icons'
 import { Chip } from '../../components/ui/Chip'
@@ -10,21 +11,29 @@ import { LessonRow } from './LessonRow'
 
 export interface LessonRowSpec {
   lesson: ModuleLessonDto
-  kind: 'example' | 'quiz'
   index: number
 }
 
-/** Filas visibles del módulo según filtro + búsqueda (título lección/módulo). */
+/**
+ * Filas visibles del módulo según filtro + búsqueda (título de lección o de
+ * módulo). UNA fila por lección.
+ *
+ * Antes cada lección generaba DOS filas —«Ejemplo» y «Quiz»— que navegaban a la
+ * misma pantalla y solo se diferenciaban en el ancla, lo que inflaba el catálogo
+ * al doble y hacía que el contador dijera 28 donde hay 14 cosas (hallazgo F2).
+ * Ahora la fila es una y lleva ambas metas; el acceso directo al quiz lo da el
+ * FILTRO: con `filter === 'quiz'` la fila ancla en la sección del quiz.
+ */
 export function visibleRows(module: ModuleDto, filter: CatalogFilter, query: string): LessonRowSpec[] {
   const q = query.trim().toLowerCase()
   const moduleMatches = q === '' || module.title.toLowerCase().includes(q)
   const lessons = [...module.lessons].sort((a, b) => a.order - b.order)
   return lessons.flatMap((lesson, i) => {
     if (!moduleMatches && !lesson.title.toLowerCase().includes(q)) return []
-    const rows: LessonRowSpec[] = []
-    if (filter !== 'quiz') rows.push({ lesson, kind: 'example', index: i + 1 })
-    if (filter !== 'example' && lesson.has_quiz) rows.push({ lesson, kind: 'quiz', index: i + 1 })
-    return rows
+    // El filtro selecciona LECCIONES por lo que contienen, no artefactos sueltos.
+    if (filter === 'quiz' && !lesson.has_quiz) return []
+    if (filter === 'example' && lesson.example_id === null) return []
+    return [{ lesson, index: i + 1 }]
   })
 }
 
@@ -36,6 +45,14 @@ export interface ModuleAccordionProps {
   query: string
   examplesIndex: Map<string, ExampleSummaryDto> | null
   lastLessonId: string | null
+  /**
+   * Fase 5 — versión publicada que este módulo aún no tiene, o `null` si está
+   * al día (o si no se sabe: el catálogo no respondió). Solo pinta un chip
+   * INFORMATIVO; la acción de actualizar vive en `/modulos`, porque la
+   * cabecera ya es un `<button>` y meterle otro control dentro sería HTML
+   * inválido y dejaría el segundo control fuera del alcance del teclado.
+   */
+  updateVersion?: number | null
   /** gpu_examples_enabled de GET /system (M8). */
   gpuEnabled: boolean
 }
@@ -48,14 +65,20 @@ export function ModuleAccordion({
   query,
   examplesIndex,
   lastLessonId,
+  updateVersion = null,
   gpuEnabled,
 }: ModuleAccordionProps) {
   const done = module.lessons.filter((l) => l.progress.completed).length
   const total = module.lessons.length
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
   const rows = visibleRows(module, filter, query)
-  const requiresGpu = module.lessons.some(
-    (l) => examplesIndex?.get(l.example_id)?.requires_gpu ?? !l.enabled,
+  // Solo las lecciones CON ejemplo pueden requerir GPU: una conceptual se lee
+  // en cualquier máquina. El `?? !l.enabled` es el respaldo de cuando el índice
+  // de ejemplos aún no cargó.
+  const requiresGpu = module.lessons.some((l) =>
+    l.example_id == null
+      ? false
+      : (examplesIndex?.get(l.example_id)?.requires_gpu ?? !l.enabled),
   )
   const gpuLocked = requiresGpu && !gpuEnabled
   const bodyId = `module-body-${module.id}`
@@ -76,6 +99,7 @@ export function ModuleAccordion({
             <span className="mono-small">
               <IconPlay size={10} /> {total} {total === 1 ? 'lección' : 'lecciones'}
             </span>
+            {updateVersion != null && <Chip tone="blue">Actualización · v{updateVersion}</Chip>}
             {requiresGpu && <Chip tone="amber">requiere GPU NVIDIA + gcc</Chip>}
           </span>
         </span>
@@ -101,15 +125,26 @@ export function ModuleAccordion({
             </div>
           )}
           {rows.length === 0 && <div className="cat-empty mono-small">Sin resultados para este filtro.</div>}
-          {rows.map(({ lesson, kind, index }) => (
+          {rows.map(({ lesson, index }) => (
             <LessonRow
-              key={`${lesson.id}-${kind}`}
+              key={lesson.id}
               lesson={lesson}
-              kind={kind}
               index={index}
-              estRunSeconds={examplesIndex?.get(lesson.example_id)?.est_run_seconds}
+              estRunSeconds={
+                lesson.example_id != null
+                  ? examplesIndex?.get(lesson.example_id)?.est_run_seconds
+                  : undefined
+              }
               current={lesson.id === lastLessonId}
-              disabled={!lesson.enabled || (gpuLocked && (examplesIndex?.get(lesson.example_id)?.requires_gpu ?? true))}
+              disabled={
+                !lesson.enabled ||
+                (gpuLocked &&
+                  lesson.example_id != null &&
+                  (examplesIndex?.get(lesson.example_id)?.requires_gpu ?? true))
+              }
+              /* Con el filtro en «Quizzes», la fila lleva directo a la sección
+                 del quiz: el acceso que antes daba la fila duplicada. */
+              anchorQuiz={filter === 'quiz'}
             />
           ))}
         </div>

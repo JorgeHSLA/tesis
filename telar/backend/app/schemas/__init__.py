@@ -2,7 +2,8 @@
 
 TRANSCRIPCIÓN LITERAL de ``docs/architecture/api-contract.md`` (CONGELADO):
 envelope genérico, salud/sistema, ejemplos, módulos/lecciones, quizzes,
-progreso, jobs, mensajes WebSocket y autoría/admin (§10). Sin lógica: solo
+progreso, jobs, mensajes WebSocket, autoría/admin (§10) y catálogo remoto
+(§11). Sin lógica: solo
 shapes. No añadir, quitar ni renombrar campos sin actualizar el contrato
 primero.
 
@@ -12,7 +13,8 @@ siga funcionando sin cambios en los importadores. El orden de import respeta
 las dependencias: ``envelope`` y los tipos compartidos (``ParserId``,
 ``QuizOptionKey``, ``FILENAME_PATTERN``/``JobStatus``) se cargan antes que
 quienes los reutilizan (``jobs`` → ``examples``; ``ws`` → ``jobs``;
-``admin`` → ``examples``/``jobs``/``quizzes``).
+``admin`` → ``examples``/``jobs``/``quizzes``; ``catalog`` → ``admin``;
+``updates`` → ``catalog``).
 """
 
 # §1 Envelope + tipos compartidos (base del paquete).
@@ -118,6 +120,7 @@ from .admin import (
     AdminExampleUpdate,
     AdminLessonBase,
     AdminLessonCreate,
+    AdminLessonExampleCreate,
     AdminLessonDetail,
     AdminLessonRef,
     AdminLessonUpdate,
@@ -134,6 +137,71 @@ from .admin import (
     AdminReorderItem,
     AdminReorderRequest,
 )
+
+# §11 Catálogo remoto de módulos publicables, Fase 5 (reutiliza ID_PATTERN,
+# AdminExampleBase/AdminQuizQuestion/AdminQuizOption/AdminRecommended de §10).
+from .catalog import (
+    BUNDLE_FORMAT,
+    CHECKSUM_PATTERN,
+    INDEX_FORMAT,
+    OBJECT_PATH_PATTERN,
+    TIMESTAMP_PATTERN,
+    BundleExample,
+    BundleLesson,
+    BundleModule,
+    BundleQuiz,
+    BundleQuizOption,
+    BundleQuizQuestion,
+    BundleRecommended,
+    CatalogIndex,
+    CatalogIndexEntry,
+    CatalogSource,
+    CatalogStatusResponse,
+    CatalogStatusSummary,
+    CompletionRule,
+    ContentWarning,
+    InstallRequest,
+    InstallResult,
+    InstalledModuleStatus,
+    InstalledState,
+    LessonChange,
+    LessonDiffEntry,
+    ModuleBundle,
+    ModuleOrigin,
+    ModuleUpdatePreview,
+    ProgressEffect,
+    ProgressEffectSummary,
+    RemoteCatalogResponse,
+    RemoteLessonPreview,
+    RemoteModuleDetail,
+    RemoteModuleSummary,
+    RemoteState,
+    UninstallResult,
+    UpdateRequest,
+)
+
+# Fase 5 — tipos del PLAN de actualización (no son contrato HTTP: los produce
+# services/module_merge.py). ``ProgressEffect`` se reexporta como
+# ``MergeProgressEffect`` a propósito: el del plan es el vocabulario posterior a
+# R3/R4 (``rescored``/``archived``) y el de §11.11.1 sigue siendo el del cable
+# (``reset``/``orphaned``). Son el mismo mecanismo con distinto nombre y la
+# que uno tapara al otro en silencio.
+from .updates import (
+    ConflictField,
+    InvalidatedScore,
+    LessonMove,
+    MergeConflict,
+    MergePlan,
+    MergeWarning,
+    OnRemovedLessons,
+    ProgressOp,
+    RecommendedPrune,
+    UpdateLessonsReport,
+    UpdateProgressReport,
+    UpdateReport,
+    UpdateStatus,
+)
+from .updates import ProgressEffect as MergeProgressEffect
 
 __all__ = [
     # §1 Envelope
@@ -222,6 +290,7 @@ __all__ = [
     "AdminExampleCodeResult",
     "AdminLessonBase",
     "AdminLessonCreate",
+    "AdminLessonExampleCreate",
     "AdminLessonUpdate",
     "AdminLessonDetail",
     "AdminQuizOption",
@@ -229,4 +298,58 @@ __all__ = [
     "AdminQuizUpsert",
     "AdminQuiz",
     "AdminDeleteResult",
+    # §11 Catálogo remoto (Fase 5) — formato de intercambio
+    "BUNDLE_FORMAT",
+    "INDEX_FORMAT",
+    "CHECKSUM_PATTERN",
+    "OBJECT_PATH_PATTERN",
+    "TIMESTAMP_PATTERN",
+    "CompletionRule",
+    "ModuleOrigin",
+    "RemoteState",
+    "InstalledState",
+    "CatalogSource",
+    "ProgressEffect",
+    "LessonChange",
+    "BundleRecommended",
+    "BundleQuizOption",
+    "BundleExample",
+    "BundleQuizQuestion",
+    "BundleQuiz",
+    "BundleLesson",
+    "BundleModule",
+    "ModuleBundle",
+    "CatalogIndexEntry",
+    "CatalogIndex",
+    # §11 Catálogo remoto — respuestas
+    "RemoteModuleSummary",
+    "RemoteCatalogResponse",
+    "RemoteLessonPreview",
+    "ContentWarning",
+    "RemoteModuleDetail",
+    "InstalledModuleStatus",
+    "CatalogStatusSummary",
+    "CatalogStatusResponse",
+    "InstallRequest",
+    "UpdateRequest",
+    "LessonDiffEntry",
+    "ProgressEffectSummary",
+    "ModuleUpdatePreview",
+    "InstallResult",
+    "UninstallResult",
+    # Fase 5 — plan de actualización (interno, no contrato HTTP)
+    "MergeProgressEffect",
+    "OnRemovedLessons",
+    "UpdateStatus",
+    "ConflictField",
+    "MergeConflict",
+    "MergeWarning",
+    "LessonMove",
+    "RecommendedPrune",
+    "ProgressOp",
+    "MergePlan",
+    "InvalidatedScore",
+    "UpdateLessonsReport",
+    "UpdateProgressReport",
+    "UpdateReport",
 ]

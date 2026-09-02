@@ -36,7 +36,7 @@ describe('TopBar', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Buscar/i }))
 
-    expect(screen.getByTestId('pathname')).toHaveTextContent('/cursos')
+    expect(screen.getByTestId('pathname')).toHaveTextContent('/aprender')
     expect(screen.getByTestId('focus-search')).toHaveTextContent('true')
   })
 

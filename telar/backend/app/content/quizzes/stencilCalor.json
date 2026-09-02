@@ -25,7 +25,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Explicación literal del info."
+      "explanation": "Es un doble buffer: se lee de u y se escribe en u_new. Con una sola malla, un punto leería valores de vecinos YA actualizados en el mismo paso de tiempo, mezclando dos instantes distintos y dando una física incorrecta."
     },
     {
       "id": "stencilCalor-q2",
@@ -75,7 +75,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Patrón del info."
+      "explanation": "Hay UNA sola región parallel para toda la simulación: el bucle de tiempo lo ejecutan todos los hilos de forma replicada y los for huérfanos de dentro reparten el trabajo de cada paso. Así el costo de crear el equipo se paga una vez y no en cada iteración temporal."
     },
     {
       "id": "stencilCalor-q4",

@@ -19,3 +19,4 @@ dist/
 # registrados en `git worktree list` — quitar con `git worktree remove`),
 # settings.local.json (config por máquina) y skills locales.
 .claude/
+.coverage

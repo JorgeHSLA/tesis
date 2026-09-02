@@ -28,12 +28,17 @@ export function ExamplePicker({ modules, value, onChange, compact, disabled }: E
       <option value="">Código propio (editor)</option>
       {modules.map((m) => (
         <optgroup key={m.id} label={`M${m.order} · ${m.title}`}>
-          {m.lessons.map((l) => (
-            <option key={l.id} value={l.example_id} disabled={!l.enabled}>
-              {l.title}
-              {!l.enabled ? ' — requiere GPU' : ''}
-            </option>
-          ))}
+          {/* E1: el selector ofrece EJEMPLOS. Una lección conceptual no tiene
+              código que precargar, así que no aparece aquí — no como opción
+              deshabilitada, sino directamente ausente. */}
+          {m.lessons
+            .filter((l) => l.example_id != null)
+            .map((l) => (
+              <option key={l.id} value={l.example_id as string} disabled={!l.enabled}>
+                {l.title}
+                {!l.enabled ? ' — requiere GPU' : ''}
+              </option>
+            ))}
         </optgroup>
       ))}
     </select>

@@ -75,7 +75,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "El info lo dice: \"hay que proteger la suma\"."
+      "explanation": "zsh es shared: una sola variable para todos los hilos. Y `+= 1` no es una operación indivisible, son tres pasos (leer, sumar, escribir); sin critical, dos hilos pueden leer el mismo valor y una de las dos sumas se pierde."
     },
     {
       "id": "entornoDatos-q4",
@@ -125,7 +125,7 @@
         }
       ],
       "correct_key": "c",
-      "explanation": "Nota del info: \"master NO esta implementado (usa single)\"; single lo ejecuta un solo hilo (cualquiera, el primero que llegue)."
+      "explanation": "master no está implementado en pyomp 0.5.x. El sustituto es single, que también ejecuta el bloque una sola vez; la diferencia está en quién lo hace: master obliga al hilo 0, single lo deja en manos del primer hilo que llegue."
     }
   ]
 }

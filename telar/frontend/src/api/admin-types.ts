@@ -3,6 +3,7 @@
 // snake_case, envelope {success,data,error,meta}. Espejo de backend/app/schemas.py §10.
 // Los tipos de LECTURA (ModuleDto, LessonDetailDto, ExampleDetailDto, QuizDto…) siguen
 // viviendo en types.ts y NO se duplican aquí; esto es solo la superficie admin.
+import type { ContentWarningDto } from './catalog-types'
 import type { ParserId, QuizOptionKey } from './types'
 
 // El modo autoría ya NO usa login/token (2026-07-26): se gatea por build
@@ -167,4 +168,75 @@ export interface AdminQuizDto extends AdminQuizUpsertDto {
 export interface AdminDeleteResultDto {
   deleted: boolean
   id: string
+}
+
+// ── §11.8 Catálogo admin: credencial y publicación ──────────────────────────
+// TRANSCRIPCIÓN LITERAL de api-contract.md §11.11.4. Espejo de
+// backend/app/schemas/admin_catalog.py.
+
+/** §11.8.1 — por qué una credencial no sirve. Vocabulario CERRADO. */
+export type CredentialReason =
+  | 'absent'
+  | 'unreadable'
+  | 'insecure_mode'
+  | 'malformed'
+  | 'forbidden'
+
+/** §11.8.1 `GET /admin/catalog/credentials`. Responde 200 SIEMPRE. */
+export interface AdminCatalogCredentialStatusDto {
+  configured: boolean
+  usable: boolean
+  client_email: string | null
+  project_id: string | null
+  bucket: string | null
+  /** p. ej. `"0600"`. */
+  file_mode: string | null
+  /** ¿se contactó el bucket? Solo con `?probe=true`. */
+  probed: boolean
+  /** NUNCA el texto crudo de una excepción. */
+  reason: CredentialReason | null
+}
+
+/** §11.8.2 `POST /admin/modules/{id}/publish`. */
+export interface AdminPublishRequestDto {
+  /** Default: la publicada + 1. Debe ser estrictamente mayor. */
+  version?: number
+  /** `true` ⇒ NO escribe en el bucket: valida, serializa y avisa. */
+  dry_run?: boolean
+  notes?: string
+}
+
+export interface AdminPublishResultDto {
+  /** `false` con `dry_run`. */
+  published: boolean
+  module_id: string
+  version: number
+  checksum: string
+  object_path: string
+  generation: number | null
+  bytes: number
+  published_at: string
+  index_updated: boolean
+  lesson_ids: string[]
+  warnings: ContentWarningDto[]
+}
+
+/** §11.7 `POST /admin/catalog/import`. */
+export interface AdminImportRequestDto {
+  module_id: string
+  /** Default: la versión vigente del índice. */
+  version?: number
+  /** Presente ⇒ FORK: ids propios y sin vínculo con el bucket. */
+  as_module_id?: string | null
+  /** Default `as_module_id + "-"`. Un `""` explícito deja los ids como están. */
+  id_prefix?: string | null
+}
+
+export interface AdminImportResultDto {
+  mode: 'linked' | 'forked'
+  module: AdminModuleDto
+  /** `null` en fork: una copia con ids propios no tiene versión base que seguir. */
+  base_version: number | null
+  /** `null` en vinculado. En fork, qué id pasó a ser cuál. */
+  id_remap: Record<string, string> | null
 }

@@ -161,6 +161,9 @@ async def get_modules(
         questions_enabled_total=sum(
             quiz_total_for(content, lesson.id) for lesson in lessons if lesson.enabled
         ),
+        modules_installed=len(modules),
+        # Idem: sin manifiesto todavía, ninguno es actualizable.
+        modules_updatable=0,
     )
     return envelope_ok(ModulesResponse(modules=modules, summary=summary))
 
@@ -181,9 +184,11 @@ def _module_payload(
                 title=lesson.title,
                 example_id=lesson.example_id,
                 has_quiz=lesson.has_quiz,
+                has_video=lesson.video_url is not None,
                 quiz_question_count=lesson.quiz_question_count,
                 estimated_minutes=lesson.estimated_minutes,
                 enabled=lesson.enabled,
+                completion_rule=lesson.completion_rule,
                 progress=merge_progress(records.get(lesson_id), quiz_total),
             )
         )
@@ -194,5 +199,10 @@ def _module_payload(
         title=module.title,
         description=module.description,
         level=module.level,
+        version=module.version,
+        origin=module.origin,
+        # C13 lo alimentará desde `installed_modules.available_version`; hasta
+        # que exista el repositorio del manifiesto, nada tiene actualización.
+        update_available=None,
         lessons=lessons,
     )

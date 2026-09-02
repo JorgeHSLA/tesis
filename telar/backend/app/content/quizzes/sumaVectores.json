@@ -25,7 +25,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Info: \"hilo 0 toma 0-999, hilo 1 toma 1000-1999... y vuelta a empezar\"."
+      "explanation": "Reparte las iteraciones en bloques fijos de 1000 y los va dando a los hilos en round-robin: el hilo 0 toma 0-999, el hilo 1 toma 1000-1999, y al acabar la vuelta se empieza otra vez por el hilo 0."
     },
     {
       "id": "sumaVectores-q2",
@@ -50,7 +50,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Explicación literal del info."
+      "explanation": "`a + b` de NumPy usa un solo núcleo y además reserva el array del resultado; el bucle OpenMP usa los ocho y escribe sobre un array ya reservado. Ojo con la lectura: no dice que OpenMP sea mejor que NumPy, dice que ocho núcleos ganan a uno en una operación tan simple."
     },
     {
       "id": "sumaVectores-q3",
@@ -100,7 +100,7 @@
         }
       ],
       "correct_key": "c",
-      "explanation": "Así lo llama el info."
+      "explanation": "Validar siempre el resultado paralelo contra una referencia de confianza, aquí np.allclose(c, a + b). Un programa paralelo puede dar un número plausible y equivocado, y ninguna medición de speedup sirve si el resultado está mal."
     }
   ]
 }

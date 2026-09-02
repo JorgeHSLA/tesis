@@ -26,6 +26,7 @@ const PROGRESS_ENTRY: ProgressEntryDto = {
   best_quiz_score: null,
   quiz_total: 5,
   last_job_id: null,
+  completed_via: null,
   updated_at: '2026-07-12T09:30:00Z',
 }
 

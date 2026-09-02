@@ -49,6 +49,17 @@ export type ApiErrorCode =
   | 'ORDER_CONFLICT'
   | 'MODULE_NOT_EMPTY'
   | 'CONTENT_VALIDATION_ERROR'
+  // §11 Catálogo remoto — Fase 5
+  | 'REMOTE_MODULE_NOT_FOUND'
+  | 'MODULE_NOT_INSTALLED'
+  | 'MODULE_ALREADY_INSTALLED'
+  | 'VERSION_CONFLICT'
+  | 'CHECKSUM_MISMATCH'
+  | 'BUNDLE_TOO_LARGE'
+  | 'BUNDLE_INVALID'
+  | 'CATALOG_CREDENTIALS_INVALID'
+  | 'CATALOG_DISABLED'
+  | 'CATALOG_UNAVAILABLE'
 
 // ─────────────────────────── §2 Salud y sistema ────────────────────────────
 
@@ -79,6 +90,22 @@ export interface SystemLimitsDto {
   max_output_bytes: number
 }
 
+/**
+ * §2.2 (Fase 5, §11.12.A) — bloque `catalog` de `GET /system`.
+ *
+ * Sirve para que el frontend **oculte** el item «Módulos disponibles» del rail
+ * cuando este despliegue no tiene bucket, en vez de mostrarlo roto.
+ * `last_checked_at` es el último sondeo CONOCIDO —el que dejó
+ * `POST /catalog/refresh`—, nunca uno hecho dentro de esta petición:
+ * `/system` no puede bloquearse por la red.
+ */
+export interface SystemCatalogDto {
+  enabled: boolean
+  bucket: string | null
+  mode: 'anonymous' | 'admin'
+  last_checked_at: string | null
+}
+
 export interface SystemInfoDto {
   cores: number
   /** min(8, cores) — techo del slider. */
@@ -88,6 +115,8 @@ export interface SystemInfoDto {
   gpu_examples_enabled: boolean
   versions: SystemVersionsDto
   limits: SystemLimitsDto
+  /** Fase 5: `enabled=false` ⇒ el item del rail se oculta (§11.12.A). */
+  catalog: SystemCatalogDto
 }
 
 // ──────────────────────── §3 Catálogo de ejemplos ──────────────────────────
@@ -150,13 +179,21 @@ export interface ModuleLessonDto {
   id: string
   order: number
   title: string
-  example_id: string
+  /** Fase 5 (E1): `null` en una lección conceptual, sin código que ejecutar. */
+  example_id: string | null
   has_quiz: boolean
+  /** Fase 5: si tiene video, sin exponer la URL en el listado. */
+  has_video: boolean
   quiz_question_count: number
   estimated_minutes: number
   enabled: boolean
+  /** Fase 5 (E4): qué cuenta como completar esta lección. */
+  completion_rule: CompletionRule
   progress: LessonProgressDto
 }
+
+/** Fase 5 (E4) — qué cuenta como completar una lección. */
+export type CompletionRule = 'quiz' | 'viewed' | 'run'
 
 export interface ModuleDto {
   id: string
@@ -164,6 +201,12 @@ export interface ModuleDto {
   title: string
   description: string
   level: string
+  /** Fase 5: versión publicable del módulo (entero monótono). */
+  version: number
+  /** Fase 5: de dónde salió este módulo. */
+  origin: 'local' | 'remote'
+  /** Fase 5: versión disponible en el bucket, o `null` si está al día. */
+  update_available: number | null
   lessons: ModuleLessonDto[]
 }
 
@@ -173,6 +216,9 @@ export interface ModulesSummaryDto {
   lessons_completed: number
   quizzes_total: number
   questions_enabled_total: number
+  /** Fase 5: módulos instalados y cuántos tienen versión nueva. */
+  modules_installed: number
+  modules_updatable: number
 }
 
 export interface ModulesResponseDto {
@@ -193,11 +239,22 @@ export interface LessonDetailDto {
   order: number
   title: string
   content_markdown: string
-  example_id: string
+  /**
+   * Fase 5: URL del video de ESTA lección en YouTube no listado, ya
+   * normalizada por el servidor. `null` ⇒ el reproductor no se monta.
+   * Los videos nunca se descargan: viaja el enlace.
+   */
+  video_url: string | null
+  /** Fase 5 (E1): `null` en una lección conceptual. */
+  example_id: string | null
   has_quiz: boolean
   quiz_question_count: number
   estimated_minutes: number
   enabled: boolean
+  /** Fase 5 (E4). */
+  completion_rule: CompletionRule
+  /** Fase 5: retirada por una versión posterior de su módulo. */
+  archived: boolean
   prev_lesson_id: string | null
   next_lesson_id: string | null
   recommended: RecommendedLessonDto[]
@@ -276,6 +333,8 @@ export interface ProgressEntryDto {
   quiz_total: number
   last_job_id: string | null
   updated_at: string
+  /** Fase 5 (E4): cómo se completó, o `null` si aún no lo está. */
+  completed_via: 'quiz' | 'manual' | 'run' | null
 }
 
 export interface ProgressSummaryDto {

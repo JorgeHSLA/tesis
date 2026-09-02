@@ -22,6 +22,9 @@ const LESSON: LessonDetailDto = {
   module_id: 'm2',
   order: 3,
   title: 'π con patrón SPMD (false sharing)',
+  video_url: null,
+  completion_rule: 'quiz',
+  archived: false,
   content_markdown: '# π con SPMD\n\nCalcula π sin `parallel for`.',
   example_id: 'spmd',
   has_quiz: true,
@@ -99,15 +102,15 @@ describe('router (smoke de las 7 rutas)', () => {
     expect(await screen.findByText(/Resultados · transporteMonteCarlo\.py/, undefined, { timeout: 8000 })).toBeInTheDocument()
   })
 
-  it('/cursos → CatalogScreen', async () => {
+  it('/aprender → CatalogScreen', async () => {
     render(<RouterProvider router={router} />)
-    await goto('/cursos')
+    await goto('/aprender')
     expect(await screen.findByText('Catálogo de contenidos', undefined, { timeout: 8000 })).toBeInTheDocument()
   })
 
-  it('/cursos/:leccionId → LearnScreen', async () => {
+  it('/aprender/:leccionId → LearnScreen', async () => {
     render(<RouterProvider router={router} />)
-    await goto('/cursos/spmd')
+    await goto('/aprender/spmd')
     expect(await screen.findByRole('heading', { name: /π con patrón SPMD/ }, { timeout: 8000 })).toBeInTheDocument()
   })
 

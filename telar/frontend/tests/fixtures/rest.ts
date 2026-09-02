@@ -42,6 +42,14 @@ export const SYSTEM_INFO: SystemInfoDto = {
   gpu_examples_enabled: false,
   versions: { backend: '1.0.0', python: '3.12', pyomp: '0.5.1', api: 'v1' },
   limits: { max_code_bytes: 262144, max_timeout_s: 120, max_concurrent_jobs: 10, max_output_bytes: 262144 },
+  // Fase 5 (§11.12.A): despliegue CON bucket. `enabled: false` oculta el item
+  // «Módulos disponibles» del rail.
+  catalog: {
+    enabled: true,
+    bucket: 'telar-demo',
+    mode: 'anonymous',
+    last_checked_at: '2026-07-12T15:04:05.123Z',
+  },
 }
 
 /** Host con menos de 8 núcleos (aviso ámbar del sweep). */
@@ -62,6 +70,9 @@ export const MODULES: ModulesResponseDto = {
       description:
         'Reparto manual con omp_get_thread_num; false sharing y su arreglo (privado + critical).',
       level: 'Intermedio',
+      version: 1,
+      origin: 'local',
+      update_available: null,
       lessons: [
         {
           id: 'spmd',
@@ -69,9 +80,11 @@ export const MODULES: ModulesResponseDto = {
           title: 'π con patrón SPMD (false sharing)',
           example_id: 'spmd',
           has_quiz: true,
+          has_video: false,
           quiz_question_count: 5,
           estimated_minutes: 20,
           enabled: true,
+          completion_rule: 'quiz',
           progress: { viewed: true, completed: false, best_quiz_score: 4, quiz_total: 5 },
         },
         {
@@ -80,9 +93,11 @@ export const MODULES: ModulesResponseDto = {
           title: 'El arreglo: critical',
           example_id: 'spmdCritical',
           has_quiz: true,
+          has_video: false,
           quiz_question_count: 5,
           estimated_minutes: 20,
           enabled: true,
+          completion_rule: 'quiz',
           progress: { viewed: false, completed: false, best_quiz_score: null, quiz_total: 5 },
         },
       ],
@@ -94,7 +109,45 @@ export const MODULES: ModulesResponseDto = {
     lessons_completed: 5,
     quizzes_total: 14,
     questions_enabled_total: 60,
+    modules_installed: 8,
+    modules_updatable: 0,
   },
+}
+
+/**
+ * Catálogo con una lección CONCEPTUAL (E1: sin ejemplo, se completa leyéndola).
+ *
+ * Va aparte de `MODULES` a propósito: si la lección sin ejemplo entrara en el
+ * fixture compartido, la autoselección de `SimulatorIdle` la elegiría y el
+ * simulador arrancaría sin nada que ejecutar, rompiendo tests que no tienen
+ * nada que ver con esto.
+ */
+export const MODULES_CON_LECTURA: ModulesResponseDto = {
+  modules: [
+    {
+      ...MODULES.modules[0],
+      id: 'f1',
+      order: 1,
+      title: 'Fundamentos de paralelismo',
+      lessons: [
+        {
+          id: 'queEsUnHilo',
+          order: 1,
+          title: '¿Qué es un hilo?',
+          example_id: null,
+          has_quiz: false,
+          has_video: true,
+          quiz_question_count: 0,
+          estimated_minutes: 5,
+          enabled: true,
+          completion_rule: 'viewed',
+          progress: { viewed: false, completed: false, best_quiz_score: null, quiz_total: 0 },
+        },
+        MODULES.modules[0].lessons[0],
+      ],
+    },
+  ],
+  summary: { ...MODULES.summary, lessons_total: 15, modules_installed: 9 },
 }
 
 // ─────────────────────── §5.1 GET /lessons/{id}/quiz ─────────────────────────

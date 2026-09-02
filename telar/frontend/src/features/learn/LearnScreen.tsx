@@ -1,10 +1,17 @@
-// LearnScreen — lección (frontend-spec §6.6): LessonMedia (reproductor de video
-// + CTA chico al simulador) + LessonInfo
-// (markdown/código/salida esperada) + QuizRunner (modelo servidor) en la
-// columna principal; LessonSidebar + TracksCard en un DRAWER lateral oculto por
+// LearnScreen — lección (frontend-spec §6.6). Columna principal, en este orden:
+// LessonMedia (reproductor SOLO si la lección tiene video; si no, no se monta),
+// LessonInfo abierta (markdown/código/salida esperada) y QuizRunner (modelo
+// servidor). LessonSidebar + TracksCard van en un DRAWER lateral oculto por
 // defecto (2026-07: "Recomendado para ti" retirado; el panel módulo+progreso se
-// muestra/oculta con un botón). Al montar: progressStore.markViewed(id) →
-// PUT /progress (el backend es la fuente del progreso) y lastLessonId local.
+// muestra/oculta con un botón).
+//
+// C1 (2026-08): antes el primer bloque era un reproductor con placeholder «Video
+// próximamente» y LessonInfo nacía colapsada — con el mapa de videos vacío, la
+// pantalla abría sin mostrar la lección. Ahora el contenido manda y el video es
+// opcional.
+//
+// Al montar: progressStore.markViewed(id) → PUT /progress (el backend es la
+// fuente del progreso) y lastLessonId local.
 import '../../styles/screens/learn.css'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -41,7 +48,8 @@ function readSidePref(): boolean {
 
 interface LoadedLesson {
   lesson: LessonDetailDto
-  example: ExampleDetailDto
+  /** E1: `null` en una lección conceptual — no hay código que mostrar ni correr. */
+  example: ExampleDetailDto | null
 }
 
 export default function LearnScreen() {
@@ -93,7 +101,10 @@ export default function LearnScreen() {
     setError(null)
     getLesson(leccionId)
       .then(async (lesson) => {
-        const example = await getExample(lesson.example_id)
+        // E1: solo se pide el ejemplo si la lección tiene uno. Antes esto era
+        // incondicional porque toda lección traía código.
+        const example =
+          lesson.example_id != null ? await getExample(lesson.example_id) : null
         if (!alive) return
         setLoaded({ lesson, example })
         // markViewed tras confirmar que la lección existe (PUT + refresco).
@@ -129,7 +140,7 @@ export default function LearnScreen() {
           detail={error.message}
           onRetry={error.notFound ? undefined : () => setReloadKey((k) => k + 1)}
         >
-          <Button variant="outline" size="sm" onClick={() => navigate('/cursos')}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/aprender')}>
             Volver al catálogo
           </Button>
         </ErrorState>
@@ -147,11 +158,13 @@ export default function LearnScreen() {
           </div>
         </div>
         <div className={`learn-grid${sideOpen ? ' with-side' : ''}`} aria-hidden="true">
-          {/* El skeleton refleja la preferencia persistida del drawer para no
-              provocar layout-shift al hidratar (1→2 columnas). */}
+          {/* Silueta: contenido de la lección + quiz. Refleja la preferencia
+              persistida del drawer para no provocar layout-shift al hidratar
+              (1→2 columnas), y ya no reserva el hueco 16:9 del video, que solo
+              aparece si la lección tiene fuente. */}
           <div className="col" style={{ gap: 20 }}>
-            <Skeleton height={320} radius="var(--r-lg)" />
-            <Skeleton height={220} radius="var(--r-lg)" />
+            <Skeleton height={280} radius="var(--r-lg)" />
+            <Skeleton height={180} radius="var(--r-lg)" />
           </div>
           {sideOpen && (
             <div className="col" style={{ gap: 16 }}>
@@ -169,29 +182,42 @@ export default function LearnScreen() {
   const lessonIndex = module ? [...module.lessons].sort((a, b) => a.order - b.order).findIndex((l) => l.id === lesson.id) + 1 : lesson.order
   // Progreso fresco desde la caché (se actualiza tras el intento de quiz).
   const cachedProgress = module?.lessons.find((l) => l.id === lesson.id)?.progress ?? lesson.progress
-  const gpuLocked = example.requires_gpu && !(system.data?.gpu_examples_enabled ?? false)
-  const runDisabled = gpuLocked || !example.enabled
+  // Sin ejemplo no hay nada que bloquear: la lección se lee igual en cualquier
+  // máquina. `runDisabled` solo tiene sentido cuando hay código.
+  const gpuLocked =
+    example != null && example.requires_gpu && !(system.data?.gpu_examples_enabled ?? false)
+  const runDisabled = gpuLocked || (example != null && !example.enabled)
 
   return (
     <section className="screen learn">
       <div className="screen-head">
         <div>
-          <Button variant="ghost" size="sm" style={{ marginBottom: 10, paddingLeft: 6 }} onClick={() => navigate('/cursos')}>
+          <Button variant="ghost" size="sm" style={{ marginBottom: 10, paddingLeft: 6 }} onClick={() => navigate('/aprender')}>
             <IconChevronLeft size={14} /> Volver al catálogo
           </Button>
-          <div className="eyebrow">ZINE · Aprender</div>
+          <div className="eyebrow">Aprender</div>
           <h2 className="display-lg">{lesson.title}</h2>
           <div className="row" style={{ gap: 8, marginTop: 6 }}>
             {module && <Chip tone="orange">{module.title}</Chip>}
             <Chip>
               Módulo {module?.order ?? lesson.module_id} · Lección {lessonIndex}
             </Chip>
+            {/* C4: `estimated_minutes` se escribía en autoría y no llegaba a
+                ninguna pantalla. Es el tiempo de LECTURA, distinto del
+                `~{est_run_seconds}s` de ejecución que muestra el catálogo. */}
+            <Chip>~{lesson.estimated_minutes} min</Chip>
             {summary && (
               <span className="mono-small">
                 Progreso: {summary.lessons_completed}/{summary.lessons_total}
               </span>
             )}
           </div>
+          {/* C4: `teaches` es el resumen de una línea de qué enseña la lección;
+              tampoco se mostraba en ningún sitio. Vive en el EJEMPLO, así que
+              una lección conceptual no lo tiene (E1). */}
+          {example != null && example.teaches !== '' && (
+            <p className="learn-teaches">{example.teaches}</p>
+          )}
         </div>
         <div className="row">
           <Button
@@ -209,14 +235,14 @@ export default function LearnScreen() {
           <Button
             variant="outline"
             disabled={lesson.prev_lesson_id == null}
-            onClick={() => lesson.prev_lesson_id && navigate(`/cursos/${lesson.prev_lesson_id}`)}
+            onClick={() => lesson.prev_lesson_id && navigate(`/aprender/${lesson.prev_lesson_id}`)}
           >
             <IconChevronLeft size={14} /> Anterior
           </Button>
           <Button
             variant="primary"
             disabled={lesson.next_lesson_id == null}
-            onClick={() => lesson.next_lesson_id && navigate(`/cursos/${lesson.next_lesson_id}`)}
+            onClick={() => lesson.next_lesson_id && navigate(`/aprender/${lesson.next_lesson_id}`)}
           >
             Siguiente <IconChevronRight size={14} />
           </Button>
@@ -232,7 +258,13 @@ export default function LearnScreen() {
               <span>Esta lección requiere GPU NVIDIA + gcc; puedes leerla pero no ejecutarla.</span>
             </div>
           )}
-          <LessonMedia exampleId={example.id} filename={example.filename} runDisabled={runDisabled} />
+          <LessonMedia
+            lessonId={lesson.id}
+            videoUrl={lesson.video_url}
+            exampleId={example?.id ?? null}
+            filename={example?.filename ?? null}
+            runDisabled={runDisabled}
+          />
           <LessonInfo lesson={lesson} example={example} runDisabled={runDisabled} />
           {lesson.has_quiz && (
             <QuizRunner

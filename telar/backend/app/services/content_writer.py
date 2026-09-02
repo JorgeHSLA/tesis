@@ -33,6 +33,7 @@ from app.schemas import (
     AdminExampleBase,
     AdminExampleUpdate,
     AdminLessonCreate,
+    AdminLessonExampleCreate,
     AdminLessonDetail,
     AdminLessonUpdate,
     AdminModule,
@@ -45,6 +46,7 @@ from app.schemas import (
     AdminReorderItem,
     QUESTION_ID_PATTERN,
 )
+from app.services import youtube
 from app.services.markdown_validator import validate as validate_markdown
 
 if TYPE_CHECKING:
@@ -120,6 +122,51 @@ def _example_coherence_issues(ex: AdminExampleBase) -> list[dict]:
             }
         )
     return issues
+
+
+def _example_pairing_issues(example, source_code: str | None) -> list[dict]:
+    """``example`` y ``source_code`` viajan juntos o no viajan (E1)."""
+    if (example is None) == (source_code is None):
+        return []
+    falta = "source_code" if source_code is None else "example"
+    return [
+        {
+            "field": falta,
+            "reason": (
+                "El ejemplo y su código van juntos: envía ambos para una "
+                "lección con código, o ninguno para una lección conceptual."
+            ),
+        }
+    ]
+
+
+def _completion_rule_issues(rule: str, *, tiene_ejemplo: bool) -> list[dict]:
+    """E4 — la regla de completitud tiene que ser alcanzable.
+
+    Solo se comprueba ``"run"``. Elegirla es un acto deliberado del autor, y
+    hacerlo sin ejemplo es una incoherencia directa: no hay nada que ejecutar.
+
+    ``"quiz"`` **no** se comprueba aquí, aunque sea el caso que deja una lección
+    incompletable, porque durante la autoría es el estado NORMAL: la lección
+    nace sin quiz y el quiz se añade después con
+    ``PUT /admin/lessons/{id}/quiz``. Bloquear cada edición intermedia
+    convertiría el flujo de trabajo en una pelea con el validador.
+
+    Dónde sí se exige: al **publicar** un módulo y al **instalar** un bundle
+    (§10.6/§11.10), que es cuando el contenido llega a un estudiante y una
+    lección incompletable pasa de borrador a problema real.
+    """
+    if rule == "run" and not tiene_ejemplo:
+        return [
+            {
+                "field": "completion_rule",
+                "reason": (
+                    "'run' exige que la lección tenga ejemplo ejecutable; "
+                    "sin código no hay nada que ejecutar para completarla."
+                ),
+            }
+        ]
+    return []
 
 
 async def _recommended_issues(
@@ -312,7 +359,9 @@ async def create_lesson(
     app: "FastAPI", body: AdminLessonCreate
 ) -> AdminLessonDetail:
     db = app.state.db
-    _check_code_size(app, body.source_code)
+    # E1: sin ejemplo no hay código que medir.
+    if body.source_code is not None:
+        _check_code_size(app, body.source_code)
     async with app.state.write_lock:
         if not await content_admin.module_exists(db, body.module_id):
             raise ApiException(
@@ -322,22 +371,34 @@ async def create_lesson(
             raise ApiException(
                 "DUPLICATE_ID", f"El id de lección/ejemplo '{body.id}' ya existe."
             )
-        if await content_admin.lesson_order_taken(db, body.order):
+        # E2: el order es único DENTRO del módulo destino, ya no global.
+        if await content_admin.lesson_order_taken(db, body.module_id, body.order):
             raise ApiException(
-                "ORDER_CONFLICT", f"El order {body.order} de lección ya está en uso."
+                "ORDER_CONFLICT",
+                f"El order {body.order} ya está en uso en el módulo "
+                f"{body.module_id}.",
             )
         issues = validate_markdown(body.content_markdown)
+        issues += youtube.issues(body.video_url)
         # C2: el ejemplo va anidado (body.example); el path del error es
         # 'example.<campo>' para que el editor de lección posicione el hint.
-        issues += [
-            {**it, "field": f"example.{it['field']}"}
-            for it in _example_coherence_issues(body.example)
-        ]
+        if body.example is not None:
+            issues += [
+                {**it, "field": f"example.{it['field']}"}
+                for it in _example_coherence_issues(body.example)
+            ]
+        issues += _completion_rule_issues(
+            body.completion_rule, tiene_ejemplo=body.example is not None
+        )
+        issues += _example_pairing_issues(body.example, body.source_code)
         issues += await _recommended_issues(
             db, body.recommended, self_id=body.id
         )
         if issues:
             raise _content_error(issues)
+        body = body.model_copy(
+            update={"video_url": youtube.normalizar(body.video_url)}
+        )
         await _persist(
             app, lambda: content_admin.insert_lesson_with_example(db, body)
         )
@@ -359,18 +420,30 @@ async def update_lesson(
             raise ApiException(
                 "MODULE_NOT_FOUND", f"No existe el módulo {body.module_id}."
             )
+        # E2: contra el módulo DESTINO (`body.module_id`), que puede ser otro
+        # si la edición mueve la lección de módulo.
         if await content_admin.lesson_order_taken(
-            db, body.order, exclude_id=lesson_id
+            db, body.module_id, body.order, exclude_id=lesson_id
         ):
             raise ApiException(
-                "ORDER_CONFLICT", f"El order {body.order} de lección ya está en uso."
+                "ORDER_CONFLICT",
+                f"El order {body.order} ya está en uso en el módulo "
+                f"{body.module_id}.",
             )
         issues = validate_markdown(body.content_markdown)
+        issues += youtube.issues(body.video_url)
+        issues += _completion_rule_issues(
+            body.completion_rule,
+            tiene_ejemplo=await content_admin.lesson_has_example(db, lesson_id),
+        )
         issues += await _recommended_issues(
             db, body.recommended, self_id=lesson_id
         )
         if issues:
             raise _content_error(issues)
+        body = body.model_copy(
+            update={"video_url": youtube.normalizar(body.video_url)}
+        )
         await _persist(app, lambda: content_admin.update_lesson(db, lesson_id, body))
         result = await content_admin.select_admin_lesson_detail(db, lesson_id)
     assert result is not None
@@ -397,16 +470,23 @@ async def _reorder(
     exists,
     get_orders,
     persist_write,
+    clave_final,
+    pares,
     not_found_code: str,
     kind: str,
 ) -> AdminModulesResponse:
     """Valida y aplica un reorden por lote (BL-20, §10.2/§10.3).
 
     Reglas: sin ids repetidos en la petición; cada id existe
-    (``not_found_code``); el conjunto FINAL de ``order`` (filas tocadas +
-    intactas) es único y ``> 0`` (``ORDER_CONFLICT``). La escritura en dos fases
-    del repo evita violar el ``UNIQUE`` a mitad de transacción. Devuelve el
-    listado admin completo ya reordenado.
+    (``not_found_code``); el conjunto FINAL de CLAVES (filas tocadas + intactas)
+    es único (``ORDER_CONFLICT``). La escritura en dos fases del repo evita
+    violar el ``UNIQUE`` a mitad de transacción. Devuelve el listado admin
+    completo ya reordenado.
+
+    La clave depende de la entidad (E2): para módulos es el ``order`` a secas,
+    porque ``modules."order"`` sigue siendo único global; para lecciones es la
+    pareja ``(module_id, order)``. Por eso ``clave_final`` y ``pares`` se
+    inyectan en vez de asumir una forma única.
     """
     db = app.state.db
     async with app.state.write_lock:
@@ -424,15 +504,16 @@ async def _reorder(
                 not_found_code,
                 f"{kind} inexistente(s): {', '.join(missing)}.",
             )
-        current = await get_orders(db)  # {id: order} de TODAS las filas
-        final = {**current, **{it.id: it.order for it in items}}
+        current = await get_orders(db)  # {id: clave} de TODAS las filas
+        nuevas = {it.id: await clave_final(db, it) for it in items}
+        final = {**current, **nuevas}
         if len(set(final.values())) != len(final):
             raise ApiException(
                 "ORDER_CONFLICT",
                 "El reorden deja dos elementos con el mismo order.",
             )
-        pairs = [(it.id, it.order) for it in items]
-        await _persist(app, lambda: persist_write(db, pairs))
+        escrituras = [await pares(db, it) for it in items]
+        await _persist(app, lambda: persist_write(db, escrituras))
         modules = await content_admin.select_admin_modules(db)
     return AdminModulesResponse(modules=modules)
 
@@ -440,12 +521,20 @@ async def _reorder(
 async def reorder_modules(
     app: "FastAPI", items: list[AdminReorderItem]
 ) -> AdminModulesResponse:
+    async def _clave(_db, item: AdminReorderItem) -> int:
+        return item.order
+
+    async def _par(_db, item: AdminReorderItem) -> tuple[str, int]:
+        return (item.id, item.order)
+
     return await _reorder(
         app,
         items,
         exists=content_admin.module_exists,
         get_orders=content_admin.all_module_orders,
         persist_write=content_admin.reorder_modules,
+        clave_final=_clave,
+        pares=_par,
         not_found_code="MODULE_NOT_FOUND",
         kind="módulo",
     )
@@ -454,12 +543,29 @@ async def reorder_modules(
 async def reorder_lessons(
     app: "FastAPI", items: list[AdminReorderItem]
 ) -> AdminModulesResponse:
+    # `module_id` es OPCIONAL en el item (§10.3): si falta, se resuelve contra
+    # el módulo actual de la lección. Así los payloads de Fase 4, que no lo
+    # traían, siguen siendo válidos; enviarlo mueve además la lección de módulo.
+    async def _modulo(db, item: AdminReorderItem) -> str:
+        if item.module_id is not None:
+            return item.module_id
+        actuales = await content_admin.lesson_module_ids(db)
+        return actuales[item.id]
+
+    async def _clave(db, item: AdminReorderItem) -> tuple[str, int]:
+        return (await _modulo(db, item), item.order)
+
+    async def _par(db, item: AdminReorderItem) -> tuple[str, str, int]:
+        return (item.id, await _modulo(db, item), item.order)
+
     return await _reorder(
         app,
         items,
         exists=content_admin.lesson_exists,
         get_orders=content_admin.all_lesson_orders,
         persist_write=content_admin.reorder_lessons,
+        clave_final=_clave,
+        pares=_par,
         not_found_code="LESSON_NOT_FOUND",
         kind="lección",
     )
@@ -484,6 +590,66 @@ async def update_example(
         result = await content_admin.select_admin_example(db, example_id)
     assert result is not None
     return result
+
+
+async def add_example_to_lesson(
+    app: "FastAPI", lesson_id: str, body: AdminLessonExampleCreate
+) -> AdminExample:
+    """§10.3 ``POST /admin/lessons/{id}/example`` — dar código a una lección.
+
+    E1: el ejemplo dejó de nacer y morir con su lección, así que una lección
+    conceptual puede convertirse en práctica sin recrearla —y sin que su
+    progreso se pierda, que es lo que pasaría al borrarla y volver a crearla.
+    """
+    db = app.state.db
+    _check_code_size(app, body.source_code)
+    async with app.state.write_lock:
+        if not await content_admin.lesson_exists(db, lesson_id):
+            raise ApiException(
+                "LESSON_NOT_FOUND", f"No existe la lección {lesson_id}."
+            )
+        if await content_admin.lesson_has_example(db, lesson_id):
+            raise ApiException(
+                "DUPLICATE_ID",
+                f"La lección {lesson_id} ya tiene ejemplo; edítalo o bórralo.",
+            )
+        if await content_admin.example_exists(db, lesson_id):
+            raise ApiException(
+                "DUPLICATE_ID", f"El id de ejemplo '{lesson_id}' ya existe."
+            )
+        issues = _example_coherence_issues(body.example)
+        if issues:
+            raise _content_error(issues)
+        await _persist(
+            app,
+            lambda: content_admin.insert_example_for_lesson(
+                db, lesson_id, body.example, body.source_code
+            ),
+        )
+        result = await content_admin.select_admin_example(db, lesson_id)
+    assert result is not None
+    return result
+
+
+async def remove_example_from_lesson(app: "FastAPI", lesson_id: str) -> None:
+    """§10.3 ``DELETE /admin/lessons/{id}/example`` — la lección pasa a teórica.
+
+    Borra SOLO el ejemplo. La lección, su quiz y —sobre todo— el progreso del
+    estudiante siguen intactos: ese es el punto de haber desacoplado los ids.
+    """
+    db = app.state.db
+    async with app.state.write_lock:
+        if not await content_admin.lesson_exists(db, lesson_id):
+            raise ApiException(
+                "LESSON_NOT_FOUND", f"No existe la lección {lesson_id}."
+            )
+        if not await content_admin.lesson_has_example(db, lesson_id):
+            raise ApiException(
+                "EXAMPLE_NOT_FOUND", f"La lección {lesson_id} no tiene ejemplo."
+            )
+        await _persist(
+            app, lambda: content_admin.delete_example_of_lesson(db, lesson_id)
+        )
 
 
 async def set_example_code(

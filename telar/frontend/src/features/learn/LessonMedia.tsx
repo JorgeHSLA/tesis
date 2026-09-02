@@ -1,64 +1,89 @@
-// LessonMedia — el bloque grande de la lección es un REPRODUCTOR DE VIDEO
-// (queja #3, 2026-07; sustituye al antiguo CodeShowcase de código). La fuente
-// (mp4 en disco o URL externa) la resuelve `lessonVideos.ts`; si no hay ninguna,
-// muestra un placeholder "Video próximamente". Debajo, un CTA SECUNDARIO chico
-// "Ejecutar en el simulador" (el CTA primario naranja "Probar en el simulador"
-// sigue en LessonInfo). El video NO hace autoplay (nunca con sonido) y usa los
-// controles nativos; `prefers-reduced-motion` se respeta al no autoreproducir.
+// LessonMedia — reproductor de video de la lección, OPCIONAL.
+//
+// El video es un embed de YouTube NO LISTADO (una URL, nunca un .mp4
+// descargado), así que el reproductor es un <iframe> al dominio sin cookies
+// `youtube-nocookie.com`. La URL la normaliza y valida `lessonVideos.ts` antes
+// de llegar aquí; la CSP de Electron acota el origen permitido
+// (electron-spec.md §7.1).
+//
+// C1: el componente NO pinta placeholder «Video próximamente». Sin fuente
+// devuelve `null` y la lección empieza directamente por su contenido, en vez
+// de abrir con un hueco gris.
+//
+// E1: la lección puede no tener ejemplo. Entonces no hay CTA al simulador —no
+// un botón deshabilitado, sino ninguno—: no existe código que ejecutar.
+//
+// Accesibilidad: el `title` del iframe es su nombre accesible (WCAG 4.1.2).
+// Los subtítulos (WCAG 1.2.2) pasan a ser responsabilidad del video en YouTube:
+// hay que activarlos al subirlo, no hay `<track>` que añadir aquí.
 import { useNavigate } from 'react-router-dom'
 import { IconPlay } from '../../components/icons/icons'
-import { resolveLessonVideo } from './lessonVideos'
+import { resolveLessonVideo, resolveYouTubeEmbed } from './lessonVideos'
 
 export interface LessonMediaProps {
-  exampleId: string
-  filename: string
+  lessonId: string
+  /**
+   * URL de YouTube servida por la API (`LessonDetailDto.video_url`). Si es
+   * `undefined` se cae al mapa local por `exampleId`, el puente que queda
+   * mientras haya contenido sembrado sin el campo.
+   */
+  videoUrl?: string | null
+  /** E1: `null` en una lección conceptual. */
+  exampleId: string | null
+  /** E1: `null` cuando no hay ejemplo. */
+  filename: string | null
   /** Lección GPU sin GPU / deshabilitada: el CTA al simulador queda disabled. */
   runDisabled: boolean
 }
 
-export function LessonMedia({ exampleId, filename, runDisabled }: LessonMediaProps) {
+export function LessonMedia({
+  lessonId,
+  videoUrl,
+  exampleId,
+  filename,
+  runDisabled,
+}: LessonMediaProps) {
   const navigate = useNavigate()
-  const videoSrc = resolveLessonVideo(exampleId)
-  const run = () => navigate(`/simulador?ejemplo=${encodeURIComponent(exampleId)}`)
+  const embedSrc =
+    videoUrl === undefined
+      ? exampleId != null
+        ? resolveLessonVideo(exampleId)
+        : null
+      : resolveYouTubeEmbed(videoUrl)
+
+  // Sin video no hay bloque: la lección arranca por su contenido, no por un hueco.
+  if (embedSrc === null) return null
+
+  const run = () => {
+    if (exampleId != null) navigate(`/simulador?ejemplo=${encodeURIComponent(exampleId)}`)
+  }
 
   return (
     <div className="lesson-media">
       <div className="lesson-media-screen">
-        {videoSrc ? (
-          // TODO(a11y, WCAG 1.2.2): cuando existan videos reales, añadir un
-          // <track kind="captions"> por lección. El valor de LESSON_VIDEOS puede
-          // evolucionar de string a { src, captions } sin tocar contratos.
-          <video
-            className="lesson-media-video"
-            src={videoSrc}
-            controls
-            preload="metadata"
-            playsInline
-            aria-label={`Video de la lección (${filename})`}
+        <iframe
+          className="lesson-media-video"
+          src={embedSrc}
+          title={`Video de la lección (${filename ?? lessonId})`}
+          loading="lazy"
+          referrerPolicy="strict-origin-when-cross-origin"
+          allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+          allowFullScreen
+        />
+      </div>
+      {exampleId != null && (
+        <div className="lesson-media-foot">
+          <span className="mono-small">{filename}</span>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={run}
+            disabled={runDisabled}
           >
-            Tu navegador no puede reproducir este video.
-          </video>
-        ) : (
-          <div className="lesson-media-placeholder" role="note">
-            <span className="lesson-media-placeholder-icon" aria-hidden="true">
-              <IconPlay size={26} />
-            </span>
-            <span className="lesson-media-placeholder-title">Video próximamente</span>
-            <span className="lesson-media-placeholder-sub">Esta lección aún no tiene video.</span>
-          </div>
-        )}
-      </div>
-      <div className="lesson-media-foot">
-        <span className="mono-small">{filename}</span>
-        <button
-          type="button"
-          className="btn btn-outline btn-sm"
-          onClick={run}
-          disabled={runDisabled}
-        >
-          <IconPlay size={14} /> Ejecutar en el simulador
-        </button>
-      </div>
+            <IconPlay size={14} /> Ejecutar en el simulador
+          </button>
+        </div>
+      )}
     </div>
   )
 }

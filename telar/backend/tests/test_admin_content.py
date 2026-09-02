@@ -663,8 +663,16 @@ def test_bl06_delete_quiz_resetea_progreso(client, auth):
 def test_bl38_leccion_completada_y_deshabilitada_no_cuenta(client, auth):
     """Una lección completada que luego se deshabilita no debe contar en
     ``lessons_completed`` (podría superar ``lessons_enabled``)."""
-    put = client.put("/api/v1/progress/lessons/spmd", json={"completed": True})
-    assert put.status_code == 200
+    # E4: `spmd` se completa aprobando su quiz; PUT /progress ya no puede
+    # marcarla. El GET admin del quiz SÍ trae la clave correcta (§10.5), que es
+    # justo para lo que sirve aquí.
+    quiz = client.get("/api/v1/admin/lessons/spmd/quiz", headers=auth).json()["data"]
+    respuestas = {q["id"]: q["correct_key"] for q in quiz["questions"]}
+    intento = client.post(
+        "/api/v1/lessons/spmd/quiz/attempts", json={"answers": respuestas}
+    )
+    assert intento.status_code == 201, intento.text
+    assert intento.json()["data"]["passed"] is True
     before = client.get("/api/v1/modules").json()["data"]["summary"]
     assert before["lessons_completed"] == 1
     assert before["lessons_enabled"] == 13

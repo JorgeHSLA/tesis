@@ -58,6 +58,26 @@ def _build_docker_service(settings: Settings) -> Any:
     return DockerService(settings)
 
 
+def _build_catalog_client(settings: Settings) -> Any:
+    """Adaptador del catálogo remoto, o ``None`` si este despliegue no tiene.
+
+    ``build_catalog_client`` devuelve ``None`` cuando ``TELAR_CATALOG_BUCKET``
+    está vacío: **un solo sitio decide «desactivado»** (§11.1), para que
+    ``/system`` y los routers de §11 no puedan discrepar.
+
+    Un ``CatalogConfigError`` (bucket con nombre imposible, endpoint local que
+    no es loopback) NO tumba el arranque, y es deliberado: el catálogo es una
+    función opcional de una app de escritorio, y §11.0.8 dice que ``/cursos`` no
+    puede quedar rehén del bucket. Se registra el error, ``app.state.catalog``
+    queda en ``None`` y §11 responde ``503 CATALOG_UNAVAILABLE`` mientras el
+    resto de la app —cursos instalados, quizzes, jobs— sigue intacta. Es el
+    mismo criterio de liveness ≠ readiness que ya se aplica al docker service.
+    """
+    from app.services.catalog_client import build_catalog_client
+
+    return build_catalog_client(settings)
+
+
 async def _seed_content_if_unseeded(db_conn: Any) -> None:
     """Auto-seed gobernado por el marcador persistente ``content_seeded_at``
     (BL-21): «lessons vacía» no distingue "nunca sembrada" de "vaciada a
@@ -122,6 +142,19 @@ def create_app(
         app.state.docker = docker
         app.state.docker_service = docker  # alias esperado por routers WP2
 
+        # Puerto de LECTURA del catálogo remoto (§11.2). Es el único módulo del
+        # lado estudiante que sale a la red, y aquí es lo único que se hace con
+        # él: construirlo. Ninguna petición se dispara en el arranque —sondear
+        # el bucket en el lifespan bloquearía el arranque tras un timeout.
+        try:
+            app.state.catalog = _build_catalog_client(cfg)
+        except Exception:
+            logger.exception(
+                "Configuración de catálogo remoto inutilizable; §11 responderá "
+                "503 CATALOG_UNAVAILABLE"
+            )
+            app.state.catalog = None
+
         await _reap_orphans(docker, db_conn)
 
         # Repositorios de estado (firmas congeladas data-model §5) y runner
@@ -152,6 +185,15 @@ def create_app(
             if runner is not None:
                 # retenciones de handles terminales y kills en vuelo (§3.4)
                 await runner.shutdown()
+            catalog = getattr(app.state, "catalog", None)
+            if catalog is not None:
+                # El pool de conexiones es del adaptador; por eso `aclose()` sí
+                # está en `CatalogReadPort` y el lifespan puede cerrarlo sin
+                # saber qué driver hay detrás.
+                try:
+                    await catalog.aclose()
+                except Exception:  # pragma: no cover - cerrar no rompe el apagado
+                    logger.debug("aclose() del catálogo falló", exc_info=True)
             await db_conn.close()
 
     app = FastAPI(title="Telar API", version=BACKEND_VERSION, lifespan=lifespan)
@@ -172,6 +214,7 @@ def _include_routers(app: FastAPI) -> None:
     completos (incluido el prefijo ``/api/v1`` y ``/ws``): se incluyen sin
     ``prefix``."""
     from app.routers import (
+        catalog,
         examples,
         jobs,
         lessons,
@@ -198,6 +241,16 @@ def _include_routers(app: FastAPI) -> None:
     except ImportError:
         _admin = None
 
+    # §11.7/§11.8: el catálogo ADMIN sigue la misma regla de artefacto que
+    # `routers/admin`. Se importa aparte y no dentro del `try` de arriba porque
+    # son dos archivos independientes: en un build admin podría faltar uno y no
+    # el otro, y un solo `try` haría que la ausencia de este apagara también el
+    # CRUD de §10.
+    try:
+        from app.routers import admin_catalog as _admin_catalog
+    except ImportError:
+        _admin_catalog = None
+
     app.include_router(system_router.router)
     app.include_router(examples.router)
     app.include_router(modules.router)
@@ -206,8 +259,16 @@ def _include_routers(app: FastAPI) -> None:
     app.include_router(progress.router)
     app.include_router(jobs.router)
     app.include_router(ws.router)
+    # §11.2: `routers/catalog.py` viaja en AMBAS imágenes (a diferencia del
+    # router admin), así que se importa sin `try`. Su gate no es de artefacto
+    # sino de configuración: sin `TELAR_CATALOG_BUCKET` responde
+    # 503 CATALOG_DISABLED, que es lo que el frontend necesita para esconder el
+    # item del rail en vez de mostrarlo roto.
+    app.include_router(catalog.router)
     if _admin is not None:
         app.include_router(_admin.router)  # §10.2-§10.6 CRUD admin (gate runtime TELAR_ADMIN_MODE)
+    if _admin_catalog is not None:
+        app.include_router(_admin_catalog.router)  # §11.7-§11.8 (gate runtime idéntico)
 
 
 app = create_app()

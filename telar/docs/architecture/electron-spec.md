@@ -479,6 +479,16 @@ const CSP = [
   "font-src 'self' data:",
   `connect-src 'self' ${API_ORIGIN} ${WS_ORIGIN}` +
     (process.env.VITE_DEV_SERVER_URL ? ' http://localhost:5173 ws://localhost:5173' : ''),
+  // Los videos de las lecciones son embeds de YouTube NO LISTADO (URLs, nunca
+  // .mp4 descargados), así que el reproductor es un <iframe> a un origen
+  // externo. Con `default-src 'self'` y sin `frame-src`, ese iframe se bloquea.
+  // Se admite EXCLUSIVAMENTE el dominio nocookie de YouTube: es el modo sin
+  // cookies de seguimiento y deja fuera el resto de youtube.com.
+  // `resolveYouTubeEmbed` (frontend) normaliza toda URL de video a este origen
+  // y descarta cualquier otra, así que el iframe nunca recibe una URL arbitraria
+  // del catálogo remoto. Los dos controles son independientes a propósito:
+  // el frontend valida el contenido, la CSP acota el daño si esa validación falla.
+  "frame-src https://www.youtube-nocookie.com",
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'none'",

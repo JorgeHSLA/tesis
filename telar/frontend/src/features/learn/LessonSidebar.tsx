@@ -52,14 +52,17 @@ export function LessonSidebar({ module, currentLessonId, examplesIndex }: Lesson
           {lessons.map((lesson, i) => {
             const current = lesson.id === currentLessonId
             const isDone = lesson.progress.completed
-            const est = examplesIndex?.get(lesson.example_id)?.est_run_seconds
+            const est =
+              lesson.example_id != null
+                ? examplesIndex?.get(lesson.example_id)?.est_run_seconds
+                : undefined
             return (
               <button
                 key={lesson.id}
                 type="button"
                 className={`lesson-side ${current ? 'current' : ''}${isDone ? ' done' : ''}`}
                 aria-current={current ? 'true' : undefined}
-                onClick={() => navigate(`/cursos/${lesson.id}`)}
+                onClick={() => navigate(`/aprender/${lesson.id}`)}
               >
                 <span className="lesson-num-badge">
                   {isDone ? <IconCheck size={11} /> : <span className="mono">{String(i + 1).padStart(2, '0')}</span>}

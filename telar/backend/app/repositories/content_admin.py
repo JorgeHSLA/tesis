@@ -8,9 +8,11 @@ markdown, coherencia threads/GPU, refs) vive en ``services/content_writer.py``;
 la orquestación bajo ``write_lock`` + ``reload_content`` también.
 
 Contratos:
-- Invariante ``lesson_id == example_id`` (§10.1): al crear una lección se inserta
-  su ejemplo pareado con el MISMO id en la MISMA transacción; el borrado en
-  cascada (FK ``ON DELETE CASCADE``) elimina ejemplo + quiz.
+- El invariante ``lesson_id == example_id`` quedó **derogado** en Fase 5
+  (§10.1): el ejemplo tiene id propio y se relaciona por ``examples.lesson_id``,
+  que es de donde cuelga ahora el ``ON DELETE CASCADE``. La ruta admin todavía
+  crea ambos con el mismo id en la MISMA transacción y no sabe crear una lección
+  sin ejemplo: eso llega en C7. Lo que ya rige es la relación por columna.
 - Listas cortas/opacas (``directives``/``takeaways``/``recommended``/``options``)
   ⇄ JSON TEXT con ``json.dumps(ensure_ascii=False)`` / ``json.loads`` (preserva
   orden y unicode).
@@ -104,12 +106,25 @@ async def module_order_taken(
 
 
 async def lesson_order_taken(
-    db: "aiosqlite.Connection", order: int, *, exclude_id: str | None = None
+    db: "aiosqlite.Connection",
+    module_id: str,
+    order: int,
+    *,
+    exclude_id: str | None = None,
 ) -> bool:
+    """¿Hay ya una lección VIVA con ese ``order`` en ESE módulo? (E2)
+
+    Antes el ``order`` era único global, así que dos módulos no podían tener
+    cada uno su lección 1 — y anteponer un módulo obligaba a renumerar el curso
+    entero. La migración 5 lo pasó a `(module_id, "order")` con un índice
+    parcial; esta consulta es su espejo, incluida la exclusión de las
+    archivadas, que liberan su hueco.
+    """
     row = await _scalar(
         db,
-        'SELECT 1 FROM lessons WHERE "order" = ? AND id != ?',
-        (order, exclude_id or ""),
+        'SELECT 1 FROM lessons '
+        'WHERE module_id = ? AND "order" = ? AND id != ? AND archived_at IS NULL',
+        (module_id, order, exclude_id or ""),
     )
     return row is not None
 
@@ -177,10 +192,27 @@ async def all_module_orders(db: "aiosqlite.Connection") -> dict[str, int]:
     return {row["id"]: int(row["order"]) for row in await cur.fetchall()}
 
 
-async def all_lesson_orders(db: "aiosqlite.Connection") -> dict[str, int]:
-    """``{lesson_id: order}`` de todas las lecciones (para validar el reorder)."""
-    cur = await db.execute('SELECT id, "order" FROM lessons')
-    return {row["id"]: int(row["order"]) for row in await cur.fetchall()}
+async def all_lesson_orders(
+    db: "aiosqlite.Connection",
+) -> dict[str, tuple[str, int]]:
+    """``{lesson_id: (module_id, order)}`` de las lecciones VIVAS.
+
+    La clave del reorden es la pareja, no el order suelto (E2). Las archivadas
+    quedan fuera porque no ocupan hueco en el índice parcial.
+    """
+    cur = await db.execute(
+        'SELECT id, module_id, "order" FROM lessons WHERE archived_at IS NULL'
+    )
+    return {
+        row["id"]: (row["module_id"], int(row["order"]))
+        for row in await cur.fetchall()
+    }
+
+
+async def lesson_module_ids(db: "aiosqlite.Connection") -> dict[str, str]:
+    """``{lesson_id: module_id}`` — resuelve el módulo actual de cada lección."""
+    cur = await db.execute("SELECT id, module_id FROM lessons")
+    return {row["id"]: row["module_id"] for row in await cur.fetchall()}
 
 
 # ──────────────────────────────── módulos ───────────────────────────────────
@@ -257,10 +289,39 @@ async def reorder_modules(
     await _reorder(db, "modules", items)
 
 
-async def reorder_lessons(
-    db: "aiosqlite.Connection", items: list[tuple[str, int]]
+async def _reorder_lessons_con_modulo(
+    db: "aiosqlite.Connection", items: list[tuple[str, str, int]]
 ) -> None:
-    await _reorder(db, "lessons", items)
+    """Reorden de lecciones que puede además MOVERLAS de módulo (E2).
+
+    Mismo estacionamiento en dos fases que ``_reorder``: el ``MAX("order")`` se
+    toma GLOBAL a propósito. Acotarlo por módulo parecería una optimización
+    natural y rompería el lote que toca varios módulos, porque una fila
+    estacionada podría chocar con otra ya movida a su destino.
+    """
+    if not items:
+        return
+    cur = await db.execute('SELECT COALESCE(MAX("order"), 0) AS m FROM lessons')
+    row = await cur.fetchone()
+    park_base = max(int(row["m"]) if row is not None else 0,
+                    max(order for _, _, order in items)) + 1
+    for offset, (lesson_id, _, _) in enumerate(items):  # fase 1: estacionar
+        await db.execute(
+            'UPDATE lessons SET "order" = ? WHERE id = ?',
+            (park_base + offset, lesson_id),
+        )
+    for lesson_id, module_id, order in items:  # fase 2: módulo + order finales
+        await db.execute(
+            'UPDATE lessons SET module_id = ?, "order" = ? WHERE id = ?',
+            (module_id, order, lesson_id),
+        )
+
+
+async def reorder_lessons(
+    db: "aiosqlite.Connection", items: list[tuple[str, str, int]]
+) -> None:
+    """``items`` = ``(lesson_id, module_id, order)``. El módulo puede cambiar."""
+    await _reorder_lessons_con_modulo(db, items)
 
 
 # ─────────────────────────── lecciones + ejemplo ────────────────────────────
@@ -269,24 +330,30 @@ async def reorder_lessons(
 _INSERT_LESSON = """
 INSERT INTO lessons
     (id, module_id, "order", title, estimated_minutes,
-     content_markdown, pass_threshold, recommended_json)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     content_markdown, pass_threshold, recommended_json,
+     video_url, enabled, completion_rule)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 _UPDATE_LESSON = """
 UPDATE lessons SET
     module_id = ?, "order" = ?, title = ?, estimated_minutes = ?,
-    content_markdown = ?, recommended_json = ?
+    content_markdown = ?, recommended_json = ?,
+    video_url = ?, enabled = ?, completion_rule = ?
 WHERE id = ?
 """
 
+# `lesson_id` es la relación REAL desde la migración 5 (E1): el ejemplo ya no
+# comparte clave primaria con su lección. Sin escribirlo, la fila nace con
+# `lesson_id = NULL`, el `ON DELETE CASCADE` no la alcanza al borrar la lección y
+# queda un ejemplo huérfano que bloquea por PK cualquier recreación con ese id.
 _INSERT_EXAMPLE = """
 INSERT INTO examples
-    (id, filename, title, difficulty, teaches, directives_json,
+    (id, lesson_id, filename, title, difficulty, teaches, directives_json,
      threads_configurable, fixed_threads, fixed_threads_note, sweeps_threads,
      self_measures, parser_id, default_timeout_s, est_run_seconds, enabled,
      requires_gpu, expected_output_note, takeaways_json, source_code)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 _UPDATE_EXAMPLE = """
@@ -309,8 +376,12 @@ def _recommended_json(recommended: list[AdminRecommended]) -> str:
 def _example_insert_params(
     example_id: str, ex: AdminExampleBase, source_code: str
 ) -> tuple:
+    # Hoy `example_id == lesson_id` (es lo que hace el backfill de la migración
+    # 5 y lo único que la ruta admin sabe crear todavía). Desacoplarlos de
+    # verdad —lección sin ejemplo, ejemplo con id propio— es el trabajo de C7.
     return (
         example_id,
+        example_id,   # lesson_id
         ex.filename,
         ex.title,
         ex.difficulty,
@@ -335,7 +406,13 @@ def _example_insert_params(
 async def insert_lesson_with_example(
     db: "aiosqlite.Connection", body: AdminLessonCreate
 ) -> None:
-    """Inserta la lección + su ejemplo pareado (mismo id) en la misma unidad."""
+    """Inserta la lección y, si viene, su ejemplo, en la misma unidad.
+
+    E1: ``body.example`` es opcional. Sin él queda una **lección conceptual**,
+    que es exactamente lo que el acoplamiento 1:1 hacía irrepresentable. El
+    ejemplo conserva el id de la lección mientras la UI de autoría no ofrezca
+    uno propio; lo que ya rige es la relación por ``lesson_id``.
+    """
     await db.execute(
         _INSERT_LESSON,
         (
@@ -347,12 +424,43 @@ async def insert_lesson_with_example(
             body.content_markdown,
             DEFAULT_PASS_THRESHOLD,
             _recommended_json(body.recommended),
+            body.video_url,
+            int(body.enabled),
+            body.completion_rule,
         ),
     )
+    if body.example is not None and body.source_code is not None:
+        await db.execute(
+            _INSERT_EXAMPLE,
+            _example_insert_params(body.id, body.example, body.source_code),
+        )
+
+
+async def insert_example_for_lesson(
+    db: "aiosqlite.Connection",
+    lesson_id: str,
+    example: AdminExampleBase,
+    source_code: str,
+) -> None:
+    """``POST /admin/lessons/{id}/example`` — añade código a una lección viva."""
     await db.execute(
-        _INSERT_EXAMPLE,
-        _example_insert_params(body.id, body.example, body.source_code),
+        _INSERT_EXAMPLE, _example_insert_params(lesson_id, example, source_code)
     )
+
+
+async def delete_example_of_lesson(
+    db: "aiosqlite.Connection", lesson_id: str
+) -> None:
+    """``DELETE /admin/lessons/{id}/example`` — la lección pasa a conceptual."""
+    await db.execute("DELETE FROM examples WHERE lesson_id = ?", (lesson_id,))
+
+
+async def lesson_has_example(db: "aiosqlite.Connection", lesson_id: str) -> bool:
+    return (
+        await _scalar(
+            db, "SELECT 1 FROM examples WHERE lesson_id = ?", (lesson_id,)
+        )
+    ) is not None
 
 
 async def update_lesson(
@@ -368,6 +476,9 @@ async def update_lesson(
             body.estimated_minutes,
             body.content_markdown,
             _recommended_json(body.recommended),
+            body.video_url,
+            int(body.enabled),
+            body.completion_rule,
             lesson_id,
         ),
     )
@@ -441,6 +552,18 @@ async def update_example(
             _dumps(list(body.takeaways)),
             example_id,
         ),
+    )
+    # `lessons.enabled` es columna propia desde la migración 5 (E4), pero en el
+    # producto actual «ejemplo deshabilitado» SIGUE significando «lección
+    # bloqueada»: es el caso de la lección de GPU, que se puede leer pero no
+    # ejecutar, y la regla §10.6 `requires_gpu ⇒ enabled=false`. Se propaga para
+    # no dejar al admin sin ninguna forma de deshabilitar una lección mientras
+    # `AdminLessonUpdate` no exponga su propio `enabled` (C7). Lo que E4 aporta
+    # ya es que una lección SIN ejemplo también pueda habilitarse o no.
+    await db.execute(
+        "UPDATE lessons SET enabled = ? WHERE id = ("
+        "  SELECT lesson_id FROM examples WHERE id = ?)",
+        (int(body.enabled), example_id),
     )
 
 
@@ -579,9 +702,13 @@ async def select_admin_module(
 async def select_admin_example(
     db: "aiosqlite.Connection", example_id: str
 ) -> AdminExample | None:
+    # E1: la relación la manda `examples.lesson_id`. LEFT JOIN porque un
+    # ejemplo puede no tener lección: entonces `module_id`/`order` son NULL, y
+    # eso es un estado válido, no un grafo roto.
     cur = await db.execute(
         'SELECT e.*, l.module_id AS module_id, l."order" AS lesson_order '
-        "FROM examples e JOIN lessons l ON l.id = e.id WHERE e.id = ?",
+        "FROM examples e LEFT JOIN lessons l ON l.id = e.lesson_id "
+        "WHERE e.id = ?",
         (example_id,),
     )
     row = await cur.fetchone()
@@ -589,6 +716,7 @@ async def select_admin_example(
         return None
     return AdminExample(
         id=example_id,
+        lesson_id=row["lesson_id"],
         module_id=row["module_id"],
         order=row["lesson_order"],
         source_code=row["source_code"],
@@ -633,16 +761,22 @@ async def select_admin_lesson_detail(
 ) -> AdminLessonDetail | None:
     cur = await db.execute(
         "SELECT id, module_id, \"order\", title, estimated_minutes, "
-        "content_markdown, recommended_json FROM lessons WHERE id = ?",
+        "content_markdown, recommended_json, video_url, enabled, "
+        "completion_rule, archived_at FROM lessons WHERE id = ?",
         (lesson_id,),
     )
     row = await cur.fetchone()
     if row is None:
         return None
-    example = await select_admin_example(db, lesson_id)
-    if example is None:
-        # No debería ocurrir (invariante 1:1) — el grafo estaría roto.
-        return None
+    # E1: la lección puede no tener ejemplo. Antes, no encontrarlo se trataba
+    # como grafo roto y se devolvía None → 404 sobre una lección que EXISTE.
+    cur_ex = await db.execute(
+        "SELECT id FROM examples WHERE lesson_id = ?", (lesson_id,)
+    )
+    fila_ex = await cur_ex.fetchone()
+    example = (
+        await select_admin_example(db, fila_ex["id"]) if fila_ex is not None else None
+    )
     qcount = await quiz_question_count(db, lesson_id)
     prev_id, next_id = await _adjacent_lesson_ids(db, row["order"])
     recommended = [
@@ -660,7 +794,10 @@ async def select_admin_lesson_detail(
         estimated_minutes=row["estimated_minutes"],
         content_markdown=row["content_markdown"],
         recommended=recommended,
-        enabled=example.enabled,
+        video_url=row["video_url"],
+        enabled=bool(row["enabled"]),
+        completion_rule=row["completion_rule"],
+        archived=row["archived_at"] is not None,
         has_quiz=qcount > 0,
         quiz_question_count=qcount,
         prev_lesson_id=prev_id,

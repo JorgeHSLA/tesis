@@ -91,10 +91,13 @@ export function SimulatorIdle() {
     }
     if (preload?.code != null) return // Re-ejecutar con código propio
     if (modules != null && modules.length > 0) {
+      // E1: `example_id` pasó de '' a null para las lecciones sin código, así
+      // que la comprobación es de nulidad. Sin esto, la autoselección elegiría
+      // una lección conceptual y el simulador arrancaría sin nada que ejecutar.
       const first = modules
         .flatMap((m) => m.lessons)
-        .find((l) => l.enabled && l.example_id !== '')
-      if (first != null) selectExample(first.example_id)
+        .find((l) => l.enabled && l.example_id != null)
+      if (first?.example_id != null) selectExample(first.example_id)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryExample, modules, selectExample])

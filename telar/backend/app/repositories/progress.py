@@ -10,18 +10,32 @@ import aiosqlite
 from app import db as database
 from app.repositories.records import LessonProgressRecord
 
-_COLUMNS = "lesson_id, viewed, completed, best_quiz_score, last_job_id, updated_at"
+_COLUMNS = (
+    "lesson_id, viewed, completed, best_quiz_score, last_job_id, updated_at, "
+    "completed_via, completed_at"
+)
 
 _UPSERT_SQL = """
-INSERT INTO lesson_progress (lesson_id, viewed, completed, best_quiz_score, last_job_id)
+INSERT INTO lesson_progress
+    (lesson_id, viewed, completed, best_quiz_score, last_job_id,
+     completed_via, completed_at)
 VALUES (:lesson_id,
         COALESCE(:viewed, 0),
         COALESCE(:completed, 0),
         :best_quiz_score,
-        :last_job_id)
+        :last_job_id,
+        :completed_via,
+        CASE WHEN :completed_via IS NULL THEN NULL
+             ELSE strftime('%Y-%m-%dT%H:%M:%fZ','now') END)
 ON CONFLICT(lesson_id) DO UPDATE SET
     viewed          = COALESCE(:viewed, viewed),
     completed       = COALESCE(:completed, completed),
+    completed_via   = COALESCE(:completed_via, completed_via),
+    completed_at    = CASE
+                          WHEN :completed_via IS NULL THEN completed_at
+                          WHEN completed_at IS NOT NULL THEN completed_at
+                          ELSE strftime('%Y-%m-%dT%H:%M:%fZ','now')
+                      END,
     best_quiz_score = CASE
                           WHEN :best_quiz_score IS NULL THEN best_quiz_score
                           WHEN best_quiz_score IS NULL THEN :best_quiz_score
@@ -40,6 +54,8 @@ def _row_to_record(row: aiosqlite.Row) -> LessonProgressRecord:
         best_quiz_score=row["best_quiz_score"],
         last_job_id=row["last_job_id"],
         updated_at=row["updated_at"],
+        completed_via=row["completed_via"],
+        completed_at=row["completed_at"],
     )
 
 
@@ -68,6 +84,7 @@ class ProgressRepository:
         completed: bool | None = None,
         best_quiz_score: int | None = None,  # solo si mejora (MAX en SQL)
         last_job_id: str | None = None,
+        completed_via: str | None = None,    # 'quiz' | 'manual' | 'run'
     ) -> None:
         """Solo el UPSERT, sin lock ni commit.
 
@@ -82,6 +99,7 @@ class ProgressRepository:
             "completed": None if completed is None else int(completed),
             "best_quiz_score": best_quiz_score,
             "last_job_id": last_job_id,
+            "completed_via": completed_via,
         }
         await self._db.execute(_UPSERT_SQL, params)
 
@@ -91,6 +109,7 @@ class ProgressRepository:
         completed: bool | None = None,
         best_quiz_score: int | None = None,  # solo si mejora (MAX en SQL)
         last_job_id: str | None = None,
+        completed_via: str | None = None,
     ) -> LessonProgressRecord:
         async with database.write_lock:
             try:
@@ -100,6 +119,7 @@ class ProgressRepository:
                     completed=completed,
                     best_quiz_score=best_quiz_score,
                     last_job_id=last_job_id,
+                    completed_via=completed_via,
                 )
                 await self._db.commit()
             except Exception:

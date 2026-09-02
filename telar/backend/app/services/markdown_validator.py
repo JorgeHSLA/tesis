@@ -38,6 +38,18 @@ _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
 #: Esquemas de href admitidos (espejo de ``safeHref``): http(s), ``#`` o relativo.
 _SAFE_HREF_RE = re.compile(r"^(https?://|#|\.?/)", re.IGNORECASE)
 
+#: Tope de longitud de UNA línea. Las expresiones de arriba (``[^>]*`` y
+#: ``[^\]]+``) hacen backtracking cuadrático: sobre una línea de 64 KiB de
+#: ``[`` el validador tardaba **14 segundos**, y como el parseo del bundle es
+#: síncrono, durante esos 14 segundos el event loop no atendía a NADIE —ni
+#: WebSocket, ni /health, ni los jobs de los demás estudiantes—. Con 63
+#: lecciones así en un bundle de 4 MiB eran ~15 minutos por petición.
+#:
+#: El tope acota el coste sin tocar contenido legítimo: una línea de más de
+#: 2000 caracteres no es prosa que nadie vaya a leer. La otra mitad del arreglo
+#: es sacar el parseo del hilo del loop (``asyncio.to_thread``).
+_MAX_LINEA = 2000
+
 #: Nombre de campo reportado en los ``details``.
 _FIELD = "content_markdown"
 
@@ -60,6 +72,18 @@ def validate(md: str) -> list[dict]:
             continue
         if in_fence:
             # Dentro de un bloque de código todo es contenido literal.
+            continue
+
+        # El tope va ANTES de las expresiones cuadráticas, no después: si se
+        # comprobara al final, la línea larga ya habría costado sus segundos.
+        if len(line) > _MAX_LINEA:
+            issues.append(
+                _issue(
+                    index,
+                    f"línea de {len(line)} caracteres: el máximo es {_MAX_LINEA}. "
+                    "Parte el párrafo en varias líneas.",
+                )
+            )
             continue
 
         if _H5_PLUS_RE.match(line):

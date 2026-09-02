@@ -25,7 +25,7 @@
         }
       ],
       "correct_key": "c",
-      "explanation": "Explicación literal del info."
+      "explanation": "map(tofrom: c) copia c del host a la memoria de la GPU al entrar en la región y de vuelta al host al salir. Sin la parte `from`, el resultado se quedaría en la GPU y el host no vería nada."
     },
     {
       "id": "sumaVectoresGPU-q2",
@@ -50,12 +50,12 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Jerarquía de dos niveles explicada en el info."
+      "explanation": "En CPU hay UN equipo de hilos; en GPU hay muchos equipos (los bloques de CUDA). teams los crea, distribute reparte el bucle entre equipos y parallel for paraleliza dentro de cada uno: son dos niveles de reparto, no uno."
     },
     {
       "id": "sumaVectoresGPU-q3",
       "order": 3,
-      "text": "Según el info, ¿cuál es EL concepto central de la programación GPU?",
+      "text": "¿Cuál es el concepto central de la programación en GPU?",
       "options": [
         {
           "key": "a",
@@ -75,7 +75,7 @@
         }
       ],
       "correct_key": "b",
-      "explanation": "Cita casi literal del info."
+      "explanation": "El mapeo de datos. La GPU tiene su propia memoria y mover los datos por el PCIe suele costar más que el cálculo: por eso una suma de vectores puede salir más lenta en GPU que en CPU."
     },
     {
       "id": "sumaVectoresGPU-q4",

@@ -10,6 +10,7 @@ import { ApiError } from '../../../api/client'
 import { deleteModule } from '../../../api/admin'
 import type { ModuleDto } from '../../../api/types'
 import { Button } from '../../../components/ui/Button'
+import { PublishModuleDialog } from './PublishModuleDialog'
 import { Chip } from '../../../components/ui/Chip'
 import { ConfirmDialog } from '../../../components/admin/ConfirmDialog'
 import { IconChevronDown, IconChevronRight, IconChevronUp, IconGrip, IconPlus } from '../../../components/icons/icons'
@@ -57,6 +58,7 @@ export function ModuleGroup({
 }: ModuleGroupProps) {
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
+  const [publicando, setPublicando] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const cardRef = useRef<HTMLElement>(null)
 
@@ -174,6 +176,9 @@ export function ModuleGroup({
             <IconPlus size={15} />
             Lección
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setPublicando(true)}>
+            Publicar
+          </Button>
           <Button variant="ghost" size="sm" className="admin-btn-danger-ghost" onClick={() => setConfirming(true)}>
             Borrar
           </Button>
@@ -204,6 +209,20 @@ export function ModuleGroup({
         onConfirm={remove}
         onCancel={() => setConfirming(false)}
       />
+
+      {publicando && (
+        <PublishModuleDialog
+          module={module}
+          onClose={() => setPublicando(false)}
+          onPublished={(mensaje) => {
+            setPublicando(false)
+            onToast(mensaje)
+            // Publicar cambia `modules.version` (§11.8.2 paso 5), así que la
+            // lista tiene que recargarse o mostraría la versión anterior.
+            onReload()
+          }}
+        />
+      )}
     </section>
   )
 }

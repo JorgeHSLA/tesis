@@ -1,22 +1,27 @@
-// features/learn/LessonMedia.test.tsx — el bloque grande de la lección es un
-// reproductor de video (queja #3, 2026-07): fuente en disco o URL; si no hay,
-// placeholder "Video próximamente". Debajo, CTA secundario al simulador.
+// features/learn/LessonMedia.test.tsx — el video de la lección es un embed de
+// YouTube NO LISTADO (una URL, nunca un .mp4 descargado). Dos cosas se prueban
+// aquí: (1) que `resolveYouTubeEmbed` normaliza toda forma de URL de YouTube al
+// dominio nocookie y RECHAZA cualquier otra cosa —esa URL acabará viniendo del
+// catálogo remoto, o sea de contenido no confiable—, y (2) que sin fuente el
+// componente no monta nada (C1: la lección no abre con un hueco).
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
-// Se mockea SOLO resolveLessonVideo (para forzar ambas ramas); resolveVideoSrc
-// queda real para probar su lógica pura.
+// Se mockea SOLO resolveLessonVideo (para forzar ambas ramas del componente);
+// resolveYouTubeEmbed queda real para probar su lógica pura.
 vi.mock('@/features/learn/lessonVideos', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/features/learn/lessonVideos')>()
   return { ...actual, resolveLessonVideo: vi.fn() }
 })
 
 import { LessonMedia } from '@/features/learn/LessonMedia'
-import { resolveLessonVideo, resolveVideoSrc } from '@/features/learn/lessonVideos'
+import { resolveLessonVideo, resolveYouTubeEmbed } from '@/features/learn/lessonVideos'
 
 const resolveMock = resolveLessonVideo as Mock
+const EMBED = 'https://www.youtube-nocookie.com/embed/'
+const ID = 'dQw4w9WgXcQ' // 11 chars, formato real de id de YouTube
 
 beforeEach(() => resolveMock.mockReset())
 
@@ -27,13 +32,18 @@ function LocationProbe() {
 
 function renderMedia(runDisabled = false) {
   return render(
-    <MemoryRouter initialEntries={['/cursos/primerEjemplo']}>
+    <MemoryRouter initialEntries={['/aprender/primerEjemplo']}>
       <Routes>
         <Route
           path="*"
           element={
             <>
-              <LessonMedia exampleId="primerEjemplo" filename="helloOpenMP.py" runDisabled={runDisabled} />
+              <LessonMedia
+                lessonId="primerEjemplo"
+                exampleId="primerEjemplo"
+                filename="helloOpenMP.py"
+                runDisabled={runDisabled}
+              />
               <LocationProbe />
             </>
           }
@@ -43,51 +53,89 @@ function renderMedia(runDisabled = false) {
   )
 }
 
-describe('resolveVideoSrc (pura)', () => {
-  it('URL externa (con esquema) se devuelve tal cual', () => {
-    expect(resolveVideoSrc('https://cdn.x/y.mp4')).toBe('https://cdn.x/y.mp4')
+describe('resolveYouTubeEmbed — formas válidas', () => {
+  it('watch?v= se normaliza al dominio nocookie', () => {
+    expect(resolveYouTubeEmbed(`https://www.youtube.com/watch?v=${ID}`)).toBe(
+      `${EMBED}${ID}?rel=0&modestbranding=1`,
+    )
   })
-  it('ruta en disco se resuelve contra BASE_URL (no absoluta)', () => {
-    const out = resolveVideoSrc('media/videos/a.mp4')
-    expect(out).toMatch(/\/?media\/videos\/a\.mp4$/)
-    expect(out).not.toMatch(/^https?:/)
+  it('acepta la forma corta youtu.be', () => {
+    expect(resolveYouTubeEmbed(`https://youtu.be/${ID}`)).toBe(`${EMBED}${ID}?rel=0&modestbranding=1`)
   })
-  it('footgun: doble slash inicial NO se toma como URL, se normaliza a ruta local', () => {
-    const out = resolveVideoSrc('//media/videos/a.mp4')
-    expect(out).toMatch(/\/?media\/videos\/a\.mp4$/)
-    expect(out).not.toMatch(/^\/\//) // no queda como protocol-relative
+  it('acepta /embed/ ya normalizado (idempotente)', () => {
+    const once = resolveYouTubeEmbed(`https://www.youtube.com/embed/${ID}`)
+    expect(once).toBe(`${EMBED}${ID}?rel=0&modestbranding=1`)
+    expect(resolveYouTubeEmbed(once)).toBe(once)
+  })
+  it('acepta /shorts/ y el host móvil', () => {
+    expect(resolveYouTubeEmbed(`https://m.youtube.com/shorts/${ID}`)).toContain(`${EMBED}${ID}`)
+  })
+  it('conserva el segundo de arranque de ?t= y ?start=', () => {
+    expect(resolveYouTubeEmbed(`https://youtu.be/${ID}?t=90`)).toContain('start=90')
+    expect(resolveYouTubeEmbed(`https://www.youtube.com/watch?v=${ID}&start=42`)).toContain('start=42')
+  })
+  it('ignora un ?t= no numérico en vez de propagarlo', () => {
+    expect(resolveYouTubeEmbed(`https://youtu.be/${ID}?t=1m30s`)).toBe(
+      `${EMBED}${ID}?rel=0&modestbranding=1`,
+    )
+  })
+})
+
+describe('resolveYouTubeEmbed — entrada no confiable', () => {
+  it('rechaza otro host aunque la ruta imite a YouTube', () => {
+    expect(resolveYouTubeEmbed(`https://evil.example/watch?v=${ID}`)).toBeNull()
+    expect(resolveYouTubeEmbed(`https://youtube.com.evil.example/watch?v=${ID}`)).toBeNull()
+  })
+  it('rechaza esquemas que no sean https', () => {
+    expect(resolveYouTubeEmbed(`http://www.youtube.com/watch?v=${ID}`)).toBeNull()
+    expect(resolveYouTubeEmbed('javascript:alert(1)')).toBeNull()
+    expect(resolveYouTubeEmbed('data:text/html,<script>alert(1)</script>')).toBeNull()
+  })
+  it('rechaza un id con formato inválido', () => {
+    expect(resolveYouTubeEmbed('https://www.youtube.com/watch?v=corto')).toBeNull()
+    expect(resolveYouTubeEmbed('https://www.youtube.com/watch?v=' + 'a'.repeat(12))).toBeNull()
+    expect(resolveYouTubeEmbed('https://www.youtube.com/watch?v=tiene/barra')).toBeNull()
+  })
+  it('rechaza URLs relativas y basura', () => {
+    expect(resolveYouTubeEmbed(`//www.youtube.com/watch?v=${ID}`)).toBeNull()
+    expect(resolveYouTubeEmbed('media/videos/a.mp4')).toBeNull()
+    expect(resolveYouTubeEmbed('no soy una url')).toBeNull()
   })
   it('vacío / undefined → null', () => {
-    expect(resolveVideoSrc('')).toBeNull()
-    expect(resolveVideoSrc('   ')).toBeNull()
-    expect(resolveVideoSrc(undefined)).toBeNull()
+    expect(resolveYouTubeEmbed('')).toBeNull()
+    expect(resolveYouTubeEmbed('   ')).toBeNull()
+    expect(resolveYouTubeEmbed(undefined)).toBeNull()
+    expect(resolveYouTubeEmbed(null)).toBeNull()
   })
 })
 
 describe('LessonMedia', () => {
-  it('sin fuente → placeholder "Video próximamente" + CTA al simulador', () => {
+  // C1: sin video NO hay bloque. El placeholder «Video próximamente» se retiró
+  // porque, con el mapa de videos vacío, era el primer bloque de las 14
+  // lecciones y la pantalla abría mostrando un hueco en vez de la lección.
+  it('sin fuente → no renderiza NADA (ni marco, ni placeholder, ni CTA)', () => {
     resolveMock.mockReturnValue(null)
     const { container } = renderMedia()
-    expect(screen.getByText('Video próximamente')).toBeInTheDocument()
-    expect(container.querySelector('video')).toBeNull()
-    expect(screen.getByRole('button', { name: /Ejecutar en el simulador/ })).toBeInTheDocument()
+    expect(container.querySelector('.lesson-media')).toBeNull()
+    expect(container.querySelector('iframe')).toBeNull()
+    expect(screen.queryByText('Video próximamente')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Ejecutar en el simulador/ })).not.toBeInTheDocument()
   })
 
-  it('con fuente → <video> con src resuelto, controles, sin autoplay', () => {
-    resolveMock.mockReturnValue('https://cdn.x/leccion.mp4')
+  it('con fuente → <iframe> al dominio nocookie, con nombre accesible', () => {
+    resolveMock.mockReturnValue(`${EMBED}${ID}?rel=0&modestbranding=1`)
     const { container } = renderMedia()
-    const video = container.querySelector('video.lesson-media-video') as HTMLVideoElement | null
-    expect(video).not.toBeNull()
-    expect(video).toHaveAttribute('src', 'https://cdn.x/leccion.mp4')
-    // Requisitos duros: controles nativos, preload metadata, sin autoplay.
-    expect(video).toHaveAttribute('controls')
-    expect(video).toHaveAttribute('preload', 'metadata')
-    expect(video?.autoplay).toBe(false)
-    expect(screen.queryByText('Video próximamente')).not.toBeInTheDocument()
+    const frame = container.querySelector('iframe.lesson-media-video')
+    expect(frame).not.toBeNull()
+    expect(frame).toHaveAttribute('src', `${EMBED}${ID}?rel=0&modestbranding=1`)
+    // El título es el nombre accesible del iframe (WCAG 4.1.2).
+    expect(screen.getByTitle('Video de la lección (helloOpenMP.py)')).toBe(frame)
+    // Ya no hay <video>: el media no se descarga.
+    expect(container.querySelector('video')).toBeNull()
   })
 
   it('el CTA secundario navega a /simulador con el ejemplo precargado', async () => {
-    resolveMock.mockReturnValue(null)
+    resolveMock.mockReturnValue(`${EMBED}${ID}`)
     const user = userEvent.setup()
     renderMedia()
     await user.click(screen.getByRole('button', { name: /Ejecutar en el simulador/ }))
@@ -95,8 +143,25 @@ describe('LessonMedia', () => {
   })
 
   it('runDisabled deshabilita el CTA al simulador', () => {
-    resolveMock.mockReturnValue(null)
+    resolveMock.mockReturnValue(`${EMBED}${ID}`)
     renderMedia(true)
     expect(screen.getByRole('button', { name: /Ejecutar en el simulador/ })).toBeDisabled()
+  })
+
+  it('la prop videoUrl gana al mapa local (puente hacia el campo de la API)', () => {
+    resolveMock.mockReturnValue(null) // el mapa no tiene nada…
+    const { container } = render(
+      <MemoryRouter>
+        <LessonMedia
+          lessonId="primerEjemplo"
+          exampleId="primerEjemplo"
+          filename="helloOpenMP.py"
+          runDisabled={false}
+          videoUrl={`https://youtu.be/${ID}`}
+        />
+      </MemoryRouter>,
+    )
+    // …y aun así hay iframe, porque la URL llegó por prop.
+    expect(container.querySelector('iframe')).toHaveAttribute('src', `${EMBED}${ID}?rel=0&modestbranding=1`)
   })
 })
