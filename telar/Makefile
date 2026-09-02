@@ -20,7 +20,7 @@ RSYNC_EXCLUDES := --exclude node_modules --exclude dist --exclude dist-electron 
 
 .PHONY: dev-backend dev-frontend dev-desktop build-runner build-images up down \
         test dist sync-repo sync-frontend sync-desktop build-frontend build-desktop \
-        check-contract
+        check-contract publish-images
 
 ## ── Dev multi-proceso (backend nativo WSL + Vite + Electron) ────────────────
 dev-backend:            ## uvicorn con reload (nativo WSL; DB y jobs en ~/.telar)
@@ -85,3 +85,28 @@ dist: build-frontend build-desktop  ## vite build + electron-builder --linux
 	export ELECTRON_BUILDER_CACHE=$(HOME)/.cache/electron-builder && \
 	$(NVM) cd $(BUILD_ROOT)/desktop && npx electron-builder --linux
 	rsync -a $(BUILD_ROOT)/desktop/release/ $(ROOT)/desktop/release/
+
+## ── Publicación de imágenes a GHCR (electron-spec.md §6.1, modo A) ──────────
+# El compose EMPAQUETADO (desktop/resources/compose/compose.yaml) referencia
+# estas imágenes por tag fijo. Sin publicarlas, el instalador distribuido a
+# terceros no puede levantar el stack (`up -d` falla al no poder hacer pull).
+# Requiere login previo:
+#   echo $$GHCR_TOKEN | docker login ghcr.io -u TU_USUARIO --password-stdin
+# (token clásico de GitHub con scope `write:packages`).
+#
+# Tras el primer push las imágenes nacen PRIVADAS: hay que marcarlas públicas
+# a mano en github.com/orgs/$(GHCR_OWNER)/packages -> cada paquete ->
+# Package settings -> Change visibility -> Public. Si no, el instalador solo
+# funciona para quien tenga credenciales.
+GHCR_OWNER      ?= telar-javeriana
+GHCR_REGISTRY   ?= ghcr.io/$(GHCR_OWNER)
+BACKEND_VERSION ?= 1.0.1
+RUNNER_VERSION  ?= 0.5.1
+
+.PHONY: publish-images
+publish-images: build-images build-runner  ## etiqueta y sube backend+runner a GHCR
+	docker tag telar-backend:latest $(GHCR_REGISTRY)/telar-backend:$(BACKEND_VERSION)
+	docker tag telar-runner:$(RUNNER_VERSION) $(GHCR_REGISTRY)/telar-runner:$(RUNNER_VERSION)
+	docker push $(GHCR_REGISTRY)/telar-backend:$(BACKEND_VERSION)
+	docker push $(GHCR_REGISTRY)/telar-runner:$(RUNNER_VERSION)
+	@echo "Publicadas. Recuerda marcarlas PÚBLICAS en GitHub Packages."

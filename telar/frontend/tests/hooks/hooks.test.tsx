@@ -160,6 +160,94 @@ describe('useDockerStatus (desktop)', () => {
     expect(result.current.liftError).toBe('spawn ENOENT')
   })
 
+  it('stop() invoca dockerStop() y re-comprueba el estado', async () => {
+    const dockerStatus = vi.fn().mockResolvedValue({ ok: true, services: [{ state: 'running' }] })
+    const dockerStop = vi.fn().mockResolvedValue({ ok: true })
+    ;(window as { telar?: unknown }).telar = { dockerStatus, dockerUp: vi.fn(), dockerStop }
+
+    const { result } = renderHook(() => useDockerStatus())
+    await waitFor(() => expect(result.current.state).toBe('ok'))
+    const callsBefore = dockerStatus.mock.calls.length
+
+    await act(async () => {
+      await result.current.stop()
+    })
+    expect(dockerStop).toHaveBeenCalled()
+    expect(dockerStatus.mock.calls.length).toBeGreaterThan(callsBefore)
+    expect(result.current.liftError).toBeNull()
+  })
+
+  it('stop() con dockerStop {ok:false} expone liftError', async () => {
+    const dockerStatus = vi.fn().mockResolvedValue({ ok: true, services: [{ state: 'running' }] })
+    const dockerStop = vi.fn().mockResolvedValue({ ok: false, error: 'no se pudo detener' })
+    ;(window as { telar?: unknown }).telar = { dockerStatus, dockerUp: vi.fn(), dockerStop }
+    const { result } = renderHook(() => useDockerStatus())
+    await waitFor(() => expect(result.current.state).toBe('ok'))
+    await act(async () => {
+      await result.current.stop()
+    })
+    expect(result.current.liftError).toBe('no se pudo detener')
+  })
+
+  // ── Autoarranque (2026-08-28) ──────────────────────────────────────────
+  it('AUTOARRANQUE: con los servicios caídos levanta solo al montar', async () => {
+    const dockerStatus = vi.fn().mockResolvedValue({ ok: true, services: [] })
+    const dockerUp = vi.fn().mockResolvedValue({ ok: true })
+    ;(window as { telar?: unknown }).telar = { dockerStatus, dockerUp, dockerStop: vi.fn() }
+
+    renderHook(() => useDockerStatus())
+    await waitFor(() => expect(dockerUp).toHaveBeenCalledTimes(1))
+  })
+
+  it('AUTOARRANQUE: NO se dispara si los servicios ya están arriba', async () => {
+    const dockerStatus = vi.fn().mockResolvedValue({ ok: true, services: [{ state: 'running' }] })
+    const dockerUp = vi.fn().mockResolvedValue({ ok: true })
+    ;(window as { telar?: unknown }).telar = { dockerStatus, dockerUp, dockerStop: vi.fn() }
+
+    const { result } = renderHook(() => useDockerStatus())
+    await waitFor(() => expect(result.current.state).toBe('ok'))
+    expect(dockerUp).not.toHaveBeenCalled()
+  })
+
+  it('AUTOARRANQUE: NO se dispara si Docker no está disponible (ok:false)', async () => {
+    const dockerStatus = vi.fn().mockResolvedValue({ ok: false, services: [] })
+    const dockerUp = vi.fn().mockResolvedValue({ ok: true })
+    ;(window as { telar?: unknown }).telar = { dockerStatus, dockerUp, dockerStop: vi.fn() }
+
+    const { result } = renderHook(() => useDockerStatus())
+    await waitFor(() => expect(result.current.state).toBe('down'))
+    expect(dockerUp).not.toHaveBeenCalled() // levantar sin daemon sólo daría error
+  })
+
+  // El guard que hace ÚTIL al botón Detener: sin él, el sondeo de 10 s
+  // relanzaría lo que el usuario acaba de parar.
+  it('AUTOARRANQUE: es de una sola vez — tras stop() no relanza en el siguiente sondeo', async () => {
+    let running = [{ state: 'running' }] as { state: string }[]
+    const dockerStatus = vi.fn().mockImplementation(async () => ({ ok: true, services: running }))
+    const dockerUp = vi.fn().mockResolvedValue({ ok: true })
+    const dockerStop = vi.fn().mockImplementation(async () => {
+      running = [] // los servicios quedan caídos, como tras un `compose stop`
+      return { ok: true }
+    })
+    ;(window as { telar?: unknown }).telar = { dockerStatus, dockerUp, dockerStop }
+
+    const { result } = renderHook(() => useDockerStatus())
+    await waitFor(() => expect(result.current.state).toBe('ok'))
+
+    await act(async () => {
+      await result.current.stop()
+    })
+    await waitFor(() => expect(result.current.state).toBe('down'))
+
+    // Varias rondas del sondeo: el estado sigue 'down' y nadie llamó a up().
+    await act(async () => {
+      await result.current.refresh()
+      await result.current.refresh()
+    })
+    expect(dockerUp).not.toHaveBeenCalled()
+    expect(result.current.state).toBe('down')
+  })
+
   it('refresh() vuelve a comprobar el estado', async () => {
     const dockerStatus = vi.fn().mockResolvedValue({ ok: true, services: [{ state: 'running' }] })
     ;(window as { telar?: unknown }).telar = { dockerStatus, dockerUp: vi.fn() }

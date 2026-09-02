@@ -53,7 +53,13 @@
   padding: var(--sp-3) var(--sp-2);
   gap: 2px;
   position: relative;
-  overflow: hidden;
+  /* SIN overflow:hidden (2026-08-27). Lo tenía, y recortaba TODOS los tooltips
+     del rail: los `::after` salen a `left: calc(100% + 10px)` y el rail mide
+     56 px, así que solo asomaban ~4 px. Es decir, la promesa del rediseño
+     («los textos largos del menú viven en el tooltip», Sidebar.tsx) nunca se
+     cumplió: verificado en navegador, ningún icono mostraba su etiqueta.
+     El recorte de la ventana ya lo hace `.app-shell`, que sí conserva
+     overflow:hidden; el rail es de ancho fijo y su contenido no desborda. */
 }
 
 /* El rail no expande: los textos largos del menú viven en el tooltip. */
@@ -196,6 +202,86 @@
   color: var(--text-muted);
 }
 .sidebar-footer-text > div:first-child { color: var(--text); font-weight: 500; }
+
+/* ── Disparador del panel de runtime (el dot es pulsable) ───────────────────
+   El rail mide 56px y `.sidebar-footer-text` está oculta, así que el punto es
+   el ÚNICO afordance disponible: se convierte en botón. Área de 28px para
+   cumplir el tamaño mínimo de objetivo táctil sin agrandar el dot. */
+.runtime-trigger {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  width: 28px; height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  position: relative;
+  transition: background-color .15s var(--ease);
+}
+.runtime-trigger:hover { background: var(--surface-2); }
+/* El anillo de foco lo pone la regla global `:focus-visible` de base.css. */
+
+/* Tooltip de ESTADO al pasar el ratón — mismo patrón que .nav-item::after.
+   Solo informa; las acciones viven en el panel, que se abre con clic. */
+.runtime-trigger::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  background: var(--inverse-surface);
+  color: var(--on-inverse-surface);
+  padding: 5px 9px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s var(--ease), transform .15s var(--ease);
+  z-index: var(--z-tooltip);
+  box-shadow: var(--elevation-3);
+}
+.runtime-trigger:hover::after,
+.runtime-trigger:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+/* Con el panel abierto el tooltip sobra: repetiría lo que ya se lee dentro. */
+.runtime-trigger[aria-expanded='true']::after { content: none; }
+
+/* ── Panel de runtime ───────────────────────────────────────────────────────
+   Vive en un PORTAL (document.body) porque `.sidebar` tiene overflow:hidden y
+   recortaría cualquier cosa que salga del rail. Por eso position: fixed y
+   coordenadas de viewport calculadas en el componente. */
+.runtime-panel {
+  position: fixed;
+  /* Nivel TOOLTIP, no dropdown: es un overlay transitorio anclado al rail, del
+     mismo tipo que los tooltips de los iconos. Con --z-dropdown quedaba por
+     debajo del lienzo y solo asomaba una franja en el hueco del rail. */
+  z-index: var(--z-tooltip);
+  min-width: 216px;
+  max-width: 280px;
+  padding: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--elevation-3);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.runtime-panel-title { color: var(--text); font-weight: 500; }
+.runtime-panel-detail { color: var(--text-muted); }
+.runtime-panel-actions { margin-top: 2px; display: flex; gap: 6px; }
+.runtime-panel-hint {
+  margin-top: 2px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
 
 .status-dot {
   width: 8px; height: 8px; border-radius: 50%;

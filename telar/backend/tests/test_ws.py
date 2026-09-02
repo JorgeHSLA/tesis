@@ -62,7 +62,11 @@ def test_origin_permitido_null_y_ausente(client, fake_docker):
     for headers in (
         {"origin": "http://localhost:5173"},
         {"origin": "http://localhost:8080"},
-        {"origin": "null"},  # Electron file://
+        # Electron manda DOS orígenes distintos desde la misma página file://:
+        # "null" por fetch/XHR y "file://" por WebSocket. Cubrir solo "null"
+        # dejaba el WS del escritorio rechazado con 403 en todos los jobs.
+        {"origin": "null"},
+        {"origin": "file://"},
         None,                # cliente no-navegador
     ):
         kwargs = {"headers": headers} if headers else {}

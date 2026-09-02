@@ -22,8 +22,11 @@ npm run dist:win                     # NSIS + portable (necesita Wine o host Win
 - `src/ipc-docker.ts` — whitelist CERRADA de acciones `compose:ps/up/stop` → arrays de args fijos, `execFile('docker', ...)` **sin shell**, timeout, `assertTrustedSender` (valida senderFrame).
 - `src/security.ts` — CSP vía `onHeadersReceived` (connect-src al backend local), `will-navigate` whitelist, `setWindowOpenHandler` deny + `shell.openExternal` solo https.
 - `resources/compose/compose.yaml` — compose empaquetado (solo `image:`, sin `build:`). `electron-builder.yml` — targets.
+- `resources/installer.nsh` / `resources/before-remove.sh` — al desinstalar (no al actualizar), paran y borran el contenedor + imágenes Docker; los volúmenes con datos de usuario no se tocan (electron-spec §6.2).
 
 ## CONGELADO / límites
 
 - `types/telar-api.d.ts` debe seguir **byte-idéntico** a `../frontend/src/types/telar.d.ts` (`npm run check:contract` lo comprueba).
-- **No verificado aún** (limitaciones documentadas): lanzamiento gráfico real (WSL2 es headless — requiere xvfb o host con display) y el instalador Windows (`dist:win` necesita Wine o compilar en Windows). El código y su seguridad sí están verificados por typecheck/build/greps.
+- Instaladores Windows y Linux verificados en máquinas limpias (v1.0.1-1.0.3). AppImage y el
+  `.exe` portable no tienen desinstalador del sistema, así que no limpian Docker (§6.2, punto 8
+  de limitaciones documentadas).
