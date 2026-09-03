@@ -12,7 +12,7 @@ services:
     # artefacto; /api/v1/admin/* → 404). Un despliegue admin usa/publica la
     # imagen construida con `TELAR_ADMIN_BUILD=1` y añade `TELAR_ADMIN_MODE: "1"`
     # a este servicio backend.
-    image: ghcr.io/telar-javeriana/telar-backend:1.0.1
+    image: ghcr.io/telar-javeriana/telar-backend:1.0.2
     ports: ["127.0.0.1:8000:8000"]
     environment:
       TELAR_DB_PATH: /app/data/telar.db
@@ -28,6 +28,18 @@ services:
       TELAR_RUNNER_IMAGE: ghcr.io/telar-javeriana/telar-runner:0.5.1
       TELAR_MAX_TIMEOUT_S: 0                 # 0 = sin límite (tope opcional)
       TELAR_MAX_CONCURRENT_JOBS: 2
+      # Catálogo remoto (Fase 5, api-contract.md §11): LECTURA anónima, sin
+      # credencial — el backend habla con storage.googleapis.com por HTTPS
+      # público (catalog_client.py), nunca con el SDK de Google. Por eso es
+      # seguro tenerlo encendido en el instalador de estudiante: no hay
+      # ninguna clave que pueda filtrarse porque ninguna viaja en esta imagen.
+      # Publicar SÍ exige TELAR_GCS_CREDENTIALS + TELAR_ADMIN_MODE, que
+      # deliberadamente NO están aquí — y el binario para publicar ni siquiera
+      # existe en la imagen estudiante (backend/Dockerfile lo borra).
+      # Vacío ⇒ el catálogo remoto queda oculto (config.py); con esto puesto,
+      # cualquier Telar instalado ve lo que se publique en el bucket.
+      TELAR_CATALOG_BUCKET: clasestelar
+      TELAR_CATALOG_DRIVER: gcs
     volumes:
       - telar_data:/app/data
       - telar_submissions:/submissions
