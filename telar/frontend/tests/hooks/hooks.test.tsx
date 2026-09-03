@@ -98,6 +98,34 @@ describe('useSystemInfo', () => {
     act(() => result.current.retry())
     await waitFor(() => expect(result.current.data?.cores).toBe(8))
   })
+
+  it('reintenta solo, sin retry() manual, si /system falla al montar (backend arrancando)', async () => {
+    vi.useFakeTimers()
+    getSystemMock.mockRejectedValueOnce(new Error('connection refused'))
+    getSystemMock.mockResolvedValue(SYSTEM_INFO)
+    const { result } = renderHook(() => useSystemInfo())
+    await vi.waitFor(() => expect(result.current.error).not.toBeNull())
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000)
+    })
+
+    expect(result.current.data?.cores).toBe(8)
+    expect(result.current.error).toBeNull()
+  })
+
+  it('deja de reintentar solo tras el tope, y no sondea para siempre', async () => {
+    vi.useFakeTimers()
+    getSystemMock.mockRejectedValue(new Error('backend caído de verdad'))
+    renderHook(() => useSystemInfo())
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000 * 10) // más que MAX_AUTO_RETRIES * delay
+    })
+
+    // 1 intento inicial + 6 reintentos = 7 llamadas, ni una más.
+    expect(getSystemMock).toHaveBeenCalledTimes(7)
+  })
 })
 
 // ──────────────────────────────── useDockerStatus ──────────────────────────
