@@ -18,16 +18,23 @@ export function loadSystemInfo(force = false): Promise<SystemInfoDto> {
 }
 
 // En desktop el frontend carga desde disco al instante, pero el backend
-// tarda unos segundos en levantar vía el autoarranque de Docker
-// (electron-spec §8: healthcheck con start_period 15s). Sin reintento, una
-// consulta que llega en esa ventana falla, y como el resultado no se
-// vuelve a pedir solo, «Módulos disponibles» quedaba oculto hasta que algo
-// forzara un retry() manual — en la práctica, cerrar y reabrir la app
-// (reproducido 2026-09-02 instalando la v1.0.5 en limpio). 6 intentos cada
-// 3s cubren ese arranque sin sondear para siempre si el backend está caído
-// de verdad por otra razón.
-const MAX_AUTO_RETRIES = 6
-const AUTO_RETRY_DELAY_MS = 3_000
+// tarda en levantar vía el autoarranque de Docker (electron-spec §8), y ese
+// tiempo VARÍA de verdad: 5s con la imagen ya en caché en una corrida, 24s
+// en otra corrida igual de "caché caliente" en la misma máquina — y el
+// propio release documenta que la primera vez (imagen sin descargar) puede
+// tardar «varios minutos». Sin reintento, una consulta que llega en esa
+// ventana falla, y como el resultado no se vuelve a pedir solo, «Módulos
+// disponibles» quedaba oculto hasta que algo forzara un retry() manual —
+// en la práctica, cerrar y reabrir la app.
+//
+// Un primer intento de este arreglo con solo 18s de ventana (6 intentos
+// cada 3s) se quedó corto: verificado con el backend real tardando 24s, el
+// ícono no llegó a aparecer sin reiniciar (reproducido 2026-09-03
+// instalando la v1.0.5 en WSL). 5 minutos de ventana cubren incluso la
+// descarga en frío documentada, y siguen sin sondear para siempre si el
+// backend está caído de verdad por otra razón.
+const MAX_AUTO_RETRIES = 60
+const AUTO_RETRY_DELAY_MS = 5_000
 
 export interface SystemInfoState {
   data: SystemInfoDto | null

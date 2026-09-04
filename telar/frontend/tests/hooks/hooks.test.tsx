@@ -101,13 +101,19 @@ describe('useSystemInfo', () => {
 
   it('reintenta solo, sin retry() manual, si /system falla al montar (backend arrancando)', async () => {
     vi.useFakeTimers()
-    getSystemMock.mockRejectedValueOnce(new Error('connection refused'))
-    getSystemMock.mockResolvedValue(SYSTEM_INFO)
+    // 4 fallos (~20s de reintentos) antes de responder: el caso real que
+    // rompió el primer intento de este arreglo, con el backend tardando 24s.
+    getSystemMock
+      .mockRejectedValueOnce(new Error('connection refused'))
+      .mockRejectedValueOnce(new Error('connection refused'))
+      .mockRejectedValueOnce(new Error('connection refused'))
+      .mockRejectedValueOnce(new Error('connection refused'))
+      .mockResolvedValue(SYSTEM_INFO)
     const { result } = renderHook(() => useSystemInfo())
     await vi.waitFor(() => expect(result.current.error).not.toBeNull())
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(3_000)
+      await vi.advanceTimersByTimeAsync(5_000 * 4)
     })
 
     expect(result.current.data?.cores).toBe(8)
@@ -120,11 +126,11 @@ describe('useSystemInfo', () => {
     renderHook(() => useSystemInfo())
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(3_000 * 10) // más que MAX_AUTO_RETRIES * delay
+      await vi.advanceTimersByTimeAsync(5_000 * 61) // más que MAX_AUTO_RETRIES * delay
     })
 
-    // 1 intento inicial + 6 reintentos = 7 llamadas, ni una más.
-    expect(getSystemMock).toHaveBeenCalledTimes(7)
+    // 1 intento inicial + 60 reintentos = 61 llamadas, ni una más.
+    expect(getSystemMock).toHaveBeenCalledTimes(61)
   })
 })
 
