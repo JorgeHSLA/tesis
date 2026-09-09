@@ -55,7 +55,10 @@ const normalize = (name) => name.replace(/\s+/g, '.')
 function parseChecksums(text) {
   const map = new Map()
   for (const line of text.split('\n')) {
-    const m = line.match(/^([0-9a-f]{64})\s+(.+?)\s*$/i)
+    // sha256sum en modo binario antepone «*» al nombre (`hash *archivo`);
+    // sin el `\*?` esa marca queda pegada al nombre y el match con el asset
+    // real nunca coincide (visto en v1.0.5: los 4 checksums quedaban vacíos).
+    const m = line.match(/^([0-9a-f]{64})\s+\*?(.+?)\s*$/i)
     if (m) map.set(normalize(m[2]), m[1].toLowerCase())
   }
   return map
