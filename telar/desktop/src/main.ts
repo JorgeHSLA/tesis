@@ -18,6 +18,15 @@ import {
 // utilizable, sin coste visual perceptible. Debe invocarse antes de 'ready'.
 app.disableHardwareAcceleration()
 
+// En sesiones Wayland de Linux (típico en Ubuntu 24.10+ GNOME), el backend
+// ozone/wayland de Electron crea la ventana pero no dispara 'ready-to-show'
+// bajo software rendering, así que el icono del launcher parece no abrir nada
+// (v1.0.5, incidente 2026-09-17). Forzar X11 la muestra correctamente vía
+// XWayland con coste visual imperceptible.
+if (process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland') {
+  app.commandLine.appendSwitch('ozone-platform-hint', 'x11')
+}
+
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1280,
