@@ -39,6 +39,17 @@ linux:
   maintainer: Jorge Sierra <jorgesierralaiton@gmail.com>
   synopsis: Simulador educativo de OpenMP con PyOMP
   syncDesktopName: true
+  # Defensa en profundidad para el bug ozone/wayland (ver comentario en
+  # src/main.ts sobre XDG_SESSION_TYPE=wayland). El runtime detection de
+  # main.ts ya fuerza x11 al arrancar, pero además hacemos que el `.desktop`
+  # que instala el `.deb` pase el flag desde el launcher del sistema: si por
+  # cualquier motivo el bloque runtime fallara (build corrupto, edición
+  # posterior), el icono sigue abriendo la ventana en Wayland. X11 y XWayland
+  # existen en todas las distros que soportamos; `--ozone-platform=x11` es
+  # inocuo en sesiones X11 nativas.
+  desktop:
+    entry:
+      Exec: /opt/Telar/telar-desktop --ozone-platform=x11 %U
 
 # `deb` es clave de PRIMER NIVEL (hermana de `linux`), igual que `nsis` lo es
 # de `win`: anidarla dentro de `linux` hace fallar la validación del esquema.
