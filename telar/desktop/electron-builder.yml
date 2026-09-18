@@ -47,9 +47,11 @@ linux:
   # posterior), el icono sigue abriendo la ventana en Wayland. X11 y XWayland
   # existen en todas las distros que soportamos; `--ozone-platform=x11` es
   # inocuo en sesiones X11 nativas.
-  desktop:
-    entry:
-      Exec: /opt/Telar/telar-desktop --ozone-platform=x11 %U
+  # `linux.desktop.entry.Exec` NO es válido en electron-builder 26 (falla el
+  # build: "Please specify executable name as linux.executableName instead")
+  # — la vía soportada para argumentos extra en el Exec es executableArgs.
+  executableArgs:
+    - --ozone-platform=x11
 
 # `deb` es clave de PRIMER NIVEL (hermana de `linux`), igual que `nsis` lo es
 # de `win`: anidarla dentro de `linux` hace fallar la validación del esquema.
