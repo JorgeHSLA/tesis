@@ -102,6 +102,12 @@ describe('router (smoke de las 7 rutas)', () => {
     expect(await screen.findByText(/Resultados · transporteMonteCarlo\.py/, undefined, { timeout: 8000 })).toBeInTheDocument()
   })
 
+  it('/resultados/comparar → ResultsCompare (no lo captura :jobId)', async () => {
+    render(<RouterProvider router={router} />)
+    await goto('/resultados/comparar?ids=a,b')
+    expect(await screen.findByText('Comparar ejecuciones', undefined, { timeout: 8000 })).toBeInTheDocument()
+  })
+
   it('/aprender → CatalogScreen', async () => {
     render(<RouterProvider router={router} />)
     await goto('/aprender')

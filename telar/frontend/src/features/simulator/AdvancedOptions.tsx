@@ -28,9 +28,11 @@ export const TIMEOUT_CHOICES = [30, 60, 90, 120] as const
  * entrada «Sin timeout» (0) SOLO cuando el servidor no impone tope. Con tope
  * (`maxTimeoutS > 0`) se acota y «Sin timeout» desaparece, porque el backend
  * lo rechaza con 422. */
-export function buildTimeoutOptions(maxTimeoutS: number, exampleDefault: number | null): number[] {
+export function buildTimeoutOptions(maxTimeoutS: number, exampleDefault: number | null, current?: number): number[] {
   const hasCap = maxTimeoutS > 0
-  const base = [...TIMEOUT_CHOICES, exampleDefault ?? 60]
+  // `current`: valor recuperado (Re-ejecutar / configuración guardada) que no
+  // está en la escalera; sin él el select mostraría otro valor del que se envía.
+  const base = [...TIMEOUT_CHOICES, exampleDefault ?? 60, ...(current != null && current > 0 ? [current] : [])]
   const values = [...new Set(hasCap ? [...base, maxTimeoutS] : base)]
     .filter((t) => t >= 5 && (!hasCap || t <= maxTimeoutS))
     .sort((a, b) => a - b)
@@ -45,7 +47,7 @@ export function AdvancedOptions({ system, exampleDefaultTimeout, timeoutS, onTim
   const envId = useId()
   const toId = useId()
   const hasCap = system.limits.max_timeout_s > 0
-  const options = buildTimeoutOptions(system.limits.max_timeout_s, exampleDefaultTimeout)
+  const options = buildTimeoutOptions(system.limits.max_timeout_s, exampleDefaultTimeout, timeoutS)
   const runtime = `telar-runner · python ${system.versions.python} + pyomp ${system.versions.pyomp}`
 
   return (

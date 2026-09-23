@@ -140,6 +140,23 @@
 }
 
 /* Banner de error de lanzamiento (códigos del envelope, §6.2) */
+/* Avisos al recuperar una configuración (Re-ejecutar / Mis configuraciones). */
+.sim-notices {
+  margin-bottom: var(--sp-5);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+.sim-notices p {
+  margin: 0;
+}
+.sim-notices p + p {
+  margin-top: var(--sp-2);
+}
+
 .launch-error {
   display: flex;
   flex-wrap: wrap;
@@ -340,3 +357,56 @@
   font-variant-numeric: tabular-nums;
 }
 .sweep-check { color: var(--success-ink); font-weight: 700; }
+
+/* «Mis configuraciones» (CU-32.1). */
+.saved-configs-form {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.saved-configs-form .field-label {
+  margin: 0;
+}
+.saved-configs-error {
+  margin: var(--sp-3) 0 0;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+.saved-configs-list {
+  list-style: none;
+  margin: var(--sp-4) 0 0;
+  padding: 0;
+}
+.saved-configs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border);
+}
+.saved-configs-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.saved-configs-actions,
+.saved-configs-rename {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.saved-configs-rename {
+  flex: 1;
+}
+.saved-configs-rename .input {
+  flex: 1;
+  min-width: 160px;
+}
+@media (max-width: 640px) {
+  .saved-configs-form {
+    grid-template-columns: 1fr;
+  }
+}

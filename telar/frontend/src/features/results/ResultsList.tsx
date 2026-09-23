@@ -1,9 +1,11 @@
 // ResultsList — historial /resultados (frontend-spec §6.4): tabla de
 // GET /api/v1/jobs?limit=50 con chips terminales de la tabla §6.3 (StatusChip)
 // y botón Ver → detalle. Vacío → EmptyState con link al simulador.
+// CU-30.1: selección múltiple de jobs terminales → «Comparar (n)» (≥2).
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { listJobs, type JobsPage } from '../../api/jobs'
+import { Button } from '../../components/ui/Button'
 import { Card, CardHead } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { ErrorState } from '../../components/ui/ErrorState'
@@ -13,9 +15,17 @@ import { IconResults, IconTerminal } from '../../components/icons/icons'
 import { fmtRelative, fmtTimeMs } from '../../lib/format'
 import '../../styles/screens/results.css'
 
+const TERMINAL = ['completed', 'failed', 'timeout', 'cancelled']
+
 export default function ResultsList() {
+  const navigate = useNavigate()
   const [page, setPage] = useState<JobsPage | null>(null)
   const [error, setError] = useState<Error | null>(null)
+  // Orden de selección = orden de la comparación.
+  const [selected, setSelected] = useState<string[]>([])
+
+  const toggle = (jobId: string) =>
+    setSelected((prev) => (prev.includes(jobId) ? prev.filter((id) => id !== jobId) : [...prev, jobId]))
 
   const load = useCallback(() => {
     setError(null)
@@ -66,9 +76,25 @@ export default function ResultsList() {
         />
       ) : (
         <Card>
-          <CardHead icon={<IconTerminal size={16} />} title="Jobs recientes" sub={`${page.meta?.total ?? page.jobs.length} en total`} />
+          <CardHead
+            icon={<IconTerminal size={16} />}
+            title="Jobs recientes"
+            sub={`${page.meta?.total ?? page.jobs.length} en total`}
+            right={
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={selected.length < 2}
+                title={selected.length < 2 ? 'Marca al menos dos ejecuciones terminadas' : undefined}
+                onClick={() => navigate(`/resultados/comparar?ids=${selected.map(encodeURIComponent).join(',')}`)}
+              >
+                Comparar ({selected.length})
+              </Button>
+            }
+          />
           <div className="results-table" role="table" aria-label="Historial de jobs">
             <div className="results-table-head" role="row">
+              <span role="columnheader" aria-label="seleccionar" />
               <span role="columnheader">Archivo</span>
               <span role="columnheader">Estado</span>
               <span role="columnheader">Hilos</span>
@@ -77,10 +103,21 @@ export default function ResultsList() {
               <span role="columnheader" aria-label="acciones" />
             </div>
             {page.jobs.map((j) => {
-              const isTerminal = ['completed', 'failed', 'timeout', 'cancelled'].includes(j.status)
+              const isTerminal = TERMINAL.includes(j.status)
               const href = isTerminal ? `/resultados/${j.job_id}` : `/simulador/${j.job_id}`
               return (
                 <div key={j.job_id} className="results-table-row" role="row">
+                  <span role="cell">
+                    {isTerminal && (
+                      <input
+                        type="checkbox"
+                        className="results-select"
+                        aria-label={`Seleccionar ${j.filename} #${j.job_id.slice(0, 8)} para comparar`}
+                        checked={selected.includes(j.job_id)}
+                        onChange={() => toggle(j.job_id)}
+                      />
+                    )}
+                  </span>
                   <span role="cell" className="mono-small results-filename" title={j.filename}>
                     {j.filename}
                   </span>
