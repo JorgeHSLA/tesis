@@ -2,6 +2,7 @@
 // % REAL derivado del `progress` fusionado de GET /modules.
 import type { ModuleDto } from '../../api/types'
 import { Card, CardPad } from '../../components/ui/Card'
+import { lessonCounts } from '../../stores/progressStore'
 
 export interface TracksCardProps {
   modules: ModuleDto[]
@@ -14,9 +15,7 @@ export function TracksCard({ modules }: TracksCardProps) {
       <CardPad>
         <div className="eyebrow">Tu progreso</div>
         {sorted.map((mod) => {
-          const total = mod.lessons.length
-          const done = mod.lessons.filter((l) => l.progress.completed).length
-          const pct = total > 0 ? Math.round((done / total) * 100) : 0
+          const { done, total, pct } = lessonCounts(mod.lessons)
           return (
             <div key={mod.id} className="track-row">
               <div className="row" style={{ justifyContent: 'space-between' }}>

@@ -3,7 +3,7 @@
 // updateExample (metadatos) vs uploadExampleCode (solo código); y "Probar en
 // simulador" navega a #/simulador?ejemplo={id}.
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { createMemoryRouter, RouterProvider } from 'react-router-dom'
+import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 vi.mock('@/api/admin', () => ({
@@ -31,12 +31,16 @@ const EXAMPLE = {
   expected_output_note: '', takeaways: ['t1'],
 }
 
+function SimSpy() {
+  return <div>SIMULADOR{useLocation().search}</div>
+}
+
 function renderEditor() {
   const router = createMemoryRouter(
     [
       { path: '/admin/ejemplos/:exampleId', element: <AdminExampleEditor /> },
       { path: '/admin', element: <div>PANEL</div> },
-      { path: '/simulador', element: <div>SIMULADOR</div> },
+      { path: '/simulador', element: <SimSpy /> },
     ],
     { initialEntries: ['/admin/ejemplos/ex-1'] },
   )
@@ -116,11 +120,12 @@ describe('AdminExampleEditor · guardar', () => {
 })
 
 describe('AdminExampleEditor · probar en simulador', () => {
-  it('navega a #/simulador?ejemplo={id} cuando está habilitado y sin cambios', async () => {
+  it('navega a #/simulador?ejemplo={id}&prueba=admin cuando está habilitado y sin cambios', async () => {
     renderEditor()
     const btn = await screen.findByRole('button', { name: 'Probar en simulador' })
     expect(btn).toBeEnabled()
     fireEvent.click(btn)
-    expect(await screen.findByText('SIMULADOR')).toBeInTheDocument()
+    // S2 (CU-22.2): la prueba del autor no envía lesson_id → no toca progreso.
+    expect(await screen.findByText('SIMULADOR?ejemplo=ex-1&prueba=admin')).toBeInTheDocument()
   })
 })

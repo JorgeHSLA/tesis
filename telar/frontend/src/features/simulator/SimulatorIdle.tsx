@@ -165,6 +165,9 @@ export function SimulatorIdle() {
   // Precarga inicial: ?ejemplo={id} > navigate-state (código propio) >
   // primer ejemplo habilitado del catálogo (helloOpenMP — §6.2, sin hardcodear).
   const queryExample = searchParams.get('ejemplo')
+  // S2 (CU-22.2): la prueba desde Autoría ejecuta el ejemplo SIN lesson_id, así
+  // nunca toca el progreso de la lección (ni last_job_id ni la regla `run`).
+  const adminTest = searchParams.get('prueba') === 'admin'
   useEffect(() => {
     if (queryExample != null && queryExample !== '') {
       selectExample(queryExample)
@@ -201,7 +204,9 @@ export function SimulatorIdle() {
     setLaunching(true)
     const sendThreads = shouldSendThreads(example)
     const req: JobCreateRequestDto = {
-      ...(example != null ? { example_id: example.id, lesson_id: example.lesson_id } : { filename }),
+      ...(example != null
+        ? { example_id: example.id, ...(adminTest ? null : { lesson_id: example.lesson_id }) }
+        : { filename }),
       ...(example == null || edited ? { code } : null),
       // El effect de CU-32.3 ya mantiene `threads` ≤ max; el min es solo defensa.
       ...(sendThreads ? { threads: Math.min(threads, system.max_threads) } : null),
@@ -221,7 +226,7 @@ export function SimulatorIdle() {
       setLaunchError(err instanceof ApiError ? err : new ApiError('NETWORK_ERROR', String(err), 0))
       setLaunching(false)
     }
-  }, [system, launching, example, edited, code, filename, threads, timeoutS, navigate])
+  }, [system, launching, example, adminTest, edited, code, filename, threads, timeoutS, navigate])
 
   if (sysError != null || modulesError != null) {
     return (

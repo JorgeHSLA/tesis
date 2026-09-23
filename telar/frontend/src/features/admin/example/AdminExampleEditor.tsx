@@ -172,7 +172,7 @@ export default function AdminExampleEditor() {
                   ? 'Guarda los cambios antes de probar'
                   : undefined
             }
-            onClick={() => navigate(`/simulador?ejemplo=${encodeURIComponent(data.id)}`)}
+            onClick={() => navigate(`/simulador?ejemplo=${encodeURIComponent(data.id)}&prueba=admin`)}
           >
             Probar en simulador
           </Button>

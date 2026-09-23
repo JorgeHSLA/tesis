@@ -2,9 +2,9 @@
 // Caché de /modules: hydrate(), markViewed (PUT + refresh), applyAttemptResult
 // (best score/completed), lastLessonId persistido en localStorage, moduleProgress.
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { useProgressStore } from '@/stores/progressStore'
+import { lessonTarget, useProgressStore } from '@/stores/progressStore'
 import type { ModuleDto, ProgressEntryDto } from '@/api/types'
-import { MODULES, QUIZ_ATTEMPT_FAIL, QUIZ_ATTEMPT_RESULT } from '../fixtures/rest'
+import { MODULES, MODULES_CON_LECTURA, QUIZ_ATTEMPT_FAIL, QUIZ_ATTEMPT_RESULT } from '../fixtures/rest'
 
 vi.mock('@/api/content', () => ({
   getModules: vi.fn(),
@@ -121,6 +121,22 @@ describe('markViewed()', () => {
   })
 })
 
+describe('markRead()', () => {
+  it('S2: PUT {viewed:true, completed:true} y refresca la caché', async () => {
+    useProgressStore.setState({ modules: structuredClone(MODULES_CON_LECTURA.modules) })
+    await useProgressStore.getState().markRead('queEsUnHilo')
+    expect(putLessonProgressMock).toHaveBeenCalledWith('queEsUnHilo', { viewed: true, completed: true })
+    expect(getModulesMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('S2: si el PUT falla, propaga el error (la UI lo muestra) y no re-consulta', async () => {
+    useProgressStore.setState({ modules: structuredClone(MODULES_CON_LECTURA.modules) })
+    putLessonProgressMock.mockRejectedValueOnce(new Error('red caída'))
+    await expect(useProgressStore.getState().markRead('queEsUnHilo')).rejects.toThrow('red caída')
+    expect(getModulesMock).not.toHaveBeenCalled()
+  })
+})
+
 describe('applyAttemptResult()', () => {
   it('sube best score, marca completed e incrementa summary al aprobar', () => {
     useProgressStore.setState({ modules: cloneModules(), summary: structuredClone(MODULES.summary) })
@@ -140,6 +156,27 @@ describe('applyAttemptResult()', () => {
     expect(useProgressStore.getState().summary?.lessons_completed).toBe(5)
   })
 
+  it('S2: aprobar el quiz de una lección run guarda la nota pero NO la completa', () => {
+    const mods = cloneModules()
+    mods[0].lessons[0].completion_rule = 'run'
+    useProgressStore.setState({ modules: mods, summary: structuredClone(MODULES.summary) })
+    useProgressStore.getState().applyAttemptResult({ ...QUIZ_ATTEMPT_RESULT, score: 5 })
+    const lesson = useProgressStore.getState().modules?.[0].lessons.find((l) => l.id === 'spmd')
+    expect(lesson?.progress.completed).toBe(false)
+    expect(lesson?.progress.best_quiz_score).toBe(5)
+    expect(useProgressStore.getState().summary?.lessons_completed).toBe(5)
+  })
+
+  it('S2: aprobar el quiz de una lección deshabilitada no la completa', () => {
+    const mods = cloneModules()
+    mods[0].lessons[0].enabled = false
+    useProgressStore.setState({ modules: mods, summary: structuredClone(MODULES.summary) })
+    useProgressStore.getState().applyAttemptResult(QUIZ_ATTEMPT_RESULT)
+    const lesson = useProgressStore.getState().modules?.[0].lessons.find((l) => l.id === 'spmd')
+    expect(lesson?.progress.completed).toBe(false)
+    expect(useProgressStore.getState().summary?.lessons_completed).toBe(5)
+  })
+
   it('sin caché (modules null) es no-op', () => {
     useProgressStore.setState({ modules: null })
     expect(() => useProgressStore.getState().applyAttemptResult(QUIZ_ATTEMPT_RESULT)).not.toThrow()
@@ -154,8 +191,48 @@ describe('moduleProgress()', () => {
     expect(useProgressStore.getState().moduleProgress('m2')).toEqual({ done: 1, total: 2, pct: 50 })
   })
 
+  it('S2: el denominador son las lecciones habilitadas', () => {
+    const mods = cloneModules()
+    mods[0].lessons[0].progress.completed = true
+    mods[0].lessons[1].enabled = false
+    mods[0].lessons[1].progress.completed = true // deshabilitada: no suma
+    useProgressStore.setState({ modules: mods })
+    expect(useProgressStore.getState().moduleProgress('m2')).toEqual({ done: 1, total: 1, pct: 100 })
+  })
+
   it('módulo inexistente → ceros', () => {
     useProgressStore.setState({ modules: cloneModules() })
     expect(useProgressStore.getState().moduleProgress('no-existe')).toEqual({ done: 0, total: 0, pct: 0 })
+  })
+})
+
+describe('lessonTarget() · S2 Continuar/Empezar', () => {
+  it('la última visitada si sigue disponible → Reanudar', () => {
+    const t = lessonTarget(cloneModules(), 'spmdCritical')
+    expect(t?.lesson.id).toBe('spmdCritical')
+    expect(t?.resumed).toBe(true)
+  })
+
+  it('última visitada deshabilitada → primera disponible', () => {
+    const mods = cloneModules()
+    mods[0].lessons[1].enabled = false
+    const t = lessonTarget(mods, 'spmdCritical')
+    expect(t?.lesson.id).toBe('spmd')
+    expect(t?.resumed).toBe(false)
+  })
+
+  it('última visitada que ya no está (archivada o borrada) → primera disponible en orden', () => {
+    const mods = cloneModules()
+    mods[0].lessons.reverse() // el orden lo da `order`, no la posición
+    mods[0].lessons.find((l) => l.id === 'spmd')!.enabled = false
+    const t = lessonTarget(mods, 'primerEjemplo')
+    expect(t?.lesson.id).toBe('spmdCritical')
+    expect(t?.resumed).toBe(false)
+  })
+
+  it('sin lecciones disponibles → null', () => {
+    const mods = cloneModules()
+    mods[0].lessons.forEach((l) => (l.enabled = false))
+    expect(lessonTarget(mods, null)).toBeNull()
   })
 })

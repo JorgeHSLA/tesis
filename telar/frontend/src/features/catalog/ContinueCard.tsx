@@ -1,11 +1,12 @@
 // ContinueCard — "Continuar donde lo dejaste" (frontend-spec §6.5): título de
-// progressStore.lastLessonId + meta módulo · ~est_run_seconds s + `Reanudar`.
-// Sin progreso: `¿Qué es el paralelismo?` + `Empezar` → primerEjemplo (ID
-// LITERAL del catálogo, jamás slugificar).
+// la lección destino + meta módulo · ~est_run_seconds s + `Reanudar`/`Empezar`.
+// S2: el destino es la última visitada si sigue disponible y, si no, la primera
+// disponible del curso (lessonTarget); nunca un id fijo.
 import { useNavigate } from 'react-router-dom'
 import type { ExampleSummaryDto, ModuleDto } from '../../api/types'
 import { IconLayers, IconPlay } from '../../components/icons/icons'
 import { Button } from '../../components/ui/Button'
+import { lessonTarget } from '../../stores/progressStore'
 
 export interface ContinueCardProps {
   modules: ModuleDto[]
@@ -16,28 +17,23 @@ export interface ContinueCardProps {
 
 export function ContinueCard({ modules, lastLessonId, examplesIndex }: ContinueCardProps) {
   const navigate = useNavigate()
+  const target = lessonTarget(modules, lastLessonId)
+  if (target == null) return null // catálogo sin lecciones disponibles
 
-  const mod = lastLessonId ? modules.find((m) => m.lessons.some((l) => l.id === lastLessonId)) : undefined
-  const lesson = mod?.lessons.find((l) => l.id === lastLessonId)
-  const hasProgress = mod != null && lesson != null
-
-  const targetId = hasProgress ? lesson.id : 'primerEjemplo'
-  const title = hasProgress ? lesson.title : '¿Qué es el paralelismo?'
-  const moduleTitle = hasProgress ? mod.title : 'Fundamentos'
+  const { module, lesson, resumed } = target
   // E1: una lección conceptual no tiene ejemplo, así que tampoco tiene tiempo
   // de ejecución que anunciar.
-  const exampleId = hasProgress ? lesson.example_id : 'primerEjemplo'
-  const est = exampleId != null ? examplesIndex?.get(exampleId)?.est_run_seconds : undefined
+  const est = lesson.example_id != null ? examplesIndex?.get(lesson.example_id)?.est_run_seconds : undefined
 
   return (
     <div className="catalog-continue card">
-      <div className="eyebrow">Continuar donde lo dejaste</div>
-      <div className="continue-title">{title}</div>
+      <div className="eyebrow">{resumed ? 'Continuar donde lo dejaste' : 'Empieza por aquí'}</div>
+      <div className="continue-title">{lesson.title}</div>
       <div className="continue-meta mono-small">
-        <IconLayers size={11} /> {moduleTitle} · <IconPlay size={9} /> {est != null ? `~${est}s` : '—'}
+        <IconLayers size={11} /> {module.title} · <IconPlay size={9} /> {est != null ? `~${est}s` : '—'}
       </div>
-      <Button variant="primary" size="sm" style={{ marginTop: 10 }} onClick={() => navigate(`/aprender/${targetId}`)}>
-        <IconPlay size={13} /> {hasProgress ? 'Reanudar' : 'Empezar'}
+      <Button variant="primary" size="sm" style={{ marginTop: 10 }} onClick={() => navigate(`/aprender/${lesson.id}`)}>
+        <IconPlay size={13} /> {resumed ? 'Reanudar' : 'Empezar'}
       </Button>
     </div>
   )

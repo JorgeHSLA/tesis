@@ -12,7 +12,7 @@ export interface CatalogStatsProps {
 
 export function CatalogStats({ summary, moduleCount, exampleCount }: CatalogStatsProps) {
   const stats: Array<{ n: string; label: string }> = [
-    { n: `${summary.lessons_completed}/${summary.lessons_total}`, label: 'Lecciones completadas' },
+    { n: `${summary.lessons_completed}/${summary.lessons_enabled}`, label: 'Lecciones completadas' },
     { n: String(exampleCount), label: 'Ejemplos' },
     { n: String(summary.quizzes_total), label: 'Quizzes' },
     { n: String(moduleCount), label: 'Módulos' },
