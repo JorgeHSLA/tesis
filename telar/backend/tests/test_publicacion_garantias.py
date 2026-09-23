@@ -189,7 +189,7 @@ def test_el_bundle_renumera_el_orden_de_las_lecciones(cliente, raiz):
     bundle = ModuleBundle.model_validate_json(
         (raiz / "modulos" / "m1" / "v1.json").read_bytes()
     )
-    assert [l.order for l in bundle.lessons] == list(range(1, len(bundle.lessons) + 1))
+    assert [leccion.order for leccion in bundle.lessons] == list(range(1, len(bundle.lessons) + 1))
     assert bundle.lessons[-1].id == "alFinal"
 
 
@@ -418,3 +418,52 @@ def test_el_ensayo_en_desfase_anuncia_la_vigente_y_no_escribe(cliente, raiz, mon
     assert (data["version"], data["checksum"]) == (1, publicado["checksum"])
     assert {p: p.read_bytes() for p in raiz.rglob("*.json")} == antes
     assert ok(cliente.get(ESTADO.format("m1")))["state"] == "out_of_sync"
+
+
+# ═══════════ revisión S5: el estado no se fía de un bundle vigente raro ═══════
+
+
+@pytest.mark.parametrize("campo", ["id", "version"])
+def test_estado_con_bundle_vigente_de_otra_identidad_es_desconocido(cliente, raiz, campo):
+    """Si el objeto de ``modulos/m1/v1.json`` no es el que anuncia el índice,
+    su huella no dice nada de m1 v1: se responde «no se pudo comprobar»."""
+    ok(cliente.post(PUBLICAR.format("m1"), json={}), 201)
+    ruta = raiz / "modulos" / "m1" / "v1.json"
+    datos = json.loads(ruta.read_bytes())
+    datos["module"][campo] = "otroModulo" if campo == "id" else 7
+    datos["checksum"] = bundle_checksum(datos)
+    ruta.write_text(json.dumps(datos, ensure_ascii=False), encoding="utf-8")
+
+    data = ok(cliente.get(ESTADO.format("m1")))
+    assert data["state"] == "unknown"
+    assert data["reason"] == "bundle_invalid"
+
+
+def test_estado_con_bundle_vigente_corrupto_es_desconocido(cliente, raiz):
+    ok(cliente.post(PUBLICAR.format("m1"), json={}), 201)
+    (raiz / "modulos" / "m1" / "v1.json").write_text("{ no es json", encoding="utf-8")
+
+    data = ok(cliente.get(ESTADO.format("m1")))
+    assert data["state"] == "unknown"
+    assert data["reason"] == "bundle_invalid"
+
+
+def test_reintento_sin_poder_leer_lo_subido_sigue_siendo_conflicto(
+    cliente, raiz, catalogo, monkeypatch
+):
+    """CU-37.3: sin leer el bundle ya subido no se puede afirmar que sea la
+    misma publicación, así que no se anuncia en el índice."""
+    async def cas_siempre_falla(self, data, *, if_generation_match):
+        raise catalog_publisher.IndexCasFailed("otro publicó a la vez")
+
+    monkeypatch.setattr(catalog_publisher.LocalCatalogPublisher, "write_index", cas_siempre_falla)
+    falla(cliente.post(PUBLICAR.format("m1"), json={}), 409, "VERSION_CONFLICT")
+    monkeypatch.undo()
+
+    async def sin_lectura(*args, **kwargs):
+        raise CatalogUnavailable("network", causa="sin red")
+
+    monkeypatch.setattr(catalogo, "fetch_module", sin_lectura)
+    error = falla(cliente.post(PUBLICAR.format("m1"), json={}), 409, "VERSION_CONFLICT")
+    assert error["details"]["stage"] == "bundle"
+    assert not (raiz / "modulos" / "index.json").exists()
