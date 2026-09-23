@@ -23,6 +23,7 @@ import { clampThreads, type SimConfig } from '../../lib/simConfig'
 import { AdvancedOptions } from './AdvancedOptions'
 import { CodePanel, type PickedFile } from './CodePanel'
 import { ExamplePicker } from './ExamplePicker'
+import { SavedConfigs } from './SavedConfigs'
 import { effectiveCpus, shouldSendThreads, ThreadsField } from './ThreadsField'
 
 /** navigate-state de Re-ejecutar (lib/simConfig RerunState). Se lee con
@@ -360,6 +361,11 @@ export function SimulatorIdle() {
         exampleDefaultTimeout={example?.default_timeout_s ?? null}
         timeoutS={timeoutS}
         onTimeoutChange={setTimeoutS}
+      />
+
+      <SavedConfigs
+        current={{ example_id: example?.id ?? null, code, filename, threads, timeout_s: timeoutS, edited }}
+        onLoad={(cfg) => applyConfig(cfg, system, [`Configuración «${cfg.name}» cargada.`])}
       />
     </section>
   )
