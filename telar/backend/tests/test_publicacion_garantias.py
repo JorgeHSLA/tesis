@@ -401,3 +401,20 @@ def test_un_objeto_manipulado_en_el_bucket_no_se_reutiliza(
     error = falla(cliente.post(PUBLICAR.format("m1"), json={}), 409, "VERSION_CONFLICT")
     assert error["details"]["stage"] == "bundle"
     assert not (raiz / "modulos" / "index.json").exists()
+
+
+def test_el_ensayo_en_desfase_anuncia_la_vigente_y_no_escribe(cliente, raiz, monkeypatch):
+    """dry_run tras publicar sin constancia local: describe la vN ya subida."""
+    async def rompe(*args, **kwargs):
+        raise RuntimeError("disco lleno")
+
+    monkeypatch.setattr(catalog_repo, "set_published_no_commit", rompe)
+    publicado = ok(cliente.post(PUBLICAR.format("m1"), json={}), 201)
+    monkeypatch.undo()
+    antes = {p: p.read_bytes() for p in raiz.rglob("*.json")}
+
+    data = ok(cliente.post(PUBLICAR.format("m1"), json={"dry_run": True}))
+    assert data["published"] is False
+    assert (data["version"], data["checksum"]) == (1, publicado["checksum"])
+    assert {p: p.read_bytes() for p in raiz.rglob("*.json")} == antes
+    assert ok(cliente.get(ESTADO.format("m1")))["state"] == "out_of_sync"

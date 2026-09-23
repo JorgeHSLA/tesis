@@ -446,6 +446,10 @@ async def admin_publish_module(
             # anuncia; lo único que falló es la constancia local. No es un error
             # de la publicación y no se deshace: se declara, y reintentar la
             # reconcilia (el índice va por delante del estado local).
+            # `Exception` a propósito: sea cual sea la causa, la situación del
+            # autor es la misma (publicado sin constancia) y `_persist` ya hizo
+            # rollback, así que la base queda como antes. Un 500 aquí le haría
+            # creer que no se publicó. La traza completa va al log.
             logger.exception("publicado %s v%s; falló el estado local", module_id, resultado.version)
             resultado = resultado.model_copy(update={"local_state_updated": False})
 

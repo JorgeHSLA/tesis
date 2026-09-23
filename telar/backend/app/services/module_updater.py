@@ -110,6 +110,7 @@ if TYPE_CHECKING:  # pragma: no cover
     import aiosqlite
     from fastapi import FastAPI
 
+    from ..config import Settings
     from .catalog_client import CatalogReadPort
 
 logger = logging.getLogger("telar.module_updater")
@@ -1276,7 +1277,7 @@ def _ahora_iso() -> str:
 
 
 async def _revalidar_vigente(
-    puerto: "CatalogReadPort", module_id: str, destino: int, settings: Any
+    puerto: "CatalogReadPort", module_id: str, destino: int, settings: "Settings"
 ) -> None:
     """CU-41.2 — antes de bajar nada, ¿sigue publicada y en esa versión?
 
