@@ -21,7 +21,9 @@ const PHASE_CHIP: Record<UiPhase, PhaseSpec> = {
   connecting: { label: 'Conectando…', tone: 'neutral' },
   queued: { label: 'Preparando', tone: 'neutral', dot: 'var(--text-muted)' },
   creating: { label: 'Preparando', tone: 'neutral', dot: 'var(--text-muted)' },
-  compiling: { label: 'Compilando (JIT)', tone: 'neutral', dot: 'var(--text-muted)' },
+  // §7.7: compiling = «aún sin primer byte de stdout» (el JIT de PyOMP es
+  // perezoso: no hay evento real de fin de compilación) — CU-07.1.
+  compiling: { label: 'Preparando · sin salida aún', tone: 'neutral', dot: 'var(--text-muted)' },
   running: { label: 'Ejecutando', tone: 'green', dot: 'var(--primary)' },
   completed: { label: 'Finalizado', tone: 'green' },
   failed: { label: 'Error', tone: 'red' },

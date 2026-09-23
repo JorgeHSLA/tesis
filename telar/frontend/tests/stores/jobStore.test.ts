@@ -129,6 +129,27 @@ describe('setPhase con detail terminal', () => {
     expect(useJobStore.getState().startedAt).toBe(first)
   })
 
+  it('compiling también arranca el cronómetro (CU-07.1)', () => {
+    useJobStore.getState().setPhase('compiling')
+    expect(useJobStore.getState().startedAt).not.toBeNull()
+  })
+
+  it('setStartedAt usa el started_at real del servidor y prevalece sobre el local (CU-07.4)', () => {
+    const s = useJobStore.getState()
+    s.setPhase('running')
+    s.setStartedAt('2026-09-22T10:00:00.000Z')
+    expect(useJobStore.getState().startedAt).toBe(Date.parse('2026-09-22T10:00:00.000Z'))
+    s.setPhase('running')
+    expect(useJobStore.getState().startedAt).toBe(Date.parse('2026-09-22T10:00:00.000Z'))
+  })
+
+  it('setStartedAt ignora valores nulos o inválidos', () => {
+    const s = useJobStore.getState()
+    s.setStartedAt(null)
+    s.setStartedAt('no-es-fecha')
+    expect(useJobStore.getState().startedAt).toBeNull()
+  })
+
   it('fase terminal con detail puebla exitCode/errorDetail/wallTime', () => {
     useJobStore.getState().setPhase('completed', COMPLETED_DETAIL)
     const st = useJobStore.getState()
