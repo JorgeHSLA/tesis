@@ -18,7 +18,7 @@
 // Antes de todo eso comprueba la credencial (§11.8.1) para poder decir POR QUÉ
 // no se puede publicar, y compara el contenido local con la versión vigente
 // (§11.8.3, D+) para decir si hay algo que publicar.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '../../../api/client'
 import { getCatalogCredentials, getPublishStatus, publishModule } from '../../../api/admin'
 import type {
@@ -139,6 +139,12 @@ export function PublishModuleDialog({
   const [ensayo, setEnsayo] = useState<AdminPublishResultDto | null>(null)
   const [notas, setNotas] = useState('')
   const [ocupado, setOcupado] = useState(false)
+  // Publicar es irreversible: si el diálogo se desmonta con la petición en
+  // vuelo, su resultado ya no tiene a quién avisar.
+  const montado = useRef(true)
+  useEffect(() => () => {
+    montado.current = false
+  }, [])
   const [error, setError] = useState<string | null>(null)
   const [problemas, setProblemas] = useState<Problema[]>([])
   const [sinEstadoLocal, setSinEstadoLocal] = useState(false)
@@ -174,17 +180,19 @@ export function PublishModuleDialog({
     setProblemas([])
     try {
       const r = await publishModule(module.id, { dry_run: dryRun, notes: notas })
+      if (!montado.current) return
       if (dryRun) setEnsayo(r)
       else if (!r.local_state_updated) setSinEstadoLocal(true)
       else onPublished(`«${module.title}» se publicó como v${r.version}.`)
     } catch (err) {
+      if (!montado.current) return
       setError(mensajeDeError(err))
       setProblemas(problemasDe(err, module))
       // Un ensayo fallido invalida el anterior: si no, el botón de publicar
       // seguiría habilitado por un ensayo que ya no describe la realidad.
       if (dryRun) setEnsayo(null)
     } finally {
-      setOcupado(false)
+      if (montado.current) setOcupado(false)
     }
   }
 
@@ -196,7 +204,7 @@ export function PublishModuleDialog({
   const graves = avisos.filter((w) => AVISO[w.code]?.grave)
 
   return (
-    <div className="admin-modal-backdrop" onMouseDown={onClose}>
+    <div className="admin-modal-backdrop" onMouseDown={ocupado ? undefined : onClose}>
       <div
         className="admin-modal admin-modal-form card"
         role="dialog"
