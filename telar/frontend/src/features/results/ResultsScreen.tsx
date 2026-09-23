@@ -22,7 +22,8 @@ import {
   IconZap,
 } from '../../components/icons/icons'
 import { fmtBytes, fmtTimeMs } from '../../lib/format'
-import { downloadFile } from '../../lib/download'
+import { downloadFile, saveBlob } from '../../lib/download'
+import { jobExportBlob, jobExportFilename } from '../../lib/jobExport'
 import { buildObservations } from '../../lib/observations'
 import { configFromJob } from '../../lib/simConfig'
 import { bestSweepPoint } from '../../lib/speedup'
@@ -32,6 +33,7 @@ import '../../styles/screens/results.css'
 const TERMINAL = ['completed', 'failed', 'timeout', 'cancelled']
 
 const DOWNLOAD_ERROR = 'No fue posible descargar la salida. Inténtalo nuevamente.'
+const EXPORT_ERROR = 'No fue posible exportar los resultados. Inténtalo nuevamente.'
 
 /** Mismo nombre que el Content-Disposition de §7.6 (`<stem>-<job_id[:8]>.txt`):
  *  entre orígenes esa cabecera no es legible desde fetch, así que se reconstruye. */
@@ -94,6 +96,18 @@ export default function ResultsScreen() {
       .catch(() => setDownloadFailed(true))
       .finally(() => setDownloading(false))
   }, [job, downloading])
+
+  // CU-31: exportación JSON local (el job ya está en memoria: no hay red).
+  const [exportFailed, setExportFailed] = useState(false)
+  const exportJson = useCallback(() => {
+    if (job == null) return
+    try {
+      saveBlob(jobExportBlob(job), jobExportFilename(job))
+      setExportFailed(false)
+    } catch {
+      setExportFailed(true)
+    }
+  }, [job])
 
   if (error != null) {
     return (
@@ -176,6 +190,9 @@ export default function ResultsScreen() {
           <Button variant="outline" onClick={downloadOutput} disabled={downloading}>
             <IconDownload size={14} /> Descargar output
           </Button>
+          <Button variant="outline" onClick={exportJson}>
+            <IconDownload size={14} /> Exportar JSON
+          </Button>
           <Button variant="outline" onClick={rerun}>
             Re-ejecutar
           </Button>
@@ -185,6 +202,8 @@ export default function ResultsScreen() {
       {downloadFailed && (
         <ErrorState title="Descarga fallida" message={DOWNLOAD_ERROR} onRetry={downloadOutput} />
       )}
+
+      {exportFailed && <ErrorState title="Exportación fallida" message={EXPORT_ERROR} onRetry={exportJson} />}
 
       <div className="metrics-row">
         <MetricCard
