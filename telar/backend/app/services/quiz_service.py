@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Any, Mapping, Protocol
 
 from app.repositories import content_admin
-from app.repositories.content import ContentRepository, Quiz
+from app.repositories.content import ContentRepository, Quiz, cuenta_para_progreso
 from app.repositories.records import QuizAttemptRecord
 from app.schemas import (
     QuizAttemptResult,
@@ -147,6 +147,17 @@ class QuizService:
         total = len(quiz.questions)
         passed = (score / total) >= quiz.pass_threshold
 
+        # S2 (diseño A): el quiz completa la lección SOLO si su regla es
+        # `quiz` y la lección cuenta para el progreso. La nota se guarda
+        # siempre: es evidencia aunque la regla sea `viewed` o `run`.
+        lesson = self._content.lesson(lesson_id)
+        completes = (
+            passed
+            and lesson is not None
+            and lesson.completion_rule == "quiz"
+            and cuenta_para_progreso(lesson)
+        )
+
         attempt = QuizAttemptRecord(
             id=uuid.uuid4().hex,
             lesson_id=lesson_id,
@@ -163,12 +174,12 @@ class QuizService:
                 await self._attempts.create_no_commit(attempt)
                 await self._progress.upsert_no_commit(
                     lesson_id,
-                    completed=True if passed else None,  # None = no tocar
+                    completed=True if completes else None,  # None = no tocar
                     best_quiz_score=score,  # el repo aplica MAX en SQL
                     # E4: queda registrado que el aprobado vino del quiz, no de
                     # que alguien marcara la lección a mano. Al actualizar el
                     # módulo eso decide si el `completed` sigue justificado.
-                    completed_via="quiz" if passed else None,
+                    completed_via="quiz" if completes else None,
                 )
                 await self._db.commit()  # ÚNICO commit de la unidad
             except Exception:

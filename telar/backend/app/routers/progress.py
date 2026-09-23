@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from app.repositories.content import ContentRepository
+from app.repositories.content import ContentRepository, cuenta_para_progreso
 from app.routers.modules import (
     envelope_error,
     envelope_ok,
@@ -47,13 +47,14 @@ def _entry(record: Any, quiz_total: int) -> ProgressEntry:
 def _modules_completed(
     content: ContentRepository, completed_ids: set[str]
 ) -> int:
-    """Módulos con ≥1 lección habilitada y TODAS las habilitadas completadas."""
+    """Módulos con ≥1 lección que cuenta y TODAS las que cuentan completadas."""
     count = 0
     for module in content.modules():
         enabled = [
             lid
             for lid in module.lesson_ids
-            if (lesson := content.lesson(lid)) is not None and lesson.enabled
+            if (lesson := content.lesson(lid)) is not None
+            and cuenta_para_progreso(lesson)
         ]
         if enabled and all(lid in completed_ids for lid in enabled):
             count += 1
@@ -79,11 +80,13 @@ async def get_progress(
     completed_enabled = {
         lid
         for lid in completed_ids
-        if (lesson := content.lesson(lid)) is not None and lesson.enabled
+        if (lesson := content.lesson(lid)) is not None and cuenta_para_progreso(lesson)
     }
     summary = ProgressSummary(
         lessons_completed=len(completed_enabled),
-        lessons_enabled=sum(1 for lesson in content.lessons() if lesson.enabled),
+        lessons_enabled=sum(
+            1 for lesson in content.lessons() if cuenta_para_progreso(lesson)
+        ),
         modules_completed=_modules_completed(content, completed_ids),
         modules_total=len(content.modules()),
     )

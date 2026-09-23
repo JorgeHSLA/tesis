@@ -640,6 +640,22 @@ def test_bajar_el_umbral_concede_el_completado_desde_el_historico():
     assert op.best_quiz_score == 3 and op.effect == "rescored"
 
 
+@pytest.mark.parametrize("regla", ["run", "viewed"])
+def test_recalificar_no_completa_una_leccion_cuya_regla_no_es_quiz(regla):
+    """S2 (diseño A): la recalificación predice lo que haría el servidor, y el
+    quiz solo completa lecciones `quiz`. La nota sí se recalcula."""
+    v1 = paquete(leccion("spmd", 1, umbral=0.8, quiz_=quiz_de_cinco(umbral=0.8)))
+    v2 = paquete(leccion("spmd", 1, umbral=0.6, regla=regla,
+                         quiz_=quiz_de_cinco(umbral=0.6)),
+                 version=3, checksum=CHECKSUM_B)
+    local = _local_con_quiz(v1, completed=False, best=3, via=None)
+
+    op = op_de(build_plan(local, v2), "spmd")
+
+    assert op.completed is False and op.completed_via is None
+    assert op.best_quiz_score == 3
+
+
 def test_subir_el_umbral_no_revoca_el_completado():
     """B7 — P2 en su forma más pura: si subir el listón te quita lo ganado,
 

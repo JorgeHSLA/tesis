@@ -242,6 +242,15 @@ class Lesson:
     next_lesson_id: str | None
 
 
+def cuenta_para_progreso(lesson: Lesson) -> bool:
+    """La ÚNICA regla de disponibilidad: habilitada y no archivada.
+
+    Lo que no cuenta no entra en los denominadores de ``/modules`` ni en los de
+    ``/progress``, y ni el quiz ni un job pueden completarlo.
+    """
+    return lesson.enabled and not lesson.archived
+
+
 @dataclass(frozen=True)
 class QuizOption:
     key: str

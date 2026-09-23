@@ -21,6 +21,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from ..errors import sanitize_validation_errors
+from ..repositories.content import cuenta_para_progreso
 from ..repositories.records import JobRecord
 from ..schemas import FILENAME_PATTERN, JobCreateRequest
 from ..services.job_runner import NO_TIMEOUT, TERMINAL_STATUSES, utc_now_iso
@@ -95,8 +96,25 @@ async def _create_job(
         if not example.enabled:
             return _err(409, "EXAMPLE_DISABLED", f"El ejemplo {example_id} está deshabilitado.")
 
-    if lesson_id is not None and not content.exists_lesson(lesson_id):
+    lesson = content.lesson(lesson_id) if lesson_id is not None else None
+    if lesson_id is not None and lesson is None:
         return _err(404, "LESSON_NOT_FOUND", f"No existe la lección {lesson_id}.")
+    # BL-22: un ejemplo solo puede ejecutarse en nombre de SU lección; si no,
+    # cualquier ejecución completaría cualquier lección `run`.
+    if lesson is not None and example_id is not None and example_id != lesson.example_id:
+        return _err(
+            422, "VALIDATION_ERROR",
+            f"El ejemplo {example_id} no pertenece a la lección {lesson_id}.",
+        )
+    # S2 (diseño A): completa la lección solo un job del ejemplo de una lección
+    # `run` que cuenta para el progreso (el job_runner exige además 'completed').
+    complete_lesson = (
+        lesson is not None
+        and lesson.completion_rule == "run"
+        and example_id is not None
+        and example_id == lesson.example_id
+        and cuenta_para_progreso(lesson)
+    )
 
     if code is not None and len(code.encode("utf-8")) > settings.max_code_bytes:
         return _err(
@@ -230,6 +248,7 @@ async def _create_job(
             timeout_s=eff_timeout,
             parser_id=parser_id,
             lesson_id=lesson_id,
+            complete_lesson=complete_lesson,
         )
     finally:
         runner.release_queue_slot()

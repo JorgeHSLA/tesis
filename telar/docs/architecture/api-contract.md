@@ -310,6 +310,12 @@ pinte con una sola llamada.
   (`"local" | "remote"`) y `update_available` (la versión disponible en el
   bucket, o `null`). `modules."order"` **puede tener huecos**: instalar es à la
   carte, así que la UI numera por posición, no por el valor de `order`.
+- **(S2 · disponibilidad)** Una lección **cuenta para el progreso** solo si
+  `enabled && !archived`. Las **archivadas no aparecen** en `modules[].lessons`
+  ni en ningún total de `summary` (siguen legibles por §4.2, con
+  `archived:true`). `lessons_enabled` y `lessons_completed` cuentan solo las
+  que cuentan; es el denominador único de la UI. `/progress` (§6.1) aplica la
+  misma regla.
 
 ### 4.2 `GET /api/v1/lessons/{lesson_id}` — lección completa
 
@@ -450,6 +456,11 @@ Efectos laterales: persiste el intento; actualiza `lesson_progress.best_quiz_sco
 si mejora; si `passed=true` marca `lesson_progress.completed=true`.
 `passed = score/total >= 0.8`.
 
+**(S2 · aclaración)** El quiz completa la lección **solo si su
+`completion_rule` es `"quiz"`** y la lección cuenta para el progreso
+(`enabled && !archived`, §4.1). En cualquier otro caso `passed` se informa y
+`best_quiz_score` se guarda igual, pero `completed` no cambia (§6.2).
+
 ### 5.3 `GET /api/v1/lessons/{lesson_id}/quiz/attempts` — historial
 
 > **Opcional / post-MVP**: ninguna pantalla del frontend lo consume en v1
@@ -520,6 +531,12 @@ Nota: `completed` también se activa automáticamente al aprobar el quiz (§5.2)
 | `"viewed"` | El estudiante la marca como leída | **Se acepta**: es la única vía |
 | `"run"` | Terminar bien un job del ejemplo de la lección | **Se ignora**; lo activa el backend al finalizar el job |
 
+**(S2 · aclaración)** Aprobar el quiz de una lección `"viewed"` o `"run"` guarda
+`best_quiz_score` pero **no** la completa. `"run"` la completa un job
+`completed` creado con `example_id` = el ejemplo de la lección y ese
+`lesson_id` (§7.1), con `completed_via:"run"`. Ninguna vía completa una lección
+deshabilitada o archivada. `completed` sigue siendo monótono.
+
 Se **ignora**, no se responde `422`, por coherencia con la regla que este mismo
 endpoint ya tiene para `best_quiz_score`/`last_job_id`: los campos que el cliente
 no gobierna se descartan en silencio y la respuesta dice la verdad. El registro
@@ -578,7 +595,7 @@ Validación (pydantic + reglas de negocio):
 | `filename` | opcional (default: `filename` del ejemplo, o `main.py`); patrón `^[A-Za-z0-9._-]{1,80}\.py$` |
 | `threads` | **opcional**. Si el ejemplo tiene `threads_configurable=false`, se IGNORA por completo (puede omitirse; el backend usa su valor fijo: `min(8, cores)` para sweep, `fixed_threads` para fixed) y la respuesta lleva `threads_note`. En caso contrario: entero `1..max_threads` (de `/system`), default 4 |
 | `timeout_s` | opcional. **`0` = SIN TIMEOUT** (espera indefinida); cualquier otro valor debe ser `>= 5` → si no, `422 VALIDATION_ERROR`. El **máximo es opcional**: solo si `TELAR_MAX_TIMEOUT_S > 0` se rechaza `timeout_s > TELAR_MAX_TIMEOUT_S` → `422`; ese mismo tope **prohíbe `timeout_s = 0`** (un tope y una espera infinita se contradicen) → `422`. Con `TELAR_MAX_TIMEOUT_S = 0` (por defecto) no hay tope y `0` es válido. Omitirlo NO es «sin timeout»: default = `default_timeout_s` del ejemplo o 60 para código propio |
-| `lesson_id` | opcional; si viene, debe existir → `404 LESSON_NOT_FOUND`; al terminar bien el job se actualiza `lesson_progress.last_job_id` |
+| `lesson_id` | opcional; si viene, debe existir → `404 LESSON_NOT_FOUND`; al terminar bien el job se actualiza `lesson_progress.last_job_id`. **(S2)** Con `example_id`, este debe ser el ejemplo de esa lección → si no, `422 VALIDATION_ERROR`. Si la lección es `completion_rule:"run"` y el job lleva su ejemplo, terminar en `completed` la completa (§6.2). Las pruebas desde Autoría no envían `lesson_id` |
 | ejemplo deshabilitado | `409 EXAMPLE_DISABLED` |
 | capacidad | `429 TOO_MANY_JOBS` si la cola interna supera 10 |
 | infraestructura | `503 DOCKER_UNAVAILABLE` / `503 RUNNER_IMAGE_MISSING` |
