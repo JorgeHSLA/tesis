@@ -10,6 +10,7 @@ import { createLesson, getAdminLesson, getAdminModules, updateLesson } from '../
 import { getSystem } from '../../../api/system'
 import type {
   AdminExampleBaseDto,
+  AdminLessonBaseDto,
   AdminLessonDetailDto,
   AdminModuleDto,
 } from '../../../api/admin-types'
@@ -58,7 +59,12 @@ interface LessonForm {
   /** Solo /nueva: ejemplo pareado + su código (C7). */
   example: AdminExampleBaseDto
   source_code: string
+  /** Campos del contrato sin control en este editor: se conservan tal cual
+   * (PUT reemplaza la lección entera; omitirlos los devolvería al default). */
+  kept: Pick<AdminLessonBaseDto, 'video_url' | 'enabled' | 'completion_rule'>
 }
+
+const DEFAULT_KEPT: LessonForm['kept'] = { video_url: null, enabled: true, completion_rule: 'quiz' }
 
 function blankForm(moduleId: string): LessonForm {
   return {
@@ -66,6 +72,7 @@ function blankForm(moduleId: string): LessonForm {
     content_markdown: '',
     example: DEFAULT_EXAMPLE,
     source_code: 'from numba import njit\n\n# Tu código PyOMP aquí\n',
+    kept: DEFAULT_KEPT,
   }
 }
 
@@ -82,6 +89,7 @@ function fromDetail(dto: AdminLessonDetailDto): LessonForm {
     content_markdown: dto.content_markdown,
     example: DEFAULT_EXAMPLE,
     source_code: '',
+    kept: { video_url: dto.video_url, enabled: dto.enabled, completion_rule: dto.completion_rule },
   }
 }
 
@@ -182,6 +190,7 @@ export default function AdminLessonEditor() {
       title: form.meta.title.trim(),
       estimated_minutes: minNum,
       content_markdown: form.content_markdown,
+      ...form.kept,
       recommended: form.meta.recommended.filter((r) => r.lesson_id.trim() !== ''),
     }
 

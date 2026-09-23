@@ -110,19 +110,27 @@ export interface AdminExampleCodeResultDto {
 
 // ── §10.5 Lecciones (unidad = lección + ejemplo pareado + quiz) ──────────────
 
+export type CompletionRule = 'quiz' | 'viewed' | 'run'
+
 export interface AdminLessonBaseDto {
   module_id: string
   order: number
   title: string
   estimated_minutes: number
   content_markdown: string
+  /** Fase 5: URL de YouTube no listado (el backend la normaliza). */
+  video_url: string | null
+  /** Fase 5 (E4): campo propio de la lección. */
+  enabled: boolean
+  /** Fase 5 (E4): qué cuenta como completarla. */
+  completion_rule: CompletionRule
   recommended: AdminRecommendedDto[]
 }
 
 export interface AdminLessonCreateDto extends AdminLessonBaseDto {
   id: string
-  example: AdminExampleBaseDto
-  source_code: string
+  example: AdminExampleBaseDto | null
+  source_code: string | null
 }
 
 /** Faceta lección + markdown (el ejemplo se edita por sus endpoints). */
@@ -130,12 +138,12 @@ export type AdminLessonUpdateDto = AdminLessonBaseDto
 
 export interface AdminLessonDetailDto extends AdminLessonBaseDto {
   id: string
-  enabled: boolean
   has_quiz: boolean
   quiz_question_count: number
+  archived: boolean
   prev_lesson_id: string | null
   next_lesson_id: string | null
-  example: AdminExampleDto
+  example: AdminExampleDto | null
 }
 
 // ── §10.6 Quiz (correct_key/explanation SOLO en el GET admin) ────────────────
