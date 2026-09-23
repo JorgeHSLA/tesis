@@ -2,12 +2,16 @@
 // aviso lo dice para que nadie crea que sus cambios ya están publicados.
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const config = vi.hoisted(() => ({ ADMIN_BUILD: true }))
 vi.mock('@/config', () => config)
 
 import { DraftBanner } from '@/components/shell/DraftBanner'
+
+afterEach(() => {
+  config.ADMIN_BUILD = true
+})
 
 function renderAt(path: string) {
   return render(
@@ -44,6 +48,5 @@ describe('DraftBanner', () => {
     config.ADMIN_BUILD = false
     renderAt('/aprender')
     expect(screen.queryByText(TEXTO)).not.toBeInTheDocument()
-    config.ADMIN_BUILD = true
   })
 })

@@ -131,9 +131,10 @@ export function PublishModuleDialog({
   onClose,
   onPublished,
 }: PublishModuleDialogProps) {
-  const [credencial, setCredencial] = useState<AdminCatalogCredentialStatusDto | null>(
-    null,
-  )
+  // `'error'` = no se pudo ni consultar (red): se dice y se ofrece repetir.
+  const [credencial, setCredencial] = useState<
+    AdminCatalogCredentialStatusDto | 'error' | null
+  >(null)
   const [estado, setEstado] = useState<Estado>(null)
   const [ensayo, setEnsayo] = useState<AdminPublishResultDto | null>(null)
   const [notas, setNotas] = useState('')
@@ -142,13 +143,23 @@ export function PublishModuleDialog({
   const [problemas, setProblemas] = useState<Problema[]>([])
   const [sinEstadoLocal, setSinEstadoLocal] = useState(false)
 
+  const [intentoCredencial, setIntentoCredencial] = useState(0)
+
   useEffect(() => {
     let vivo = true
+    setCredencial(null)
     // `probe: true`: comprobar el archivo no basta para saber si la CUENTA
     // puede escribir en el bucket, y descubrirlo al pulsar «Publicar» es tarde.
     getCatalogCredentials(true)
       .then((c) => vivo && setCredencial(c))
-      .catch(() => vivo && setError('No se pudo comprobar la credencial de publicación.'))
+      .catch(() => vivo && setCredencial('error'))
+    return () => {
+      vivo = false
+    }
+  }, [intentoCredencial])
+
+  useEffect(() => {
+    let vivo = true
     getPublishStatus(module.id)
       .then((e) => vivo && setEstado(e))
       .catch(() => vivo && setEstado('error'))
@@ -177,7 +188,7 @@ export function PublishModuleDialog({
     }
   }
 
-  const puedePublicar = credencial?.usable === true
+  const puedePublicar = credencial != null && credencial !== 'error' && credencial.usable
   const sinCambios = estado != null && estado !== 'error' && estado.state === 'unchanged'
   // CU-37.4: la nube ya tiene la versión; publicar de nuevo solo la registra.
   const reintentar = sinEstadoLocal || (estado !== 'error' && estado?.state === 'out_of_sync')
@@ -200,6 +211,13 @@ export function PublishModuleDialog({
         {/* ── la credencial, ANTES de nada ─────────────────────────────── */}
         {credencial == null ? (
           <p className="field-hint">Comprobando la credencial…</p>
+        ) : credencial === 'error' ? (
+          <div className="field-hint error" role="alert">
+            No se pudo comprobar la credencial de publicación.{' '}
+            <Button variant="ghost" size="sm" onClick={() => setIntentoCredencial((n) => n + 1)}>
+              Volver a comprobar
+            </Button>
+          </div>
         ) : puedePublicar ? (
           <p className="field-hint">
             Se publicará en <strong>{credencial.bucket}</strong> con la cuenta{' '}

@@ -176,3 +176,18 @@ describe('PublishModuleDialog · resultado', () => {
     expect(screen.getByRole('button', { name: /Reintentar/ })).toBeEnabled()
   })
 })
+
+describe('PublishModuleDialog · credencial', () => {
+  it('si la consulta de credencial falla, lo dice una vez y deja volver a comprobar', async () => {
+    statusMock.mockResolvedValue(estado('changed'))
+    ;(getCatalogCredentials as Mock)
+      .mockRejectedValueOnce(new Error('sin red'))
+      .mockResolvedValueOnce(CREDENCIAL)
+    renderDialog()
+
+    expect(await screen.findByText(/No se pudo comprobar la credencial/)).toBeInTheDocument()
+    expect(screen.queryByText(/Comprobando la credencial/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Volver a comprobar/ }))
+    expect(await screen.findByText(/telar-modulos/)).toBeInTheDocument()
+  })
+})

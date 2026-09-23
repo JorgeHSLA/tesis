@@ -65,11 +65,14 @@ export function ModuleGroup({
   const [sinPublicar, setSinPublicar] = useState(false)
   const cardRef = useRef<HTMLElement>(null)
 
-  // Bajo demanda: se pide al montar y cada vez que el dashboard recarga el
-  // módulo (tras editar o publicar, `module` es otro objeto). El backend cachea
-  // en memoria la huella de la versión publicada, así que repetir es barato.
-  // Sin red o con error no se pinta nada: el distintivo es una ayuda, no un
-  // estado que pueda romper la fila.
+  // Bajo demanda: se pide al montar y cuando CAMBIAN los datos del módulo
+  // (tras editar, reordenar o publicar). La firma evita repetir la consulta
+  // por recargas que devuelven lo mismo: el reorden optimista y la recarga
+  // posterior producen objetos nuevos con el mismo contenido. El backend
+  // cachea en memoria la huella de la versión publicada. Sin red o con error
+  // no se pinta nada: el distintivo es una ayuda, no un estado que pueda
+  // romper la fila.
+  const firma = JSON.stringify(module)
   useEffect(() => {
     let vivo = true
     getPublishStatus(module.id)
@@ -78,7 +81,8 @@ export function ModuleGroup({
     return () => {
       vivo = false
     }
-  }, [module])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `firma` resume `module`
+  }, [firma])
 
   const lessons = [...module.lessons].sort((a, b) => a.order - b.order)
   const bodyId = `admin-module-body-${module.id}`
