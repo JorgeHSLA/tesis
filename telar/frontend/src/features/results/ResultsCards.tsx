@@ -11,8 +11,8 @@ import {
   IconTerminal,
   IconZap,
 } from '../../components/icons/icons'
+import { Button } from '../../components/ui/Button'
 import type { JobDetailDto } from '../../api/types'
-import { jobOutputUrl } from '../../api/jobs'
 import { ComparisonBars } from '../../components/viz/ComparisonBars'
 import { LiveMetricsChart } from '../../components/viz/LiveMetricsChart'
 import { SpeedupChart } from '../../components/viz/SpeedupChart'
@@ -72,7 +72,7 @@ function DegradedSummary({ job }: { job: JobDetailDto }) {
           <div className="mono-small">de {fmtBytes(m.mem_limit_bytes)}</div>
         </div>
         <div>
-<div
+          <div
             className="metric-label"
             title="Máximo de tareas del cgroup del contenedor (tini, Python y los pools de Numba/OpenMP), no el número de hilos OpenMP del programa"
           >
@@ -118,7 +118,7 @@ export function ObservationsCard({ observations }: { observations: Observation[]
 
 // ──────────────────────────────── Output ───────────────────────────────────
 
-export function OutputCard({ job }: { job: JobDetailDto }) {
+export function OutputCard({ job, onDownload }: { job: JobDetailDto; onDownload: () => void }) {
   const stdout = job.stdout ?? ''
   const lines = stdout === '' ? [] : stdout.replace(/\n$/, '').split('\n')
   return (
@@ -127,9 +127,9 @@ export function OutputCard({ job }: { job: JobDetailDto }) {
         icon={<IconTerminal size={16} />}
         title={`Output (stdout · ${lines.length} ${lines.length === 1 ? 'línea' : 'líneas'})`}
         right={
-          <a className="btn btn-ghost btn-sm" href={jobOutputUrl(job.job_id)} download>
+          <Button variant="ghost" size="sm" onClick={onDownload}>
             <IconDownload size={12} /> descargar
-          </a>
+          </Button>
         }
       />
       <CardPad>

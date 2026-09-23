@@ -3,7 +3,7 @@
 // null + serie en memoria → LiveMetricsChart; null sin serie → resumen
 // metrics_summary; 404 → ErrorState; job no-terminal → redirect a /simulador.
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import ResultsScreen from '@/features/results/ResultsScreen'
 import { ApiError } from '@/api/client'
@@ -15,7 +15,11 @@ vi.mock('@/api/jobs', () => ({
   jobOutputUrl: (id: string) => `/api/v1/jobs/${id}/output`,
 }))
 
+vi.mock('@/lib/download', () => ({ downloadFile: vi.fn() }))
+
 import { getJob } from '@/api/jobs'
+import { downloadFile } from '@/lib/download'
+const downloadMock = downloadFile as Mock
 
 const getJobMock = getJob as Mock
 
@@ -44,6 +48,7 @@ function metric(i: number): MetricSample {
 
 beforeEach(() => {
   getJobMock.mockReset()
+  downloadMock.mockReset()
   useJobStore.getState().reset()
 })
 
@@ -102,5 +107,36 @@ describe('cabecera de resultados', () => {
     // Speedup observado del mejor punto del sweep (7.98 → 8.0×); aparece en la
     // MetricCard y también rotulado sobre el punto del SpeedupChart.
     expect(screen.getAllByText('8.0×').length).toBeGreaterThan(0)
+  })
+})
+
+describe('descarga de la salida (CU-10.1)', () => {
+  it('descarga vía fetch con el nombre del contrato (stem-jobid8.txt)', async () => {
+    getJobMock.mockResolvedValue(JOB_SWEEP)
+    downloadMock.mockResolvedValue(undefined)
+    renderAt(JOB_SWEEP.job_id)
+    fireEvent.click(await screen.findByRole('button', { name: /Descargar output/i }))
+    await waitFor(() => expect(downloadMock).toHaveBeenCalledTimes(1))
+    expect(downloadMock).toHaveBeenCalledWith(
+      `/api/v1/jobs/${JOB_SWEEP.job_id}/output`,
+      `transporteMonteCarlo-${JOB_SWEEP.job_id.slice(0, 8)}.txt`,
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('si falla muestra el error, mantiene los resultados y permite reintentar', async () => {
+    getJobMock.mockResolvedValue(JOB_SWEEP)
+    downloadMock.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce(undefined)
+    renderAt(JOB_SWEEP.job_id)
+    fireEvent.click(await screen.findByRole('button', { name: /descargar$/i }))
+    expect(
+      await screen.findByText('No fue posible descargar la salida. Inténtalo nuevamente.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Resultados · transporteMonteCarlo\.py/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    await waitFor(() => expect(downloadMock).toHaveBeenCalledTimes(2))
+    await waitFor(() =>
+      expect(screen.queryByText(/No fue posible descargar la salida/)).not.toBeInTheDocument(),
+    )
   })
 })
