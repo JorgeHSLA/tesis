@@ -242,6 +242,11 @@ class Lesson:
     next_lesson_id: str | None
 
 
+#: La misma regla que ``cuenta_para_progreso``, para las consultas que la
+#: evalúan contra la DB (no contra el snapshot). Mantener ambas juntas.
+SQL_CUENTA_PARA_PROGRESO = "enabled = 1 AND archived_at IS NULL"
+
+
 def cuenta_para_progreso(lesson: Lesson) -> bool:
     """La ÚNICA regla de disponibilidad: habilitada y no archivada.
 

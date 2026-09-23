@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Any, Mapping, Protocol
 
 from app.repositories import content_admin
-from app.repositories.content import ContentRepository, Quiz
+from app.repositories.content import SQL_CUENTA_PARA_PROGRESO, ContentRepository, Quiz
 from app.repositories.records import QuizAttemptRecord
 from app.schemas import (
     QuizAttemptResult,
@@ -233,7 +233,7 @@ class QuizService:
     async def _completable_by_quiz(self, lesson_id: str) -> bool:
         cursor = await self._db.execute(
             "SELECT 1 FROM lessons WHERE id = ? AND completion_rule = 'quiz' "
-            "AND enabled = 1 AND archived_at IS NULL",
+            f"AND {SQL_CUENTA_PARA_PROGRESO}",
             (lesson_id,),
         )
         return await cursor.fetchone() is not None
