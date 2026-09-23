@@ -144,20 +144,20 @@ Tres ideas que cambian las prioridades:
 
 **Bugs que un jurado podría ver:**
 
-1. **El contrato promete algo que el código no hace.** `api-contract.md:510` y el docstring de `routers/progress.py:105` dicen que una lección `run` se completa al terminar el job. `job_runner.py:679-687` solo escribe `last_job_id`, y ningún test lo cubre.
+1. ✅ b638029, 5f79a02 — **El contrato promete algo que el código no hace.** `api-contract.md:510` y el docstring de `routers/progress.py:105` dicen que una lección `run` se completa al terminar el job. `job_runner.py:679-687` solo escribe `last_job_id`, y ningún test lo cubre.
 2. **Re-ejecutar un ejemplo editado pierde el parser** (`jobs.py:117-125`): desaparecen la curva de speedup, las barras comparativas y las observaciones. Es la parte más pedagógica del simulador.
 3. **El cronómetro no corre durante `compiling`.** Un programa que no imprime nada muestra 0:00 toda la ejecución y al final salta de golpe (`jobStore.ts:325`, `useJobSocket.ts:422-427`).
 4. ✅ 6b29f57, 5099e7d — **La salida puede llegar con segundos de retraso aunque cada línea termine en `\n`.** `flush_all()` solo corre tras 100 ms **sin** datos (`job_runner.py:467-474`). Con un goteo constante solo se vacía al llegar a 4 KB, lo que incumple §8.4 del contrato. Es S y no toca el contrato.
 5. **La descarga puede no funcionar en Electron** (no se ejecutó, es un riesgo razonado): `API_BASE` es `http://localhost:8000` y la página se sirve desde `file://`. Chromium ignora `download` entre orígenes distintos y `security.ts:50-61` bloquea la navegación http. **Hay que probarlo a mano.**
 6. **La página pública ofrece la v1.0.3** (`site/release.json:2`) mientras la app va por la v1.0.5 (`desktop/package.json:5`). La v1.0.5 es la que activa el catálogo remoto (commit `6b05c1b`), así que quien descargue desde la web podría no tener CU-34/35.
 7. **Resultados dice «Job completado» también para fallidos, cancelados y timeouts** (`ResultsScreen.tsx:146,152`).
-8. **Tres criterios distintos de progreso.** `/modules` cuenta solo las habilitadas en el numerador y todas en el denominador; `/catalog/status` cuenta todas; `/progress` cuenta solo las habilitadas.
-9. **Una lección archivada es accesible por URL sin ningún aviso** (`LessonDetail.archived` existe, pero ningún `.tsx` lo lee).
-10. **Aprobar el quiz de una lección deshabilitada la completa**, y el frontend suma +1 aunque el backend no lo cuente.
+8. ✅ b638029, f92d9fa — **Tres criterios distintos de progreso.** `/modules` cuenta solo las habilitadas en el numerador y todas en el denominador; `/catalog/status` cuenta todas; `/progress` cuenta solo las habilitadas.
+9. ✅ 6a400bd, f92d9fa — **Una lección archivada es accesible por URL sin ningún aviso** (`LessonDetail.archived` existe, pero ningún `.tsx` lo lee).
+10. ✅ b638029, f92d9fa — **Aprobar el quiz de una lección deshabilitada la completa**, y el frontend suma +1 aunque el backend no lo cuente.
 
 **Deuda técnica:**
 
-11. **El DTO admin del frontend no sigue el contrato** (`api/admin-types.ts:113-139`): le faltan `video_url`, `enabled` y `completion_rule`. Es la **causa raíz** de 17.1, 17.2 y 18.1.
+11. ✅ 1dc3950 — **El DTO admin del frontend no sigue el contrato** (`api/admin-types.ts:113-139`): le faltan `video_url`, `enabled` y `completion_rule`. Es la **causa raíz** de 17.1, 17.2 y 18.1.
 12. **Los 422 de pydantic no se entienden en el front**: `coerceEntries` busca `{field, reason}` y pydantic envía `{type, loc, msg}`. Es la causa raíz del grupo «errores por campo».
 13. ✅ 7f079e2, f0d9980 — **`/health` y `/system` bloquean el [event loop](#g-event-loop)** con llamadas síncronas a Docker de hasta 120 s. `useSystemInfo` reintenta `/system` 60 veces.
 14. **`locally_modified` nunca se activa** (`set_locally_modified_no_commit` no tiene llamadores). Una actualización pisa sin avisar las ediciones del admin.
@@ -168,7 +168,7 @@ Tres ideas que cambian las prioridades:
 19. ✅ 0b7b607 — **`--prune` deja progreso [huérfano](#g-huerfano)**: un id reutilizado lo «resucita».
 20. ✅ 0b7b607 — **La CLI no avisa al servidor en marcha.** Tras un seed/reset, el estudiante ve el contenido viejo hasta reiniciar.
 21. **`mark_orphans_failed` no fija `finished_at`.**
-22. **`POST /jobs` no comprueba que `lesson_id` corresponda al ejemplo.** Si se implementa `run` sin arreglar esto, cualquier ejecución completaría cualquier lección.
+22. ✅ b638029 — **`POST /jobs` no comprueba que `lesson_id` corresponda al ejemplo.** Si se implementa `run` sin arreglar esto, cualquier ejecución completaría cualquier lección.
 23. ✅ a7a0b42 — **Modo web:** el pie de estado se pone verde con cualquier `/health` 200, aunque Docker esté caído.
 24. **`ThreadsTable` pinta N+1 filas** («master» más t0..tN-1). En OpenMP el master **es** el hilo 0: es un error conceptual en un curso de OpenMP.
 25. **Versiones internas descuadradas:** el compose empaquetado fija `telar-backend:1.0.2` y `BACKEND_VERSION = "1.0.1"`, mientras la app va por la 1.0.5.
@@ -526,15 +526,15 @@ Leyenda:
 
 | Ítem | Faltante | Etiq. | Verif. | Veredicto | Esf. | Riesgo | Grupo |
 |---|---|:-:|:-:|---|:-:|:-:|---|
-| CU-01.1 | Búsqueda y filtros: módulos sin coincidencias y resultados ocultos en módulos cerrados | 🚨 | ✅ | HACER YA | S | Bajo | Disponibilidad de lecciones |
-| CU-01.2 | Mensaje global «sin resultados» | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Suelto |
-| CU-01.3 | «Continuar/Empezar» con id fijo `primerEjemplo` | 💡 | ✅ | HACER YA | S | Bajo | Disponibilidad de lecciones |
+| CU-01.1 | Búsqueda y filtros: módulos sin coincidencias y resultados ocultos en módulos cerrados | 🚨 | ✅ | HACER YA ✅ f92d9fa | S | Bajo | Disponibilidad de lecciones |
+| CU-01.2 | Mensaje global «sin resultados» | 💡 | ✅ | SI HAY TIEMPO ✅ f92d9fa | S | Bajo | Suelto |
+| CU-01.3 | «Continuar/Empezar» con id fijo `primerEjemplo` | 💡 | ✅ | HACER YA ✅ f92d9fa | S | Bajo | Disponibilidad de lecciones |
 | CU-02.1 | Taller asociado a la lección | 🚨 | ✅ | RECLASIFICAR | L | Alto | Requisitos de completitud |
 | CU-02.2 | Componentes obligatorios y opcionales | 💡 | ✅ | NO HACER | L | Medio | Requisitos de completitud |
-| CU-02.3 | El quiz completa la lección aunque haya otros requisitos | 💡 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
-| CU-02.4 | Completar por visualización (falta el botón; el backend ya lo soporta) | 💡 | ◐ | HACER YA | S | Bajo | Requisitos de completitud |
-| CU-02.5 | Completar por ejecución (`run` no implementado) | 💡 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
-| CU-03.1 | Aprobar el quiz marca toda la lección | 💡 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
+| CU-02.3 | El quiz completa la lección aunque haya otros requisitos | 💡 | ✅ | HACER YA ✅ b638029, 5f79a02 | S | Bajo | Requisitos de completitud |
+| CU-02.4 | Completar por visualización (falta el botón; el backend ya lo soporta) | 💡 | ◐ | HACER YA ✅ f92d9fa | S | Bajo | Requisitos de completitud |
+| CU-02.5 | Completar por ejecución (`run` no implementado) | 💡 | ✅ | HACER YA ✅ b638029, 5f79a02 | S | Bajo | Requisitos de completitud |
+| CU-03.1 | Aprobar el quiz marca toda la lección | 💡 | ✅ | HACER YA ✅ b638029, 5f79a02 | S | Bajo | Requisitos de completitud |
 | CU-04.1 | Re-ejecutar pierde ejemplo, lección y parser | 🚨 | ✅ | HACER YA ✅ 1d17085 | S | Bajo | Simulador: re-ejecución y editor |
 | CU-05.1 | El editor se bloquea si falla `/modules` | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Simulador: re-ejecución y editor |
 | CU-05.2 | Un ejemplo que llega tarde pisa «Código propio» | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
@@ -556,10 +556,10 @@ Leyenda:
 | CU-09.3 | Métrica ausente mostrada como 0 (el 0 nace en el backend) | 💡 | ◐ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
 | CU-09.4 | Rótulo «Hilos (PIDs)» engañoso | 💡 | ✅ | HACER YA ✅ d370739 | S | Bajo | En vivo y resultados |
 | CU-10.1 | Error de descarga no manejado (y posible fallo en Electron) | 💡 | ✅ | HACER YA ✅ 71eee1a, 82c10fa | S | Bajo | En vivo y resultados |
-| CU-12.1 | Lecciones `viewed`/`run` nunca se completan | 🚨 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
-| CU-12.2 | El quiz ignora `completion_rule` | 💡 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
+| CU-12.1 | Lecciones `viewed`/`run` nunca se completan | 🚨 | ✅ | HACER YA ✅ b638029, f92d9fa, 5f79a02 | S | Bajo | Requisitos de completitud |
+| CU-12.2 | El quiz ignora `completion_rule` | 💡 | ✅ | HACER YA ✅ b638029, f92d9fa, 5f79a02 | S | Bajo | Requisitos de completitud |
 | CU-12.3 | Mostrar qué requisito falta | 💡 | ✅ | SI HAY TIEMPO | S-M | Bajo | Requisitos de completitud |
-| CU-12.4 | Progreso general vs. por módulo incoherente | 💡 | ✅ | HACER YA | S | Bajo | Disponibilidad de lecciones |
+| CU-12.4 | Progreso general vs. por módulo incoherente | 💡 | ✅ | HACER YA ✅ b638029, f92d9fa | S | Bajo | Disponibilidad de lecciones |
 | CU-13.1 | Aviso de cambios sin guardar (modal de módulo) | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
 | CU-13.2 | Separar creación de publicación | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
 | CU-13.3 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
@@ -576,14 +576,14 @@ Leyenda:
 | CU-17.3 | Aviso completo de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
 | CU-17.4 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
 | CU-17.5 | Separar creación de publicación | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
-| CU-18.1 | Guardar pisa video, regla y `enabled` | 🚨 | ✅ | HACER YA | S | Bajo | PUT que reemplaza la lección |
+| CU-18.1 | Guardar pisa video, regla y `enabled` | 🚨 | ✅ | HACER YA ✅ 1dc3950 | S | Bajo | PUT que reemplaza la lección |
 | CU-18.2 | Agregar ejemplo a lección sin ejemplo | 🚨 | ✅ | HACER YA | M | Bajo | Huecos de UI en Autoría |
 | CU-18.3 | Eliminar el quiz (backend listo, sin botón) | 🚨 | ✅ | HACER YA | S | Bajo | Huecos de UI en Autoría |
 | CU-18.4 | Aviso completo de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
 | CU-18.5 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
 | CU-18.6 | Separar edición de publicación | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
 | CU-19.1 | Recolocar las demás lecciones al mover una | 🚨 | ✅ | HACER YA | M | Bajo | Huecos de UI en Autoría |
-| CU-19.2 | Mover no debe tocar otros datos | 🚨 | ✅ | HACER YA | S | Bajo | PUT que reemplaza la lección |
+| CU-19.2 | Mover no debe tocar otros datos | 🚨 | ✅ | HACER YA ✅ 1dc3950 | S | Bajo | PUT que reemplaza la lección |
 | CU-19.3 | Posición decimal aceptada (2.5 → 2) | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
 | CU-19.4 | Separar reorden de publicación | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
 | CU-20.1 | Advertencia fija «ejemplo y quiz» | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Huecos de UI en Autoría |
@@ -593,7 +593,7 @@ Leyenda:
 | CU-21.3 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
 | CU-21.4 | Separar edición de publicación | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
 | CU-22.1 | Probar un borrador sin publicarlo | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
-| CU-22.2 | La prueba del admin toca `last_job_id` | 💡 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
+| CU-22.2 | La prueba del admin toca `last_job_id` | 💡 | ✅ | HACER YA ✅ b638029, f92d9fa | S | Bajo | Requisitos de completitud |
 | CU-22.3 | Carrera en el selector de ejemplos | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
 | CU-23.1 | `--check` escribe en la base | 💡 | ✅ | SI HAY TIEMPO ✅ 0b7b607, f0d9980 | S | Bajo | CLI del contenido base |
 | CU-23.2 | Conflictos de `order` al actualizar/restablecer | 🚨 | ✅ | SI HAY TIEMPO ✅ 0b7b607 | M | Medio | CLI del contenido base |
@@ -622,8 +622,8 @@ Leyenda:
 | CU-28.4 | Condición de realización propia | 🚨 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
 | CU-28.5 | Integrar con el progreso de la lección | 🚨 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
 | CU-28.6 | Errores dentro del taller | 🚨 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
-| CU-29.1 | Archivadas vs. deshabilitadas tratadas distinto | 💡 | ✅ | HACER YA | S-M | Bajo | Disponibilidad de lecciones |
-| CU-29.2 | «Continuar/Empezar» con id fijo | 💡 | ✅ | HACER YA | S | Bajo | Disponibilidad de lecciones |
+| CU-29.1 | Archivadas vs. deshabilitadas tratadas distinto | 💡 | ✅ | HACER YA ✅ b638029, 6a400bd, f92d9fa | S-M | Bajo | Disponibilidad de lecciones |
+| CU-29.2 | «Continuar/Empezar» con id fijo | 💡 | ✅ | HACER YA ✅ f92d9fa | S | Bajo | Disponibilidad de lecciones |
 | CU-30.1 | Seleccionar varias ejecuciones | 🚨 | ✅ | HACER YA ✅ 3975c62 | M | Bajo | Análisis de ejecuciones |
 | CU-30.2 | Reglas de comparabilidad | 🚨 | ✅ | HACER YA ✅ 3975c62 | S | Bajo | Análisis de ejecuciones |
 | CU-30.3 | Vista conjunta de configuración, resultados y métricas | 🚨 | ✅ | HACER YA ✅ 3975c62 | M | Bajo | Análisis de ejecuciones |
@@ -646,7 +646,7 @@ Leyenda:
 | CU-37.2 | Confirmar lo que se ensayó (checksum) | 💡 | ✅ | NO HACER | M | Medio | Catálogo y publicación |
 | CU-37.3 | Reintentar tras fallo del índice | 💡 | ✅ | HACER YA | S | Bajo | Catálogo y publicación |
 | CU-37.4 | Reconciliar publicación remota y estado local | 💡 | ◐ | HACER YA | S | Bajo | Limpieza y reconciliación |
-| CU-38.1 | Lecciones archivadas en Aprender y en los totales | 🚨 | ✅ | HACER YA | S | Bajo | Disponibilidad de lecciones |
+| CU-38.1 | Lecciones archivadas en Aprender y en los totales | 🚨 | ✅ | HACER YA ✅ b638029, f92d9fa | S | Bajo | Disponibilidad de lecciones |
 | CU-38.2 | Lección nueva hereda progreso ajeno | 💡 | ✅ | NO HACER | L | Alto | Identidad del progreso |
 | CU-38.3 | El preview dice «conservado» y se recalifica | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Catálogo y publicación |
 | CU-39.1 | Entidad curso | 🚨 | ✅ | RECLASIFICAR | L | Alto | Entidad curso |
