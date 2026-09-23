@@ -249,7 +249,7 @@ A, B y C resuelven algo que el jurado casi nunca vería (que el autor, en su pro
 **Recomendación: D+ (propuesta de Jorge), ≈2 días, HACER YA.**
 
 1. **Etiqueta de borrador (0,5 días).** En modo autor, «Aprender» muestra un aviso «Vista previa: estás viendo tu borrador; los estudiantes ven la última versión publicada».
-2. **Detección de cambios por checksum (≈1,5 días).** Al abrir el diálogo de Publicar, se construye el bundle con el contenido local y se compara su huella con la que ya guarda el índice de la nube. **No hace falta descargar ninguna copia temporal.**
+2. **Detección de cambios por checksum (≈1,5 días).** Al abrir el diálogo de Publicar, se construye el bundle con el contenido local y se compara su huella con la que ya guarda el índice de la nube. **Hay que descargar el bundle vigente (la «copia temporal» de la propuesta original): el índice no puede guardar la huella nueva porque la v1.0.5 rechaza campos desconocidos (`extra="forbid"`). Se descarga una vez por versión y queda en caché, y se comprueba que su id y su versión sean los que anuncia el índice.**
    - **Iguales:** «No hay cambios que publicar» y el botón queda deshabilitado.
    - **Distintos:** «Tienes cambios sin publicar» y se publica la versión N+1.
 3. **Condición técnica:** hoy el checksum incluye `published_at`, que cambia en cada llamada, así que siempre saldría «distinto». Hay que calcular la huella **sin** esa fecha.
