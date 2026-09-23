@@ -1507,3 +1507,27 @@ def test_refresh_pide_saltarse_la_cache_de_borde_y_la_lectura_normal_no(
     fake_catalog.index_calls.clear()
     ok(cliente.get("/api/v1/catalog/remote?refresh=true"))
     assert [c["sin_cache"] for c in fake_catalog.index_calls] == [True]
+
+
+# ═══════════ CU-34.2: el detalle lee el índice fresco, no la caché ═══════════
+
+
+def test_detalle_ignora_la_cache_del_indice(cliente, fake_catalog):
+    """Con la caché de 900 s recién llenada, el detalle ve la versión nueva."""
+    publicar_todo(fake_catalog, bundle("mx"))
+    ok(cliente.get("/api/v1/catalog/remote"))  # llena la caché
+
+    publicar_todo(fake_catalog, bundle("mx", version=2))
+    data = ok(cliente.get("/api/v1/catalog/remote/mx"))
+    assert data["version"] == 2
+    assert fake_catalog.index_calls[-1]["sin_cache"] is True
+
+
+def test_detalle_de_una_publicacion_retirada_es_404_aunque_este_en_cache(
+    cliente, fake_catalog
+):
+    publicar_todo(fake_catalog, bundle("mx"))
+    ok(cliente.get("/api/v1/catalog/remote"))  # llena la caché
+
+    fake_catalog.publicar_indice(indice())
+    falla(cliente.get("/api/v1/catalog/remote/mx"), 404, "REMOTE_MODULE_NOT_FOUND")

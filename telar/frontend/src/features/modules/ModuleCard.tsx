@@ -17,6 +17,7 @@
 // despublicado solo conserva lo que hay en SQLite (título, versión, lecciones),
 // así que su tarjeta muestra menos metadatos, no metadatos vacíos.
 import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { IconAlert, IconDownload } from '../../components/icons/icons'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -189,6 +190,16 @@ export function ModuleCard({
       </div>
 
       <div className="mods-card-actions">
+        {remote != null && (
+          // CU-34.1: qué trae la publicación, lección a lección, antes de decidir.
+          <Link
+            className="btn btn-ghost btn-sm"
+            to={`/modulos/${encodeURIComponent(entry.moduleId)}`}
+            aria-label={`Ver detalle de ${entry.title}`}
+          >
+            Ver detalle
+          </Link>
+        )}
         {entry.state === 'available' && (
           <Button
             variant="primary"

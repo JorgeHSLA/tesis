@@ -412,3 +412,20 @@
     justify-content: center;
   }
 }
+
+/* ── S5 · CU-34.1 · detalle de una publicación (/modulos/:id) ─────────────── */
+.remote-detail-lessons {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.remote-detail-lessons > li {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.remote-detail-lessons > li:first-child {
+  padding-top: 0;
+  border-top: none;
+}

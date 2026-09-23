@@ -21,8 +21,11 @@ lógica entera sin GCP.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import re
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -43,8 +46,9 @@ from app.schemas.catalog import (
     ContentWarning,
     ModuleBundle,
 )
+from app.services.bundle_guard import BundleGuardError, parse_bundle
 from app.services.catalog_client import object_path_for
-from app.services.catalog_hash import bundle_checksum
+from app.services.catalog_hash import bundle_checksum, content_hash
 from app.services.catalog_publisher import (
     BundleAlreadyPublished,
     CatalogWritePort,
@@ -52,6 +56,7 @@ from app.services.catalog_publisher import (
     PublisherUnavailable,
     _api,
 )
+from app.services.module_updater import validar_bundle, verificar_checksum
 
 if TYPE_CHECKING:  # pragma: no cover - solo tipos
     from app.config import Settings
@@ -252,6 +257,12 @@ def construir_bundle(
     que el autor retiró, y publicarla la resucitaría en la instalación de todos
     los estudiantes.
 
+    El ``order`` se **renumera** a ``1..n`` respetando el orden local. En local
+    basta con que sea único (archivar o borrar deja huecos: 1, 2, 5), pero el
+    bundle exige ``1..n`` contiguo (§11.10, E2) y el guard del estudiante
+    rechazaría el hueco: copiarlo tal cual hacía impublicable cualquier módulo
+    al que se le hubiera quitado una lección.
+
     ``checksum`` se calcula al final, sobre el bundle SIN ese campo. Se pone un
     placeholder de 64 ceros para poder construir el modelo (el patrón lo exige) y
     se sustituye por el valor real: ``catalog_hash`` ignora el campo justamente
@@ -297,7 +308,7 @@ def construir_bundle(
         lessons=[
             BundleLesson(
                 id=l.id,
-                order=l.order,
+                order=posicion,
                 title=l.title,
                 estimated_minutes=l.estimated_minutes,
                 content_markdown=l.content_markdown,
@@ -311,7 +322,7 @@ def construir_bundle(
                 example=_ejemplo(content, l, ids_ejemplo.get(l.id)),
                 quiz=_quiz(content, l),
             )
-            for l in lecciones
+            for posicion, l in enumerate(lecciones, start=1)
         ],
     )
     # Normalizar ANTES de firmar: el checksum tiene que ser el de lo que se sube.
@@ -319,6 +330,72 @@ def construir_bundle(
         _normalizar_saltos(bundle.model_dump(mode="json"))
     )
     return bundle.model_copy(update={"checksum": bundle_checksum(bundle)}), avisos_ids
+
+
+# ═══════════════ 1b · validar con las reglas del importador ══════════════════
+
+#: ``lessons[3].example.fixed_threads`` → 3. Las rutas las produce el propio
+#: servidor (guard y validador), no el cliente.
+_RUTA_DE_LECCION = re.compile(r"^lessons\[(\d+)\]")
+
+
+def _con_leccion(detalles: Any, bundle: ModuleBundle) -> Any:
+    """Añade ``lesson_id`` a cada problema que señala una lección del bundle.
+
+    El guard habla en posiciones del BUNDLE (``lessons[3]``), que el autor no
+    ve en ningún sitio: la posición cambia al renumerar y al excluir archivadas.
+    El id de la lección es lo que el diálogo puede enseñar y enlazar.
+    """
+    if not isinstance(detalles, list):
+        return detalles
+    enriquecidos: list[Any] = []
+    for detalle in detalles:
+        encaje = (
+            _RUTA_DE_LECCION.match(str(detalle.get("field", "")))
+            if isinstance(detalle, dict)
+            else None
+        )
+        indice = int(encaje.group(1)) if encaje else -1
+        if 0 <= indice < len(bundle.lessons):
+            detalle = {**detalle, "lesson_id": bundle.lessons[indice].id}
+        enriquecidos.append(detalle)
+    return enriquecidos
+
+
+async def validar_como_importador(
+    bundle: ModuleBundle, datos: bytes, settings: "Settings"
+) -> None:
+    """CU-37.1 — el bundle tiene que pasar lo MISMO que pasará en el estudiante.
+
+    ``parse_bundle`` sobre los bytes que se van a subir (guard completo:
+    caracteres, esquema, espacio de ids, reglas de §10.6) y después
+    ``validar_bundle``, lo que el guard deja fuera (coherencia threads/GPU,
+    tope de código, umbrales, ids de pregunta efectivos). Es la misma pareja que
+    corre al actualizar, así que un bundle que sale de aquí es instalable.
+
+    Corre también con ``dry_run``: un ensayo que dijera «todo bien» de algo que
+    el estudiante va a rechazar no ensayaría nada.
+    """
+    try:
+        await asyncio.to_thread(
+            parse_bundle, datos, max_bytes=int(settings.catalog_max_bundle_bytes)
+        )
+    except BundleGuardError as exc:
+        raise ApiException(
+            exc.code,
+            exc.message,
+            status_code=exc.status_code,
+            details=_con_leccion(exc.details, bundle),
+        ) from exc
+    try:
+        validar_bundle(bundle, max_code_bytes=int(settings.max_code_bytes))
+    except ApiException as exc:
+        raise ApiException(
+            exc.code,
+            exc.message,
+            status_code=exc.status_code,
+            details=_con_leccion(exc.details, bundle),
+        ) from exc
 
 
 # ══════════════════════════ 2 · los avisos de §11.8.2 ════════════════════════
@@ -447,6 +524,8 @@ async def publish_module(
     *,
     version_publicada: int | None = None,
     bundle_publicado: ModuleBundle | None = None,
+    leer_publicado: Callable[[int], Awaitable[bytes | None]] | None = None,
+    completar_vigente: bool = False,
 ) -> AdminPublishResult:
     """§11.8.2 — publica ``module_id`` en el bucket.
 
@@ -460,6 +539,20 @@ async def publish_module(
     del estudiante sigue coherente — solo se pierde el anuncio de la versión
     nueva, que se arregla republicando. Al revés dejaría el índice anunciando una
     versión que nadie puede descargar: eso sí es un catálogo roto.
+
+    **Republicar es idempotente (CU-37.3/37.4).** Si el bundle de esa versión ya
+    está en el bucket —una publicación anterior subió el bundle y falló después,
+    en el índice o en el estado local— y su `content_hash` es el del contenido
+    local, no hay conflicto: es la MISMA publicación, y se completa lo que faltó
+    usando el objeto que ya está subido (``leer_publicado`` lo trae). Con
+    contenido distinto sigue siendo ``409 VERSION_CONFLICT``: la versión es
+    inmutable.
+
+    ``completar_vigente`` cubre el otro caso a medias: el índice YA anuncia
+    ``version_publicada`` pero el estado local no lo registró (CU-37.4). Si ese
+    bundle tiene el contenido local, «publicar» no sube nada: reescribe la misma
+    entrada del índice y devuelve la versión vigente para que el router la
+    registre. Si el contenido difiere, se publica la siguiente como siempre.
     """
     if not settings.catalog_enabled:
         raise _api("CATALOG_DISABLED", "Este despliegue no tiene catálogo remoto.")
@@ -488,7 +581,21 @@ async def publish_module(
             details={"bytes": len(datos), "max_bytes": tope},
         )
 
+    await validar_como_importador(bundle, datos, settings)
+
     avisos = avisos_ids + calcular_avisos(bundle, bundle_publicado)
+
+    ya_subido: tuple[ModuleBundle, bytes] | None = None
+    if completar_vigente and body.version is None and version_publicada is not None:
+        ya_subido = await _misma_publicacion(
+            bundle, version_publicada, leer_publicado, settings
+        )
+    if ya_subido is not None:
+        # Nada nuevo que subir: la vigente ES este contenido.
+        version = version_publicada
+        bundle, datos = ya_subido
+        avisos = []
+
     object_path = object_path_for(settings.catalog_prefix, module_id, version)
     lesson_ids = [l.id for l in bundle.lessons]
 
@@ -503,22 +610,34 @@ async def publish_module(
             object_path=object_path,
             generation=None,
             bytes=len(datos),
-            published_at=publicado_en,
+            published_at=bundle.module.published_at,
             index_updated=False,
             lesson_ids=lesson_ids,
             warnings=avisos,
         )
 
-    try:
-        subido = await publisher.upload_bundle(object_path, datos)
-    except BundleAlreadyPublished as exc:
-        raise _api(
-            "VERSION_CONFLICT",
-            f"La versión {version} de '{module_id}' ya está publicada.",
-            details={"stage": "bundle", "requested_version": version},
-        ) from exc
-    except PublisherUnavailable as exc:
-        raise _traducir_transporte(exc) from exc
+    generation: int | None = None
+    if ya_subido is None:
+        try:
+            subido = await publisher.upload_bundle(object_path, datos)
+            generation = subido.generation
+        except BundleAlreadyPublished as exc:
+            ya_subido = await _misma_publicacion(
+                bundle, version, leer_publicado, settings
+            )
+            if ya_subido is None:
+                raise _api(
+                    "VERSION_CONFLICT",
+                    f"La versión {version} de '{module_id}' ya está publicada.",
+                    details={"stage": "bundle", "requested_version": version},
+                ) from exc
+            logger.info(
+                "v%s de %s ya estaba subida con el mismo contenido: se completa",
+                version, module_id,
+            )
+            bundle, datos = ya_subido
+        except PublisherUnavailable as exc:
+            raise _traducir_transporte(exc) from exc
 
     indice_ok = await _actualizar_indice(publisher, bundle, object_path, len(datos))
 
@@ -528,13 +647,57 @@ async def publish_module(
         version=version,
         checksum=bundle.checksum,
         object_path=object_path,
-        generation=subido.generation,
+        generation=generation,
         bytes=len(datos),
-        published_at=publicado_en,
+        published_at=bundle.module.published_at,
         index_updated=indice_ok,
         lesson_ids=lesson_ids,
         warnings=avisos,
     )
+
+
+async def _misma_publicacion(
+    local: ModuleBundle,
+    version: int,
+    leer_publicado: Callable[[int], Awaitable[bytes | None]] | None,
+    settings: "Settings",
+) -> tuple[ModuleBundle, bytes] | None:
+    """El bundle YA subido de ``version``, si su contenido es el local.
+
+    Devuelve el objeto del bucket (modelo + bytes), no el recién construido:
+    el índice y el estado local tienen que anunciar el checksum y la fecha de
+    lo que de verdad está publicado. ``None`` si no se puede leer o si el
+    contenido difiere; en los dos casos no se puede afirmar que sea la misma
+    publicación, y lo seguro es el conflicto.
+
+    Lo que viene del bucket es entrada NO confiable aunque lo haya subido este
+    mismo admin, y `content_hash` ignora a propósito ``checksum``, ``version``
+    y ``published_at``: sin comprobarlos aparte, un objeto manipulado con el
+    mismo contenido y otra versión u otro checksum acabaría anunciado en el
+    índice público. Por eso: la puerta endurecida (``parse_bundle``), la
+    versión declarada igual a la de la ruta y el checksum recalculado.
+    """
+    if leer_publicado is None:
+        return None
+    crudo = await leer_publicado(version)
+    if crudo is None:
+        return None
+    try:
+        remoto = await asyncio.to_thread(
+            parse_bundle, crudo, max_bytes=int(settings.catalog_max_bundle_bytes)
+        )
+        verificar_checksum(crudo, remoto)
+    except (BundleGuardError, ApiException) as exc:
+        logger.warning(
+            "la v%s ya subida no es un bundle válido (%s)", version, type(exc).__name__
+        )
+        return None
+    if remoto.module.version != version or remoto.module.id != local.module.id:
+        logger.warning("la v%s ya subida declara otra identidad", version)
+        return None
+    if content_hash(remoto) != content_hash(local):
+        return None
+    return remoto, crudo
 
 
 async def _actualizar_indice(

@@ -1075,6 +1075,7 @@ C:      GET /api/v1/jobs/01a2…   → parsed_timings (curva de speedup)
 | GET | `/api/v1/admin/catalog/credentials` | Estado de la clave de la cuenta de servicio (§11.8) | 200 | 401, 503 |
 | POST | `/api/v1/admin/catalog/import` | Descargar un módulo para editarlo (§11.7) | 201 | 401, 404, 409, 413, 422, 503 |
 | POST | `/api/v1/admin/modules/{id}/publish` | Publicar el módulo en el bucket (§11.8) | 201/200 | 401, 403, 404, 409, 413, 422, 503 |
+| GET | `/api/v1/admin/modules/{id}/publish/status` | ¿Hay cambios sin publicar? (§11.8.3, S5) | 200 | 401, 404, 422 |
 
 ---
 
@@ -1185,6 +1186,16 @@ ellos.
   → se **recarga atómicamente** el snapshot en memoria de contenido. Tras un
   `2xx`, el **siguiente** GET público (§3–§5) ya sirve el contenido nuevo; el
   estudiante ve el curso actualizado de inmediato y nunca un estado a medias.
+
+  > **Nota (S5, decisión D+ — no cambia la semántica anterior).** En una
+  > instalación con autoría, lo que muestra `/aprender` es el **borrador** del
+  > autor: el mismo snapshot que edita. El estudiante de otra máquina solo
+  > recibe contenido por un bundle **publicado** (§11.8), así que borrador y
+  > publicado ya están separados entre máquinas. Para que el autor no confunda
+  > los dos, el build admin pinta en las rutas `/aprender` un aviso fijo
+  > («Vista previa: estás viendo tu borrador. Los estudiantes ven la última
+  > versión publicada.») y el diálogo de publicar compara el contenido local con
+  > la versión vigente (§11.8.3). No hay tablas de borrador ni snapshot publicado.
 
 ### 10.2 Módulos
 
@@ -1649,6 +1660,11 @@ va al bucket.
 Descarga y **valida** el bundle (sin escribir nada en SQLite) para poder mostrar
 qué trae el módulo. Query: `version` (`int`, opcional; default = la última del índice).
 
+*(S5, CU-34.2)* El índice se lee **fresco** (relectura forzada de §11.4.2), no
+de la caché de `TELAR_CATALOG_CACHE_TTL_S`: el detalle es el paso previo a
+incorporar y no puede enseñar una versión ya sustituida ni un módulo retirado.
+Sin red se degrada a la caché como el listado (§11.9).
+
 `200` — `RemoteModuleDetail` = el summary de §11.5.1 más:
 
 ```json
@@ -1842,7 +1858,7 @@ más `replace_quiz` por lección. **Prohibido** el camino «borrar lección + re
 |---|---|
 | 200 | Actualizado |
 | 404 `MODULE_NOT_INSTALLED` | Sin fila en `installed_modules` |
-| 404 `REMOTE_MODULE_NOT_FOUND` | La `to_version` no está en el bucket |
+| 404 `REMOTE_MODULE_NOT_FOUND` | La `to_version` no está en el bucket, o *(S5, CU-41.2)* el índice leído sin caché ya no anuncia el módulo o anuncia otra versión: se comprueba **antes** de descargar, y también en la vista previa (§11.6.2) |
 | 409 `VERSION_CONFLICT` | `to_version ≤ installed_version` |
 | 409 `CHECKSUM_MISMATCH` / `DUPLICATE_ID` | — |
 | 413 `BUNDLE_TOO_LARGE` · 422 `BUNDLE_INVALID`/`CONTENT_VALIDATION_ERROR` | — |
@@ -2074,9 +2090,9 @@ Mecánica de escritura en el bucket (fijada por la investigación, no libre):
 | 401 `UNAUTHORIZED` | Modo admin apagado (imagen estudiante → `404`) |
 | 403 `CATALOG_CREDENTIALS_INVALID` | Credencial de escritura ausente, ilegible, con permisos laxos, malformada o sin permiso sobre el bucket |
 | 404 `MODULE_NOT_FOUND` | — |
-| 409 `VERSION_CONFLICT` | `version` ≤ la publicada, o el objeto ya existe |
+| 409 `VERSION_CONFLICT` | `version` ≤ la publicada, o el objeto ya existe **con otro contenido** (S5: con el mismo, ver abajo) |
 | 413 `BUNDLE_TOO_LARGE` | El bundle serializado supera el tope |
-| 422 `CONTENT_VALIDATION_ERROR` | El módulo local no pasa §10.6 (**no se publica contenido roto**) |
+| 422 `CONTENT_VALIDATION_ERROR` · 422 `BUNDLE_INVALID` | El bundle construido no pasa lo que exige el importador (**no se publica contenido roto**; ver abajo) |
 | 503 `CATALOG_DISABLED` · 503 `CATALOG_UNAVAILABLE` | — |
 
 **Códigos de `warnings`** (no bloquean; el admin decide):
@@ -2086,6 +2102,65 @@ con `<lesson_id>-ej`; ver abajo),
 `LESSON_ID_ADDED`, `QUIZ_SHAPE_CHANGED` (cambia nº de preguntas o `pass_threshold`
 → reset de nota aguas abajo), `ORDER_HINT_TAKEN` (el `order` chocará en muchos
 destinos), `GPU_LESSON_INCLUDED`.
+
+**Enmiendas S5 (aditivas; el checksum y su algoritmo NO cambian — los clientes
+ya publicados lo verifican al instalar):**
+
+- **Validación del importador (CU-37.1).** Antes de subir, **y también con
+  `dry_run`**, el bundle construido pasa por `bundle_guard.parse_bundle` sobre
+  los bytes que se subirían y por las reglas que el guard deja fuera
+  (coherencia threads/GPU, tope de código, umbrales, ids de pregunta). Es la
+  misma pareja que corre al actualizar, así que lo publicado es instalable.
+  Cada entrada de `error.details` que señala una lección lleva además
+  `lesson_id` (`{field, reason, lesson_id?}`).
+- **Orden renumerado.** `lessons[].order` del bundle es `1..n` en el orden
+  local; los huecos locales (lecciones borradas o archivadas) no se copian.
+- **Reintento idempotente (CU-37.3).** Si el objeto `v<n>.json` ya existe y su
+  contenido (`content_hash`, §11.8.3) es el local, no es conflicto: es la misma
+  publicación a medias, y se completa el índice y el estado local con el objeto
+  que ya está en el bucket (su `checksum` y su `published_at`). `generation`
+  vale `null` en ese caso.
+- **Desfase local (CU-37.4).** Si el índice anuncia una versión mayor que la
+  registrada en local y con el contenido local, publicar no sube nada: reescribe
+  esa entrada y la registra. Si el contenido difiere, la siguiente versión se
+  cuenta desde la del índice.
+- **`local_state_updated`** (`bool`, default `true`) en la respuesta: `false`
+  si el bucket quedó publicado pero falló el paso 5. Se responde `201` igual (la
+  versión ya es inmutable); reintentar reconcilia sin crear otra versión.
+
+#### 11.8.3 `GET /api/v1/admin/modules/{module_id}/publish/status` — ¿hay cambios sin publicar? *(S5, D+)*
+
+Compara la huella del contenido local con la de la versión **vigente** del
+índice, leído sin caché. No escribe nada.
+
+`content_hash` = `sha256` del JSON canónico de §11.8.2 (paso 1) del bundle
+**sin** `checksum` **ni** los metadatos de la publicación
+`module.published_at`, `module.version` y `module.notes`. No es el checksum: no
+se publica ni se guarda en el índice (que no admite campos nuevos,
+`extra="forbid"`). La huella de la versión vigente se cachea en memoria por
+`(id, version, checksum)` —un bundle publicado es inmutable—.
+
+`200` — `AdminPublishStatus`:
+
+```json
+{ "module_id": "m1", "state": "changed", "published_version": 2,
+  "local_version": 2, "content_hash": "9c1e…", "reason": null }
+```
+
+| `state` | Significado |
+|---|---|
+| `never_published` | El índice no tiene el módulo |
+| `unchanged` | Mismo contenido que la vigente y registrada en local ⇒ nada que publicar |
+| `changed` | Hay cambios sin publicar |
+| `out_of_sync` | Mismo contenido que la vigente, pero el estado local no la registró (publicar reconcilia) |
+| `unknown` | No se pudo leer el catálogo; `reason` = `"disabled"` o el `reason` de §11.3. **No impide publicar** |
+
+| Código | Cuándo |
+|---|---|
+| 200 | Siempre que el módulo exista (también sin red: `unknown`) |
+| 401 `UNAUTHORIZED` | Modo admin apagado (imagen estudiante → `404`) |
+| 404 `MODULE_NOT_FOUND` | — |
+| 422 `CONTENT_VALIDATION_ERROR` | El módulo no tiene lecciones publicables |
 
 ### 11.9 Sin red: qué sigue funcionando (requisito de escritorio)
 
@@ -2104,6 +2179,7 @@ contenido se sirve desde SQLite igual que en Fase 4.
 | `POST /catalog/install`, `…/update`, `…/update/preview` | **503 `CATALOG_UNAVAILABLE`**. Ninguna escritura parcial: la validación previa al `write_lock` ni siquiera llega a abrirlo |
 | `DELETE /catalog/modules/{id}` | **200.** Desinstalar es 100 % local |
 | `POST /admin/catalog/import`, `POST /admin/modules/{id}/publish` | **503 `CATALOG_UNAVAILABLE`** |
+| `GET /admin/modules/{id}/publish/status` (S5) | **200** con `state="unknown"`: no poder comprobar no impide publicar |
 | `GET /admin/catalog/credentials` | **200.** Comprobar la credencial es local (parseo del JSON y permisos del archivo); solo `?probe=true` sale a la red y entonces devuelve `usable:false, reason:"forbidden"` |
 | §10 completo (autoría admin local) | **Idéntico.** Crear/editar módulos, lecciones y quizzes es 100 % local |
 
@@ -2551,6 +2627,18 @@ class AdminPublishResult(BaseModel):
     index_updated: bool
     lesson_ids: list[str]
     warnings: list[ContentWarning]
+    local_state_updated: bool = True    # S5 (CU-37.4)
+
+# S5 (D+) §11.8.3
+PublishState = Literal["never_published", "unchanged", "changed", "out_of_sync", "unknown"]
+
+class AdminPublishStatus(BaseModel):
+    module_id: str
+    state: PublishState
+    published_version: int | None = None
+    local_version: int | None = None
+    content_hash: str = Field(pattern=CHECKSUM_PATTERN)
+    reason: str | None = None
 ```
 
 #### 11.11.3 TypeScript — `frontend/src/api/catalog-types.ts` (nuevo)
@@ -2773,6 +2861,25 @@ export interface AdminPublishResultDto {
   index_updated: boolean
   lesson_ids: string[]
   warnings: ContentWarningDto[]
+  /** S5 (CU-37.4): `false` ⇒ publicado en la nube, sin constancia local. */
+  local_state_updated: boolean
+}
+
+// S5 (D+) §11.8.3
+export type PublishState =
+  | 'never_published'
+  | 'unchanged'
+  | 'changed'
+  | 'out_of_sync'
+  | 'unknown'
+
+export interface AdminPublishStatusDto {
+  module_id: string
+  state: PublishState
+  published_version: number | null
+  local_version: number | null
+  content_hash: string
+  reason: string | null
 }
 ```
 
@@ -2859,3 +2966,4 @@ Y la unión **cerrada** `ApiErrorCode` de `api/types.ts` gana:
 | GET | `/api/v1/admin/catalog/credentials` | Estado de la clave de la cuenta de servicio (§11.8) | 200 | 401, 503 |
 | POST | `/api/v1/admin/catalog/import` | Descargar un módulo para editarlo (§11.7) | 201 | 401, 404, 409, 413, 422, 503 |
 | POST | `/api/v1/admin/modules/{id}/publish` | Publicar el módulo en el bucket (§11.8) | 201/200 | 401, 403, 404, 409, 413, 422, 503 |
+| GET | `/api/v1/admin/modules/{id}/publish/status` | ¿Hay cambios sin publicar? (§11.8.3, S5) | 200 | 401, 404, 422 |

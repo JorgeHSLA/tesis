@@ -131,6 +131,40 @@ class AdminPublishResult(BaseModel):
     index_updated: bool = False
     lesson_ids: list[str] = Field(default_factory=list)
     warnings: list[ContentWarning] = Field(default_factory=list)
+    #: S5 (aditivo, CU-37.4): ``False`` si el bucket quedó publicado pero no se
+    #: pudo guardar en local la versión publicada. La publicación NO se deshace
+    #: —ya es inmutable—; reintentar la reconcilia sin crear otra versión.
+    local_state_updated: bool = True
+
+
+#: S5 (D+) — qué hay entre el contenido local y lo publicado.
+PublishState = Literal[
+    "never_published",  # el índice no tiene este módulo
+    "unchanged",  # mismo contenido que la versión vigente del índice
+    "changed",  # hay cambios sin publicar
+    "out_of_sync",  # publicado en la nube, pero el estado local no lo registró
+    "unknown",  # no se pudo leer el catálogo (sin red, sin bucket…)
+]
+
+
+class AdminPublishStatus(BaseModel):
+    """S5 ``GET /admin/modules/{id}/publish/status`` — ¿hay cambios sin publicar?
+
+    Compara ``content_hash`` (contenido sin metadatos de publicación) del bundle
+    que se construiría ahora con el de la versión vigente del índice, leído SIN
+    caché. No escribe nada, ni en local ni en el bucket.
+    """
+
+    module_id: str
+    state: PublishState
+    #: Versión vigente en el índice. ``None`` si no está o no se pudo leer.
+    published_version: int | None = None
+    #: Última versión que este equipo registró como publicada. ``None`` si nunca.
+    local_version: int | None = None
+    #: Huella del contenido local (64 hex).
+    content_hash: str = Field(pattern=CHECKSUM_PATTERN)
+    #: Solo con ``state="unknown"``: ``"disabled"`` o el ``reason`` de §11.3.
+    reason: str | None = None
 
 
 __all__ = [
@@ -139,5 +173,7 @@ __all__ = [
     "AdminImportResult",
     "AdminPublishRequest",
     "AdminPublishResult",
+    "AdminPublishStatus",
     "CredentialReason",
+    "PublishState",
 ]

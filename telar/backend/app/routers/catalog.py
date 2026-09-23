@@ -629,7 +629,11 @@ async def catalog_remote_detail(
     app = request.app
     db = _db(request)
 
-    servido = await _obtener_indice(app, port, forzar=False)
+    # CU-34.2: índice FRESCO, no la caché de `catalog_cache_ttl_s`. El detalle
+    # es el paso previo a incorporar: enseñar durante 15 min una versión que ya
+    # no es la vigente (o un módulo ya retirado) es prometer lo que no se va a
+    # instalar. Sin red, `_obtener_indice` sigue cayendo a la caché (§11.9).
+    servido = await _obtener_indice(app, port, forzar=True)
     entrada = _entrada_o_404(servido.index, module_id, version)
     bundle = await _descargar_bundle(app, port, entrada)
 
