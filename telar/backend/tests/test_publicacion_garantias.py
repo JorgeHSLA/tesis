@@ -371,3 +371,33 @@ def test_el_tope_de_codigo_del_importador_tambien_frena_la_publicacion(
     assert all(d["lesson_id"] for d in error["details"])
     assert all(d["field"].endswith("example.source_code") for d in error["details"])
     assert list(raiz.rglob("*.json")) == []
+
+
+@pytest.mark.parametrize("manipulacion", ["version", "checksum"])
+def test_un_objeto_manipulado_en_el_bucket_no_se_reutiliza(
+    cliente, raiz, monkeypatch, manipulacion
+):
+    """Mismo contenido pero otra versión dentro, o checksum falso: es conflicto.
+
+    `content_hash` ignora esos campos a propósito, así que el reintento
+    idempotente tiene que comprobarlos aparte o los anunciaría en el índice.
+    """
+    async def cas_siempre_falla(self, data, *, if_generation_match):
+        raise catalog_publisher.IndexCasFailed("otro publicó a la vez")
+
+    monkeypatch.setattr(catalog_publisher.LocalCatalogPublisher, "write_index", cas_siempre_falla)
+    falla(cliente.post(PUBLICAR.format("m1"), json={}), 409, "VERSION_CONFLICT")
+    monkeypatch.undo()
+
+    ruta = raiz / "modulos" / "m1" / "v1.json"
+    datos = json.loads(ruta.read_bytes())
+    if manipulacion == "version":
+        datos["module"]["version"] = 7
+        datos["checksum"] = bundle_checksum(datos)
+    else:
+        datos["checksum"] = "e" * 64
+    ruta.write_text(json.dumps(datos, ensure_ascii=False), encoding="utf-8")
+
+    error = falla(cliente.post(PUBLICAR.format("m1"), json={}), 409, "VERSION_CONFLICT")
+    assert error["details"]["stage"] == "bundle"
+    assert not (raiz / "modulos" / "index.json").exists()

@@ -29,6 +29,7 @@ Dos decisiones que se leen como tests:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 
@@ -50,6 +51,7 @@ from app.schemas.admin_catalog import (
 )
 from app.schemas.catalog import CatalogIndexEntry, ModuleBundle
 from app.services import catalog_import, catalog_publish, module_installer
+from app.services.bundle_guard import BundleGuardError, parse_bundle
 from app.services.catalog_hash import content_hash
 from app.services.content_writer import _persist
 from app.services.catalog_publisher import (
@@ -281,9 +283,14 @@ async def _huella_publicada(
             )
         except Exception as exc:
             raise module_installer.api_error_from_catalog(exc) from exc
+        # Del bucket: la misma puerta endurecida que usa el instalador.
         try:
-            remoto = ModuleBundle.model_validate_json(objeto.data)
-        except ValueError as exc:
+            remoto = await asyncio.to_thread(
+                parse_bundle,
+                objeto.data,
+                max_bytes=int(settings.catalog_max_bundle_bytes),
+            )
+        except BundleGuardError as exc:
             raise ApiException(
                 "BUNDLE_INVALID", "La versión publicada no es un bundle válido."
             ) from exc

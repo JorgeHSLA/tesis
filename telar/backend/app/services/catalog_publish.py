@@ -56,7 +56,7 @@ from app.services.catalog_publisher import (
     PublisherUnavailable,
     _api,
 )
-from app.services.module_updater import validar_bundle
+from app.services.module_updater import validar_bundle, verificar_checksum
 
 if TYPE_CHECKING:  # pragma: no cover - solo tipos
     from app.config import Settings
@@ -587,7 +587,9 @@ async def publish_module(
 
     ya_subido: tuple[ModuleBundle, bytes] | None = None
     if completar_vigente and body.version is None and version_publicada is not None:
-        ya_subido = await _misma_publicacion(bundle, version_publicada, leer_publicado)
+        ya_subido = await _misma_publicacion(
+            bundle, version_publicada, leer_publicado, settings
+        )
     if ya_subido is not None:
         # Nada nuevo que subir: la vigente ES este contenido.
         version = version_publicada
@@ -620,7 +622,9 @@ async def publish_module(
             subido = await publisher.upload_bundle(object_path, datos)
             generation = subido.generation
         except BundleAlreadyPublished as exc:
-            ya_subido = await _misma_publicacion(bundle, version, leer_publicado)
+            ya_subido = await _misma_publicacion(
+                bundle, version, leer_publicado, settings
+            )
             if ya_subido is None:
                 raise _api(
                     "VERSION_CONFLICT",
@@ -656,6 +660,7 @@ async def _misma_publicacion(
     local: ModuleBundle,
     version: int,
     leer_publicado: Callable[[int], Awaitable[bytes | None]] | None,
+    settings: "Settings",
 ) -> tuple[ModuleBundle, bytes] | None:
     """El bundle YA subido de ``version``, si su contenido es el local.
 
@@ -664,6 +669,13 @@ async def _misma_publicacion(
     lo que de verdad está publicado. ``None`` si no se puede leer o si el
     contenido difiere; en los dos casos no se puede afirmar que sea la misma
     publicación, y lo seguro es el conflicto.
+
+    Lo que viene del bucket es entrada NO confiable aunque lo haya subido este
+    mismo admin, y `content_hash` ignora a propósito ``checksum``, ``version``
+    y ``published_at``: sin comprobarlos aparte, un objeto manipulado con el
+    mismo contenido y otra versión u otro checksum acabaría anunciado en el
+    índice público. Por eso: la puerta endurecida (``parse_bundle``), la
+    versión declarada igual a la de la ruta y el checksum recalculado.
     """
     if leer_publicado is None:
         return None
@@ -671,9 +683,17 @@ async def _misma_publicacion(
     if crudo is None:
         return None
     try:
-        remoto = ModuleBundle.model_validate_json(crudo)
-    except ValueError:
-        logger.warning("la v%s ya subida no es un bundle válido", version)
+        remoto = await asyncio.to_thread(
+            parse_bundle, crudo, max_bytes=int(settings.catalog_max_bundle_bytes)
+        )
+        verificar_checksum(crudo, remoto)
+    except (BundleGuardError, ApiException) as exc:
+        logger.warning(
+            "la v%s ya subida no es un bundle válido (%s)", version, type(exc).__name__
+        )
+        return None
+    if remoto.module.version != version or remoto.module.id != local.module.id:
+        logger.warning("la v%s ya subida declara otra identidad", version)
         return None
     if content_hash(remoto) != content_hash(local):
         return None
