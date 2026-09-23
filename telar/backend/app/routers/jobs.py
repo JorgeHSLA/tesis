@@ -25,6 +25,7 @@ from ..repositories.content import cuenta_para_progreso
 from ..repositories.records import JobRecord
 from ..schemas import FILENAME_PATTERN, JobCreateRequest
 from ..services.job_runner import NO_TIMEOUT, TERMINAL_STATUSES, utc_now_iso
+from .system import ensure_docker
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
 
@@ -216,7 +217,9 @@ async def _create_job(
     if not runner.try_reserve_queue_slot(_MAX_QUEUE):
         return _err(429, "TOO_MANY_JOBS", "La cola interna de jobs está llena.")
     try:
-        docker = getattr(state, "docker_service", None)
+        # CU-26.3: si Docker no estaba al arrancar, reintentar aquí también
+        # (no solo en /health y /system).
+        docker = getattr(state, "docker_service", None) or await ensure_docker(request.app)
         if docker is None or not await asyncio.to_thread(docker.ping):
             return _err(503, "DOCKER_UNAVAILABLE", "El daemon Docker no responde.")
         if not await asyncio.to_thread(docker.image_present):

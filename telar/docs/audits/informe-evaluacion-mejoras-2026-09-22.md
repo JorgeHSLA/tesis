@@ -556,8 +556,8 @@ Leyenda:
 | CU-09.3 | Métrica ausente mostrada como 0 (el 0 nace en el backend) | 💡 | ◐ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
 | CU-09.4 | Rótulo «Hilos (PIDs)» engañoso | 💡 | ✅ | HACER YA ✅ d370739 | S | Bajo | En vivo y resultados |
 | CU-10.1 | Error de descarga no manejado (y posible fallo en Electron) | 💡 | ✅ | HACER YA ✅ 71eee1a, 82c10fa | S | Bajo | En vivo y resultados |
-| CU-12.1 | Lecciones `viewed`/`run` nunca se completan | 🚨 | ✅ | HACER YA ✅ b638029, f92d9fa, 5f79a02 | S | Bajo | Requisitos de completitud |
-| CU-12.2 | El quiz ignora `completion_rule` | 💡 | ✅ | HACER YA ✅ b638029, f92d9fa, 5f79a02 | S | Bajo | Requisitos de completitud |
+| CU-12.1 | Lecciones `viewed`/`run` nunca se completan | 🚨 | ✅ | HACER YA ✅ b638029, f92d9fa, 5f79a02, 66ab557 (viewed respeta la disponibilidad) | S | Bajo | Requisitos de completitud |
+| CU-12.2 | El quiz ignora `completion_rule` | 💡 | ✅ | HACER YA ✅ b638029, f92d9fa, 5f79a02, 53de886 | S | Bajo | Requisitos de completitud |
 | CU-12.3 | Mostrar qué requisito falta | 💡 | ✅ | SI HAY TIEMPO | S-M | Bajo | Requisitos de completitud |
 | CU-12.4 | Progreso general vs. por módulo incoherente | 💡 | ✅ | HACER YA ✅ b638029, f92d9fa | S | Bajo | Disponibilidad de lecciones |
 | CU-13.1 | Aviso de cambios sin guardar (modal de módulo) | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
@@ -609,7 +609,7 @@ Leyenda:
 | CU-25.3 | Contenedores no eliminados sin seguimiento | 💡 | ✅ | NO HACER | M | Medio | Limpieza y reconciliación |
 | CU-26.1 | Imagen ausente vs. no comprobada | 💡 | ✅ | SI HAY TIEMPO ✅ 7f079e2 | S | Bajo | Escritorio y salud |
 | CU-26.2 | Los checks de Docker bloquean el event loop | 💡 | ✅ | SI HAY TIEMPO ✅ 7f079e2, f0d9980 | S | Bajo | Escritorio y salud |
-| CU-26.3 | Reconectar Docker si no estaba al arrancar | 🚨 | ◐ | RECLASIFICAR ✅ 7f079e2, f0d9980 | S | Bajo | Escritorio y salud |
+| CU-26.3 | Reconectar Docker si no estaba al arrancar | 🚨 | ◐ | RECLASIFICAR ✅ 7f079e2, f0d9980, 5935292 (también desde POST /jobs) | S | Bajo | Escritorio y salud |
 | CU-26.4 | Recursos pendientes visibles en /health | 💡 | ✅ | NO HACER | S-M | Medio | Limpieza y reconciliación |
 | CU-27.1 | «Listo» = algún servicio corriendo | 💡 | ◐ | SI HAY TIEMPO ✅ a7a0b42, 2a219a9 | S | Bajo | Escritorio y salud |
 | CU-27.2 | Reanudar el autoarranque cuando aparece Docker | 💡 | ✅ | SI HAY TIEMPO ✅ a7a0b42 | S | Bajo | Escritorio y salud |

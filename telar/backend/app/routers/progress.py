@@ -121,8 +121,12 @@ async def put_lesson_progress(
         )
     completed = body.completed
     completed_via = None
-    if completed is not None and lesson.completion_rule != "viewed":
-        completed = None   # no es el cliente quien completa esta lección
+    if completed is not None and (
+        lesson.completion_rule != "viewed" or not cuenta_para_progreso(lesson)
+    ):
+        # No es el cliente quien completa esta lección, o la lección no está
+        # disponible (deshabilitada/archivada): api-contract §6.2.
+        completed = None
     elif completed:
         completed_via = "manual"
     record = await progress_repo.upsert(
