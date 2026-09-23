@@ -8,16 +8,21 @@
 // que el disparador es un botón accesible por su rol y su nombre, y que las
 // acciones aparecen tras interactuar con él.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 vi.mock('@/api/system', () => ({
   getSystem: vi.fn().mockResolvedValue({ cores: 8 }),
   getHealth: vi.fn().mockResolvedValue({ status: 'ok' }),
 }))
 
+import { getSystem } from '@/api/system'
 import { RuntimeFooter } from '@/components/shell/RuntimeFooter'
+import { loadSystemInfo } from '@/hooks/useSystemInfo'
 
-function setDesktop(services: { state: string }[], extra: Record<string, unknown> = {}) {
+const getSystemMock = getSystem as Mock
+const BACKEND_OK = { service: 'backend', state: 'running', health: 'healthy' }
+
+function setDesktop(services: { state: string; service?: string }[], extra: Record<string, unknown> = {}) {
   const api = {
     dockerStatus: vi.fn().mockResolvedValue({ ok: true, services }),
     dockerUp: vi.fn().mockResolvedValue({ ok: true }),
@@ -30,6 +35,7 @@ function setDesktop(services: { state: string }[], extra: Record<string, unknown
 
 beforeEach(() => {
   vi.clearAllMocks()
+  getSystemMock.mockResolvedValue({ cores: 8 })
 })
 
 afterEach(() => {
@@ -62,7 +68,7 @@ describe('RuntimeFooter (desktop)', () => {
   })
 
   it('con los servicios arriba ofrece «Detener» (dockerStop, antes sin UI)', async () => {
-    const api = setDesktop([{ state: 'running' }, { state: 'running' }])
+    const api = setDesktop([BACKEND_OK, { service: 'web', state: 'running' }])
     render(<RuntimeFooter />)
 
     const trigger = await screen.findByRole('button', { name: /2 contenedores activos/i })
@@ -94,6 +100,37 @@ describe('RuntimeFooter (desktop)', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Levantar' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('daemon caído')
+  })
+})
+
+describe('RuntimeFooter (desktop) · causas y runner', () => {
+  it('CU-27.4: sin Docker muestra la causa saneada en el panel', async () => {
+    setDesktop([], {
+      dockerStatus: vi.fn().mockResolvedValue({ ok: false, services: [], error: 'permiso denegado en docker.sock' }),
+    })
+    render(<RuntimeFooter />)
+    const trigger = await screen.findByRole('button', { name: /Docker no disponible/i })
+    fireEvent.click(trigger)
+    expect(await screen.findByRole('alert')).toHaveTextContent('permiso denegado en docker.sock')
+  })
+
+  it('CU-27.3: con el backend listo pero sin imagen del runner ofrece «Reintentar preparación»', async () => {
+    getSystemMock.mockResolvedValue({ cores: 8, runner_image_present: false })
+    await loadSystemInfo(true)
+    const api = setDesktop([BACKEND_OK])
+    render(<RuntimeFooter />)
+
+    const trigger = await screen.findByRole('button', { name: /falta la imagen del runner/i })
+    fireEvent.click(trigger)
+    const reintentar = await screen.findByRole('button', { name: 'Reintentar preparación' })
+    const before = getSystemMock.mock.calls.length
+    getSystemMock.mockResolvedValue({ cores: 8, runner_image_present: true })
+    fireEvent.click(reintentar)
+    await waitFor(() => expect(api.dockerUp).toHaveBeenCalled())
+    // Tras preparar, /system se vuelve a consultar y el aviso desaparece.
+    await waitFor(() => expect(getSystemMock.mock.calls.length).toBeGreaterThan(before))
+    await screen.findByRole('button', { name: /1 contenedores activos/i })
+    expect(screen.queryByRole('button', { name: 'Reintentar preparación' })).toBeNull()
   })
 })
 

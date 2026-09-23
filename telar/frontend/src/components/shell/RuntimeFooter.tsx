@@ -20,6 +20,11 @@
 //  - Va en un PORTAL porque `.sidebar` tiene `overflow: hidden` y recortaría
 //    cualquier panel que salga del rail de 56 px (precedente: QuizResultOverlay).
 //  - Cierra con Escape (devolviendo el foco al disparador) y con clic fuera.
+//
+// 2026-09-22 — el panel dice POR QUÉ no está listo (CU-27.4: Docker ausente,
+// permisos…) y, en desktop, avisa si falta la imagen del runner con
+// «Reintentar preparación» (CU-27.3). Tras cada preparación `/system` se
+// vuelve a consultar: su `runner_image_present` es de antes de la descarga.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDockerStatus } from '../../hooks/useDockerStatus'
@@ -48,7 +53,7 @@ function anchorFor(trigger: HTMLElement): { left: number; bottom: number } {
 export function RuntimeFooter() {
   const platform = usePlatform()
   const docker = useDockerStatus()
-  const { data: system } = useSystemInfo()
+  const { data: system, retry: retrySystem } = useSystemInfo()
 
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ left: number; bottom: number } | null>(null)
@@ -56,6 +61,15 @@ export function RuntimeFooter() {
   const panelRef = useRef<HTMLDivElement>(null)
 
   const title = platform === 'desktop' ? 'Docker runtime' : 'Backend Telar'
+  const runnerMissing =
+    platform === 'desktop' && docker.state === 'ok' && system?.runner_image_present === false
+
+  // Al terminar una preparación (auto o manual), la imagen puede haber llegado.
+  const wasLifting = useRef(false)
+  useEffect(() => {
+    if (wasLifting.current && !docker.lifting) retrySystem()
+    wasLifting.current = docker.lifting
+  }, [docker.lifting, retrySystem])
 
   let dotClass = 'status-dot'
   let detail: string
@@ -71,6 +85,9 @@ export function RuntimeFooter() {
   } else if (docker.state === 'checking') {
     dotClass = 'status-dot status-dot--amber'
     detail = 'verificando…'
+  } else if (runnerMissing) {
+    dotClass = 'status-dot status-dot--amber'
+    detail = 'falta la imagen del runner'
   } else if (docker.state === 'ok') {
     detail =
       platform === 'desktop'
@@ -80,7 +97,8 @@ export function RuntimeFooter() {
           : 'conectado'
   } else {
     dotClass = 'status-dot status-dot--red'
-    detail = platform === 'desktop' ? 'servicios detenidos' : 'sin conexión'
+    if (platform === 'desktop') detail = docker.statusError != null ? 'Docker no disponible' : 'servicios detenidos'
+    else detail = docker.statusError ?? 'sin conexión'
   }
 
   const close = useCallback(() => {
@@ -155,6 +173,23 @@ export function RuntimeFooter() {
             {docker.lifting && (
               <div className="runtime-panel-hint">
                 Preparando el entorno. La primera vez descarga cerca de 1 GB y tarda varios minutos.
+              </div>
+            )}
+
+            {runnerMissing && !busy && (
+              <div className="runtime-panel-hint">
+                Sin la imagen del runner todavía no se puede ejecutar código.
+                <div className="runtime-panel-actions">
+                  <Button variant="outline" size="sm" onClick={() => void docker.up()}>
+                    Reintentar preparación
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {docker.statusError != null && docker.state !== 'ok' && (
+              <div className="field-hint error" role="alert">
+                {docker.statusError}
               </div>
             )}
 

@@ -9,8 +9,19 @@
 // desde el principio (electron-spec §5.1) y la spec lo daba por expuesto en el
 // pie (§8, «Detener servicios»), pero NINGÚN componente lo invocaba: era
 // capacidad muerta. Ahora el panel del RuntimeFooter ofrece las dos acciones.
+//
+// 2026-09-22 (CU-27.1–27.4 y modo web):
+//  - «listo» = el servicio `backend` corre y su healthcheck dice `healthy` (o
+//    no declara healthcheck). Antes bastaba con cualquier contenedor corriendo.
+//  - si Docker no estaba al abrir la app, el autoarranque queda PENDIENTE y se
+//    hace en cuanto un sondeo lo encuentra; «Detener» o «Levantar» del usuario
+//    lo dan por resuelto.
+//  - `statusError` conserva la causa (el `error` saneado de dockerStatus en
+//    desktop; en web, lo que dicen `checks.docker`/`checks.runner_image`).
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getHealth } from '../api/system'
+import type { HealthChecksDto } from '../api/types'
+import type { ComposeService } from '../types/telar'
 import { getPlatform } from './usePlatform'
 
 const DESKTOP_POLL_MS = 10_000
@@ -28,11 +39,33 @@ export interface DockerStatusState {
   stopping: boolean
   /** Error de la ÚLTIMA acción ejecutada (up o stop); null si fue bien. */
   liftError: string | null
+  /** Por qué el runtime no está listo (Docker ausente, permisos, imagen…); null si nada que decir. */
+  statusError: string | null
   /** Desktop: `docker compose up -d` + re-check. No-op en web. */
   up: () => Promise<void>
   /** Desktop: `docker compose stop` + re-check. No-op en web. */
   stop: () => Promise<void>
-  refresh: () => void
+  /** Vuelve a comprobar (y reanuda el autoarranque si seguía pendiente). */
+  refresh: () => Promise<void>
+}
+
+type CheckResult = RuntimeHealth | 'unavailable'
+
+/** CU-27.1: el backend es lo que la app necesita; su healthcheck manda. */
+function backendHealth(services: ComposeService[]): RuntimeHealth {
+  const backend = services.find((s) => s.service === 'backend')
+  if (backend?.state !== 'running') return 'down'
+  if (backend.health === 'starting') return 'checking'
+  return backend.health === undefined || backend.health === 'healthy' ? 'ok' : 'down'
+}
+
+/** Modo web: un /health 200 no basta si el servidor no puede ejecutar código. */
+function webProblem(checks: HealthChecksDto | undefined): string | null {
+  if (checks === undefined) return null // backend viejo sin checks: se da por bueno
+  if (!checks.docker) return 'Docker no responde en el servidor.'
+  if (checks.runner_image === false) return 'Falta la imagen del runner en el servidor.'
+  if (checks.runner_image == null) return 'No se pudo comprobar la imagen del runner.'
+  return null
 }
 
 export function useDockerStatus(): DockerStatusState {
@@ -42,39 +75,52 @@ export function useDockerStatus(): DockerStatusState {
   const [lifting, setLifting] = useState(false)
   const [stopping, setStopping] = useState(false)
   const [liftError, setLiftError] = useState<string | null>(null)
+  const [statusError, setStatusError] = useState<string | null>(null)
   const alive = useRef(true)
 
   // Devuelve el resultado además de publicarlo en el estado: el autoarranque
-  // necesita saber cómo fue la PRIMERA comprobación, y leerlo del estado
-  // recién seteado no es fiable dentro del mismo tick.
-  const check = useCallback(async (): Promise<RuntimeHealth | 'unavailable'> => {
+  // necesita saber cómo fue la comprobación, y leerlo del estado recién
+  // seteado no es fiable dentro del mismo tick.
+  const check = useCallback(async (): Promise<CheckResult> => {
     try {
       if (platform === 'desktop' && window.telar) {
         const res = await window.telar.dockerStatus()
         if (!alive.current) return 'unavailable'
-        const running = res.services.filter((s) => s.state === 'running').length
-        setContainers(running)
-        const next: RuntimeHealth = res.ok && running > 0 ? 'ok' : 'down'
+        setContainers(res.services.filter((s) => s.state === 'running').length)
+        // `ok:false` = no hay daemon con el que hablar (Docker ausente, parado
+        // o sin permisos). Se distingue de `down` para no intentar un
+        // autoarranque que sólo puede fallar, y se conserva la causa (27.4).
+        if (!res.ok) {
+          setState('down')
+          setStatusError(res.error ?? 'Docker no está disponible.')
+          return 'unavailable'
+        }
+        const next = backendHealth(res.services)
         setState(next)
-        // `ok:false` = no hay daemon con el que hablar (Docker ausente o
-        // parado). Se distingue de `down` para no intentar un autoarranque
-        // que sólo puede fallar.
-        return res.ok ? next : 'unavailable'
+        setStatusError(null)
+        return next
       }
-      await getHealth()
+      const health = await getHealth()
       if (!alive.current) return 'unavailable'
+      const problem = webProblem(health.checks)
       setContainers(null)
-      setState('ok')
-      return 'ok'
+      setState(problem == null ? 'ok' : 'down')
+      setStatusError(problem)
+      return problem == null ? 'ok' : 'down'
     } catch {
       if (!alive.current) return 'unavailable'
       setState('down')
+      setStatusError(null)
       return 'unavailable'
     }
   }, [platform])
 
+  // Autoarranque ya resuelto: hecho, o decidido por el usuario (up/stop).
+  const autoStarted = useRef(false)
+
   const up = useCallback(async () => {
     if (platform !== 'desktop' || !window.telar || lifting) return
+    autoStarted.current = true // ya se está preparando: no hace falta otro autoarranque
     setLifting(true)
     setLiftError(null)
     try {
@@ -88,10 +134,12 @@ export function useDockerStatus(): DockerStatusState {
     }
   }, [check, lifting, platform])
 
-  // Simétrico a up(). Los servicios NO se detienen al cerrar la app (decisión
-  // de electron-spec §8): esta es la vía manual para pararlos.
+  // Simétrico a up(). Al cerrar la app los servicios se detienen solos
+  // (before-quit en main.ts, 2026-08-28); esta es la vía manual para pararlos
+  // con la app abierta.
   const stop = useCallback(async () => {
     if (platform !== 'desktop' || !window.telar || stopping) return
+    autoStarted.current = true // decisión explícita: no relanzar nunca en esta sesión
     setStopping(true)
     setLiftError(null)
     try {
@@ -115,36 +163,40 @@ export function useDockerStatus(): DockerStatusState {
   // inservible. Detener es una decisión explícita del usuario y se respeta
   // hasta que vuelva a abrir la app.
   //
-  // Tampoco se intenta si Docker no está disponible ('unavailable'): ahí el
-  // autoarranque sólo produciría un error; el panel muestra el estado y el
-  // usuario decide.
-  const autoStarted = useRef(false)
+  // Si Docker no está disponible ('unavailable'), el autoarranque queda
+  // PENDIENTE (CU-27.2): levantar sin daemon sólo daría un error, pero en
+  // cuanto un sondeo lo encuentra (el usuario abrió Docker Desktop) se hace.
+  // Mientras el backend arranca ('checking') tampoco se decide nada.
+  //
   // `up` se lee por REFERENCIA: su identidad cambia al alternar `lifting`, así
   // que ponerlo en las dependencias del efecto desmontaría y recrearía el
   // intervalo (con su check extra) dos veces por cada arranque.
   const upRef = useRef(up)
   upRef.current = up
 
+  const tick = useCallback(async () => {
+    const result = await check()
+    if (!alive.current || autoStarted.current) return
+    if (result === 'unavailable' || result === 'checking') return
+    autoStarted.current = true
+    if (platform === 'desktop' && result === 'down') await upRef.current()
+  }, [check, platform])
+
   useEffect(() => {
     alive.current = true
-    void (async () => {
-      const first = await check()
-      if (!alive.current || autoStarted.current) return
-      autoStarted.current = true
-      if (platform === 'desktop' && first === 'down') await upRef.current()
-    })()
+    void tick()
     const every = platform === 'desktop' ? DESKTOP_POLL_MS : WEB_POLL_MS
-    const id = window.setInterval(() => void check(), every)
+    const id = window.setInterval(() => void tick(), every)
     return () => {
       alive.current = false
       window.clearInterval(id)
     }
-  }, [check, platform])
+  }, [tick, platform])
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     setState('checking')
-    void check()
-  }, [check])
+    await tick()
+  }, [tick])
 
-  return { state, containers, lifting, stopping, liftError, up, stop, refresh }
+  return { state, containers, lifting, stopping, liftError, statusError, up, stop, refresh }
 }
