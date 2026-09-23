@@ -32,7 +32,7 @@ import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { useSimulation } from '../../hooks/useSimulation'
 import { useSystemInfo } from '../../hooks/useSystemInfo'
 import { fmtBytes, fmtTime } from '../../lib/format'
-import { isTerminalPhase } from '../../stores/jobStore'
+import { isTerminalPhase, useJobStore } from '../../stores/jobStore'
 import { isSweepParser } from './sweepParse'
 import { LiveTerminalCard } from './LiveTerminalCard'
 import { SweepProgressCard } from './SweepProgressCard'
@@ -78,6 +78,9 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
           navigate(`/resultados/${jobId}`, { replace: true })
           return
         }
+        // CU-07.4: al volver a un job activo, el cronómetro parte del
+        // started_at real y no del instante en que se abrió esta vista.
+        useJobStore.getState().setStartedAt(jobId, detail.started_at)
         setJob(detail)
       })
       .catch((err: unknown) => {

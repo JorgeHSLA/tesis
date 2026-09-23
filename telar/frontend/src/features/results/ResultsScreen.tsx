@@ -22,12 +22,21 @@ import {
   IconZap,
 } from '../../components/icons/icons'
 import { fmtBytes, fmtTimeMs } from '../../lib/format'
+import { downloadFile } from '../../lib/download'
 import { buildObservations } from '../../lib/observations'
 import { bestSweepPoint } from '../../lib/speedup'
 import { DistributionCard, ObservationsCard, OutputCard } from './ResultsCards'
 import '../../styles/screens/results.css'
 
 const TERMINAL = ['completed', 'failed', 'timeout', 'cancelled']
+
+const DOWNLOAD_ERROR = 'No fue posible descargar la salida. Inténtalo nuevamente.'
+
+/** Mismo nombre que el Content-Disposition de §7.6 (`<stem>-<job_id[:8]>.txt`):
+ *  entre orígenes esa cabecera no es legible desde fetch, así que se reconstruye. */
+function outputFilename(job: JobDetailDto): string {
+  return `${job.filename.replace(/\.py$/, '')}-${job.job_id.slice(0, 8)}.txt`
+}
 
 function HeaderChip({ job }: { job: JobDetailDto }) {
   switch (job.status) {
@@ -71,6 +80,19 @@ export default function ResultsScreen() {
   useEffect(load, [load])
 
   const observations = useMemo(() => (job != null ? buildObservations(job) : []), [job])
+
+  // CU-10.1: fetch → Blob (lib/download). Un fallo no oculta los resultados.
+  // `downloading` bloquea los botones: un doble click no lanza dos descargas.
+  const [downloadFailed, setDownloadFailed] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const downloadOutput = useCallback(() => {
+    if (job == null || downloading) return
+    setDownloadFailed(false)
+    setDownloading(true)
+    downloadFile(jobOutputUrl(job.job_id), outputFilename(job))
+      .catch(() => setDownloadFailed(true))
+      .finally(() => setDownloading(false))
+  }, [job, downloading])
 
   if (error != null) {
     return (
@@ -154,14 +176,18 @@ export default function ResultsScreen() {
           </div>
         </div>
         <div className="screen-actions">
-          <a className="btn btn-outline" href={jobOutputUrl(job.job_id)} download>
+          <Button variant="outline" onClick={downloadOutput} disabled={downloading}>
             <IconDownload size={14} /> Descargar output
-          </a>
+          </Button>
           <Button variant="outline" onClick={rerun}>
             Re-ejecutar
           </Button>
         </div>
       </header>
+
+      {downloadFailed && (
+        <ErrorState title="Descarga fallida" message={DOWNLOAD_ERROR} onRetry={downloadOutput} />
+      )}
 
       <div className="metrics-row">
         <MetricCard
@@ -190,7 +216,7 @@ export default function ResultsScreen() {
         <ObservationsCard observations={observations} />
       </div>
 
-      <OutputCard job={job} />
+      <OutputCard job={job} onDownload={downloadOutput} downloading={downloading} />
     </section>
   )
 }

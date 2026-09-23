@@ -55,7 +55,7 @@ const normalize = (name) => name.replace(/\s+/g, '.')
 function parseChecksums(text) {
   const map = new Map()
   for (const line of text.split('\n')) {
-    const m = line.match(/^([0-9a-f]{64})\s+(.+?)\s*$/i)
+    const m = line.match(/^([0-9a-f]{64})\s+\*?(.+?)\s*$/i) // `*` = modo binario de sha256sum -b
     if (m) map.set(normalize(m[2]), m[1].toLowerCase())
   }
   return map

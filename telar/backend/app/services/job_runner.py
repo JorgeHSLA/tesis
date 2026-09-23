@@ -464,13 +464,24 @@ class JobRunner:
                 handle.request_kill(KILL_OUTPUT_LIMIT)
                 self._spawn_kill(handle)
 
+        # §8.4: se vacía cada ~flush_interval desde el ÚLTIMO flush aunque
+        # sigan llegando datos (un goteo constante no debe retener la salida).
+        loop = asyncio.get_running_loop()
+        next_flush = loop.time() + self._flush_interval
         while True:
             try:
                 item = await asyncio.wait_for(
-                    handle.central_queue.get(), timeout=self._flush_interval
+                    handle.central_queue.get(),
+                    # piso > 0: con timeout=0 wait_for cancela el get() antes
+                    # de correrlo aunque la cola ya tenga un item.
+                    timeout=max(0.001, next_flush - loop.time()),
                 )
             except asyncio.TimeoutError:
+                item = None
+            if loop.time() >= next_flush:
                 flush_all()
+                next_flush = loop.time() + self._flush_interval
+            if item is None:
                 continue
             if item is _FINALIZE:
                 break
@@ -660,11 +671,20 @@ class JobRunner:
                 status, error_detail = self._derive_terminal(
                     handle.kill_reason, exit_code, oom
                 )
-                parsed = parse_output(
-                    handle.parser_id,
-                    handle.stdout_text(),
-                    truncated=handle.output_truncated,
-                )
+                # CU-24.1: un fallo del parser jamás reclasifica el job; se
+                # pierden solo los tiempos parseados (status/exit_code reales).
+                try:
+                    parsed = parse_output(
+                        handle.parser_id,
+                        handle.stdout_text(),
+                        truncated=handle.output_truncated,
+                    )
+                except Exception:
+                    logger.warning(
+                        "job %s: el parser %r falló; parsed_timings=None",
+                        handle.job_id, handle.parser_id, exc_info=True,
+                    )
+                    parsed = None
                 finished_at = utc_now_iso()
                 wall_time_ms = (
                     _iso_delta_ms(handle.started_at, finished_at)

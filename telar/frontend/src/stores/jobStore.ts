@@ -52,7 +52,8 @@ export interface JobState {
   exitCode: number | null
   /** De status.detail.error_detail. */
   errorDetail: string | null
-  /** Epoch ms local al recibir phase 'running'. */
+  /** Epoch ms del inicio del contenedor: `started_at` real del servidor si se
+   *  conoce (setStartedAt); si no, reloj local al recibir compiling/running. */
   startedAt: number | null
   /** De status.detail.wall_time_ms (congela el contador al terminar). */
   wallTimeMs: number | null
@@ -69,6 +70,9 @@ export interface JobState {
   appendLogs(lines: LogLine[]): void
   appendMetric(m: MetricSample): void
   setPhase(p: UiPhase, detail?: StatusDetailDto | null): void
+  /** `started_at` ISO de GET /jobs/{id} (CU-07.4): prevalece sobre el reloj
+   *  local. Se ignora si `jobId` ya no es el job activo del store. */
+  setStartedAt(jobId: string, iso: string | null): void
   markLogsTruncated(): void
   setWsError(msg: string | null): void
   markEof(truncated: boolean): void
@@ -126,7 +130,9 @@ export const useJobStore = create<JobState>()((set) => ({
   setPhase: (p, detail) =>
     set((s) => ({
       phase: p,
-      startedAt: p === 'running' && s.startedAt == null ? Date.now() : s.startedAt,
+      // El cronómetro corre desde que arranca el contenedor (compiling), no
+      // desde el primer byte de stdout (CU-07.1).
+      startedAt: (p === 'compiling' || p === 'running') && s.startedAt == null ? Date.now() : s.startedAt,
       ...(detail != null
         ? {
             exitCode: detail.exit_code,
@@ -136,6 +142,11 @@ export const useJobStore = create<JobState>()((set) => ({
           }
         : null),
     })),
+
+  setStartedAt: (jobId, iso) => {
+    const ms = iso != null ? Date.parse(iso) : Number.NaN
+    set((s) => (s.jobId === jobId && !Number.isNaN(ms) ? { startedAt: ms } : s))
+  },
 
   markLogsTruncated: () => set({ logsTruncated: true }),
 

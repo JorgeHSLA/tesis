@@ -82,6 +82,36 @@ describe('elapsedSec', () => {
     expect(result.current.elapsedSec).toBeGreaterThanOrEqual(3)
   })
 
+  it('corre también durante compiling (sin salida aún) — CU-07.1', () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useJobSocket('j1'), { wrapper })
+    const ws = FakeWebSocket.last!
+    act(() => {
+      ws.open()
+      ws.emit(statusMsg('compiling'))
+    })
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+    expect(result.current.elapsedSec).toBeGreaterThanOrEqual(2)
+  })
+
+  it('al volver a un job activo muestra el tiempo real desde started_at — CU-07.4', () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useJobSocket('j1'), { wrapper })
+    const ws = FakeWebSocket.last!
+    act(() => {
+      ws.open()
+      ws.emit(statusMsg('running'))
+      useJobStore.getState().setStartedAt('j1', new Date(Date.now() - 90_000).toISOString())
+    })
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(result.current.elapsedSec).toBeGreaterThanOrEqual(90)
+    expect(result.current.elapsedSec).toBeLessThan(93)
+  })
+
   it('congela elapsedSec con wall_time_ms al terminar', () => {
     const { result } = renderHook(() => useJobSocket('j1'), { wrapper })
     const ws = FakeWebSocket.last!
