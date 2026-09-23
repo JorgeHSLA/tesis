@@ -12,11 +12,23 @@ CLI::
 
     python -m app.tools.seed_content [--db P] [--content D] [--prune] [--check]
 
-- ``--prune``  borra filas cuyo ``id`` ya no está en los fixtures (reset al
-  baseline versionado; útil para quitar contenido añadido por el admin).
-- ``--check``  no muta: verifica que el round-trip fixtures→DB→snapshot es
-  idéntico a los fixtures (fidelidad de serialización). Sale ≠0 si difieren.
-  Con ``--db`` explícito compara ESA DB contra los fixtures.
+- ``--prune``  reset al baseline versionado: borra ANTES de los upserts las
+  filas cuyo ``id`` ya no está en los fixtures (con el progreso y los intentos
+  de las lecciones borradas, como ``delete_lesson``), desarchiva las lecciones
+  base y devuelve a cada módulo base su ``version``/``origin`` y quita
+  ``checksum``/``published_at`` (CU-23.3). Tras un reset, ``--check`` pasa.
+- ``--check``  no muta: con ``--db`` abre ESA DB en solo lectura (sin migrar;
+  si no existe, error) y la compara con los fixtures. Sin ``--db`` solo prueba
+  el round-trip fixtures→DB en memoria y avisa que no mira ninguna base
+  instalada. Sale ≠0 si difieren o si no se pudo comparar.
+
+Los ``order`` (``modules`` UNIQUE global, lecciones vivas únicas por módulo,
+preguntas únicas por lección) se fijan en dos fases (CU-23.2): primero se
+estacionan arriba las filas base y las filas extra que ocupan un hueco base
+(estas se conservan ahí), luego cada upsert escribe su order definitivo.
+
+El backend en marcha tiene el contenido cargado en memoria: tras sembrar hay
+que reiniciarlo (la CLI lo avisa).
 """
 
 from __future__ import annotations
@@ -27,14 +39,12 @@ import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+import aiosqlite
 
 from app import db as db_module
 from app.db import apply_schema, open_db
 from app.repositories.content import ContentRepository
-
-if TYPE_CHECKING:
-    import aiosqlite
 
 CONTENT_DIR = Path(__file__).resolve().parents[1] / "content"
 
@@ -136,7 +146,7 @@ def _dumps(value: object) -> str:
 # ─────────────────────────── marcador de seed (BL-21) ───────────────────────
 
 
-async def _set_seed_marker(db: "aiosqlite.Connection") -> None:
+async def _set_seed_marker(db: aiosqlite.Connection) -> None:
     """UPSERT del marcador, SIN lock ni commit (pieza de una unidad mayor)."""
     await db.execute(
         "INSERT INTO app_meta (key, value) "
@@ -146,7 +156,7 @@ async def _set_seed_marker(db: "aiosqlite.Connection") -> None:
     )
 
 
-async def get_seed_marker(db: "aiosqlite.Connection") -> str | None:
+async def get_seed_marker(db: aiosqlite.Connection) -> str | None:
     """Timestamp de la última siembra, o ``None`` si nunca se sembró."""
     cursor = await db.execute(
         "SELECT value FROM app_meta WHERE key = ?", (SEED_MARKER_KEY,)
@@ -155,7 +165,7 @@ async def get_seed_marker(db: "aiosqlite.Connection") -> str | None:
     return None if row is None else str(row[0])
 
 
-async def backfill_seed_marker(db: "aiosqlite.Connection") -> None:
+async def backfill_seed_marker(db: aiosqlite.Connection) -> None:
     """Marca como sembrada una DB poblada ANTES de la migración 3, sin tocar
     su contenido (no pisa ediciones del admin). Unidad de escritura propia."""
     async with db_module.write_lock:
@@ -171,7 +181,7 @@ async def backfill_seed_marker(db: "aiosqlite.Connection") -> None:
 
 
 async def seed_content_into(
-    db: "aiosqlite.Connection",
+    db: aiosqlite.Connection,
     *,
     content_dir: Path = CONTENT_DIR,
     prune_extra: bool = False,
@@ -209,7 +219,7 @@ async def seed_content_into(
 
 
 async def _apply_seed_statements(
-    db: "aiosqlite.Connection",
+    db: aiosqlite.Connection,
     repo: ContentRepository,
     modules: list,
     lessons: list,
@@ -219,6 +229,13 @@ async def _apply_seed_statements(
     """Statements de la siembra SIN lock ni commit — la unidad y su
     ``commit()``/``rollback()`` viven en ``seed_content_into``. Devuelve
     el nº de preguntas escritas."""
+    # El reset poda PRIMERO: así los huecos que dejan las filas extra quedan
+    # libres para los upserts y una lección base colgada de un módulo extra
+    # (borrada en cascada con él) se vuelve a insertar abajo.
+    if prune_extra:
+        await _prune_extra(db, modules, lessons, examples, repo)
+    await _park_orders(db, repo, modules, lessons, unarchive=prune_extra)
+
     for module in modules:
         await db.execute(
             _UPSERT_MODULE,
@@ -316,7 +333,7 @@ async def _apply_seed_statements(
             question_count += 1
 
     if prune_extra:
-        await _prune_extra(db, modules, lessons, examples, repo)
+        await _reset_module_state(db, modules)
 
     # BL-21: el marcador viaja en la MISMA transacción que la siembra —
     # o se confirma todo (contenido + marcador) o nada.
@@ -325,7 +342,7 @@ async def _apply_seed_statements(
 
 
 async def _prune_extra(
-    db: "aiosqlite.Connection",
+    db: aiosqlite.Connection,
     modules: list,
     lessons: list,
     examples: list,
@@ -351,12 +368,126 @@ async def _prune_extra(
             f"DELETE FROM {table} WHERE id NOT IN ({placeholders})", tuple(keep)
         )
 
+    # lesson_progress/quiz_attempts no tienen FK a lessons: sin esto un id
+    # reutilizado «resucitaría» el progreso viejo (igual que delete_lesson).
+    keep_lessons = ",".join("?" for _ in lesson_ids) or "NULL"
+    for table in ("lesson_progress", "quiz_attempts"):
+        await db.execute(
+            f"DELETE FROM {table} WHERE lesson_id IN "
+            f"(SELECT id FROM lessons WHERE id NOT IN ({keep_lessons}))",
+            tuple(lesson_ids),
+        )
+
     # examples y quiz_questions caen por CASCADE al borrar lessons, pero se
     # limpian explícitamente por si sobreviven a una lección aún válida.
     await _delete_not_in("quiz_questions", question_ids)
     await _delete_not_in("examples", example_ids)
     await _delete_not_in("lessons", lesson_ids)
     await _delete_not_in("modules", module_ids)
+
+
+async def _reset_module_state(db: aiosqlite.Connection, modules: list) -> None:
+    """Devuelve a cada módulo base los datos que ``--check`` compara (CU-23.3).
+
+    Un módulo base publicado o actualizado desde el catálogo deja de serlo: su
+    fila de ``installed_modules`` sobra y ``checksum``/``published_at`` son de
+    una versión que ya no está instalada.
+    """
+    for module in modules:
+        await db.execute(
+            "UPDATE modules SET version = ?, origin = ?, checksum = NULL, "
+            "published_at = NULL WHERE id = ?",
+            (module.version, module.origin, module.id),
+        )
+        await db.execute(
+            "DELETE FROM installed_modules WHERE module_id = ?", (module.id,)
+        )
+
+
+async def _park_orders(
+    db: aiosqlite.Connection,
+    repo: ContentRepository,
+    modules: list,
+    lessons: list,
+    *,
+    unarchive: bool,
+) -> None:
+    """Fase 1 de los órdenes (CU-23.2): deja libres los huecos base.
+
+    Mismo patrón que ``content_admin._reorder``: se estacionan valores
+    positivos por encima de cualquier order actual o final. Los upserts de
+    después (fase 2) escriben ya el order definitivo sin chocar.
+    """
+    await _park(db, "modules", None, [(m.id, None, m.order) for m in modules])
+    await _park(
+        db,
+        "lessons",
+        "module_id",
+        [(lesson.id, lesson.module_id, lesson.order) for lesson in lessons],
+        unarchive=unarchive,
+    )
+    await _park(
+        db,
+        "quiz_questions",
+        "lesson_id",
+        [
+            (q.id, quiz.lesson_id, q.order)
+            for lesson in lessons
+            if (quiz := repo.quiz(lesson.id)) is not None
+            for q in quiz.questions
+        ],
+    )
+
+
+async def _park(
+    db: aiosqlite.Connection,
+    table: str,
+    scope_col: str | None,
+    targets: list[tuple[str, str | None, int]],
+    *,
+    unarchive: bool = False,
+) -> None:
+    """Estaciona arriba las filas base y las extra que ocupan un hueco base.
+
+    ``targets`` = (id, ámbito, order final) de cada fila base; el ámbito es la
+    columna en la que el order es único (``None`` = único en toda la tabla).
+    En ``lessons`` solo las vivas cuentan para la unicidad (índice parcial); con
+    ``unarchive`` las base archivadas se desarchivan aquí mismo, ya estacionadas,
+    para que no choquen al volver a la ruta. ``table``/``scope_col`` son
+    literales del propio código, nunca entrada del usuario.
+    """
+    if not targets:
+        return
+    base_ids = {row_id for row_id, _, _ in targets}
+    wanted = {(scope, order) for _, scope, order in targets}
+    archived = "archived_at IS NOT NULL" if table == "lessons" else "0"
+    cur = await db.execute(
+        f'SELECT id, {scope_col or "NULL"} AS scope, "order", {archived} AS archived '
+        f"FROM {table}"
+    )
+    rows = await cur.fetchall()
+    cur = await db.execute(f'SELECT COALESCE(MAX("order"), 0) FROM {table}')
+    top = max(int((await cur.fetchone())[0]), max(order for *_, order in targets))
+
+    displaced = [
+        row["id"]
+        for row in rows
+        if row["id"] not in base_ids
+        and not row["archived"]
+        and (row["scope"], row["order"]) in wanted
+    ]
+    parked = [
+        row["id"]
+        for row in rows
+        if row["id"] in base_ids and (unarchive or not row["archived"])
+    ]
+    set_archived = ", archived_at = NULL" if unarchive and table == "lessons" else ""
+    for offset, row_id in enumerate(displaced + parked, start=1):
+        extra = set_archived if row_id in base_ids else ""
+        await db.execute(
+            f'UPDATE {table} SET "order" = ?{extra} WHERE id = ?',
+            (top + offset, row_id),
+        )
 
 
 # ──────────────────────────────── --check ───────────────────────────────────
@@ -382,8 +513,25 @@ def _diff_snapshots(
     return diffs
 
 
+class CheckError(Exception):
+    """``--check`` no pudo comparar (base inexistente, sin esquema…)."""
+
+
+async def _open_readonly(db_path: str) -> aiosqlite.Connection:
+    """Abre ``db_path`` en solo lectura: ni la crea, ni la migra (CU-23.1)."""
+    path = Path(db_path)
+    if not path.is_file():
+        raise CheckError(f"la base {db_path} no existe")
+    db = await aiosqlite.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+    db.row_factory = aiosqlite.Row
+    return db
+
+
 async def _check(db_path: str | None, content_dir: Path) -> list[str]:
-    """Devuelve la lista de diferencias (vacía = idéntico)."""
+    """Devuelve la lista de diferencias (vacía = idéntico).
+
+    Lanza ``CheckError`` si con ``--db`` no se puede comparar.
+    """
     fixtures = ContentRepository.from_fixtures(content_dir)
     if db_path is None:
         # Round-trip in-memory: fixtures → DB → snapshot (fidelidad pura).
@@ -395,10 +543,15 @@ async def _check(db_path: str | None, content_dir: Path) -> list[str]:
         finally:
             await db.close()
     else:
-        db = await open_db(db_path)
+        db = await _open_readonly(db_path)
         try:
-            await apply_schema(db)
             loaded = await ContentRepository.load(db)
+        except Exception as exc:
+            # Esquema viejo o ausente: migrar es cosa del backend, no del check.
+            raise CheckError(
+                f"no se pudo comparar {db_path} ({exc}); si es una base vieja, "
+                "arranca el backend una vez para migrarla"
+            ) from exc
         finally:
             await db.close()
     return _diff_snapshots(fixtures, loaded)
@@ -447,7 +600,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.check:
-        diffs = asyncio.run(_check(args.db, args.content))
+        if args.db is None:
+            print(
+                "aviso: sin --db solo se prueba el round-trip fixtures→DB en "
+                "memoria; no mira ninguna base instalada (usa --db RUTA).",
+                file=sys.stderr,
+            )
+        try:
+            diffs = asyncio.run(_check(args.db, args.content))
+        except CheckError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
         if diffs:
             print("contenido DB ≠ fixtures:", file=sys.stderr)
             for diff in diffs:
@@ -470,6 +633,10 @@ def main(argv: list[str] | None = None) -> int:
         f"{report.lessons} lecciones · {report.examples} ejemplos · "
         f"{report.questions} preguntas"
         + (" (prune activado)" if args.prune else "")
+    )
+    print(
+        "Aviso: si el backend está corriendo, reinicia el backend: hasta "
+        "entonces sigue sirviendo el contenido anterior."
     )
     return 0
 
