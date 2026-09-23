@@ -240,3 +240,13 @@ async def test_check_async_directo_sobre_base_sembrada(seeded_path):
     assert await _check(str(seeded_path), CONTENT_DIR) == []
     loaded = ContentRepository.from_fixtures(CONTENT_DIR)
     assert len(loaded.modules()) == 8
+
+
+def test_check_con_base_ilegible_da_error_limpio(tmp_path, capsys):
+    """Un fallo al ABRIR la base (aquí: un directorio con nombre de .db, que
+    pasa por archivo inexistente; y un archivo que no es SQLite) sale como
+    error de --check, no como traceback."""
+    path = tmp_path / "rota.db"
+    path.write_bytes(b"esto no es sqlite" * 100)
+    assert main(["--check", "--db", str(path)]) == 2
+    assert "error:" in capsys.readouterr().err

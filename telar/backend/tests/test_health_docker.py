@@ -157,21 +157,48 @@ def test_health_sigue_sin_cliente_si_el_reintento_falla(settings, monkeypatch):
         assert application.state.docker is None
 
 
-def test_health_el_reintento_colgado_respeta_el_timeout(settings, monkeypatch):
+def test_health_el_reintento_colgado_respeta_el_timeout_y_no_se_duplica(
+    settings, monkeypatch
+):
+    """Un builder colgado no bloquea /health, no se relanza en cada sondeo
+    (un solo hilo en vuelo) y su resultado se recoge cuando llega."""
     monkeypatch.setattr(system_router, "DOCKER_CHECK_TIMEOUT_S", 0.2)
     llamadas = {"n": 0}
+    fake = FakeDockerService()
 
     def builder(cfg):
         llamadas["n"] += 1
         if llamadas["n"] == 1:
             raise RuntimeError("sin daemon")
-        time.sleep(1.5)
-        return FakeDockerService()
+        time.sleep(0.8)
+        return fake
 
     monkeypatch.setattr(app_main, "_build_docker_service", builder)
     application = create_app(settings=settings)
     with TestClient(application) as client:
         t0 = time.monotonic()
-        checks = client.get("/health").json()["checks"]
-        assert time.monotonic() - t0 < 1.0
-        assert checks["docker"] is False
+        assert client.get("/health").json()["checks"]["docker"] is False
+        assert time.monotonic() - t0 < 0.7
+        assert client.get("/health").json()["checks"]["docker"] is False
+        assert llamadas["n"] == 2  # arranque + UN solo reintento en vuelo
+        time.sleep(0.9)
+        assert client.get("/health").json()["checks"]["docker"] is True
+        assert application.state.docker is fake
+        assert llamadas["n"] == 2
+
+
+def test_system_tambien_reintenta_crear_el_cliente(settings, monkeypatch):
+    fake = FakeDockerService()
+    intentos = {"n": 0}
+
+    def builder(cfg):
+        intentos["n"] += 1
+        if intentos["n"] == 1:
+            raise RuntimeError("sin daemon al arrancar")
+        return fake
+
+    monkeypatch.setattr(app_main, "_build_docker_service", builder)
+    application = create_app(settings=settings)
+    with TestClient(application) as client:
+        assert client.get("/api/v1/system").status_code == 200
+        assert application.state.job_runner.docker_service is fake

@@ -116,6 +116,12 @@ async def _ensure_docker(app: Any) -> Any:
     CU-26.3: con el backend en el host (desarrollo), si Docker no estaba al
     arrancar, sin esto el backend seguía «sin Docker» hasta reiniciarlo. El
     cliente nuevo se entrega también al ``JobRunner`` y al alias de los routers.
+
+    Hay UN solo intento en vuelo, compartido por todas las peticiones: si el
+    daemon cuelga, el hilo del builder vive hasta su propio timeout y lanzar
+    otro en cada sondeo acumularía hilos (y clientes sin cerrar). Si el intento
+    no termina en ``DOCKER_CHECK_TIMEOUT_S`` se responde sin Docker y una
+    petición posterior recoge su resultado.
     """
     docker = getattr(app.state, "docker", None)
     if docker is not None:
@@ -123,11 +129,19 @@ async def _ensure_docker(app: Any) -> Any:
     factory = getattr(app.state, "docker_factory", None)
     if factory is None:  # docker inyectado (tests) o lifespan incompleto
         return None
+    build = getattr(app.state, "docker_build", None)
+    if build is None:
+        build = asyncio.ensure_future(asyncio.to_thread(factory))
+        app.state.docker_build = build
     try:
-        docker = await _call_docker(factory)
+        docker = await asyncio.wait_for(asyncio.shield(build), DOCKER_CHECK_TIMEOUT_S)
+    except TimeoutError:
+        return None  # sigue en vuelo
     except Exception as exc:
+        app.state.docker_build = None
         logger.warning("Docker sigue sin estar disponible: %s", exc or type(exc).__name__)
         return None
+    app.state.docker_build = None
     if docker is None:
         return None
     app.state.docker = docker
@@ -162,9 +176,7 @@ async def health(request: Request) -> JSONResponse:
 async def system_info(request: Request) -> dict:
     """Info para la UI (§2.2): 503 DOCKER_UNAVAILABLE si el daemon no responde."""
     settings = _settings_of(request)
-    docker_ok, image_ok = await _docker_checks(
-        getattr(request.app.state, "docker", None)
-    )
+    docker_ok, image_ok = await _docker_checks(await _ensure_docker(request.app))
     if not docker_ok:
         raise ApiException(
             "DOCKER_UNAVAILABLE", "El daemon de Docker no responde."

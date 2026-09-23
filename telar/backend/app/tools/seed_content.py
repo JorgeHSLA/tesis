@@ -543,17 +543,22 @@ async def _check(db_path: str | None, content_dir: Path) -> list[str]:
         finally:
             await db.close()
     else:
-        db = await _open_readonly(db_path)
+        db = None
         try:
+            db = await _open_readonly(db_path)
             loaded = await ContentRepository.load(db)
+        except CheckError:
+            raise
         except Exception as exc:
-            # Esquema viejo o ausente: migrar es cosa del backend, no del check.
+            # Esquema viejo o ausente, permisos, archivo que no es SQLite…:
+            # migrar o reparar es cosa del backend, no del check.
             raise CheckError(
                 f"no se pudo comparar {db_path} ({exc}); si es una base vieja, "
                 "arranca el backend una vez para migrarla"
             ) from exc
         finally:
-            await db.close()
+            if db is not None:
+                await db.close()
     return _diff_snapshots(fixtures, loaded)
 
 
