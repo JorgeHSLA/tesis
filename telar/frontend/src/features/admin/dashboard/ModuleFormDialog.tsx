@@ -64,11 +64,11 @@ export function ModuleFormDialog({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape' && !saving) onClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, saving])
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -110,7 +110,7 @@ export function ModuleFormDialog({
   }
 
   return (
-    <div className="admin-modal-backdrop" onMouseDown={onClose}>
+    <div className="admin-modal-backdrop" onMouseDown={saving ? undefined : onClose}>
       <form
         className="admin-modal admin-modal-form card"
         aria-labelledby="module-form-title"

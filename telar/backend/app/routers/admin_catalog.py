@@ -259,6 +259,11 @@ def _lector_de_publicados(
     return leer
 
 
+#: Tope de la caché de huellas: el backend vive mucho y cada versión nueva
+#: añadiría una entrada para siempre.
+_MAX_HUELLAS = 256
+
+
 async def _huella_publicada(
     app: "FastAPI", settings: Settings, entrada: CatalogIndexEntry
 ) -> str:
@@ -294,6 +299,16 @@ async def _huella_publicada(
             raise ApiException(
                 "BUNDLE_INVALID", "La versión publicada no es un bundle válido."
             ) from exc
+        # Como en el reintento idempotente (`_misma_publicacion`): content_hash
+        # ignora id y versión, así que la identidad se comprueba aparte o la
+        # huella de un objeto ajeno pasaría por la de esta publicación.
+        if remoto.module.id != entrada.id or remoto.module.version != entrada.version:
+            raise ApiException(
+                "BUNDLE_INVALID",
+                "La versión publicada no corresponde a lo que anuncia el índice.",
+            )
+        if len(cache) >= _MAX_HUELLAS:
+            cache.clear()  # un bundle publicado es inmutable: recalcular es solo coste
         cache[clave] = content_hash(remoto)
     return cache[clave]
 

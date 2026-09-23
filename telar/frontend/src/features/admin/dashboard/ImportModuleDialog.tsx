@@ -129,7 +129,7 @@ export function ImportModuleDialog({
     (modo === 'linked' || nuevoId.trim() !== '')
 
   return (
-    <div className="admin-modal-backdrop" onMouseDown={onClose}>
+    <div className="admin-modal-backdrop" onMouseDown={ocupado ? undefined : onClose}>
       <div
         className="admin-modal admin-modal-form card"
         role="dialog"
