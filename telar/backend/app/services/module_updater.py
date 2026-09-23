@@ -89,6 +89,7 @@ from .catalog_hash import BundleHashError, bundle_checksum
 # el segundo es la coherencia threads/GPU de §10.6, que ya existe y que
 # `bundle_guard` deja explícitamente al instalador.
 from .content_writer import _example_coherence_issues, _persist
+from .module_installer import fetch_index
 from .module_merge import (
     LocalAttempt,
     LocalLesson,
@@ -1101,6 +1102,7 @@ async def update_module(
         )
 
     destino = to_version or manifiesto.available_version or manifiesto.installed_version
+    await _revalidar_vigente(puerto, module_id, destino, settings)
     objeto = await _descargar(
         puerto,
         module_id,
@@ -1271,6 +1273,35 @@ def _ahora_iso() -> str:
     """
     ahora = datetime.now(timezone.utc)
     return f"{ahora:%Y-%m-%dT%H:%M:%S}.{ahora.microsecond // 1000:03d}Z"
+
+
+async def _revalidar_vigente(
+    puerto: "CatalogReadPort", module_id: str, destino: int, settings: Any
+) -> None:
+    """CU-41.2 — antes de bajar nada, ¿sigue publicada y en esa versión?
+
+    ``available_version`` sale de la caché del índice y puede tener horas: el
+    módulo pudo retirarse, o publicarse otra versión, desde entonces. Se relee
+    el índice SIN caché y se exige que anuncie ``destino``; si no, un error
+    claro y ni una descarga. Es la misma regla que aplica el instalador: el
+    índice publica UNA versión por módulo y es la única que se puede verificar.
+    """
+    indice = await fetch_index(
+        puerto, max_bytes=int(settings.catalog_max_bundle_bytes), sin_cache=True
+    )
+    entrada = next((e for e in indice.modules if e.id == module_id), None)
+    if entrada is None:
+        raise _error(
+            "REMOTE_MODULE_NOT_FOUND",
+            f"El módulo '{module_id}' ya no está publicado en el catálogo.",
+        )
+    if entrada.version != destino:
+        raise _error(
+            "REMOTE_MODULE_NOT_FOUND",
+            f"La versión {destino} de '{module_id}' ya no es la publicada "
+            f"(la vigente es la {entrada.version}); refresca el catálogo.",
+            details={"requested_version": destino, "published_version": entrada.version},
+        )
 
 
 async def _descargar(

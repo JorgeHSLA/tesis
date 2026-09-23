@@ -119,10 +119,40 @@ def bundle_checksum(bundle: Bundle) -> str:
     return hashlib.sha256(canonical_bundle_bytes(bundle)).hexdigest()
 
 
+#: Campos de ``module`` que describen la PUBLICACIÓN y no el contenido. Cambian
+#: en cada «Publicar» aunque no se haya tocado ni una lección: ``published_at``
+#: es la hora de la llamada, ``version`` el número siguiente y ``notes`` lo que
+#: el autor escriba en el diálogo. Si entraran en la huella de contenido, la
+#: comparación «¿hay cambios sin publicar?» diría siempre que sí.
+CAMPOS_DE_PUBLICACION = frozenset({"published_at", "version", "notes"})
+
+
+def content_hash(bundle: BaseModel) -> str:
+    """Huella del CONTENIDO del bundle: sha256 del JSON canónico sin metadatos.
+
+    Es la comparación de D+ (¿el contenido local es el mismo que la versión
+    publicada?), NO el checksum de §11.8.2: ``bundle_checksum`` sigue siendo el
+    único que se publica y el que verifica el instalador, y no cambia.
+
+    Excluye ``checksum`` y los `CAMPOS_DE_PUBLICACION` de ``module``. Recibe el
+    modelo validado (no el ``dict`` crudo) para que los dos lados de la
+    comparación —el bundle construido en local y el descargado del bucket—
+    materialicen los opcionales igual: un bundle publicado sin ``notes`` y uno
+    con ``notes=""`` son el mismo contenido.
+    """
+    datos = bundle.model_dump(mode="json")
+    modulo = {
+        k: v for k, v in datos.get("module", {}).items() if k not in CAMPOS_DE_PUBLICACION
+    }
+    return bundle_checksum({**datos, "module": modulo})
+
+
 __all__ = [
     "CAMPO_EXCLUIDO",
+    "CAMPOS_DE_PUBLICACION",
     "Bundle",
     "BundleHashError",
     "canonical_bundle_bytes",
     "bundle_checksum",
+    "content_hash",
 ]

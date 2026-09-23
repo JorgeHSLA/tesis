@@ -283,7 +283,42 @@ async def rowids(db, tabla="lessons") -> dict[str, int]:
     }
 
 
+def fila_indice(paq: Paquete) -> dict:
+    """La fila del índice que anuncia ``paq`` como versión vigente de su módulo."""
+    b = paq.bundle
+    return {
+        "id": b.module.id,
+        "title": b.module.title,
+        "description": b.module.description,
+        "level": b.module.level,
+        "order_hint": b.module.order_hint,
+        "version": b.module.version,
+        "checksum": paq.checksum,
+        "object_path": f"modulos/{b.module.id}/v{b.module.version}.json",
+        "size_bytes": len(paq.raw),
+        "published_at": b.module.published_at,
+        "author_label": b.module.author_label,
+        "lessons_count": len(b.lessons),
+        "questions_count": sum(len(l.quiz.questions) for l in b.lessons if l.quiz),
+        "estimated_minutes_total": sum(l.estimated_minutes for l in b.lessons),
+        "requires_gpu": False,
+    }
+
+
+def anunciar(app, *filas: dict) -> None:
+    """Reescribe el índice del bucket con exactamente estas filas."""
+    app.state.catalog.publicar_indice(
+        {"index_format": 1, "generated_at": PUBLICADO, "modules": list(filas)}
+    )
+
+
 def publicar(app, paq: Paquete) -> str:
+    """Sube el bundle y lo anuncia en el índice como la versión vigente.
+
+    El actualizador revalida contra el índice fresco antes de descargar
+    (CU-41.2), así que un bundle sin anunciar no es actualizable.
+    """
+    anunciar(app, fila_indice(paq))
     return app.state.catalog.publicar_modulo(
         paq.bundle.module.id, paq.bundle.module.version, paq.raw
     )
@@ -1076,6 +1111,7 @@ async def test_una_descarga_que_falla_no_deja_ni_una_sentencia_escrita(app):
     app.state.catalog.fallar_modulo(
         MODULO, 2, CatalogUnavailable("network", retry_after_s=5)
     )
+    anunciar(app, fila_indice(paquete(con_quiz("l1", 1), version=2)))
 
     with pytest.raises(ApiException) as excinfo:
         await updater.update_module(app, MODULO, to_version=2)
@@ -1092,6 +1128,7 @@ async def test_un_bundle_ilegible_no_deja_nada_escrito(app):
     await instalar(app, paquete(con_quiz("l1", 1), version=1))
     antes = await volcado(db)
     app.state.catalog.publicar_modulo(MODULO, 2, b"{esto no es json")
+    anunciar(app, fila_indice(paquete(con_quiz("l1", 1), version=2)))
 
     with pytest.raises(ApiException) as excinfo:
         await updater.update_module(app, MODULO, to_version=2)
@@ -1142,6 +1179,7 @@ async def test_un_objeto_que_dice_ser_otro_modulo_se_rechaza(app):
     antes = await volcado(db)
     impostor = paquete(con_quiz("l1", 1), module_id="m9", version=2)
     app.state.catalog.publicar_modulo(MODULO, 2, impostor.raw)
+    anunciar(app, fila_indice(paquete(con_quiz("l1", 1), version=2)))
 
     with pytest.raises(ApiException) as excinfo:
         await updater.update_module(app, MODULO, to_version=2)
@@ -1157,6 +1195,7 @@ async def test_un_objeto_con_otra_version_dentro_se_rechaza(app):
     app.state.catalog.publicar_modulo(
         MODULO, 2, paquete(con_quiz("l1", 1), version=7).raw
     )
+    anunciar(app, fila_indice(paquete(con_quiz("l1", 1), version=2)))
 
     with pytest.raises(ApiException) as excinfo:
         await updater.update_module(app, MODULO, to_version=2)
@@ -1754,6 +1793,7 @@ async def test_si_el_objeto_se_reescribe_a_mitad_de_descarga_se_aborta(app):
     app.state.catalog.publicar_modulo(
         MODULO, 2, paquete(con_quiz("l1", 1), version=2).raw, generation=99
     )
+    anunciar(app, fila_indice(paquete(con_quiz("l1", 1), version=2)))
 
     with pytest.raises(ApiException) as excinfo:
         await updater.update_module(app, MODULO, to_version=2, generation=7)
@@ -1986,3 +2026,42 @@ async def test_la_recalificacion_puede_BAJAR_la_nota(app):
     progreso = await progreso_de(db, "l1")
     assert progreso["best_quiz_score"] == 0  # el upsert normal habría dejado 2
     assert progreso["completed"] == 1  # y el logro sigue sin revocarse
+
+
+# ═══════════ CU-41.2: revalidar contra el índice fresco antes de bajar ═══════
+
+
+async def test_actualizar_una_publicacion_retirada_falla_sin_descargar(app):
+    """El módulo ya no está en el índice: no se descarga nada ni se escribe nada."""
+    v1 = paquete(leccion("l1", 1))
+    await instalar(app, v1)
+    v2 = paquete(leccion("l1", 1), leccion("l2", 2), version=2)
+    publicar(app, v2)
+    anunciar(app)  # retirado del catálogo
+    antes = await volcado(app.state.db)
+    app.state.catalog.module_calls.clear()
+
+    with pytest.raises(ApiException) as exc:
+        await updater.update_module(app, MODULO, to_version=2)
+
+    assert exc.value.code == "REMOTE_MODULE_NOT_FOUND"
+    assert app.state.catalog.module_calls == []
+    assert await volcado(app.state.db) == antes
+    assert app.state.catalog.index_calls[-1]["sin_cache"] is True
+
+
+async def test_actualizar_a_una_version_que_ya_no_es_la_vigente_falla(app):
+    """El índice anuncia la v3: pedir la v2 es pedir algo que ya no se publica."""
+    v1 = paquete(leccion("l1", 1))
+    await instalar(app, v1)
+    v2 = paquete(leccion("l1", 1), leccion("l2", 2), version=2)
+    v3 = paquete(leccion("l1", 1), leccion("l3", 2), version=3)
+    publicar(app, v2)
+    publicar(app, v3)
+    app.state.catalog.module_calls.clear()
+
+    with pytest.raises(ApiException) as exc:
+        await updater.update_module(app, MODULO, to_version=2)
+
+    assert exc.value.code == "REMOTE_MODULE_NOT_FOUND"
+    assert app.state.catalog.module_calls == []

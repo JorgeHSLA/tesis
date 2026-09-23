@@ -27,6 +27,7 @@ import type {
   AdminImportResultDto,
   AdminPublishRequestDto,
   AdminPublishResultDto,
+  AdminPublishStatusDto,
 } from './admin-types'
 
 const P = '/api/v1/admin'
@@ -154,6 +155,15 @@ export function publishModule(
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+/**
+ * §11.8.3 `GET /admin/modules/{id}/publish/status` — compara el contenido local
+ * con la versión vigente del índice (leído sin caché). **200 también sin red**
+ * (`state: 'unknown'`): no poder comprobar no impide publicar.
+ */
+export function getPublishStatus(moduleId: string): Promise<AdminPublishStatusDto> {
+  return fetchJson<AdminPublishStatusDto>(`${P}/modules/${enc(moduleId)}/publish/status`)
 }
 
 /**

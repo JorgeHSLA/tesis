@@ -8,6 +8,8 @@ variante de DESPLIEGUE, no un login):
 * ``POST /api/v1/admin/catalog/import``      — §11.7 CU-37, traer un módulo del
   bucket para editarlo.
 * ``POST /api/v1/admin/modules/{id}/publish`` — §11.8 CU-38, publicarlo.
+* ``GET  /api/v1/admin/modules/{id}/publish/status`` — S5 (D+), ¿hay cambios
+  sin publicar?
 
 Como ``routers/admin.py``, este módulo es OPCIONAL a nivel de artefacto: el
 ``Dockerfile`` no lo copia con ``TELAR_ADMIN_BUILD=0``, su import falla y
@@ -44,9 +46,11 @@ from app.schemas.admin_catalog import (
     AdminImportResult,
     AdminPublishRequest,
     AdminPublishResult,
+    AdminPublishStatus,
 )
-from app.schemas.catalog import ModuleBundle
-from app.services import catalog_import, catalog_publish
+from app.schemas.catalog import CatalogIndexEntry, ModuleBundle
+from app.services import catalog_import, catalog_publish, module_installer
+from app.services.catalog_hash import content_hash
 from app.services.content_writer import _persist
 from app.services.catalog_publisher import (
     PublisherUnavailable,
@@ -58,6 +62,10 @@ if TYPE_CHECKING:  # pragma: no cover - solo tipos
     from fastapi import FastAPI
 
     from app.services.catalog_client import CatalogReadPort
+
+#: Fecha de relleno para construir el bundle SOLO para hashearlo: ``content_hash``
+#: ignora ``published_at``, ``version`` y ``notes``.
+_FECHA_NEUTRA = "1970-01-01T00:00:00.000Z"
 
 logger = logging.getLogger("telar.admin_catalog")
 
@@ -204,6 +212,142 @@ async def _bundle_publicado(
         return None
 
 
+async def _entrada_vigente(
+    app: "FastAPI", settings: Settings, module_id: str
+) -> CatalogIndexEntry | None:
+    """La fila del índice de ``module_id``, leída SIN caché (ni de borde ni local).
+
+    Lanza ``ApiException`` si el catálogo no se puede leer: quien llama decide si
+    eso es «no se sabe» (estado) o «se sigue sin comparar» (publicar).
+    """
+    port = getattr(app.state, "catalog", None)
+    if not settings.catalog_enabled or port is None:
+        raise ApiException("CATALOG_DISABLED", "Este despliegue no tiene catálogo remoto.")
+    indice = await module_installer.fetch_index(
+        port, max_bytes=int(settings.catalog_max_bundle_bytes), sin_cache=True
+    )
+    return next((e for e in indice.modules if e.id == module_id), None)
+
+
+def _lector_de_publicados(
+    app: "FastAPI", settings: Settings, module_id: str
+):
+    """``version → bytes | None`` del bundle ya subido, para el reintento idempotente.
+
+    ``None`` ante cualquier fallo: sin poder leerlo no se puede afirmar que sea
+    la misma publicación, y el llamador cae al ``409`` de siempre.
+    """
+
+    async def leer(version: int) -> bytes | None:
+        port = getattr(app.state, "catalog", None)
+        if port is None:
+            return None
+        try:
+            objeto = await port.fetch_module(
+                module_id, version, max_bytes=int(settings.catalog_max_bundle_bytes)
+            )
+        except Exception as exc:
+            logger.warning(
+                "no se pudo leer la v%s subida de %s (%s)",
+                version, module_id, type(exc).__name__,
+            )
+            return None
+        return objeto.data
+
+    return leer
+
+
+async def _huella_publicada(
+    app: "FastAPI", settings: Settings, entrada: CatalogIndexEntry
+) -> str:
+    """``content_hash`` de la versión vigente, cacheado en memoria.
+
+    La clave lleva el checksum del índice: un bundle publicado es inmutable, así
+    que mientras el índice anuncie el mismo objeto la huella no puede cambiar y
+    el dashboard no vuelve a descargarlo en cada visita.
+    """
+    cache: dict[tuple[str, int, str], str] | None = getattr(
+        app.state, "huellas_publicadas", None
+    )
+    if cache is None:
+        cache = {}
+        app.state.huellas_publicadas = cache
+    clave = (entrada.id, entrada.version, entrada.checksum)
+    if clave not in cache:
+        try:
+            objeto = await app.state.catalog.fetch_module(
+                entrada.id, entrada.version,
+                max_bytes=int(settings.catalog_max_bundle_bytes),
+            )
+        except Exception as exc:
+            raise module_installer.api_error_from_catalog(exc) from exc
+        try:
+            remoto = ModuleBundle.model_validate_json(objeto.data)
+        except ValueError as exc:
+            raise ApiException(
+                "BUNDLE_INVALID", "La versión publicada no es un bundle válido."
+            ) from exc
+        cache[clave] = content_hash(remoto)
+    return cache[clave]
+
+
+def _razon_desconocida(exc: ApiException) -> str:
+    if exc.code == "CATALOG_DISABLED":
+        return "disabled"
+    if isinstance(exc.details, dict) and isinstance(exc.details.get("reason"), str):
+        return exc.details["reason"]
+    return exc.code.lower()
+
+
+@router.get("/modules/{module_id}/publish/status")
+async def admin_publish_status(request: Request, module_id: str) -> JSONResponse:
+    """S5 (D+) — ¿el contenido local es el de la versión publicada?
+
+    No sale a la red más que para leer: el índice sin caché y, si hace falta, el
+    bundle vigente (una vez por versión, luego sale de la caché en memoria).
+    Sin red responde ``200`` con ``state="unknown"``: no poder comprobar no
+    impide publicar, y el diálogo tiene que poder decirlo.
+    """
+    app = request.app
+    settings = _settings(request)
+    estado = await catalog_repo.get_published_state(app.state.db, module_id)
+    if estado is None:
+        raise ApiException(
+            "MODULE_NOT_FOUND", f"No existe el módulo '{module_id}'.", status_code=404
+        )
+    local_version = None if estado.nunca_publicado else estado.version
+    local, _ = catalog_publish.construir_bundle(
+        app.state.content, module_id, version=1, published_at=_FECHA_NEUTRA
+    )
+    base = AdminPublishStatus(
+        module_id=module_id,
+        state="unknown",
+        local_version=local_version,
+        content_hash=content_hash(local),
+    )
+
+    try:
+        entrada = await _entrada_vigente(app, settings, module_id)
+        if entrada is None:
+            return envelope_ok(base.model_copy(update={"state": "never_published"}))
+        remota = await _huella_publicada(app, settings, entrada)
+    except ApiException as exc:
+        logger.info("no se pudo comprobar %s: %s", module_id, exc.code)
+        return envelope_ok(base.model_copy(update={"reason": _razon_desconocida(exc)}))
+
+    if remota != base.content_hash:
+        estado_publicacion = "changed"
+    elif local_version != entrada.version:
+        estado_publicacion = "out_of_sync"
+    else:
+        estado_publicacion = "unchanged"
+    return envelope_ok(
+        base.model_copy(
+            update={"state": estado_publicacion, "published_version": entrada.version}
+        )
+    )
+
+
 @router.post("/modules/{module_id}/publish", status_code=201)
 async def admin_publish_module(
     request: Request, module_id: str, body: AdminPublishRequest
@@ -242,6 +386,19 @@ async def admin_publish_module(
     # la 1 sin haber salido nunca al bucket, y tomar ese 1 por «ya publicada»
     # haría que la primera publicación fuese la v2.
     version_publicada = None if estado.nunca_publicado else estado.version
+    # CU-37.4: si el índice ya anuncia una versión posterior a la registrada en
+    # local, la publicación anterior llegó a la nube y falló al guardarse aquí.
+    # Se toma la del índice como «la publicada» para no chocar con ella; si su
+    # contenido es el local, `publish_module` solo completa lo que faltó.
+    completar_vigente = False
+    try:
+        entrada = await _entrada_vigente(app, settings, module_id)
+    except ApiException as exc:
+        logger.info("publicar %s sin leer el índice (%s)", module_id, exc.code)
+        entrada = None
+    if entrada is not None and entrada.version > (version_publicada or 0):
+        version_publicada = entrada.version
+        completar_vigente = True
     publicado = await _bundle_publicado(app, settings, module_id, version_publicada)
 
     publisher = build_publisher(settings, credencial)
@@ -256,6 +413,8 @@ async def admin_publish_module(
             body,
             version_publicada=version_publicada,
             bundle_publicado=publicado,
+            leer_publicado=_lector_de_publicados(app, settings, module_id),
+            completar_vigente=completar_vigente,
         )
     finally:
         await publisher.aclose()
@@ -272,7 +431,15 @@ async def admin_publish_module(
                 published_at=resultado.published_at,
             )
 
-        async with app.state.write_lock:
-            await _persist(app, _escribir)
+        try:
+            async with app.state.write_lock:
+                await _persist(app, _escribir)
+        except Exception:
+            # CU-37.4: el bucket YA tiene la versión (inmutable) y el índice la
+            # anuncia; lo único que falló es la constancia local. No es un error
+            # de la publicación y no se deshace: se declara, y reintentar la
+            # reconcilia (el índice va por delante del estado local).
+            logger.exception("publicado %s v%s; falló el estado local", module_id, resultado.version)
+            resultado = resultado.model_copy(update={"local_state_updated": False})
 
     return envelope_ok(resultado, status_code=200 if body.dry_run else 201)

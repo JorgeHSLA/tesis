@@ -227,6 +227,26 @@ export interface AdminPublishResultDto {
   index_updated: boolean
   lesson_ids: string[]
   warnings: ContentWarningDto[]
+  /** S5 (CU-37.4): `false` ⇒ publicado en la nube, sin constancia local. */
+  local_state_updated: boolean
+}
+
+// S5 (D+) §11.8.3
+export type PublishState =
+  | 'never_published'
+  | 'unchanged'
+  | 'changed'
+  | 'out_of_sync'
+  | 'unknown'
+
+/** §11.8.3 `GET /admin/modules/{id}/publish/status` — ¿hay cambios sin publicar? */
+export interface AdminPublishStatusDto {
+  module_id: string
+  state: PublishState
+  published_version: number | null
+  local_version: number | null
+  content_hash: string
+  reason: string | null
 }
 
 /** §11.7 `POST /admin/catalog/import`. */
