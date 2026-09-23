@@ -110,7 +110,7 @@ async def _docker_checks(docker: Any) -> tuple[bool, bool | None]:
     return True, None if present is None else bool(present)
 
 
-async def _ensure_docker(app: Any) -> Any:
+async def ensure_docker(app: Any) -> Any:
     """El cliente Docker del estado, o uno nuevo si al arrancar no se pudo crear.
 
     CU-26.3: con el backend en el host (desarrollo), si Docker no estaba al
@@ -162,7 +162,7 @@ def _settings_of(request: Request) -> Settings:
 async def health(request: Request) -> JSONResponse:
     """Healthcheck de infraestructura (SIN envelope, §2.1)."""
     db_ok = await _db_alive(getattr(request.app.state, "db", None))
-    docker_ok, image_ok = await _docker_checks(await _ensure_docker(request.app))
+    docker_ok, image_ok = await _docker_checks(await ensure_docker(request.app))
     body = HealthResponse(
         status="ok" if db_ok else "error",
         checks=HealthChecks(db=db_ok, docker=docker_ok, runner_image=image_ok),
@@ -176,7 +176,7 @@ async def health(request: Request) -> JSONResponse:
 async def system_info(request: Request) -> dict:
     """Info para la UI (§2.2): 503 DOCKER_UNAVAILABLE si el daemon no responde."""
     settings = _settings_of(request)
-    docker_ok, image_ok = await _docker_checks(await _ensure_docker(request.app))
+    docker_ok, image_ok = await _docker_checks(await ensure_docker(request.app))
     if not docker_ok:
         raise ApiException(
             "DOCKER_UNAVAILABLE", "El daemon de Docker no responde."

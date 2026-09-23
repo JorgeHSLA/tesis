@@ -202,3 +202,26 @@ def test_system_tambien_reintenta_crear_el_cliente(settings, monkeypatch):
     with TestClient(application) as client:
         assert client.get("/api/v1/system").status_code == 200
         assert application.state.job_runner.docker_service is fake
+
+
+def test_post_jobs_tambien_reintenta_crear_el_cliente(settings, monkeypatch):
+    """Si Docker no estaba al arrancar y nadie consultó /health todavía,
+    lanzar un job reintenta crear el cliente en vez de responder 503."""
+    fake = FakeDockerService()
+    intentos = {"n": 0}
+
+    def builder(cfg):
+        intentos["n"] += 1
+        if intentos["n"] == 1:
+            raise RuntimeError("sin daemon al arrancar")
+        return fake
+
+    monkeypatch.setattr(app_main, "_build_docker_service", builder)
+    application = create_app(settings=settings)
+    with TestClient(application) as client:
+        assert application.state.docker is None
+        respuesta = client.post(
+            "/api/v1/jobs", json={"filename": "main.py", "code": "print(1)\n"}
+        )
+        assert respuesta.status_code == 202, respuesta.text
+        assert application.state.job_runner.docker_service is fake
