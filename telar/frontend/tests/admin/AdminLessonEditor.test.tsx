@@ -39,6 +39,7 @@ const EXAMPLE_STUB = {
 const LESSON_DETAIL = {
   id: 'lesson-1', module_id: 'm1', order: 2, title: 'Lección Uno',
   estimated_minutes: 15, content_markdown: '# Hola', recommended: [],
+  video_url: null, completion_rule: 'quiz', archived: false,
   enabled: true, has_quiz: false, quiz_question_count: 0,
   prev_lesson_id: null, next_lesson_id: null, example: EXAMPLE_STUB,
 }
@@ -123,5 +124,25 @@ describe('AdminLessonEditor · edición', () => {
     expect(body.title).toBe('Lección Editada')
     expect(body).not.toHaveProperty('example')
     expect(body).not.toHaveProperty('source_code')
+  })
+
+  it('editar solo el título conserva video, regla y enabled (CU-18.1)', async () => {
+    getAdminLessonMock.mockResolvedValue({
+      ...LESSON_DETAIL,
+      video_url: 'https://www.youtube.com/watch?v=abc123',
+      completion_rule: 'viewed',
+      enabled: false,
+    })
+    renderAt('/admin/lecciones/lesson-1')
+    const titleInput = (await screen.findByLabelText('Título')) as HTMLInputElement
+    fireEvent.change(titleInput, { target: { value: 'Solo el título' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar lección' }))
+
+    await waitFor(() => expect(updateLessonMock).toHaveBeenCalledTimes(1))
+    const [, body] = updateLessonMock.mock.calls[0]
+    expect(body.title).toBe('Solo el título')
+    expect(body.video_url).toBe('https://www.youtube.com/watch?v=abc123')
+    expect(body.completion_rule).toBe('viewed')
+    expect(body.enabled).toBe(false)
   })
 })

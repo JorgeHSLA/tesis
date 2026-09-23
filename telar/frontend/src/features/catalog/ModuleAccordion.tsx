@@ -6,6 +6,7 @@
 import type { ExampleSummaryDto, ModuleDto, ModuleLessonDto } from '../../api/types'
 import { IconAlert, IconChevronRight, IconPlay } from '../../components/icons/icons'
 import { Chip } from '../../components/ui/Chip'
+import { lessonCounts } from '../../stores/progressStore'
 import type { CatalogFilter } from './CatalogToolbar'
 import { LessonRow } from './LessonRow'
 
@@ -68,9 +69,10 @@ export function ModuleAccordion({
   updateVersion = null,
   gpuEnabled,
 }: ModuleAccordionProps) {
-  const done = module.lessons.filter((l) => l.progress.completed).length
+  // S2: el % usa el denominador único (habilitadas); el rótulo «{n} lecciones»
+  // sigue contando todas las del módulo.
+  const { pct } = lessonCounts(module.lessons)
   const total = module.lessons.length
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0
   const rows = visibleRows(module, filter, query)
   // Solo las lecciones CON ejemplo pueden requerir GPU: una conceptual se lee
   // en cualquier máquina. El `?? !l.enabled` es el respaldo de cuando el índice

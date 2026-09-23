@@ -160,15 +160,21 @@ class QuizService:
         async with self._write_lock:
             try:
                 await self._ensure_content_current(lesson_id, quiz)
+                # S2 (diseño A): el quiz completa la lección SOLO si su regla
+                # es `quiz` y cuenta para el progreso. Se decide DENTRO del
+                # lock contra la DB: un admin pudo cambiar la regla o
+                # deshabilitarla mientras el intento esperaba. La nota se
+                # guarda siempre: es evidencia aunque la regla sea otra.
+                completes = passed and await self._completable_by_quiz(lesson_id)
                 await self._attempts.create_no_commit(attempt)
                 await self._progress.upsert_no_commit(
                     lesson_id,
-                    completed=True if passed else None,  # None = no tocar
+                    completed=True if completes else None,  # None = no tocar
                     best_quiz_score=score,  # el repo aplica MAX en SQL
                     # E4: queda registrado que el aprobado vino del quiz, no de
                     # que alguien marcara la lección a mano. Al actualizar el
                     # módulo eso decide si el `completed` sigue justificado.
-                    completed_via="quiz" if passed else None,
+                    completed_via="quiz" if completes else None,
                 )
                 await self._db.commit()  # ÚNICO commit de la unidad
             except Exception:
@@ -223,6 +229,14 @@ class QuizService:
                     }
                 ]
             )
+
+    async def _completable_by_quiz(self, lesson_id: str) -> bool:
+        cursor = await self._db.execute(
+            "SELECT 1 FROM lessons WHERE id = ? AND completion_rule = 'quiz' "
+            "AND enabled = 1 AND archived_at IS NULL",
+            (lesson_id,),
+        )
+        return await cursor.fetchone() is not None
 
     def _require_quiz(self, lesson_id: str) -> Quiz:
         if not self._content.exists_lesson(lesson_id):

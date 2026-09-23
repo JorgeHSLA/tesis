@@ -382,7 +382,13 @@ def plan_progress(
         mejor = max(notas, default=progreso.best_quiz_score)
         # Misma expresión que `QuizService.submit_attempt`, a propósito: el plan
         # debe predecir exactamente el veredicto que dará el servidor después.
-        ganado = any((nota / total) >= umbral for nota in notas)
+        # S2 (diseño A): igual que el servidor, el quiz solo completa si la
+        # regla de la lección es `quiz` y la lección está habilitada.
+        ganado = (
+            new.completion_rule == "quiz"
+            and new.enabled
+            and any((nota / total) >= umbral for nota in notas)
+        )
     else:
         # Evidencia no interpretable (creció, encogió, cambió el set o las
         # opciones, o el quiz desapareció): se anula la CACHÉ. El histórico

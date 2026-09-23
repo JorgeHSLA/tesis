@@ -21,7 +21,7 @@ import threading
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from . import DockerServiceError, RunnerTimeout
 from .output_parser import parse_output
@@ -158,6 +158,9 @@ class JobHandle:
     parser_id: str
     max_output_bytes: int
     lesson_id: str | None = None  # §7.1: destino de last_job_id al completar
+    #: S2: ¿al terminar bien completa la lección? Se consulta AL TERMINAR
+    #: (la regla o la disponibilidad pudieron cambiar durante la ejecución).
+    complete_lesson: Callable[[], bool] | None = None
     phase: str = "queued"
     cancel_requested: bool = False
     kill_reason: str = KILL_NONE
@@ -285,6 +288,7 @@ class JobRunner:
         timeout_s: int,
         parser_id: str,
         lesson_id: str | None = None,
+        complete_lesson: Callable[[], bool] | None = None,
     ) -> JobHandle:
         """Crea handle + drainer + task (la fila ya existe en DB, 'queued')."""
         handle = JobHandle(
@@ -294,6 +298,7 @@ class JobRunner:
             timeout_s=timeout_s,
             parser_id=parser_id,
             lesson_id=lesson_id,
+            complete_lesson=complete_lesson,
             max_output_bytes=self._settings.max_output_bytes,
             central_queue=asyncio.Queue(maxsize=CENTRAL_QUEUE_MAX),
         )
@@ -712,8 +717,17 @@ class JobRunner:
                     and self._progress is not None
                 ):
                     try:
+                        # S2: una lección `run` se completa en el MISMO
+                        # upsert (jobs.py decidió `complete_lesson`).
+                        completes = (
+                            handle.complete_lesson is not None
+                            and handle.complete_lesson()
+                        )
                         await self._progress.upsert(
-                            handle.lesson_id, last_job_id=handle.job_id
+                            handle.lesson_id,
+                            last_job_id=handle.job_id,
+                            completed=True if completes else None,
+                            completed_via="run" if completes else None,
                         )
                     except Exception:
                         logger.exception(

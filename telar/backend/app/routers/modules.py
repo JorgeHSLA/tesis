@@ -19,7 +19,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from app.repositories.content import ContentRepository
+from app.repositories.content import ContentRepository, cuenta_para_progreso
 from app.schemas import (
     LessonProgress,
     Module,
@@ -144,18 +144,20 @@ async def get_modules(
     modules = [
         _module_payload(content, module, records) for module in content.modules()
     ]
-    lessons = content.lessons()
+    # S2: las archivadas quedan fuera de `lesson_ids` y de TODOS los totales
+    # (promesa de `ProgressEffect.archived`); siguen legibles por URL.
+    lessons = [lesson for lesson in content.lessons() if not lesson.archived]
     summary = ModulesSummary(
         lessons_total=len(lessons),
-        lessons_enabled=sum(1 for lesson in lessons if lesson.enabled),
-        # BL-38: solo lecciones HABILITADAS — una completada y luego
-        # deshabilitada no cuenta (podría superar lessons_enabled).
+        lessons_enabled=sum(1 for lesson in lessons if cuenta_para_progreso(lesson)),
+        # BL-38: solo lecciones que CUENTAN — una completada y luego
+        # deshabilitada o archivada no suma (podría superar lessons_enabled).
         lessons_completed=sum(
             1
             for record in records.values()
             if record.completed
             and (lesson := content.lesson(record.lesson_id)) is not None
-            and lesson.enabled
+            and cuenta_para_progreso(lesson)
         ),
         quizzes_total=sum(1 for lesson in lessons if lesson.has_quiz),
         questions_enabled_total=sum(
@@ -174,7 +176,7 @@ def _module_payload(
     lessons = []
     for lesson_id in module.lesson_ids:
         lesson = content.lesson(lesson_id)
-        if lesson is None:  # imposible tras la validación fail-fast
+        if lesson is None or lesson.archived:  # S2: archivada ⇒ fuera de la ruta
             continue
         quiz_total = quiz_total_for(content, lesson_id)
         lessons.append(

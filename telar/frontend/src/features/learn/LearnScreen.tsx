@@ -28,6 +28,7 @@ import { useProgressStore } from '../../stores/progressStore'
 import { LessonMedia } from './LessonMedia'
 import { LessonInfo } from './LessonInfo'
 import { LessonSidebar } from './LessonSidebar'
+import { MarkReadCard } from './MarkReadCard'
 import { QuizRunner } from './QuizRunner'
 import { TracksCard } from './TracksCard'
 
@@ -208,7 +209,7 @@ export default function LearnScreen() {
             <Chip>~{lesson.estimated_minutes} min</Chip>
             {summary && (
               <span className="mono-small">
-                Progreso: {summary.lessons_completed}/{summary.lessons_total}
+                Progreso: {summary.lessons_completed}/{summary.lessons_enabled}
               </span>
             )}
           </div>
@@ -252,6 +253,15 @@ export default function LearnScreen() {
       <div className={`learn-grid${sideOpen ? ' with-side' : ''}`}>
         {/* Columna principal */}
         <div className="col" style={{ gap: 20 }}>
+          {lesson.archived && (
+            <div className="gpu-banner" role="note">
+              <IconAlert size={16} />
+              <span>
+                Esta lección fue retirada de su módulo. Puedes leerla, pero ya no forma parte del
+                curso ni cuenta para tu progreso.
+              </span>
+            </div>
+          )}
           {gpuLocked && (
             <div className="gpu-banner" role="note">
               <IconAlert size={16} />
@@ -266,6 +276,9 @@ export default function LearnScreen() {
             runDisabled={runDisabled}
           />
           <LessonInfo lesson={lesson} example={example} runDisabled={runDisabled} />
+          {lesson.completion_rule === 'viewed' && lesson.enabled && !lesson.archived && (
+            <MarkReadCard lessonId={lesson.id} completed={cachedProgress.completed} />
+          )}
           {lesson.has_quiz && (
             <QuizRunner
               key={lesson.id}

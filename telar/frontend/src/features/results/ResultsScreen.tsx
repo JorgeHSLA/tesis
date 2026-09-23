@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../api/client'
 import { getJob, jobOutputUrl } from '../../api/jobs'
+import { useProgressStore } from '../../stores/progressStore'
 import type { JobDetailDto } from '../../api/types'
 import { Button } from '../../components/ui/Button'
 import { Chip } from '../../components/ui/Chip'
@@ -77,6 +78,10 @@ export default function ResultsScreen() {
           return
         }
         setJob(detail)
+        // S2: un job con lección puede haberla completado (regla `run`). Aquí
+        // se llega también con el job ya terminal (F5, historial, enlace), sin
+        // pasar por la vista en vivo: se refresca la caché de progreso.
+        if (detail.lesson_id != null) void useProgressStore.getState().hydrate(true)
       })
       .catch((err: unknown) => setError(err instanceof ApiError ? err : new ApiError('NETWORK_ERROR', String(err), 0)))
   }, [jobId, navigate])

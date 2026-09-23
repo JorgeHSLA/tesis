@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import ResultsScreen from '@/features/results/ResultsScreen'
 import { ApiError } from '@/api/client'
 import { useJobStore, type MetricSample } from '@/stores/jobStore'
+import { useProgressStore } from '@/stores/progressStore'
 import { JOB_BARE, JOB_NO_TIMINGS, JOB_PAIR, JOB_SWEEP } from '../../fixtures/rest'
 
 vi.mock('@/api/jobs', () => ({
@@ -212,5 +213,24 @@ describe('Exportar JSON (CU-31)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Reintentar/i }))
     expect(saveBlobMock).toHaveBeenCalledTimes(2)
     await waitFor(() => expect(screen.queryByText(/No fue posible exportar/i)).not.toBeInTheDocument())
+  })
+})
+
+describe('ResultsScreen · progreso (S2)', () => {
+  it('un job con lesson_id refresca la caché de progreso (puede haber completado una lección run)', async () => {
+    const hydrate = vi.fn().mockResolvedValue(undefined)
+    useProgressStore.setState({ hydrate })
+    getJobMock.mockResolvedValue({ ...JOB_SWEEP, lesson_id: 'transporteParticulas' })
+    renderAt(JOB_SWEEP.job_id)
+    await waitFor(() => expect(hydrate).toHaveBeenCalledWith(true))
+  })
+
+  it('un job sin lesson_id no toca el progreso', async () => {
+    const hydrate = vi.fn().mockResolvedValue(undefined)
+    useProgressStore.setState({ hydrate })
+    getJobMock.mockResolvedValue({ ...JOB_SWEEP, lesson_id: null })
+    renderAt(JOB_SWEEP.job_id)
+    await screen.findByText(/Resultados ·/)
+    expect(hydrate).not.toHaveBeenCalled()
   })
 })

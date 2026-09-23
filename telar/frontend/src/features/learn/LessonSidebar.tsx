@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import type { ExampleSummaryDto, ModuleDto } from '../../api/types'
 import { IconCheck, IconChevronRight, IconHelp, IconLayers, IconPlay } from '../../components/icons/icons'
 import { Card } from '../../components/ui/Card'
+import { lessonCounts } from '../../stores/progressStore'
 
 export interface LessonSidebarProps {
   module: ModuleDto
@@ -17,8 +18,8 @@ export function LessonSidebar({ module, currentLessonId, examplesIndex }: Lesson
   const navigate = useNavigate()
   const [open, setOpen] = useState(true)
   const lessons = [...module.lessons].sort((a, b) => a.order - b.order)
-  const done = lessons.filter((l) => l.progress.completed).length
-  const pct = lessons.length > 0 ? Math.round((done / lessons.length) * 100) : 0
+  // S2: denominador único (habilitadas), el mismo que el resto de la UI.
+  const { done, total, pct } = lessonCounts(lessons)
 
   return (
     <Card className="module-card">
@@ -41,7 +42,7 @@ export function LessonSidebar({ module, currentLessonId, examplesIndex }: Lesson
               <span style={{ display: 'block', width: `${pct}%`, height: '100%' }} />
             </span>
             <span className="mono-small">
-              {done}/{lessons.length}
+              {done}/{total}
             </span>
           </span>
         </span>
@@ -56,12 +57,16 @@ export function LessonSidebar({ module, currentLessonId, examplesIndex }: Lesson
               lesson.example_id != null
                 ? examplesIndex?.get(lesson.example_id)?.est_run_seconds
                 : undefined
+            // S2: una lección deshabilitada no se abre desde aquí.
+            const disabled = !lesson.enabled
             return (
               <button
                 key={lesson.id}
                 type="button"
                 className={`lesson-side ${current ? 'current' : ''}${isDone ? ' done' : ''}`}
                 aria-current={current ? 'true' : undefined}
+                disabled={disabled}
+                title={disabled ? 'Lección no disponible' : undefined}
                 onClick={() => navigate(`/aprender/${lesson.id}`)}
               >
                 <span className="lesson-num-badge">

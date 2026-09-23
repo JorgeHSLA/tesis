@@ -16,6 +16,7 @@ import type { ExampleSummaryDto } from '../../api/types'
 import { loadExamplesIndex } from '../../api/content'
 import { IconArrowRight, IconDownload } from '../../components/icons/icons'
 import type { CatalogNavState } from '../../components/shell/TopBar'
+import { EmptyState } from '../../components/ui/EmptyState'
 import { ErrorState } from '../../components/ui/ErrorState'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { useSystemInfo } from '../../hooks/useSystemInfo'
@@ -25,7 +26,7 @@ import { useProgressStore } from '../../stores/progressStore'
 import { CatalogStats } from './CatalogStats'
 import { CatalogToolbar, type CatalogFilter } from './CatalogToolbar'
 import { ContinueCard } from './ContinueCard'
-import { ModuleAccordion } from './ModuleAccordion'
+import { ModuleAccordion, visibleRows } from './ModuleAccordion'
 
 export default function CatalogScreen() {
   const modules = useProgressStore((s) => s.modules)
@@ -51,6 +52,17 @@ export default function CatalogScreen() {
   // la toolbar aún no existe mientras el catálogo carga (skeleton): la bandera
   // espera y la consume la toolbar al montarse.
   const [focusSearch, setFocusSearch] = useState(false)
+  // S2 (CU-01.1): con búsqueda o filtro activos se abren TODOS los módulos con
+  // coincidencias; aquí se guardan los que el usuario cierre a mano. Se vacía
+  // al cambiar la búsqueda o el filtro.
+  // La clave búsqueda+filtro va junto al set: si cambian, el set deja de valer
+  // en el mismo render (sin efecto ni frame intermedio con el set viejo).
+  const filterKey = `${query}\u0000${filter}`
+  const [closedState, setClosedState] = useState<{ key: string; ids: ReadonlySet<string> }>(() => ({
+    key: filterKey,
+    ids: new Set(),
+  }))
+  const closedWhileFiltering = closedState.key === filterKey ? closedState.ids : NO_IDS
 
   useEffect(() => {
     void hydrate()
@@ -199,6 +211,10 @@ export default function CatalogScreen() {
   // la cantidad de chips pintados no pueden discrepar nunca (un módulo recién
   // instalado puede estar ya en `/catalog/status` y todavía no en esta caché).
   const conActualizacion = sorted.filter((mod) => updates.has(mod.id)).length
+  // S2 (CU-01.1/01.2): con búsqueda o filtro activos se ocultan los módulos sin
+  // coincidencias; si no queda ninguno, un único mensaje global.
+  const filtering = query.trim() !== '' || filter !== 'all'
+  const shown = filtering ? sorted.filter((mod) => visibleRows(mod, filter, query).length > 0) : sorted
 
   return (
     <section className="screen catalog">
@@ -246,12 +262,19 @@ export default function CatalogScreen() {
       />
 
       <div className="catalog-modules">
-        {sorted.map((mod) => (
+        {filtering && shown.length === 0 && (
+          <EmptyState title="No se encontraron resultados" body="Prueba con otro término o quita el filtro." />
+        )}
+        {shown.map((mod) => (
           <ModuleAccordion
             key={mod.id}
             module={mod}
-            open={effectiveOpenId === mod.id}
-            onToggle={() => setOpenId(effectiveOpenId === mod.id ? '' : mod.id)}
+            open={filtering ? !closedWhileFiltering.has(mod.id) : effectiveOpenId === mod.id}
+            onToggle={() =>
+              filtering
+                ? setClosedState({ key: filterKey, ids: toggled(closedWhileFiltering, mod.id) })
+                : setOpenId(effectiveOpenId === mod.id ? '' : mod.id)
+            }
             filter={filter}
             query={query}
             examplesIndex={examplesIndex}
@@ -263,4 +286,14 @@ export default function CatalogScreen() {
       </div>
     </section>
   )
+}
+
+const NO_IDS: ReadonlySet<string> = new Set()
+
+/** Copia de `set` con `id` alternado (sin mutar el original). */
+function toggled(set: ReadonlySet<string>, id: string): ReadonlySet<string> {
+  const next = new Set(set)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  return next
 }

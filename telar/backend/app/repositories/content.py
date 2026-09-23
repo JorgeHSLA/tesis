@@ -242,6 +242,15 @@ class Lesson:
     next_lesson_id: str | None
 
 
+def cuenta_para_progreso(lesson: Lesson) -> bool:
+    """La ÚNICA regla de disponibilidad: habilitada y no archivada.
+
+    Lo que no cuenta no entra en los denominadores de ``/modules`` ni en los de
+    ``/progress``, y ni el quiz ni un job pueden completarlo.
+    """
+    return lesson.enabled and not lesson.archived
+
+
 @dataclass(frozen=True)
 class QuizOption:
     key: str
@@ -504,6 +513,18 @@ def _build_lessons(
     catalog: _CatalogFx, content_dir: Path, quizzes: dict[str, Quiz]
 ) -> dict[str, Lesson]:
     ordered = sorted(catalog.lessons.items(), key=lambda kv: kv[1].order)
+    # Misma ruta lineal que la vía DB (``_vecinos_de_la_ruta``): el snapshot
+    # sembrado tiene que ser idéntico al de los fixtures.
+    vecinos = _vecinos_de_la_ruta(
+        [
+            {
+                "id": lesson_id,
+                "archived_at": None,
+                "enabled": catalog.examples[lesson_id].enabled,
+            }
+            for lesson_id, _ in ordered
+        ]
+    )
     lessons: dict[str, Lesson] = {}
     for index, (lesson_id, fx) in enumerate(ordered):
         markdown = _read_utf8(
@@ -532,10 +553,8 @@ def _build_lessons(
                 Recommended(lesson_id=r.lesson_id, label=r.label, tag=r.tag)
                 for r in fx.recommended
             ),
-            prev_lesson_id=ordered[index - 1][0] if index > 0 else None,
-            next_lesson_id=(
-                ordered[index + 1][0] if index + 1 < len(ordered) else None
-            ),
+            prev_lesson_id=vecinos[index][0],
+            next_lesson_id=vecinos[index][1],
         )
     return lessons
 
@@ -660,13 +679,19 @@ def _load_quizzes_from_db(
 
 
 def _vecinos_de_la_ruta(rows: list) -> list[tuple[str | None, str | None]]:
-    """(prev, next) de cada fila, SALTANDO las lecciones archivadas.
+    """(prev, next) de cada fila, SALTANDO las que no cuentan para el progreso.
 
     Una lección archivada sigue siendo legible por URL, pero no forma parte de
     la ruta lineal del curso: si estuviera, «Siguiente» llevaría al estudiante a
-    contenido que su módulo ya retiró.
+    contenido que su módulo ya retiró. S2: una deshabilitada tampoco (misma
+    regla que ``cuenta_para_progreso``): «Siguiente» no lleva a una lección que
+    el sidebar no deja abrir.
     """
-    vivas = [i for i, row in enumerate(rows) if row["archived_at"] is None]
+    vivas = [
+        i
+        for i, row in enumerate(rows)
+        if row["archived_at"] is None and bool(row["enabled"])
+    ]
     posicion = {indice: orden for orden, indice in enumerate(vivas)}
     vecinos: list[tuple[str | None, str | None]] = []
     for indice in range(len(rows)):

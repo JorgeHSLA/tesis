@@ -33,6 +33,7 @@ import { useSimulation } from '../../hooks/useSimulation'
 import { useSystemInfo } from '../../hooks/useSystemInfo'
 import { fmtBytes, fmtTime } from '../../lib/format'
 import { isTerminalPhase, useJobStore } from '../../stores/jobStore'
+import { useProgressStore } from '../../stores/progressStore'
 import { isSweepParser } from './sweepParse'
 import { LiveTerminalCard } from './LiveTerminalCard'
 import { SweepProgressCard } from './SweepProgressCard'
@@ -108,10 +109,18 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
     }
   }, [exampleId])
 
+  // S2: un job con lección puede haberla completado (regla `run`) o haber
+  // movido last_job_id; al terminar se refresca la caché de progreso.
+  const lessonId = job?.lesson_id ?? null
+  const terminalNow = isTerminalPhase(phase)
+  useEffect(() => {
+    if (terminalNow && lessonId != null) void useProgressStore.getState().hydrate(true)
+  }, [terminalNow, lessonId])
+
   const filename = job?.filename ?? launchState?.filename ?? `job ${jobId.slice(0, 8)}`
   const threads = job?.threads ?? launchState?.threads ?? 4
   const timeoutS = job?.timeout_s ?? null
-  const terminal = isTerminalPhase(phase)
+  const terminal = terminalNow
 
   const { nodes } = useSimulation({ threads, running: phase === 'running', reducedMotion })
 

@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from app.repositories.content import (
+    cuenta_para_progreso,
     EXPECTED_ENABLED_QUESTIONS,
     EXPECTED_LESSON_COUNT,
     ContentError,
@@ -71,7 +72,13 @@ def test_parser_ids_y_flags_coherentes(real_content):
 
 
 def test_ruta_lineal_prev_next(real_content):
-    ordered = real_content.lessons()
+    """S2: la ruta solo recorre lecciones que cuentan para el progreso; la
+    deshabilitada (sumaVectoresGPU) queda fuera y sin vecinos."""
+    todas = real_content.lessons()
+    ordered = [lesson for lesson in todas if cuenta_para_progreso(lesson)]
+    fuera = [lesson for lesson in todas if not cuenta_para_progreso(lesson)]
+    assert [lesson.id for lesson in fuera] == ["sumaVectoresGPU"]
+    assert fuera[0].prev_lesson_id is None and fuera[0].next_lesson_id is None
     assert ordered[0].prev_lesson_id is None
     assert ordered[-1].next_lesson_id is None
     for prev_lesson, lesson in zip(ordered, ordered[1:]):

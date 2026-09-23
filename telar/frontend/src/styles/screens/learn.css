@@ -409,6 +409,8 @@
   text-align: left;
 }
 .lesson-side:hover { background: var(--surface-2); }
+.lesson-side:disabled { cursor: not-allowed; opacity: 0.55; }
+.lesson-side:disabled:hover { background: transparent; }
 .lesson-side.current { background: var(--primary-soft); }
 /* --progress, no --primary: esta marca de 3px se pinta SOBRE --primary-soft
    (la fila está teñida), donde --primary se queda en 2.99:1. */

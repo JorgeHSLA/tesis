@@ -11,7 +11,7 @@
 // Los fixtures de catálogo se construyen aquí y no en `tests/fixtures/rest.ts`
 // a propósito: ese archivo es compartido y hay agentes trabajándolo en paralelo.
 import { MemoryRouter } from 'react-router-dom'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import CatalogScreen from '@/features/catalog/CatalogScreen'
 import type { CatalogStatusResponseDto, InstalledModuleStatusDto } from '@/api/catalog-types'
@@ -317,5 +317,54 @@ describe('CatalogScreen · aviso de actualizaciones', () => {
     expect(
       llamadas.some((l) => l.startsWith('POST ') && l.includes('/api/v1/catalog/refresh')),
     ).toBe(true)
+  })
+})
+
+// ─────────────────── S2 · búsqueda y «Continuar/Empezar» ────────────────────
+
+describe('CatalogScreen · búsqueda (S2 · CU-01.1/01.2)', () => {
+  async function buscar(texto: string) {
+    montar()
+    const input = await screen.findByLabelText('Buscar lección, quiz o tema')
+    fireEvent.change(input, { target: { value: texto } })
+  }
+
+  it('oculta los módulos sin coincidencias y expande los que sí tienen', async () => {
+    await buscar('a medida')
+    // m9 tiene la coincidencia: visible y abierto aunque el default abría m2.
+    const m9 = await screen.findByRole('button', { name: /Reducciones avanzadas/ })
+    expect(m9).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Reducción a medida')).toBeInTheDocument()
+    // m2 no tiene ninguna: desaparece.
+    expect(screen.queryByRole('button', { name: /Patrón SPMD y false sharing/ })).not.toBeInTheDocument()
+  })
+
+  it('sin ninguna coincidencia: un único mensaje global', async () => {
+    await buscar('zzz-no-existe')
+    expect(await screen.findByText('No se encontraron resultados')).toBeInTheDocument()
+    expect(screen.queryByText('Sin resultados para este filtro.')).not.toBeInTheDocument()
+  })
+
+  it('al borrar la búsqueda vuelven todos los módulos', async () => {
+    await buscar('a medida')
+    await screen.findByRole('button', { name: /Reducciones avanzadas/ })
+    fireEvent.change(screen.getByLabelText('Buscar lección, quiz o tema'), { target: { value: '' } })
+    expect(await screen.findByRole('button', { name: /Patrón SPMD y false sharing/ })).toBeInTheDocument()
+  })
+})
+
+describe('CatalogScreen · Continuar/Empezar (S2 · CU-01.3)', () => {
+  it('sin lección visitada: «Empezar» por la primera disponible, no un id fijo', async () => {
+    montar()
+    expect(await screen.findByRole('button', { name: /Empezar/ })).toBeInTheDocument()
+    expect(screen.getByText('Empieza por aquí')).toBeInTheDocument()
+    expect(screen.queryByText('¿Qué es el paralelismo?')).not.toBeInTheDocument()
+  })
+
+  it('última visitada disponible: «Reanudar» con su título', async () => {
+    useProgressStore.setState({ lastLessonId: 'reduccionCustom' })
+    montar()
+    expect(await screen.findByRole('button', { name: /Reanudar/ })).toBeInTheDocument()
+    expect(screen.getAllByText('Reducción a medida').length).toBeGreaterThan(0)
   })
 })
