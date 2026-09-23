@@ -715,3 +715,86 @@ async def test_sin_timeout_sigue_siendo_cancelable(db, settings):
     assert execution.wait_timeouts == [None]
     record = await repo.find_by_id("j1")
     assert record.status == "cancelled"
+
+
+# ─────────────────── S1: parser que falla y flush con goteo ─────────────────
+
+
+async def test_parser_que_lanza_no_reclasifica_el_job(db, settings, monkeypatch, caplog):
+    """CU-24.1: si ``parse_output`` lanza, el job conserva su status y
+    exit_code reales; ``parsed`` queda en None y solo se registra un warning."""
+    import app.services.job_runner as jr
+
+    def parser_roto(*_args, **_kwargs):
+        raise ValueError("could not convert string to float: '1.2.3'")
+
+    monkeypatch.setattr(jr, "parse_output", parser_roto)
+    docker = FakeDockerService()
+    repo = JobRepository(db)
+    runner = make_runner(docker, repo, settings)
+    docker.queue_execution(FakeExecution(stdout=[b"t=1.2.3\n"], exit_code=0))
+
+    with caplog.at_level("WARNING", logger=jr.logger.name):
+        handle = await launch(runner, repo, "j-parser", parser_id="speedup")
+        await asyncio.wait_for(handle.task, 10)
+
+    record = await repo.find_by_id("j-parser")
+    assert record.status == "completed"
+    assert record.exit_code == 0
+    assert record.error_detail is None
+    assert record.parsed_timings is None
+    assert any("parser" in r.getMessage() for r in caplog.records
+               if r.levelname == "WARNING")
+
+
+class _GoteoExecution(FakeExecution):
+    """Emite una línea de stdout cada ``intervalo`` s y anota cuándo la emitió."""
+
+    def __init__(self, lineas: int, intervalo: float) -> None:
+        super().__init__(stdout=[f"linea {i}\n".encode() for i in range(lineas)])
+        self._intervalo = intervalo
+        self.emitidas: dict[str, float] = {}
+
+    def iter_logs(self, stream: str):
+        import time
+
+        if stream != "stdout":
+            return
+        for chunk in self._stdout:
+            time.sleep(self._intervalo)
+            self.emitidas[chunk.decode().rstrip("\n")] = time.monotonic()
+            yield chunk
+
+
+async def test_drainer_vacia_cada_100ms_aunque_sigan_llegando_datos(db, settings):
+    """§8.4: con un goteo constante (una línea cada 50 ms) el drainer debe
+    emitir un `log` cada ~100 ms desde el último flush, no esperar a 100 ms
+    SIN datos ni a acumular 4 KB."""
+    import time
+
+    docker = FakeDockerService()
+    repo = JobRepository(db)
+    runner = make_runner(docker, repo, settings, flush_interval_s=0.1)
+    execution = docker.queue_execution(_GoteoExecution(lineas=12, intervalo=0.05))
+    handle = await launch(runner, repo, "j-goteo")
+    _, queue, _ = runner.subscribe(handle)
+
+    recibidas: dict[str, float] = {}
+
+    async def consumir():
+        while True:
+            msg = await queue.get()
+            if msg["type"] == "log":
+                ahora = time.monotonic()
+                for line in msg["lines"]:
+                    recibidas[line] = ahora
+            if msg["type"] == "status" and msg["phase"] in (
+                "completed", "failed", "cancelled", "timeout"
+            ):
+                return
+
+    await asyncio.wait_for(asyncio.gather(consumir(), handle.task), 10)
+
+    assert set(recibidas) == set(execution.emitidas)
+    retrasos = {l: recibidas[l] - execution.emitidas[l] for l in recibidas}
+    assert max(retrasos.values()) <= 0.16, retrasos
