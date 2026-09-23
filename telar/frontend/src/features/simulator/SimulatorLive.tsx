@@ -80,7 +80,7 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
         }
         // CU-07.4: al volver a un job activo, el cronómetro parte del
         // started_at real y no del instante en que se abrió esta vista.
-        useJobStore.getState().setStartedAt(detail.started_at)
+        useJobStore.getState().setStartedAt(jobId, detail.started_at)
         setJob(detail)
       })
       .catch((err: unknown) => {

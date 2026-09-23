@@ -70,8 +70,9 @@ export interface JobState {
   appendLogs(lines: LogLine[]): void
   appendMetric(m: MetricSample): void
   setPhase(p: UiPhase, detail?: StatusDetailDto | null): void
-  /** `started_at` ISO de GET /jobs/{id} (CU-07.4): prevalece sobre el reloj local. */
-  setStartedAt(iso: string | null): void
+  /** `started_at` ISO de GET /jobs/{id} (CU-07.4): prevalece sobre el reloj
+   *  local. Se ignora si `jobId` ya no es el job activo del store. */
+  setStartedAt(jobId: string, iso: string | null): void
   markLogsTruncated(): void
   setWsError(msg: string | null): void
   markEof(truncated: boolean): void
@@ -142,9 +143,9 @@ export const useJobStore = create<JobState>()((set) => ({
         : null),
     })),
 
-  setStartedAt: (iso) => {
+  setStartedAt: (jobId, iso) => {
     const ms = iso != null ? Date.parse(iso) : Number.NaN
-    if (!Number.isNaN(ms)) set({ startedAt: ms })
+    set((s) => (s.jobId === jobId && !Number.isNaN(ms) ? { startedAt: ms } : s))
   },
 
   markLogsTruncated: () => set({ logsTruncated: true }),

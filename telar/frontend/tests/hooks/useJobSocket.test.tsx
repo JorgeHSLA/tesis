@@ -103,7 +103,7 @@ describe('elapsedSec', () => {
     act(() => {
       ws.open()
       ws.emit(statusMsg('running'))
-      useJobStore.getState().setStartedAt(new Date(Date.now() - 90_000).toISOString())
+      useJobStore.getState().setStartedAt('j1', new Date(Date.now() - 90_000).toISOString())
     })
     act(() => {
       vi.advanceTimersByTime(1000)

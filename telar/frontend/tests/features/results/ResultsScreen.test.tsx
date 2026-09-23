@@ -111,6 +111,21 @@ describe('cabecera de resultados', () => {
 })
 
 describe('descarga de la salida (CU-10.1)', () => {
+  it('bloquea los botones mientras descarga (sin descargas duplicadas)', async () => {
+    getJobMock.mockResolvedValue(JOB_SWEEP)
+    let terminar: () => void = () => undefined
+    downloadMock.mockReturnValue(new Promise<void>((r) => (terminar = r)))
+    renderAt(JOB_SWEEP.job_id)
+    const boton = await screen.findByRole('button', { name: /Descargar output/i })
+    fireEvent.click(boton)
+    fireEvent.click(boton)
+    expect(downloadMock).toHaveBeenCalledTimes(1)
+    expect(boton).toBeDisabled()
+    expect(screen.getByRole('button', { name: /descargar$/i })).toBeDisabled()
+    terminar()
+    await waitFor(() => expect(boton).not.toBeDisabled())
+  })
+
   it('descarga vía fetch con el nombre del contrato (stem-jobid8.txt)', async () => {
     getJobMock.mockResolvedValue(JOB_SWEEP)
     downloadMock.mockResolvedValue(undefined)

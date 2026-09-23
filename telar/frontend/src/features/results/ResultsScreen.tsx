@@ -82,12 +82,17 @@ export default function ResultsScreen() {
   const observations = useMemo(() => (job != null ? buildObservations(job) : []), [job])
 
   // CU-10.1: fetch → Blob (lib/download). Un fallo no oculta los resultados.
+  // `downloading` bloquea los botones: un doble click no lanza dos descargas.
   const [downloadFailed, setDownloadFailed] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const downloadOutput = useCallback(() => {
-    if (job == null) return
+    if (job == null || downloading) return
     setDownloadFailed(false)
-    downloadFile(jobOutputUrl(job.job_id), outputFilename(job)).catch(() => setDownloadFailed(true))
-  }, [job])
+    setDownloading(true)
+    downloadFile(jobOutputUrl(job.job_id), outputFilename(job))
+      .catch(() => setDownloadFailed(true))
+      .finally(() => setDownloading(false))
+  }, [job, downloading])
 
   if (error != null) {
     return (
@@ -171,7 +176,7 @@ export default function ResultsScreen() {
           </div>
         </div>
         <div className="screen-actions">
-          <Button variant="outline" onClick={downloadOutput}>
+          <Button variant="outline" onClick={downloadOutput} disabled={downloading}>
             <IconDownload size={14} /> Descargar output
           </Button>
           <Button variant="outline" onClick={rerun}>
@@ -211,7 +216,7 @@ export default function ResultsScreen() {
         <ObservationsCard observations={observations} />
       </div>
 
-      <OutputCard job={job} onDownload={downloadOutput} />
+      <OutputCard job={job} onDownload={downloadOutput} downloading={downloading} />
     </section>
   )
 }

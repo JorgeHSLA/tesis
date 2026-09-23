@@ -118,7 +118,15 @@ export function ObservationsCard({ observations }: { observations: Observation[]
 
 // ──────────────────────────────── Output ───────────────────────────────────
 
-export function OutputCard({ job, onDownload }: { job: JobDetailDto; onDownload: () => void }) {
+export function OutputCard({
+  job,
+  onDownload,
+  downloading,
+}: {
+  job: JobDetailDto
+  onDownload: () => void
+  downloading: boolean
+}) {
   const stdout = job.stdout ?? ''
   const lines = stdout === '' ? [] : stdout.replace(/\n$/, '').split('\n')
   return (
@@ -127,7 +135,7 @@ export function OutputCard({ job, onDownload }: { job: JobDetailDto; onDownload:
         icon={<IconTerminal size={16} />}
         title={`Output (stdout · ${lines.length} ${lines.length === 1 ? 'línea' : 'líneas'})`}
         right={
-          <Button variant="ghost" size="sm" onClick={onDownload}>
+          <Button variant="ghost" size="sm" onClick={onDownload} disabled={downloading}>
             <IconDownload size={12} /> descargar
           </Button>
         }

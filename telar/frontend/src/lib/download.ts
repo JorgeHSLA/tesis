@@ -4,8 +4,9 @@
 // security.ts bloquea la navegación http. Un `blob:` es del mismo origen que
 // la página, así que el atributo `download` sí se respeta en web y escritorio.
 
-/** Tras el click el navegador ya tomó la referencia; se libera en el siguiente tick. */
-const REVOKE_DELAY_MS = 0
+/** Margen antes de liberar el blob: una salida grande o un disco lento en
+ *  Electron pueden tardar en empezar a leerlo tras el click. */
+const REVOKE_DELAY_MS = 10_000
 
 /** Guarda un Blob ya construido (p. ej. la exportación JSON de resultados). */
 export function saveBlob(blob: Blob, filename: string): void {
