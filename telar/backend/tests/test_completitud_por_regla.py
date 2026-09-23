@@ -335,3 +335,38 @@ def test_quiz_no_completa_si_la_regla_cambio_tras_leer_el_snapshot(cliente):
     progreso = _progreso(cliente, LECCION)
     assert progreso["completed"] is False
     assert progreso["best_quiz_score"] == resultado["total"]
+
+
+# ──────────── invariante: ninguna vía completa lo que no está disponible ─────
+
+
+def _completar_por(cliente, docker, via: str) -> None:
+    """Intenta completar ``LECCION`` por la vía dada, sin exigir que lo logre."""
+    if via == "quiz":
+        cliente.post(
+            f"/api/v1/lessons/{LECCION}/quiz/attempts",
+            json={"answers": _respuestas(cliente, LECCION)},
+        )
+    elif via == "run":
+        _job(cliente, docker, example_id=LECCION, lesson_id=LECCION)
+    else:  # viewed: el estudiante la marca como leída
+        respuesta = cliente.put(
+            f"/api/v1/progress/lessons/{LECCION}",
+            json={"viewed": True, "completed": True},
+        )
+        assert respuesta.status_code == 200, respuesta.text
+
+
+@pytest.mark.parametrize("estado", ["deshabilitada", "archivada"])
+@pytest.mark.parametrize("via", ["quiz", "run", "viewed"])
+def test_ninguna_via_completa_una_leccion_no_disponible(cliente, docker, via, estado):
+    """api-contract §6.2: ninguna vía completa una lección deshabilitada o
+    archivada — la misma regla (``cuenta_para_progreso``) para las tres."""
+    if estado == "deshabilitada":
+        _ajustar(cliente, LECCION, completion_rule=via, enabled=False)
+    else:
+        _ajustar(cliente, LECCION, completion_rule=via)
+        _archivar(cliente, LECCION)
+    _completar_por(cliente, docker, via)
+    progreso = _progreso(cliente, LECCION)
+    assert progreso is None or progreso["completed"] is False
