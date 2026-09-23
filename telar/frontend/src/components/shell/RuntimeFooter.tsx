@@ -156,13 +156,16 @@ export function RuntimeFooter() {
 
             {showActions && (
               <div className="runtime-panel-actions">
-                {docker.state === 'ok' ? (
-                  <Button variant="outline" size="sm" onClick={() => void docker.stop()} disabled={busy}>
-                    {docker.stopping ? 'Deteniendo…' : 'Detener'}
-                  </Button>
-                ) : (
+                {docker.state !== 'ok' && (
                   <Button variant="outline" size="sm" onClick={() => void docker.up()} disabled={busy}>
                     {docker.lifting ? 'Levantando…' : 'Levantar'}
+                  </Button>
+                )}
+                {/* También con el backend corriendo pero no sano: `up -d` no toca
+                    un contenedor que ya corre, y parar es la única salida. */}
+                {(docker.state === 'ok' || (docker.containers ?? 0) > 0) && (
+                  <Button variant="outline" size="sm" onClick={() => void docker.stop()} disabled={busy}>
+                    {docker.stopping ? 'Deteniendo…' : 'Detener'}
                   </Button>
                 )}
               </div>

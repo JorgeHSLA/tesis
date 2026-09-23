@@ -73,7 +73,8 @@ export function attachLoadFailureHandling(win: BrowserWindow, load: () => void):
   })
 
   contents.on('render-process-gone', (_event, details) => {
-    if (details.reason === 'clean-exit') return
+    // Con la página de error ya puesta no se reescribe en bucle si vuelve a caer.
+    if (details.reason === 'clean-exit' || showingError) return
     showError(`La interfaz se cerró inesperadamente (${details.reason}).`)
   })
 

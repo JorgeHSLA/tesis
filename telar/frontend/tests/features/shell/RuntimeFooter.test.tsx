@@ -134,6 +134,18 @@ describe('RuntimeFooter (desktop) · causas y runner', () => {
   })
 })
 
+describe('RuntimeFooter (desktop) · backend corriendo pero no sano', () => {
+  // `up -d` no toca un contenedor que ya corre: sin «Detener» no habría salida.
+  it('ofrece «Detener» además de «Levantar»', async () => {
+    const api = setDesktop([{ service: 'backend', state: 'running', health: 'unhealthy' } as { state: string }])
+    render(<RuntimeFooter />)
+    fireEvent.click(await screen.findByRole('button', { name: /servicios detenidos/i }))
+    expect(await screen.findByRole('button', { name: 'Levantar' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Detener' }))
+    await waitFor(() => expect(api.dockerStop).toHaveBeenCalled())
+  })
+})
+
 describe('RuntimeFooter (web)', () => {
   it('sin window.telar no ofrece acciones de Docker', async () => {
     render(<RuntimeFooter />)
