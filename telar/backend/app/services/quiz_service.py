@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Any, Mapping, Protocol
 
 from app.repositories import content_admin
-from app.repositories.content import ContentRepository, Quiz, cuenta_para_progreso
+from app.repositories.content import ContentRepository, Quiz
 from app.repositories.records import QuizAttemptRecord
 from app.schemas import (
     QuizAttemptResult,
@@ -147,17 +147,6 @@ class QuizService:
         total = len(quiz.questions)
         passed = (score / total) >= quiz.pass_threshold
 
-        # S2 (diseño A): el quiz completa la lección SOLO si su regla es
-        # `quiz` y la lección cuenta para el progreso. La nota se guarda
-        # siempre: es evidencia aunque la regla sea `viewed` o `run`.
-        lesson = self._content.lesson(lesson_id)
-        completes = (
-            passed
-            and lesson is not None
-            and lesson.completion_rule == "quiz"
-            and cuenta_para_progreso(lesson)
-        )
-
         attempt = QuizAttemptRecord(
             id=uuid.uuid4().hex,
             lesson_id=lesson_id,
@@ -171,6 +160,12 @@ class QuizService:
         async with self._write_lock:
             try:
                 await self._ensure_content_current(lesson_id, quiz)
+                # S2 (diseño A): el quiz completa la lección SOLO si su regla
+                # es `quiz` y cuenta para el progreso. Se decide DENTRO del
+                # lock contra la DB: un admin pudo cambiar la regla o
+                # deshabilitarla mientras el intento esperaba. La nota se
+                # guarda siempre: es evidencia aunque la regla sea otra.
+                completes = passed and await self._completable_by_quiz(lesson_id)
                 await self._attempts.create_no_commit(attempt)
                 await self._progress.upsert_no_commit(
                     lesson_id,
@@ -234,6 +229,14 @@ class QuizService:
                     }
                 ]
             )
+
+    async def _completable_by_quiz(self, lesson_id: str) -> bool:
+        cursor = await self._db.execute(
+            "SELECT 1 FROM lessons WHERE id = ? AND completion_rule = 'quiz' "
+            "AND enabled = 1 AND archived_at IS NULL",
+            (lesson_id,),
+        )
+        return await cursor.fetchone() is not None
 
     def _require_quiz(self, lesson_id: str) -> Quiz:
         if not self._content.exists_lesson(lesson_id):

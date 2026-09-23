@@ -55,8 +55,14 @@ export default function CatalogScreen() {
   // S2 (CU-01.1): con búsqueda o filtro activos se abren TODOS los módulos con
   // coincidencias; aquí se guardan los que el usuario cierre a mano. Se vacía
   // al cambiar la búsqueda o el filtro.
-  const [closedWhileFiltering, setClosedWhileFiltering] = useState<ReadonlySet<string>>(() => new Set())
-  useEffect(() => setClosedWhileFiltering(new Set()), [query, filter])
+  // La clave búsqueda+filtro va junto al set: si cambian, el set deja de valer
+  // en el mismo render (sin efecto ni frame intermedio con el set viejo).
+  const filterKey = `${query}\u0000${filter}`
+  const [closedState, setClosedState] = useState<{ key: string; ids: ReadonlySet<string> }>(() => ({
+    key: filterKey,
+    ids: new Set(),
+  }))
+  const closedWhileFiltering = closedState.key === filterKey ? closedState.ids : NO_IDS
 
   useEffect(() => {
     void hydrate()
@@ -266,7 +272,7 @@ export default function CatalogScreen() {
             open={filtering ? !closedWhileFiltering.has(mod.id) : effectiveOpenId === mod.id}
             onToggle={() =>
               filtering
-                ? setClosedWhileFiltering((prev) => toggled(prev, mod.id))
+                ? setClosedState({ key: filterKey, ids: toggled(closedWhileFiltering, mod.id) })
                 : setOpenId(effectiveOpenId === mod.id ? '' : mod.id)
             }
             filter={filter}
@@ -281,6 +287,8 @@ export default function CatalogScreen() {
     </section>
   )
 }
+
+const NO_IDS: ReadonlySet<string> = new Set()
 
 /** Copia de `set` con `id` alternado (sin mutar el original). */
 function toggled(set: ReadonlySet<string>, id: string): ReadonlySet<string> {

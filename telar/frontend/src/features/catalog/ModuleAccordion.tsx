@@ -69,7 +69,8 @@ export function ModuleAccordion({
   updateVersion = null,
   gpuEnabled,
 }: ModuleAccordionProps) {
-  // S2: el % usa el denominador único (habilitadas); el rótulo cuenta las filas.
+  // S2: el % usa el denominador único (habilitadas); el rótulo «{n} lecciones»
+  // sigue contando todas las del módulo.
   const { pct } = lessonCounts(module.lessons)
   const total = module.lessons.length
   const rows = visibleRows(module, filter, query)

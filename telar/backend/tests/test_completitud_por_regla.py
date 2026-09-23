@@ -295,3 +295,43 @@ def test_anterior_siguiente_saltan_la_leccion_deshabilitada(cliente):
     assert previa["next_lesson_id"] == siguiente
     posterior = cliente.get(f"/api/v1/lessons/{siguiente}").json()["data"]
     assert posterior["prev_lesson_id"] == anterior
+
+
+# ─────────── carreras: la regla se decide al ESCRIBIR, no al empezar ─────────
+
+
+def test_job_run_no_completa_si_la_leccion_se_deshabilita_durante_la_ejecucion(
+    cliente, docker
+):
+    _ajustar(cliente, LECCION, completion_rule="run")
+    ejecucion = FakeExecution(stdout=[b"ok\n"], hang=True)
+    docker.queue_execution(ejecucion)
+    respuesta = cliente.post(
+        "/api/v1/jobs", json={"example_id": LECCION, "lesson_id": LECCION}
+    )
+    job_id = respuesta.json()["data"]["job_id"]
+    _ajustar(cliente, LECCION, enabled=False)  # el admin la retira a mitad
+    ejecucion.finish(0)
+    assert wait_terminal(cliente, job_id)["status"] == "completed"
+    wait_registry_empty(cliente.app, job_id)
+    progreso = _progreso(cliente, LECCION)
+    assert progreso["completed"] is False
+    assert progreso["last_job_id"] == job_id
+
+
+def test_quiz_no_completa_si_la_regla_cambio_tras_leer_el_snapshot(cliente):
+    """El snapshot en memoria dice `quiz`, pero la DB (la verdad dentro del
+    lock) ya dice `run`: el intento guarda la nota y no completa."""
+    app = cliente.app
+
+    async def _cambiar_regla_solo_en_db() -> None:
+        await app.state.db.execute(
+            "UPDATE lessons SET completion_rule='run' WHERE id=?", (LECCION,)
+        )
+        await app.state.db.commit()
+
+    cliente.portal.call(_cambiar_regla_solo_en_db)
+    resultado = _aprobar(cliente, LECCION)
+    progreso = _progreso(cliente, LECCION)
+    assert progreso["completed"] is False
+    assert progreso["best_quiz_score"] == resultado["total"]

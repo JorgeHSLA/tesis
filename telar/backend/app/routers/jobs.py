@@ -69,6 +69,17 @@ def _max_threads() -> int:
 # ─────────────────────── creación (lógica común §7.1/§7.2) ──────────────────
 
 
+def _completa_por_run(content: Any, lesson_id: str, example_id: str) -> bool:
+    """¿Un job ``completed`` de ``example_id`` completa ``lesson_id`` HOY?"""
+    lesson = content.lesson(lesson_id)
+    return (
+        lesson is not None
+        and lesson.completion_rule == "run"
+        and lesson.example_id == example_id
+        and cuenta_para_progreso(lesson)
+    )
+
+
 async def _create_job(
     request: Request,
     *,
@@ -108,13 +119,14 @@ async def _create_job(
         )
     # S2 (diseño A): completa la lección solo un job del ejemplo de una lección
     # `run` que cuenta para el progreso (el job_runner exige además 'completed').
-    complete_lesson = (
-        lesson is not None
-        and lesson.completion_rule == "run"
-        and example_id is not None
-        and example_id == lesson.example_id
-        and cuenta_para_progreso(lesson)
-    )
+    # Se evalúa AL TERMINAR contra el snapshot vigente: durante la ejecución
+    # un admin pudo deshabilitar la lección o cambiarle la regla.
+    complete_lesson = None
+    if lesson_id is not None and example_id is not None:
+        app_state = state
+        complete_lesson = lambda: _completa_por_run(  # noqa: E731
+            app_state.content, lesson_id, example_id
+        )
 
     if code is not None and len(code.encode("utf-8")) > settings.max_code_bytes:
         return _err(
