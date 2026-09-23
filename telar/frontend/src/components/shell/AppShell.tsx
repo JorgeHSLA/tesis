@@ -6,6 +6,7 @@
 import { useEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { DraftBanner } from './DraftBanner'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 
@@ -28,6 +29,7 @@ export function AppShell() {
       <Sidebar />
       <main className="main" ref={mainRef}>
         <TopBar />
+        <DraftBanner />
         <Outlet />
       </main>
     </div>

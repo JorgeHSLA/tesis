@@ -326,6 +326,19 @@
   z-index: var(--z-sticky);
   font-size: var(--fs-sm);
 }
+/* S5 (D+) — aviso de borrador en /aprender del build de autoría. Ocre de
+   aviso, no de error: no hay nada roto, solo hay que saber qué se está viendo. */
+.draft-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--screen-pad-x);
+  border-bottom: 1px solid color-mix(in srgb, var(--warn) 28%, transparent);
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+  font-size: var(--fs-sm);
+}
+.draft-banner svg { flex-shrink: 0; }
 .topbar-title {
   font-family: var(--font-display);
   font-weight: 600;
