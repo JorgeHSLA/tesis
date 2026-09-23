@@ -16,7 +16,9 @@ class HealthChecks(BaseModel):
 
     db: bool
     docker: bool
-    runner_image: bool
+    #: ``None`` = no se pudo comprobar (enmienda aditiva CU-26.1); ``False`` =
+    #: se comprobó y la imagen no existe.
+    runner_image: bool | None
 
 
 class HealthResponse(BaseModel):

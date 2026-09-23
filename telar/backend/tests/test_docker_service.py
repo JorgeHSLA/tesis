@@ -407,3 +407,14 @@ def test_execution_remove_force_y_notfound():
     assert container.removed == (True, True)
     gone = StubContainer(remove_error=docker.errors.NotFound("gone"))
     JobExecution(gone).remove()  # NotFound se ignora
+
+
+def test_image_present_no_comprobable_devuelve_none(service, stub):
+    """CU-26.1: un error que no es «no existe» (permisos, daemon a medias) no
+    se confunde con una ausencia confirmada."""
+
+    def _boom(name):
+        raise docker.errors.APIError("permiso denegado")
+
+    stub.images.get = _boom
+    assert service.image_present() is None

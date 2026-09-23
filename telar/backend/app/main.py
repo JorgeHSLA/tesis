@@ -141,6 +141,11 @@ def create_app(
                 docker = None
         app.state.docker = docker
         app.state.docker_service = docker  # alias esperado por routers WP2
+        # CU-26.3: /health reintenta crear el cliente si aquí no se pudo. Solo
+        # con el builder real: un docker inyectado (tests) no se reconstruye.
+        app.state.docker_factory = (
+            (lambda: _build_docker_service(cfg)) if docker_service is None else None
+        )
 
         # Puerto de LECTURA del catálogo remoto (§11.2). Es el único módulo del
         # lado estudiante que sale a la red, y aquí es lo único que se hace con

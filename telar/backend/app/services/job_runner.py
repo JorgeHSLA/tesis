@@ -236,6 +236,16 @@ class JobRunner:
 
     # ---- API para routers ----------------------------------------------------
 
+    @property
+    def docker_service(self) -> "DockerServicePort | None":
+        return self._docker
+
+    @docker_service.setter
+    def docker_service(self, docker_service: "DockerServicePort") -> None:
+        """CU-26.3: ``/health`` entrega el cliente que no se pudo crear al
+        arrancar. Solo afecta a los jobs que empiecen a partir de ahora."""
+        self._docker = docker_service
+
     def get_active(self, job_id: str) -> JobHandle | None:
         handle = self.registry.get(job_id)
         if handle is None or handle.closed:

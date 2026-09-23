@@ -125,7 +125,7 @@ def test_sin_docker_service_liveness_pero_system_503(settings, monkeypatch):
         health = client.get("/health")
         assert health.status_code == 200  # liveness ≠ readiness
         assert health.json()["checks"]["docker"] is False
-        assert health.json()["checks"]["runner_image"] is False
+        assert health.json()["checks"]["runner_image"] is None  # no comprobada (26.1)
 
         system = client.get("/api/v1/system")
         assert system.status_code == 503
