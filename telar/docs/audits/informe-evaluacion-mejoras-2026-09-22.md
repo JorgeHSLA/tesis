@@ -147,7 +147,7 @@ Tres ideas que cambian las prioridades:
 1. **El contrato promete algo que el código no hace.** `api-contract.md:510` y el docstring de `routers/progress.py:105` dicen que una lección `run` se completa al terminar el job. `job_runner.py:679-687` solo escribe `last_job_id`, y ningún test lo cubre.
 2. **Re-ejecutar un ejemplo editado pierde el parser** (`jobs.py:117-125`): desaparecen la curva de speedup, las barras comparativas y las observaciones. Es la parte más pedagógica del simulador.
 3. **El cronómetro no corre durante `compiling`.** Un programa que no imprime nada muestra 0:00 toda la ejecución y al final salta de golpe (`jobStore.ts:325`, `useJobSocket.ts:422-427`).
-4. **La salida puede llegar con segundos de retraso aunque cada línea termine en `\n`.** `flush_all()` solo corre tras 100 ms **sin** datos (`job_runner.py:467-474`). Con un goteo constante solo se vacía al llegar a 4 KB, lo que incumple §8.4 del contrato. Es S y no toca el contrato.
+4. ✅ 6b29f57, 5099e7d — **La salida puede llegar con segundos de retraso aunque cada línea termine en `\n`.** `flush_all()` solo corre tras 100 ms **sin** datos (`job_runner.py:467-474`). Con un goteo constante solo se vacía al llegar a 4 KB, lo que incumple §8.4 del contrato. Es S y no toca el contrato.
 5. **La descarga puede no funcionar en Electron** (no se ejecutó, es un riesgo razonado): `API_BASE` es `http://localhost:8000` y la página se sirve desde `file://`. Chromium ignora `download` entre orígenes distintos y `security.ts:50-61` bloquea la navegación http. **Hay que probarlo a mano.**
 6. **La página pública ofrece la v1.0.3** (`site/release.json:2`) mientras la app va por la v1.0.5 (`desktop/package.json:5`). La v1.0.5 es la que activa el catálogo remoto (commit `6b05c1b`), así que quien descargue desde la web podría no tener CU-34/35.
 7. **Resultados dice «Job completado» también para fallidos, cancelados y timeouts** (`ResultsScreen.tsx:146,152`).
@@ -541,10 +541,10 @@ Leyenda:
 | CU-06.1 | Una carga anterior pisa el archivo actual | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
 | CU-06.2 | Subir archivo bloqueado si falla el catálogo | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Simulador: re-ejecución y editor |
 | CU-06.3 | Nombre de archivo validado distinto en front y back | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
-| CU-07.1 | «Compilando» vs. «Ejecutando» (coincide con el contrato) | 🚨 | ◐ | HACER YA | S | Bajo | En vivo y resultados |
+| CU-07.1 | «Compilando» vs. «Ejecutando» (coincide con el contrato) | 🚨 | ◐ | HACER YA ✅ 6d65d04, 82c10fa | S | Bajo | En vivo y resultados |
 | CU-07.2 | Salida sin `\n` retenida | 💡 | ✅ | NO HACER | M | Medio | En vivo y resultados |
 | CU-07.3 | Huecos de salida tras reconectar, sin aviso | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
-| CU-07.4 | El cronómetro se reinicia al volver | 💡 | ✅ | HACER YA | S | Bajo | En vivo y resultados |
+| CU-07.4 | El cronómetro se reinicia al volver | 💡 | ✅ | HACER YA ✅ 6d65d04, 82c10fa | S | Bajo | En vivo y resultados |
 | CU-07.5 | Estado por hilo presentado como medido | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
 | CU-08.1 | Cancelar pisa un fin natural | 💡 | ✅ | SI HAY TIEMPO | S | Medio | Limpieza y reconciliación |
 | CU-08.2 | Cancelar con el WebSocket caído no avisa | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
@@ -554,8 +554,8 @@ Leyenda:
 | CU-09.1 | Mostrar la configuración completa del job | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
 | CU-09.2 | stderr y causa del error completos | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
 | CU-09.3 | Métrica ausente mostrada como 0 (el 0 nace en el backend) | 💡 | ◐ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
-| CU-09.4 | Rótulo «Hilos (PIDs)» engañoso | 💡 | ✅ | HACER YA | S | Bajo | En vivo y resultados |
-| CU-10.1 | Error de descarga no manejado (y posible fallo en Electron) | 💡 | ✅ | HACER YA | S | Bajo | En vivo y resultados |
+| CU-09.4 | Rótulo «Hilos (PIDs)» engañoso | 💡 | ✅ | HACER YA ✅ d370739 | S | Bajo | En vivo y resultados |
+| CU-10.1 | Error de descarga no manejado (y posible fallo en Electron) | 💡 | ✅ | HACER YA ✅ 71eee1a, 82c10fa | S | Bajo | En vivo y resultados |
 | CU-12.1 | Lecciones `viewed`/`run` nunca se completan | 🚨 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
 | CU-12.2 | El quiz ignora `completion_rule` | 💡 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
 | CU-12.3 | Mostrar qué requisito falta | 💡 | ✅ | SI HAY TIEMPO | S-M | Bajo | Requisitos de completitud |
@@ -598,7 +598,7 @@ Leyenda:
 | CU-23.1 | `--check` escribe en la base | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | CLI del contenido base |
 | CU-23.2 | Conflictos de `order` al actualizar/restablecer | 🚨 | ✅ | SI HAY TIEMPO | M | Medio | CLI del contenido base |
 | CU-23.3 | El reset no deja el estado base | 🚨 | ✅ | SI HAY TIEMPO | S-M | Medio | CLI del contenido base |
-| CU-24.1 | Un error del parser convierte un éxito en fallo | 💡 | ✅ | HACER YA | S | Bajo | Limpieza y reconciliación |
+| CU-24.1 | Un error del parser convierte un éxito en fallo | 💡 | ✅ | HACER YA ✅ 6b29f57 | S | Bajo | Limpieza y reconciliación |
 | CU-24.2 | El drainer puede morir sin detectarse | 💡 | ◐ | NO HACER | M | Medio | Limpieza y reconciliación |
 | CU-24.3 | Limpieza parcial al fallar la preparación | 💡 | ◐ | SI HAY TIEMPO | S | Bajo | Limpieza y reconciliación |
 | CU-24.4 | Cupo liberado antes de limpiar | 💡 | ✅ | NO HACER | M | Medio | Limpieza y reconciliación |
@@ -634,7 +634,7 @@ Leyenda:
 | CU-32.1 | Guardar configuraciones sin ejecutar | 🚨 | ✅ | HACER YA | M | Bajo | Análisis de ejecuciones |
 | CU-32.2 | Re-ejecutar recupera hilos y timeout | 🚨 | ✅ | HACER YA | S | Bajo | Simulador: re-ejecución y editor |
 | CU-32.3 | Recorte silencioso de hilos | 💡 | ✅ | HACER YA | S | Bajo | Simulador: re-ejecución y editor |
-| CU-33.1 | QA versionada de instalación (y la web ofrece v1.0.3) | 💡 | ✅ | HACER YA | S | Bajo | Escritorio y salud |
+| CU-33.1 | QA versionada de instalación (y la web ofrece v1.0.3) | 💡 | ✅ | HACER YA ◐ 2ff51c1 (web a v1.0.5; falta la QA de instalación) | S | Bajo | Escritorio y salud |
 | CU-34.1 | Detalle de publicación (endpoint listo, sin pantalla) | 🚨 | ✅ | HACER YA | M | Bajo | Catálogo y publicación |
 | CU-34.2 | El detalle usa una caché de 15 min | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Catálogo y publicación |
 | CU-34.3 | `local_only` oculta publicaciones (filtro del front) | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Catálogo y publicación |
