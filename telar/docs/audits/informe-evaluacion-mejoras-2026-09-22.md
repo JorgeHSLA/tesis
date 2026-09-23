@@ -561,38 +561,38 @@ Leyenda:
 | CU-12.3 | Mostrar qué requisito falta | 💡 | ✅ | SI HAY TIEMPO | S-M | Bajo | Requisitos de completitud |
 | CU-12.4 | Progreso general vs. por módulo incoherente | 💡 | ✅ | HACER YA ✅ b638029, f92d9fa | S | Bajo | Disponibilidad de lecciones |
 | CU-13.1 | Aviso de cambios sin guardar (modal de módulo) | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
-| CU-13.2 | Separar creación de publicación | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
+| CU-13.2 | Separar creación de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-13.3 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
 | CU-14.1 | Aviso de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
-| CU-14.2 | Separar edición de publicación | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
+| CU-14.2 | Separar edición de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-14.3 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
 | CU-15.1 | Reorden concurrente sin serializar | 💡 | ◐ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
-| CU-15.2 | Separar el orden en edición del publicado | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
+| CU-15.2 | Separar el orden en edición del publicado | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-16.1 | Eliminar módulo con sus lecciones | 🚨 | ✅ | SI HAY TIEMPO | M | Medio | Huecos de UI en Autoría |
 | CU-16.2 | Advertir del contenido asociado | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Huecos de UI en Autoría |
-| CU-16.3 | Separar eliminación de publicación | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
+| CU-16.3 | Separar eliminación de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-17.1 | Crear lección sin ejemplo | 🚨 | ✅ | HACER YA | S | Bajo | Huecos de UI en Autoría |
 | CU-17.2 | Configurar regla de completitud y video | 🚨 | ✅ | HACER YA | S-M | Bajo | Huecos de UI en Autoría |
 | CU-17.3 | Aviso completo de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
 | CU-17.4 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
-| CU-17.5 | Separar creación de publicación | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
+| CU-17.5 | Separar creación de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-18.1 | Guardar pisa video, regla y `enabled` | 🚨 | ✅ | HACER YA ✅ 1dc3950 | S | Bajo | PUT que reemplaza la lección |
 | CU-18.2 | Agregar ejemplo a lección sin ejemplo | 🚨 | ✅ | HACER YA | M | Bajo | Huecos de UI en Autoría |
 | CU-18.3 | Eliminar el quiz (backend listo, sin botón) | 🚨 | ✅ | HACER YA | S | Bajo | Huecos de UI en Autoría |
 | CU-18.4 | Aviso completo de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
 | CU-18.5 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
-| CU-18.6 | Separar edición de publicación | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
+| CU-18.6 | Separar edición de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-19.1 | Recolocar las demás lecciones al mover una | 🚨 | ✅ | HACER YA | M | Bajo | Huecos de UI en Autoría |
 | CU-19.2 | Mover no debe tocar otros datos | 🚨 | ✅ | HACER YA ✅ 1dc3950 | S | Bajo | PUT que reemplaza la lección |
 | CU-19.3 | Posición decimal aceptada (2.5 → 2) | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
-| CU-19.4 | Separar reorden de publicación | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
+| CU-19.4 | Separar reorden de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-20.1 | Advertencia fija «ejemplo y quiz» | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Huecos de UI en Autoría |
-| CU-20.2 | Separar eliminación de publicación | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
+| CU-20.2 | Separar eliminación de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-21.1 | Guardado del ejemplo en dos pasos no atómico | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Huecos de UI en Autoría |
 | CU-21.2 | Aviso de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
 | CU-21.3 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
-| CU-21.4 | Separar edición de publicación | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
-| CU-22.1 | Probar un borrador sin publicarlo | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
+| CU-21.4 | Separar edición de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
+| CU-22.1 | Probar un borrador sin publicarlo | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-22.2 | La prueba del admin toca `last_job_id` | 💡 | ✅ | HACER YA ✅ b638029, f92d9fa | S | Bajo | Requisitos de completitud |
 | CU-22.3 | Carrera en el selector de ejemplos | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
 | CU-23.1 | `--check` escribe en la base | 💡 | ✅ | SI HAY TIEMPO ✅ 0b7b607, f0d9980 | S | Bajo | CLI del contenido base |
@@ -635,29 +635,29 @@ Leyenda:
 | CU-32.2 | Re-ejecutar recupera hilos y timeout | 🚨 | ✅ | HACER YA ✅ 1d17085 | S | Bajo | Simulador: re-ejecución y editor |
 | CU-32.3 | Recorte silencioso de hilos | 💡 | ✅ | HACER YA ✅ 1d17085, 32f83ad | S | Bajo | Simulador: re-ejecución y editor |
 | CU-33.1 | QA versionada de instalación (y la web ofrece v1.0.3) | 💡 | ✅ | HACER YA ◐ 2ff51c1 (web a v1.0.5; falta la QA de instalación) | S | Bajo | Escritorio y salud |
-| CU-34.1 | Detalle de publicación (endpoint listo, sin pantalla) | 🚨 | ✅ | HACER YA | M | Bajo | Catálogo y publicación |
-| CU-34.2 | El detalle usa una caché de 15 min | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Catálogo y publicación |
+| CU-34.1 | Detalle de publicación (endpoint listo, sin pantalla) | 🚨 | ✅ | HACER YA ✅ 1cddb1a | M | Bajo | Catálogo y publicación |
+| CU-34.2 | El detalle usa una caché de 15 min | 💡 | ✅ | SI HAY TIEMPO ✅ 8df6234 | S | Bajo | Catálogo y publicación |
 | CU-34.3 | `local_only` oculta publicaciones (filtro del front) | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Catálogo y publicación |
 | CU-35.1 | Progreso heredado por `lesson_id` (nota) | 📝 | ✅ | NO HACER | L | Alto | Identidad del progreso |
-| CU-36.1 | Separar versión de trabajo de Aprender | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
+| CU-36.1 | Separar versión de trabajo de Aprender | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-36.2 | El import no fija la versión | 💡 | ◐ | SI HAY TIEMPO | S | Bajo | Catálogo y publicación |
 | CU-36.3 | Copias bifurcadas sin origen | 💡 | ✅ | NO HACER | M | Medio | Catálogo y publicación |
-| CU-37.1 | Validar la publicación como el importador | 🚨 | ✅ | HACER YA | S-M | Bajo | Catálogo y publicación |
+| CU-37.1 | Validar la publicación como el importador | 🚨 | ✅ | HACER YA ✅ 8df6234 99585b7 | S-M | Bajo | Catálogo y publicación |
 | CU-37.2 | Confirmar lo que se ensayó (checksum) | 💡 | ✅ | NO HACER | M | Medio | Catálogo y publicación |
-| CU-37.3 | Reintentar tras fallo del índice | 💡 | ✅ | HACER YA | S | Bajo | Catálogo y publicación |
-| CU-37.4 | Reconciliar publicación remota y estado local | 💡 | ◐ | HACER YA | S | Bajo | Limpieza y reconciliación |
+| CU-37.3 | Reintentar tras fallo del índice | 💡 | ✅ | HACER YA ✅ 8df6234 4f969ae | S | Bajo | Catálogo y publicación |
+| CU-37.4 | Reconciliar publicación remota y estado local | 💡 | ◐ | HACER YA ✅ 8df6234 99585b7 | S | Bajo | Limpieza y reconciliación |
 | CU-38.1 | Lecciones archivadas en Aprender y en los totales | 🚨 | ✅ | HACER YA ✅ b638029, f92d9fa | S | Bajo | Disponibilidad de lecciones |
 | CU-38.2 | Lección nueva hereda progreso ajeno | 💡 | ✅ | NO HACER | L | Alto | Identidad del progreso |
 | CU-38.3 | El preview dice «conservado» y se recalifica | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Catálogo y publicación |
 | CU-39.1 | Entidad curso | 🚨 | ✅ | RECLASIFICAR | L | Alto | Entidad curso |
 | CU-39.2 | Asociar módulos a un curso | 🚨 | ✅ | RECLASIFICAR | L | Alto | Entidad curso |
-| CU-39.3 | Curso en edición separado | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
+| CU-39.3 | Curso en edición separado | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-39.4 | Aviso de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
 | CU-40.1 | Información general editable del curso | 🚨 | ✅ | RECLASIFICAR | M | Medio | Entidad curso |
 | CU-40.2 | Aviso de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
-| CU-40.3 | Información editada separada de la publicada | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
+| CU-40.3 | Información editada separada de la publicada | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-41.1 | Retirar una publicación del catálogo | 🚨 | ✅ | SI HAY TIEMPO | M | Medio | Catálogo y publicación |
-| CU-41.2 | Actualizar no revalida el índice | 🚨 | ◐ | HACER YA | S | Bajo | Catálogo y publicación |
+| CU-41.2 | Actualizar no revalida el índice | 🚨 | ◐ | HACER YA ✅ 8df6234 | S | Bajo | Catálogo y publicación |
 | CU-41.3 | Coordinar fallos entre borrado local y retirada remota | 💡 | ✅ | NO HACER | M | Medio | Limpieza y reconciliación |
 
 **Recuento de veredictos:** **48** HACER YA · **54** SI HAY TIEMPO · **13** NO HACER · **18** RECLASIFICAR.
