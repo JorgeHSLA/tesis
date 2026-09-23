@@ -283,3 +283,15 @@ def test_modules_no_cuenta_completada_archivada(cliente):
     progreso = cliente.get("/api/v1/progress").json()["data"]["summary"]
     assert progreso["lessons_completed"] == despues["lessons_completed"]
     assert progreso["lessons_enabled"] == despues["lessons_enabled"]
+
+
+def test_anterior_siguiente_saltan_la_leccion_deshabilitada(cliente):
+    """S2: la ruta lineal usa la misma regla que el progreso."""
+    leccion = cliente.get(f"/api/v1/lessons/{LECCION}").json()["data"]
+    anterior, siguiente = leccion["prev_lesson_id"], leccion["next_lesson_id"]
+    assert anterior is not None and siguiente is not None
+    _ajustar(cliente, LECCION, enabled=False)
+    previa = cliente.get(f"/api/v1/lessons/{anterior}").json()["data"]
+    assert previa["next_lesson_id"] == siguiente
+    posterior = cliente.get(f"/api/v1/lessons/{siguiente}").json()["data"]
+    assert posterior["prev_lesson_id"] == anterior

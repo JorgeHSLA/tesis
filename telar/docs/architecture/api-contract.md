@@ -366,6 +366,9 @@ pinte con una sola llamada.
   `archived: true` marca una lección que desapareció de una versión posterior de
   su módulo: sigue siendo legible y conserva su progreso, pero queda fuera de la
   ruta lineal (`prev_lesson_id`/`next_lesson_id` la saltan) — §11.6.
+- **(S2)** La ruta lineal sigue la regla de disponibilidad de §4.1: también
+  salta las lecciones **deshabilitadas**, y una lección que no cuenta
+  (deshabilitada o archivada) tiene `prev_lesson_id` y `next_lesson_id` `null`.
 - Errores: `404 LESSON_NOT_FOUND`.
 
 ---
