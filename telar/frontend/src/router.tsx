@@ -17,6 +17,7 @@ const HomeScreen = lazy(() => import('./features/home/HomeScreen'))
 const SimulatorScreen = lazy(() => import('./features/simulator/SimulatorScreen'))
 const ResultsList = lazy(() => import('./features/results/ResultsList'))
 const ResultsScreen = lazy(() => import('./features/results/ResultsScreen'))
+const ResultsCompare = lazy(() => import('./features/results/ResultsCompare'))
 const CatalogScreen = lazy(() => import('./features/catalog/CatalogScreen'))
 const ModulesScreen = lazy(() => import('./features/modules/ModulesScreen'))
 const LearnScreen = lazy(() => import('./features/learn/LearnScreen'))
@@ -67,6 +68,7 @@ export const router = createHashRouter([
       { path: 'simulador', element: screen(SimulatorScreen) },
       { path: 'simulador/:jobId', element: screen(SimulatorScreen) },
       { path: 'resultados', element: screen(ResultsList) },
+      { path: 'resultados/comparar', element: screen(ResultsCompare) },
       { path: 'resultados/:jobId', element: screen(ResultsScreen) },
       { path: 'aprender', element: screen(CatalogScreen) },
       { path: 'aprender/:leccionId', element: screen(LearnScreen) },
