@@ -4,6 +4,7 @@
 import { app, BrowserWindow, Menu } from 'electron'
 import path from 'node:path'
 import { registerDockerIpc, runDockerAction } from './ipc-docker'
+import { attachLoadFailureHandling } from './load-failure'
 import { hardenSession, attachNavigationGuards } from './security'
 import {
   DEV_SERVER_URL,
@@ -40,15 +41,26 @@ function createWindow(): BrowserWindow {
   })
   win.once('ready-to-show', () => win.show())
   attachNavigationGuards(win) // §7.2
-  if (!app.isPackaged && DEV_SERVER_URL) {
-    void win.loadURL(DEV_SERVER_URL)
-    // DevTools solo si se pide con TELAR_DEVTOOLS=1; por defecto, ventana limpia.
-    if (process.env.TELAR_DEVTOOLS === '1') win.webContents.openDevTools({ mode: 'detach' })
-  } else {
-    void win.loadFile(path.join(process.resourcesPath, PACKAGED_FRONTEND_SUBDIR, 'index.html'))
-    // HashRouter ⇒ las rutas viven tras '#', loadFile no necesita ajustes por ruta
+  const load = () => loadInterface(win)
+  attachLoadFailureHandling(win, load) // CU-27.5: página de error local + «Reintentar»
+  load()
+  // DevTools solo si se pide con TELAR_DEVTOOLS=1; por defecto, ventana limpia.
+  if (!app.isPackaged && DEV_SERVER_URL && process.env.TELAR_DEVTOOLS === '1') {
+    win.webContents.openDevTools({ mode: 'detach' })
   }
   return win
+}
+
+/** Carga la interfaz: dev-server en desarrollo, build empaquetado en prod. El
+ *  rechazo de la promesa se ignora a propósito: el fallo lo atiende
+ *  `did-fail-load` en load-failure.ts. */
+function loadInterface(win: BrowserWindow): void {
+  const loading =
+    !app.isPackaged && DEV_SERVER_URL
+      ? win.loadURL(DEV_SERVER_URL)
+      : // HashRouter ⇒ las rutas viven tras '#', loadFile no necesita ajustes por ruta
+        win.loadFile(path.join(process.resourcesPath, PACKAGED_FRONTEND_SUBDIR, 'index.html'))
+  loading.catch(() => {})
 }
 
 // Single instance lock: la segunda instancia enfoca la ventana existente

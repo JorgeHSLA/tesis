@@ -627,8 +627,25 @@ salir → before-quit → compose:stop (timeout SHUTDOWN_TIMEOUT_MS) → app.qui
 **El autoarranque es de UNA SOLA VEZ por sesión de app** (guard `autoStarted` en
 `useDockerStatus`). Sin ese guard, el re-poll de 10 s volvería a levantar lo que el usuario
 acaba de parar con `Detener`, dejando ese control inservible: detener es una decisión
-explícita y se respeta hasta el siguiente arranque. Tampoco se intenta con Docker ausente
-(2c), donde sólo produciría un error.
+explícita y se respeta hasta el siguiente arranque. Con Docker ausente (2c) no se intenta,
+pero **queda pendiente** (CU-27.2, 2026-09-22): el primer sondeo que encuentra el daemon lo
+hace. `Detener` o `Levantar` pulsados por el usuario lo dan por resuelto.
+
+**Qué es «listo»** (CU-27.1): el servicio `backend` en `running` con `health: healthy` (o sin
+healthcheck declarado). `starting` se muestra como «verificando…» sin disparar nada;
+`unhealthy` o un backend ausente cuentan como caídos aunque haya otros contenedores
+corriendo. Con el backend listo, el pie consulta `runner_image_present` de `/system` y, si
+es `false`, avisa «falta la imagen del runner» con **«Reintentar preparación»**
+(`dockerUp`, CU-27.3); `/system` se vuelve a pedir al terminar cada preparación. El
+`error` saneado de `dockerStatus` (Docker no instalado, permisos…) se muestra en el panel
+(CU-27.4).
+
+**Si la interfaz no carga** (CU-27.5): `did-fail-load` del frame principal (salvo
+`ERR_ABORTED`) o `render-process-gone` (salvo `clean-exit`) cargan una página de error local
+sin scripts (`userData/error-carga.html`) con la causa y un enlace «Reintentar». El enlace
+es un fragmento (`#reintentar`): `main` lo detecta con `did-navigate-in-page` y vuelve a
+cargar la interfaz (`src/load-failure.ts`). Tiene que ser `file://`: en un `data:` Chromium
+no navega al pulsar el fragmento.
 
 El punto de estado del rail es un **disparador**: hover muestra el estado, clic abre un panel
 con `Levantar`/`Detener` según corresponda. (Hasta 2026-08-26 el botón vivía dentro de
