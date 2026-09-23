@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="drawio" version="26.0.0">
+  <diagram name="C3 - Componentes">
+    <mxGraphModel dx="3080" dy="1640" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3080" pageHeight="1640" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="titulo" value="Telar &#183; Diagrama de componentes (C4 nivel 3)" style="text;html=1;fontSize=26;fontStyle=1;align=left;verticalAlign=middle;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="1400" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="usuario" value="&lt;b&gt;Usuario&lt;/b&gt;&#xa;[Persona: Estudiante]&#xa;&#xa;Quiere aprender qu&#233; es paralelismo y concurrencia" style="shape=mxgraph.c4.person2;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#083F75;strokeColor=#06315C;" vertex="1" parent="1">
+          <mxGeometry x="40" y="465" width="200" height="180" as="geometry" />
+        </mxCell>
+
+        <mxCell id="b_telar" value="Telar&#xa;[Sistema de software]" style="rounded=0;html=1;whiteSpace=wrap;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#777777;strokeWidth=2;verticalAlign=bottom;align=left;spacingLeft=24;spacingBottom=14;fontSize=16;fontStyle=1;fontColor=#666666;container=1;pointerEvents=0;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry x="300" y="180" width="2380" height="1140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="b_electron" value="Electron&#xa;[Contenedor: Electron 43 + React/TypeScript]" style="rounded=0;html=1;whiteSpace=wrap;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#999999;verticalAlign=bottom;align=left;spacingLeft=20;spacingBottom=12;fontSize=14;fontStyle=1;fontColor=#777777;container=1;pointerEvents=0;collapsible=0;" vertex="1" parent="b_telar">
+          <mxGeometry x="40" y="240" width="1040" height="540" as="geometry" />
+        </mxCell>
+        <mxCell id="c_gestor" value="&lt;b&gt;Gestor de Ventana y Ciclo de Vida&lt;/b&gt;&#xa;[M&#243;dulo: Electron app]&#xa;&#xa;Crea y muestra la ventana, single-instance, carga la UI desde disco, gobierna arranque/cierre." style="rounded=1;arcSize=10;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#63BEF2;strokeColor=#2086C9;" vertex="1" parent="b_electron">
+          <mxGeometry x="40" y="60" width="240" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="c_ui" value="&lt;b&gt;Aplicaci&#243;n de UI&lt;/b&gt;&#xa;[M&#243;dulo: SPA React/TypeScript]&#xa;&#xa;Interfaz de cursos y simulador; consume la API segura y habla con el backend." style="rounded=1;arcSize=10;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#63BEF2;strokeColor=#2086C9;" vertex="1" parent="b_electron">
+          <mxGeometry x="440" y="60" width="240" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="c_guardian" value="&lt;b&gt;Guardi&#225;n de Seguridad&lt;/b&gt;&#xa;[M&#243;dulo: Electron session]&#xa;&#xa;CSP, whitelist de navegaci&#243;n, bloqueo de ventanas nuevas y permisos." style="rounded=1;arcSize=10;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#63BEF2;strokeColor=#2086C9;" vertex="1" parent="b_electron">
+          <mxGeometry x="40" y="290" width="240" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="c_bridge" value="&lt;b&gt;Puente de API Segura&lt;/b&gt;&#xa;[M&#243;dulo: contextBridge]&#xa;&#xa;Expone una API acotada (window.telar) al Renderer; a&#237;sla el IPC crudo." style="rounded=1;arcSize=10;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#63BEF2;strokeColor=#2086C9;" vertex="1" parent="b_electron">
+          <mxGeometry x="440" y="290" width="240" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="c_ipcdocker" value="&lt;b&gt;Controlador de Docker&lt;/b&gt;&#xa;[M&#243;dulo: Electron IPC + child_process]&#xa;&#xa;Orquesta el stack (compose up/stop/ps) con una whitelist cerrada, sin shell." style="rounded=1;arcSize=10;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#63BEF2;strokeColor=#2086C9;" vertex="1" parent="b_electron">
+          <mxGeometry x="760" y="290" width="240" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="b_api" value="FastAPI&#xa;[Contenedor: Python 3.12 + FastAPI + uvicorn]" style="rounded=0;html=1;whiteSpace=wrap;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#999999;verticalAlign=bottom;align=left;spacingLeft=20;spacingBottom=12;fontSize=14;fontStyle=1;fontColor=#777777;container=1;pointerEvents=0;collapsible=0;" vertex="1" parent="b_telar">
+          <mxGeometry x="1340" y="240" width="1000" height="540" as="geometry" />
+        </mxCell>
+        <mxCell id="c_ctrl" value="&lt;b&gt;Controladores&lt;/b&gt;&#xa;[M&#243;dulo: APIRouter]&#xa;&#xa;Endpoints REST; validan, envelope, delegan." style="rounded=1;arcSize=10;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#63BEF2;strokeColor=#2086C9;" vertex="1" parent="b_api">
+          <mxGeometry x="40" y="60" width="240" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="c_ws" value="&lt;b&gt;Gateway WebSocket&lt;/b&gt;&#xa;[M&#243;dulo: FastAPI WS]&#xa;&#xa;Stream de logs/m&#233;tricas en vivo." style="rounded=1;arcSize=10;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#63BEF2;strokeColor=#2086C9;" vertex="1" parent="b_api">
+          <mxGeometry x="40" y="290" width="240" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="c_svc" value="&lt;b&gt;Capa de Servicio&lt;/b&gt;&#xa;[M&#243;dulo: services]&#xa;&#xa;Toda la l&#243;gica: orquestaci&#243;n de jobs, cursos, quizzes, progreso, parseo de salida." style="rounded=1;arcSize=10;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#63BEF2;strokeColor=#2086C9;" vertex="1" parent="b_api">
+          <mxGeometry x="380" y="175" width="240" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="c_repo" value="&lt;b&gt;Repositorios&lt;/b&gt;&#xa;[Repository &#183; aiosqlite]&#xa;&#xa;Acceso SQL + write_lock." style="rounded=1;arcSize=10;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#63BEF2;strokeColor=#2086C9;" vertex="1" parent="b_api">
+          <mxGeometry x="720" y="60" width="240" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="c_docker" value="&lt;b&gt;Servicio Docker&lt;/b&gt;&#xa;[M&#243;dulo: DockerService &#183; docker-py]&#xa;&#xa;Crea/mata el runner ef&#237;mero (sandbox). &#218;nico que habla con el daemon." style="rounded=1;arcSize=10;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#63BEF2;strokeColor=#2086C9;" vertex="1" parent="b_api">
+          <mxGeometry x="720" y="290" width="240" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="db" value="&lt;b&gt;Database&lt;/b&gt;&#xa;[Contenedor: SQLite]&#xa;Los jobs, intentos de quiz y progreso" style="shape=cylinder3;size=15;boundedLbl=1;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#23A2D9;strokeColor=#0E7DAD;" vertex="1" parent="b_telar">
+          <mxGeometry x="2060" y="40" width="240" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="runner" value="&lt;b&gt;Runner&lt;/b&gt;&#xa;[Contenedor: Docker &#183; python:3.12-slim + PyOMP]&#xa;&#xa;Donde se ejecutar&#225; cada c&#243;digo y configuraciones que nos d&#233; el usuario" style="rounded=1;arcSize=10;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#23A2D9;strokeColor=#0E7DAD;" vertex="1" parent="b_telar">
+          <mxGeometry x="2060" y="860" width="240" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cloud" value="&lt;b&gt;Servidor de cursos&lt;/b&gt;&#xa;[Sistema externo: servicio en nube]&#xa;&#xa;Tiene el contenido actualizado de cursos de la aplicaci&#243;n" style="rounded=1;arcSize=10;html=1;whiteSpace=wrap;fontSize=12;fontColor=#ffffff;align=center;fillColor=#8C8496;strokeColor=#736782;" vertex="1" parent="1">
+          <mxGeometry x="2740" y="480" width="280" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r_user_gestor" value="Usa" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="usuario" target="c_gestor">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r_gestor_ui" value="Carga la parte del front" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_gestor" target="c_ui">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r_gestor_guardian" value="Configura" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_gestor" target="c_guardian">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r_ui_bridge" value="Llama a window.telar" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_ui" target="c_bridge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r_bridge_ipcdocker" value="Reenv&#237;a por IPC" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_bridge" target="c_ipcdocker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r_ui_ctrl" value="HTTP REST&#xa;(crear jobs)" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.35;exitDx=0;exitDy=0;entryX=0;entryY=0.35;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_ui" target="c_ctrl">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r_ui_ws" value="WebSocket&#xa;(logs/m&#233;tricas en vivo)" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_ui" target="c_ws">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1440" y="600" />
+              <mxPoint x="1440" y="755" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r_ipcdocker_api" value="Hace docker compose up&#xa;(sube el contenedor de FastAPI)" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;dashed=1;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.759;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_ipcdocker" target="b_api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r_ctrl_svc" value="Delega la l&#243;gica" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.2;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_ctrl" target="c_svc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r_ws_svc" value="Suscribe al job" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.8;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_ws" target="c_svc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r_svc_repo" value="Lee y persiste" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.8;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_svc" target="c_repo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r_svc_docker" value="Ejecuta el job" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.2;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_svc" target="c_docker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r_repo_db" value="SQL v&#237;a aiosqlite" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_repo" target="db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="0" y="-30" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r_svc_cloud" value="Descarga &#237;ndice y bundles&#xa;(HTTPS an&#243;nimo)" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.9;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_svc" target="cloud">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2690" y="670" />
+              <mxPoint x="2690" y="615" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r_docker_runner" value="Crea un contenedor ef&#237;mero&#xa;por job (v&#237;a el socket de Docker)" style="endArrow=blockThin;endFill=1;endSize=10;html=1;fontSize=11;fontColor=#404040;strokeColor=#828282;labelBackgroundColor=#ffffff;rounded=0;edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_docker" target="runner">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="0" y="40" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="leyenda" value="Leyenda &#183; notaci&#243;n C4" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=12;spacingTop=4;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1380" width="520" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="lg1" value="" style="rounded=1;arcSize=10;html=1;fillColor=#083F75;strokeColor=#06315C;" vertex="1" parent="leyenda">
+          <mxGeometry x="20" y="40" width="40" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg1t" value="Persona (actor fuera del sistema)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="leyenda">
+          <mxGeometry x="80" y="40" width="420" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg2" value="" style="rounded=1;arcSize=10;html=1;fillColor=#23A2D9;strokeColor=#0E7DAD;" vertex="1" parent="leyenda">
+          <mxGeometry x="20" y="70" width="40" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg2t" value="Contenedor (unidad desplegable: Runner, base de datos)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="leyenda">
+          <mxGeometry x="80" y="70" width="420" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg3" value="" style="rounded=1;arcSize=10;html=1;fillColor=#63BEF2;strokeColor=#2086C9;" vertex="1" parent="leyenda">
+          <mxGeometry x="20" y="100" width="40" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg3t" value="Componente (m&#243;dulo dentro de un contenedor) &#183; nivel C3" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="leyenda">
+          <mxGeometry x="80" y="100" width="420" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg4" value="" style="rounded=1;arcSize=10;html=1;fillColor=#8C8496;strokeColor=#736782;" vertex="1" parent="leyenda">
+          <mxGeometry x="20" y="130" width="40" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg4t" value="Sistema externo (fuera del l&#237;mite de Telar)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="leyenda">
+          <mxGeometry x="80" y="130" width="420" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg5" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#777777;dashed=1;dashPattern=8 4;strokeWidth=2;" vertex="1" parent="leyenda">
+          <mxGeometry x="20" y="160" width="40" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg5t" value="L&#237;mite de sistema o de contenedor" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="leyenda">
+          <mxGeometry x="80" y="160" width="420" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

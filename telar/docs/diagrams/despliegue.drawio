@@ -1,0 +1,176 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Despliegue" id="0">
+    <mxGraphModel dx="2009" dy="1163" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2480" pageHeight="1240" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="titulo" parent="1" style="text;html=1;fontSize=26;fontStyle=1;align=left;verticalAlign=middle;fontColor=#333333;" value="Telar · Diagrama de despliegue" vertex="1">
+          <mxGeometry height="40" width="1200" x="40" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitulo" parent="1" style="text;html=1;fontSize=13;align=left;verticalAlign=top;fontColor=#666666;whiteSpace=wrap;" value="Tres nodos de despliegue. Los dos equipos ejecutan la MISMA pila: la diferencia está en la imagen del backend y en dos variables de entorno." vertex="1">
+          <mxGeometry height="40" width="1600" x="40" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="zona_admin" parent="1" style="swimlane;startSize=44;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#9673a6;strokeWidth=2;fontSize=15;fontStyle=1;fontColor=#6a4c8c;align=center;verticalAlign=middle;pointerEvents=0;" value="Equipo del ADMINISTRADOR (autor de contenido)" vertex="1">
+          <mxGeometry height="720" width="640" x="40" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="adm_ui" parent="zona_admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;verticalAlign=middle;align=center;" value="&lt;b&gt;Telar · shell Electron&lt;/b&gt;&#xa;Carga el build de Vite empaquetado&#xa;por file:// (no hay nginx)" vertex="1">
+          <mxGeometry height="110" width="300" x="20" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="adm_cred" parent="zona_admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;verticalAlign=middle;align=center;" value="&lt;b&gt;Clave de cuenta de servicio&lt;/b&gt;&#xa;JSON en disco · permisos 0600&#xa;Solo existe en este equipo" vertex="1">
+          <mxGeometry height="110" width="280" x="340" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="adm_docker" parent="zona_admin" style="swimlane;startSize=36;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#999999;fontSize=12;fontStyle=2;fontColor=#666666;align=left;spacingLeft=14;verticalAlign=middle;" value="Docker Engine" vertex="1">
+          <mxGeometry height="400" width="600" x="20" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="adm_api" parent="adm_docker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;verticalAlign=middle;align=center;" value="&lt;b&gt;backend · imagen ADMIN&lt;/b&gt;&#xa;FastAPI + uvicorn · 127.0.0.1:8000&#xa;TELAR_ADMIN_BUILD=1 · TELAR_ADMIN_MODE=1&#xa;monta /var/run/docker.sock" vertex="1">
+          <mxGeometry height="130" width="560" x="20" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="adm_runner" parent="adm_docker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;dashPattern=8 4;fontSize=11;verticalAlign=middle;align=center;" value="&lt;b&gt;runner efímero&lt;/b&gt;&#xa;uno por job&#xa;network none · no-root&#xa;read-only · 512 m" vertex="1">
+          <mxGeometry height="120" width="160" x="20" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="adm_subs" parent="adm_docker" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" value="&lt;b&gt;telar_submissions&lt;/b&gt;&#xa;código del job&#xa;montado :ro" vertex="1">
+          <mxGeometry height="120" width="160" x="220" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="adm_data" parent="adm_docker" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" value="&lt;b&gt;telar_data&lt;/b&gt;&#xa;SQLite (WAL)&#xa;progreso y jobs" vertex="1">
+          <mxGeometry height="120" width="160" x="420" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="zona_nube" parent="1" style="swimlane;startSize=44;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#82b366;strokeWidth=2;fontSize=15;fontStyle=1;fontColor=#4a7a35;align=center;verticalAlign=middle;pointerEvents=0;" value="Google Cloud Storage · bucket «clasestelar» (lectura pública)" vertex="1">
+          <mxGeometry height="350" width="480" x="1000" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="gcs_index" parent="zona_nube" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" value="&lt;b&gt;modulos/index.json&lt;/b&gt;&#xa;MUTABLE · se reescribe con CAS&#xa;Cache-Control: no-cache" vertex="1">
+          <mxGeometry height="110" width="440" x="20" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="gcs_bundle" parent="zona_nube" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" value="&lt;b&gt;modulos/&amp;lt;module_id&amp;gt;/v&amp;lt;N&amp;gt;.json&lt;/b&gt;&#xa;INMUTABLE · nunca se reescribe&#xa;Cache-Control: max-age=31536000" vertex="1">
+          <mxGeometry height="110" width="440" x="20" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="zona_est" parent="1" style="swimlane;startSize=44;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#6c8ebf;strokeWidth=2;fontSize=15;fontStyle=1;fontColor=#3d5a80;align=center;verticalAlign=middle;pointerEvents=0;" value="Equipo del ESTUDIANTE" vertex="1">
+          <mxGeometry height="720" width="640" x="1800" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="est_ui" parent="zona_est" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;verticalAlign=middle;align=center;" value="&lt;b&gt;Telar · shell Electron&lt;/b&gt;&#xa;Carga el build de Vite empaquetado&#xa;por file:// (no hay nginx)" vertex="1">
+          <mxGeometry height="110" width="300" x="20" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="est_nota" parent="zona_est" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=20;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" value="&lt;b&gt;Sin credencial&lt;/b&gt;&#xa;Este equipo nunca guarda una clave.&#xa;Lee el bucket de forma anónima." vertex="1">
+          <mxGeometry height="110" width="280" x="340" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="est_docker" parent="zona_est" style="swimlane;startSize=36;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#999999;fontSize=12;fontStyle=2;fontColor=#666666;align=left;spacingLeft=14;verticalAlign=middle;" value="Docker Engine" vertex="1">
+          <mxGeometry height="400" width="600" x="20" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="est_api" parent="est_docker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;verticalAlign=middle;align=center;" value="&lt;b&gt;backend · imagen ESTUDIANTE&lt;/b&gt;&#xa;FastAPI + uvicorn · 127.0.0.1:8000&#xa;Los routers admin NO existen en la imagen&#xa;→ /api/v1/admin/* responde 404" vertex="1">
+          <mxGeometry height="130" width="560" x="20" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="est_runner" parent="est_docker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;dashPattern=8 4;fontSize=11;verticalAlign=middle;align=center;" value="&lt;b&gt;runner efímero&lt;/b&gt;&#xa;uno por job&#xa;network none · no-root&#xa;read-only · 512 m" vertex="1">
+          <mxGeometry height="120" width="160" x="20" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="est_subs" parent="est_docker" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" value="&lt;b&gt;telar_submissions&lt;/b&gt;&#xa;código del job&#xa;montado :ro" vertex="1">
+          <mxGeometry height="120" width="160" x="220" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="est_data" parent="est_docker" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" value="&lt;b&gt;telar_data&lt;/b&gt;&#xa;SQLite (WAL)&#xa;progreso y jobs" vertex="1">
+          <mxGeometry height="120" width="160" x="420" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="e_adm_ui_api" edge="1" parent="1" source="adm_ui" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#4d4d4d;exitX=0.6;exitY=1;exitDx=0;exitDy=0;entryX=0.2857;entryY=0;entryDx=0;entryDy=0;" target="adm_api" value="HTTP + WebSocket&#xa;127.0.0.1:8000">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_adm_ui_docker" edge="1" parent="1" source="adm_ui" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#9673a6;dashed=1;exitX=0.2;exitY=1;exitDx=0;exitDy=0;entryX=0.1;entryY=0;entryDx=0;entryDy=0;" target="adm_docker" value="IPC con whitelist cerrada&#xa;docker compose up · stop · ps">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint y="-50" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_adm_cred_api" edge="1" parent="1" source="adm_cred" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#9673a6;dashed=1;exitX=0.643;exitY=1;exitDx=0;exitDy=0;entryX=0.857;entryY=0;entryDx=0;entryDy=0;" target="adm_api" value="TELAR_GCS_CREDENTIALS">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint y="-25" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_adm_api_runner" edge="1" parent="1" source="adm_api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#4d4d4d;exitX=0.1429;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="adm_runner" value="docker-py: crea,&#xa;arranca, mata">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_adm_api_subs" edge="1" parent="1" source="adm_api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#4d4d4d;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="adm_subs" value="escribe main.py">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_adm_api_data" edge="1" parent="1" source="adm_api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#4d4d4d;exitX=0.857;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="adm_data" value="lee y escribe">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_adm_subs_runner" edge="1" parent="1" source="adm_subs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#82b366;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="adm_runner" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pub_bundle" edge="1" parent="1" source="adm_api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#9673a6;strokeWidth=2;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="gcs_bundle" value="1 · sube el bundle&#xa;if_generation_match=0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pub_index" edge="1" parent="1" source="adm_api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#9673a6;strokeWidth=2;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="gcs_index" value="2 · reescribe el índice&#xa;CAS + no-cache">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_get_index" edge="1" parent="1" source="gcs_index" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#82b366;strokeWidth=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" target="est_api" value="GET índice · anónimo&#xa;httpx, sin SDK de Google">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_get_bundle" edge="1" parent="1" source="gcs_bundle" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#82b366;strokeWidth=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;" target="est_api" value="GET bundle v&amp;lt;N&amp;gt;&#xa;≤ 4 MiB · checksum verificado">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_est_ui_api" edge="1" parent="1" source="est_ui" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#4d4d4d;exitX=0.6;exitY=1;exitDx=0;exitDy=0;entryX=0.2857;entryY=0;entryDx=0;entryDy=0;" target="est_api" value="HTTP + WebSocket&#xa;127.0.0.1:8000">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_est_ui_docker" edge="1" parent="1" source="est_ui" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#6c8ebf;dashed=1;exitX=0.2;exitY=1;exitDx=0;exitDy=0;entryX=0.1;entryY=0;entryDx=0;entryDy=0;" target="est_docker" value="IPC con whitelist cerrada&#xa;docker compose up · stop · ps">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint y="-50" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_est_nota_api" edge="1" parent="1" source="est_nota" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#999999;dashed=1;endArrow=none;exitX=0.643;exitY=1;exitDx=0;exitDy=0;entryX=0.857;entryY=0;entryDx=0;entryDy=0;" target="est_api" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_est_api_runner" edge="1" parent="1" source="est_api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#4d4d4d;exitX=0.1429;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="est_runner" value="docker-py: crea,&#xa;arranca, mata">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_est_api_subs" edge="1" parent="1" source="est_api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#4d4d4d;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="est_subs" value="escribe main.py">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_est_api_data" edge="1" parent="1" source="est_api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#4d4d4d;exitX=0.857;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="est_data" value="lee y escribe">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_est_subs_runner" edge="1" parent="1" source="est_subs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#82b366;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="est_runner" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="leyenda" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=12;spacingTop=4;fontStyle=1;fontSize=12;" value="Leyenda" vertex="1">
+          <mxGeometry height="200" width="420" x="40" y="960" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" parent="leyenda" style="rounded=1;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="20" width="40" x="20" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1t" parent="leyenda" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" value="Aplicación de escritorio (Electron)" vertex="1">
+          <mxGeometry height="20" width="320" x="80" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" parent="leyenda" style="rounded=1;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="" vertex="1">
+          <mxGeometry height="20" width="40" x="20" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2t" parent="leyenda" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" value="Servicio backend en contenedor" vertex="1">
+          <mxGeometry height="20" width="320" x="80" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" parent="leyenda" style="rounded=1;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;dashPattern=8 4;" value="" vertex="1">
+          <mxGeometry height="20" width="40" x="20" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3t" parent="leyenda" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" value="Contenedor efímero (uno por job)" vertex="1">
+          <mxGeometry height="20" width="320" x="80" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4" parent="leyenda" style="rounded=0;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="" vertex="1">
+          <mxGeometry height="20" width="40" x="20" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4t" parent="leyenda" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" value="Almacenamiento (volumen u objeto del bucket)" vertex="1">
+          <mxGeometry height="20" width="320" x="80" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5" parent="leyenda" style="rounded=1;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="" vertex="1">
+          <mxGeometry height="20" width="40" x="20" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5t" parent="leyenda" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;" value="Credencial de escritura (solo administrador)" vertex="1">
+          <mxGeometry height="20" width="320" x="80" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="caja_diferencia" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacingLeft=12;spacingTop=8;" value="&lt;b&gt;Lo único que cambia entre los dos equipos&lt;/b&gt;&#xa;&#xa;1 · La IMAGEN del backend. Se construye desde un solo código fuente: con&#xa;TELAR_ADMIN_BUILD=1 conserva los routers de administración; con 0 (el valor por&#xa;defecto) el Dockerfile los BORRA del artefacto, y la ruta deja de existir.&#xa;&#xa;2 · Dos variables de entorno: TELAR_ADMIN_MODE=1 y TELAR_GCS_CREDENTIALS.&#xa;&#xa;Electron, runner, volúmenes y puertos en loopback son idénticos en ambos." vertex="1">
+          <mxGeometry height="200" width="740" x="520" y="960" as="geometry" />
+        </mxCell>
+        <mxCell id="nota_alcance" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=24;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=left;verticalAlign=top;spacingLeft=12;spacingTop=8;" value="&lt;b&gt;Alcance y procedencia&lt;/b&gt;&lt;br&gt;&lt;br&gt;· Se dibuja el despliegue EMPAQUETADO (el del instalador). Su compose solo trae el servicio backend: el frontend lo sirve&lt;br&gt;&amp;nbsp;&amp;nbsp;Electron desde file://.&lt;br&gt;· El instalador publica la imagen ESTUDIANTE." vertex="1">
+          <mxGeometry height="240" width="1120" x="1320" y="960" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
