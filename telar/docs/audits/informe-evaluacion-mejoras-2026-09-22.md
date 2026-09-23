@@ -535,7 +535,7 @@ Leyenda:
 | CU-02.4 | Completar por visualización (falta el botón; el backend ya lo soporta) | 💡 | ◐ | HACER YA | S | Bajo | Requisitos de completitud |
 | CU-02.5 | Completar por ejecución (`run` no implementado) | 💡 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
 | CU-03.1 | Aprobar el quiz marca toda la lección | 💡 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
-| CU-04.1 | Re-ejecutar pierde ejemplo, lección y parser | 🚨 | ✅ | HACER YA | S | Bajo | Simulador: re-ejecución y editor |
+| CU-04.1 | Re-ejecutar pierde ejemplo, lección y parser | 🚨 | ✅ | HACER YA ✅ 1d17085 | S | Bajo | Simulador: re-ejecución y editor |
 | CU-05.1 | El editor se bloquea si falla `/modules` | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Simulador: re-ejecución y editor |
 | CU-05.2 | Un ejemplo que llega tarde pisa «Código propio» | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
 | CU-06.1 | Una carga anterior pisa el archivo actual | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
@@ -624,16 +624,16 @@ Leyenda:
 | CU-28.6 | Errores dentro del taller | 🚨 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
 | CU-29.1 | Archivadas vs. deshabilitadas tratadas distinto | 💡 | ✅ | HACER YA | S-M | Bajo | Disponibilidad de lecciones |
 | CU-29.2 | «Continuar/Empezar» con id fijo | 💡 | ✅ | HACER YA | S | Bajo | Disponibilidad de lecciones |
-| CU-30.1 | Seleccionar varias ejecuciones | 🚨 | ✅ | HACER YA | M | Bajo | Análisis de ejecuciones |
-| CU-30.2 | Reglas de comparabilidad | 🚨 | ✅ | HACER YA | S | Bajo | Análisis de ejecuciones |
-| CU-30.3 | Vista conjunta de configuración, resultados y métricas | 🚨 | ✅ | HACER YA | M | Bajo | Análisis de ejecuciones |
-| CU-30.4 | Navegación y errores de la comparación | 🚨 | ✅ | HACER YA | S | Bajo | Análisis de ejecuciones |
-| CU-31.1 | Exportación estructurada (JSON) | 🚨 | ✅ | HACER YA | S | Bajo | Análisis de ejecuciones |
-| CU-31.2 | Datos ausentes como ausentes | 🚨 | ✅ | HACER YA | S | Bajo | Análisis de ejecuciones |
-| CU-31.3 | Errores y reintento (el análisis se contradice con CU-10) | 🚨 | ◐ | HACER YA | S | Bajo | Análisis de ejecuciones |
-| CU-32.1 | Guardar configuraciones sin ejecutar | 🚨 | ✅ | HACER YA | M | Bajo | Análisis de ejecuciones |
-| CU-32.2 | Re-ejecutar recupera hilos y timeout | 🚨 | ✅ | HACER YA | S | Bajo | Simulador: re-ejecución y editor |
-| CU-32.3 | Recorte silencioso de hilos | 💡 | ✅ | HACER YA | S | Bajo | Simulador: re-ejecución y editor |
+| CU-30.1 | Seleccionar varias ejecuciones | 🚨 | ✅ | HACER YA ✅ 3975c62 | M | Bajo | Análisis de ejecuciones |
+| CU-30.2 | Reglas de comparabilidad | 🚨 | ✅ | HACER YA ✅ 3975c62 | S | Bajo | Análisis de ejecuciones |
+| CU-30.3 | Vista conjunta de configuración, resultados y métricas | 🚨 | ✅ | HACER YA ✅ 3975c62 | M | Bajo | Análisis de ejecuciones |
+| CU-30.4 | Navegación y errores de la comparación | 🚨 | ✅ | HACER YA ✅ 3975c62 | S | Bajo | Análisis de ejecuciones |
+| CU-31.1 | Exportación estructurada (JSON) | 🚨 | ✅ | HACER YA ✅ c0419d2 | S | Bajo | Análisis de ejecuciones |
+| CU-31.2 | Datos ausentes como ausentes | 🚨 | ✅ | HACER YA ✅ c0419d2 | S | Bajo | Análisis de ejecuciones |
+| CU-31.3 | Errores y reintento (el análisis se contradice con CU-10) | 🚨 | ◐ | HACER YA ✅ c0419d2 | S | Bajo | Análisis de ejecuciones |
+| CU-32.1 | Guardar configuraciones sin ejecutar | 🚨 | ✅ | HACER YA ✅ 9c07e16, 32f83ad | M | Bajo | Análisis de ejecuciones |
+| CU-32.2 | Re-ejecutar recupera hilos y timeout | 🚨 | ✅ | HACER YA ✅ 1d17085 | S | Bajo | Simulador: re-ejecución y editor |
+| CU-32.3 | Recorte silencioso de hilos | 💡 | ✅ | HACER YA ✅ 1d17085, 32f83ad | S | Bajo | Simulador: re-ejecución y editor |
 | CU-33.1 | QA versionada de instalación (y la web ofrece v1.0.3) | 💡 | ✅ | HACER YA ◐ 2ff51c1 (web a v1.0.5; falta la QA de instalación) | S | Bajo | Escritorio y salud |
 | CU-34.1 | Detalle de publicación (endpoint listo, sin pantalla) | 🚨 | ✅ | HACER YA | M | Bajo | Catálogo y publicación |
 | CU-34.2 | El detalle usa una caché de 15 min | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Catálogo y publicación |
