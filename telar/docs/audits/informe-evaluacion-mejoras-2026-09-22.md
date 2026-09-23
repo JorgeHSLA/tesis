@@ -159,17 +159,17 @@ Tres ideas que cambian las prioridades:
 
 11. **El DTO admin del frontend no sigue el contrato** (`api/admin-types.ts:113-139`): le faltan `video_url`, `enabled` y `completion_rule`. Es la **causa raíz** de 17.1, 17.2 y 18.1.
 12. **Los 422 de pydantic no se entienden en el front**: `coerceEntries` busca `{field, reason}` y pydantic envía `{type, loc, msg}`. Es la causa raíz del grupo «errores por campo».
-13. **`/health` y `/system` bloquean el [event loop](#g-event-loop)** con llamadas síncronas a Docker de hasta 120 s. `useSystemInfo` reintenta `/system` 60 veces.
+13. ✅ 7f079e2, f0d9980 — **`/health` y `/system` bloquean el [event loop](#g-event-loop)** con llamadas síncronas a Docker de hasta 120 s. `useSystemInfo` reintenta `/system` 60 veces.
 14. **`locally_modified` nunca se activa** (`set_locally_modified_no_commit` no tiene llamadores). Una actualización pisa sin avisar las ediciones del admin.
 15. **Probable (no ejecutado): el autor se verá a sí mismo con «actualización disponible»** tras publicar, porque `installed_modules.installed_version` no se actualiza.
 16. **Un comentario falso en la UI:** `PublishModuleDialog.tsx:13-14` asegura que se anclan versión y checksum. No es así.
 17. **El checksum del ensayo nunca coincide con el publicado**, porque `published_at` entra en el hash y se recalcula en cada llamada.
-18. **`--check` de la CLI sin `--db` nunca mira la base instalada**: siempre dice «contenido OK».
-19. **`--prune` deja progreso [huérfano](#g-huerfano)**: un id reutilizado lo «resucita».
-20. **La CLI no avisa al servidor en marcha.** Tras un seed/reset, el estudiante ve el contenido viejo hasta reiniciar.
+18. ✅ 0b7b607 — **`--check` de la CLI sin `--db` nunca mira la base instalada**: siempre dice «contenido OK».
+19. ✅ 0b7b607 — **`--prune` deja progreso [huérfano](#g-huerfano)**: un id reutilizado lo «resucita».
+20. ✅ 0b7b607 — **La CLI no avisa al servidor en marcha.** Tras un seed/reset, el estudiante ve el contenido viejo hasta reiniciar.
 21. **`mark_orphans_failed` no fija `finished_at`.**
 22. **`POST /jobs` no comprueba que `lesson_id` corresponda al ejemplo.** Si se implementa `run` sin arreglar esto, cualquier ejecución completaría cualquier lección.
-23. **Modo web:** el pie de estado se pone verde con cualquier `/health` 200, aunque Docker esté caído.
+23. ✅ a7a0b42 — **Modo web:** el pie de estado se pone verde con cualquier `/health` 200, aunque Docker esté caído.
 24. **`ThreadsTable` pinta N+1 filas** («master» más t0..tN-1). En OpenMP el master **es** el hilo 0: es un error conceptual en un curso de OpenMP.
 25. **Versiones internas descuadradas:** el compose empaquetado fija `telar-backend:1.0.2` y `BACKEND_VERSION = "1.0.1"`, mientras la app va por la 1.0.5.
 
@@ -595,9 +595,9 @@ Leyenda:
 | CU-22.1 | Probar un borrador sin publicarlo | 💡 | ✅ | RECLASIFICAR | S | Bajo | Borrador vs. publicado |
 | CU-22.2 | La prueba del admin toca `last_job_id` | 💡 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
 | CU-22.3 | Carrera en el selector de ejemplos | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
-| CU-23.1 | `--check` escribe en la base | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | CLI del contenido base |
-| CU-23.2 | Conflictos de `order` al actualizar/restablecer | 🚨 | ✅ | SI HAY TIEMPO | M | Medio | CLI del contenido base |
-| CU-23.3 | El reset no deja el estado base | 🚨 | ✅ | SI HAY TIEMPO | S-M | Medio | CLI del contenido base |
+| CU-23.1 | `--check` escribe en la base | 💡 | ✅ | SI HAY TIEMPO ✅ 0b7b607, f0d9980 | S | Bajo | CLI del contenido base |
+| CU-23.2 | Conflictos de `order` al actualizar/restablecer | 🚨 | ✅ | SI HAY TIEMPO ✅ 0b7b607 | M | Medio | CLI del contenido base |
+| CU-23.3 | El reset no deja el estado base | 🚨 | ✅ | SI HAY TIEMPO ✅ 0b7b607 | S-M | Medio | CLI del contenido base |
 | CU-24.1 | Un error del parser convierte un éxito en fallo | 💡 | ✅ | HACER YA ✅ 6b29f57 | S | Bajo | Limpieza y reconciliación |
 | CU-24.2 | El drainer puede morir sin detectarse | 💡 | ◐ | NO HACER | M | Medio | Limpieza y reconciliación |
 | CU-24.3 | Limpieza parcial al fallar la preparación | 💡 | ◐ | SI HAY TIEMPO | S | Bajo | Limpieza y reconciliación |
@@ -607,15 +607,15 @@ Leyenda:
 | CU-25.1 | Limpiar directorios sin Docker | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Limpieza y reconciliación |
 | CU-25.2 | `rmtree(ignore_errors=True)` cuenta lo no borrado | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Limpieza y reconciliación |
 | CU-25.3 | Contenedores no eliminados sin seguimiento | 💡 | ✅ | NO HACER | M | Medio | Limpieza y reconciliación |
-| CU-26.1 | Imagen ausente vs. no comprobada | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Escritorio y salud |
-| CU-26.2 | Los checks de Docker bloquean el event loop | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Escritorio y salud |
-| CU-26.3 | Reconectar Docker si no estaba al arrancar | 🚨 | ◐ | RECLASIFICAR | S | Bajo | Escritorio y salud |
+| CU-26.1 | Imagen ausente vs. no comprobada | 💡 | ✅ | SI HAY TIEMPO ✅ 7f079e2 | S | Bajo | Escritorio y salud |
+| CU-26.2 | Los checks de Docker bloquean el event loop | 💡 | ✅ | SI HAY TIEMPO ✅ 7f079e2, f0d9980 | S | Bajo | Escritorio y salud |
+| CU-26.3 | Reconectar Docker si no estaba al arrancar | 🚨 | ◐ | RECLASIFICAR ✅ 7f079e2, f0d9980 | S | Bajo | Escritorio y salud |
 | CU-26.4 | Recursos pendientes visibles en /health | 💡 | ✅ | NO HACER | S-M | Medio | Limpieza y reconciliación |
-| CU-27.1 | «Listo» = algún servicio corriendo | 💡 | ◐ | SI HAY TIEMPO | S | Bajo | Escritorio y salud |
-| CU-27.2 | Reanudar el autoarranque cuando aparece Docker | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Escritorio y salud |
-| CU-27.3 | Verificar la imagen del runner | 💡 | ✅ | SI HAY TIEMPO | S-M | Bajo | Escritorio y salud |
-| CU-27.4 | Mostrar la causa real del fallo de inicio | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Escritorio y salud |
-| CU-27.5 | Fallo de carga de la interfaz (did-fail-load) | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Escritorio y salud |
+| CU-27.1 | «Listo» = algún servicio corriendo | 💡 | ◐ | SI HAY TIEMPO ✅ a7a0b42, 2a219a9 | S | Bajo | Escritorio y salud |
+| CU-27.2 | Reanudar el autoarranque cuando aparece Docker | 💡 | ✅ | SI HAY TIEMPO ✅ a7a0b42 | S | Bajo | Escritorio y salud |
+| CU-27.3 | Verificar la imagen del runner | 💡 | ✅ | SI HAY TIEMPO ✅ a7a0b42 | S-M | Bajo | Escritorio y salud |
+| CU-27.4 | Mostrar la causa real del fallo de inicio | 💡 | ✅ | SI HAY TIEMPO ✅ a7a0b42 | S | Bajo | Escritorio y salud |
+| CU-27.5 | Fallo de carga de la interfaz (did-fail-load) | 💡 | ✅ | SI HAY TIEMPO ✅ d7631e6, 2a219a9 | S | Bajo | Escritorio y salud |
 | CU-28.1 | Taller como actividad identificable | 🚨 | ✅ | HACER YA | M | Medio | Requisitos de completitud |
 | CU-28.2 | Talleres con y sin código | 🚨 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
 | CU-28.3 | Guardar estado y retomar | 🚨 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |

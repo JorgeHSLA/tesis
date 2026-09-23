@@ -110,7 +110,8 @@ class DockerServicePort(Protocol):
 
     def ping(self) -> bool: ...
 
-    def image_present(self) -> bool: ...
+    def image_present(self) -> bool | None:
+        """True/False si se comprobó; ``None`` si no se pudo comprobar (CU-26.1)."""
 
     def prepare_code(self, job_id: str, source_code: str) -> str:
         """Escribe main.py (bind/volume según config); devuelve code_path."""
@@ -205,14 +206,15 @@ class DockerService:
         except Exception:  # daemon caído: cualquier excepción ⇒ False
             return False
 
-    def image_present(self) -> bool:
+    def image_present(self) -> bool | None:
         try:
             self._client.images.get(self._settings.runner_image)
             return True
         except docker.errors.ImageNotFound:
             return False
         except Exception:
-            return False
+            # Permisos, conexión a medias…: NO es una ausencia confirmada.
+            return None
 
     def close(self) -> None:
         try:

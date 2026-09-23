@@ -98,7 +98,9 @@ export function Sidebar() {
   // se sepa, el item NO se pinta: es preferible que aparezca un instante tarde
   // a que aparezca y desaparezca al llegar la respuesta.
   const { data: system } = useSystemInfo()
-  const sections = navSections(system?.catalog.enabled === true)
+  // `catalog?.`: un backend anterior a Fase 5 no manda el bloque, y leerlo sin
+  // guarda tumbaba TODA la app (visto en Electron el 2026-09-22).
+  const sections = navSections(system?.catalog?.enabled ?? false)
 
   return (
     <aside className="sidebar">

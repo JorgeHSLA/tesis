@@ -67,7 +67,8 @@ export type ApiErrorCode =
 export interface HealthChecksDto {
   db: boolean
   docker: boolean
-  runner_image: boolean
+  /** null = no se pudo comprobar (enmienda aditiva CU-26.1); false = no existe. */
+  runner_image: boolean | null
 }
 
 export interface HealthDto {

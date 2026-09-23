@@ -20,6 +20,7 @@ npm run dist:win                     # NSIS + portable (necesita Wine o host Win
 - `src/main.ts` — BrowserWindow (show-on-ready, single-instance, `loadFile` de `resources/app-frontend` en prod vs `VITE_DEV_SERVER_URL` en dev), menú null en prod. `webPreferences`: contextIsolation true, nodeIntegration false, sandbox true, webSecurity true.
 - `src/preload.ts` — `contextBridge.exposeInMainWorld('telar', ...)` con `{ appVersion, platform, dockerStatus, dockerUp, dockerStop, openExternal }`. Nunca expone `ipcRenderer` crudo. `__APP_VERSION__` la inyecta esbuild (`define`).
 - `src/ipc-docker.ts` — whitelist CERRADA de acciones `compose:ps/up/stop` → arrays de args fijos, `execFile('docker', ...)` **sin shell**, timeout, `assertTrustedSender` (valida senderFrame).
+- `src/load-failure.ts` — `did-fail-load`/`render-process-gone` → página de error local (`userData/error-carga.html`) con «Reintentar» (CU-27.5, electron-spec §8).
 - `src/security.ts` — CSP vía `onHeadersReceived` (connect-src al backend local), `will-navigate` whitelist, `setWindowOpenHandler` deny + `shell.openExternal` solo https.
 - `resources/compose/compose.yaml` — compose empaquetado (solo `image:`, sin `build:`). `electron-builder.yml` — targets.
 - `resources/installer.nsh` / `resources/before-remove.sh` — al desinstalar (no al actualizar), paran y borran el contenedor + imágenes Docker; los volúmenes con datos de usuario no se tocan (electron-spec §6.2).

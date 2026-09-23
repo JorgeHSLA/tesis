@@ -98,6 +98,15 @@ sean `false` (esos checks son **informativos**; la UI guía al usuario vía
 app no completó el lifespan. Así nginx puede arrancar y mostrar la UI aunque
 la imagen runner aún no esté construida.
 
+**(Enmienda aditiva 2026-09-22, CU-26.1)** `runner_image` es `true | false | null`:
+`false` = se comprobó y la imagen **no existe**; `null` = **no se pudo
+comprobar** (daemon caído o que no respondió a tiempo, error de permisos o de
+conexión). `docker` sigue siendo booleano. Cada llamada a Docker se hace fuera
+del event loop con un timeout corto (≈3 s): si el daemon no contesta, `/health`
+responde igual con `docker:false, runner_image:null`. Si el cliente de Docker no
+se pudo crear al arrancar, `/health` lo reintenta en cada llamada hasta
+conseguirlo (CU-26.3).
+
 ### 2.2 `GET /api/v1/system` — info para la UI
 
 Alimenta el slider de hilos, el badge de la imagen runner y los límites que la
@@ -147,6 +156,8 @@ UI muestra.
   no debe ofrecer/imponer ningún máximo.
 - Errores: `503 DOCKER_UNAVAILABLE` si el daemon no responde (el resto de
   campos se sirven igual con `runner_image_present=false` cuando sea posible).
+  `runner_image_present` sigue siendo booleano: `false` también cuando la
+  imagen no se pudo comprobar (el matiz `null` es solo de `/health`).
 
 ---
 
