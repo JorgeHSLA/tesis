@@ -8,6 +8,11 @@ import { buildTimeoutOptions, NO_TIMEOUT, TIMEOUT_CHOICES } from '../../src/feat
 import { effectiveTimeoutCap, TIMEOUT_MIN_S } from '../../src/features/admin/example/ExampleMetaFields'
 
 describe('buildTimeoutOptions', () => {
+  it('incluye el valor actual recuperado aunque no esté en la escalera', () => {
+    expect(buildTimeoutOptions(0, null, 45)).toContain(45)
+    expect(buildTimeoutOptions(60, null, 90)).not.toContain(90) // por encima del tope
+  })
+
   it('sin tope ofrece «Sin timeout» + la escalera de 4 valores', () => {
     expect(buildTimeoutOptions(0, null)).toEqual([NO_TIMEOUT, ...TIMEOUT_CHOICES])
   })

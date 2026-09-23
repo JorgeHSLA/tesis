@@ -140,6 +140,23 @@
 }
 
 /* Banner de error de lanzamiento (códigos del envelope, §6.2) */
+/* Avisos al recuperar una configuración (Re-ejecutar / Mis configuraciones). */
+.sim-notices {
+  margin-bottom: var(--sp-5);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+.sim-notices p {
+  margin: 0;
+}
+.sim-notices p + p {
+  margin-top: var(--sp-2);
+}
+
 .launch-error {
   display: flex;
   flex-wrap: wrap;

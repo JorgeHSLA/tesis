@@ -2,7 +2,7 @@
 // parsed_timings kind sweep → SpeedupChart; kind pair → ComparisonBars;
 // null + serie en memoria → LiveMetricsChart; null sin serie → resumen
 // metrics_summary; 404 → ErrorState; job no-terminal → redirect a /simulador.
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import ResultsScreen from '@/features/results/ResultsScreen'
@@ -29,10 +29,15 @@ function renderAt(jobId: string) {
       <Routes>
         <Route path="/resultados/:jobId" element={<ResultsScreen />} />
         <Route path="/simulador/:jobId" element={<div>REDIRIGIDO AL LIVE</div>} />
-        <Route path="/simulador" element={<div>SIM</div>} />
+        <Route path="/simulador" element={<SimProbe />} />
       </Routes>
     </MemoryRouter>,
   )
+}
+
+function SimProbe() {
+  const location = useLocation()
+  return <pre data-testid="sim-state">{JSON.stringify(location.state)}</pre>
 }
 
 function metric(i: number): MetricSample {
@@ -153,5 +158,24 @@ describe('descarga de la salida (CU-10.1)', () => {
     await waitFor(() =>
       expect(screen.queryByText(/No fue posible descargar la salida/)).not.toBeInTheDocument(),
     )
+  })
+})
+
+describe('Re-ejecutar (CU-04.1, 32.2)', () => {
+  it('navega al simulador con ejemplo, lección, código, archivo, hilos y timeout del job', async () => {
+    const editado = { ...JOB_SWEEP, source_kind: 'editor' as const, source_code: 'x = 1\n', threads: 6, timeout_s: 90 }
+    getJobMock.mockResolvedValue(editado)
+    renderAt(editado.job_id)
+    fireEvent.click(await screen.findByRole('button', { name: /Re-ejecutar/i }))
+    const state = JSON.parse((await screen.findByTestId('sim-state')).textContent ?? 'null') as Record<string, unknown>
+    expect(state).toEqual({
+      example_id: 'transporteParticulas',
+      lesson_id: 'transporteParticulas',
+      code: 'x = 1\n',
+      filename: 'transporteMonteCarlo.py',
+      threads: 6,
+      timeout_s: 90,
+      edited: true,
+    })
   })
 })

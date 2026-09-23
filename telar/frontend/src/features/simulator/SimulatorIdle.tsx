@@ -4,12 +4,12 @@
 // «Opciones avanzadas». Lanzar → POST /api/v1/jobs con la semántica de
 // fuentes del contrato §7.1 (example_id/code según edición; threads OMITIDO
 // en fixed/sweep — §9) → navigate('/simulador/{job_id}').
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { getExample, getModules } from '../../api/content'
 import { ApiError } from '../../api/client'
 import { createJob } from '../../api/jobs'
-import type { ExampleDetailDto, JobCreateRequestDto, ModuleDto } from '../../api/types'
+import type { ExampleDetailDto, JobCreateRequestDto, ModuleDto, SystemInfoDto } from '../../api/types'
 import { Button } from '../../components/ui/Button'
 import { Card, CardHead } from '../../components/ui/Card'
 import { Chip } from '../../components/ui/Chip'
@@ -19,15 +19,32 @@ import { IconCluster, IconPlay } from '../../components/icons/icons'
 import { ThreadTopology } from '../../components/viz/ThreadTopology'
 import { getPlatform } from '../../hooks/usePlatform'
 import { useSystemInfo } from '../../hooks/useSystemInfo'
+import { clampThreads, type SimConfig } from '../../lib/simConfig'
 import { AdvancedOptions } from './AdvancedOptions'
 import { CodePanel, type PickedFile } from './CodePanel'
 import { ExamplePicker } from './ExamplePicker'
 import { effectiveCpus, shouldSendThreads, ThreadsField } from './ThreadsField'
 
-/** Precarga por navigate state (Re-ejecutar de un job con código propio). */
-interface PreloadState {
-  code?: string
-  filename?: string
+/** navigate-state de Re-ejecutar (lib/simConfig RerunState). Se lee con
+ *  valores por defecto: basta `code` (+ `filename`) para precargar código propio. */
+function readPreload(state: unknown): SimConfig | null {
+  if (state == null || typeof state !== 'object') return null
+  const s = state as Partial<SimConfig>
+  if (typeof s.code !== 'string') return null
+  return {
+    example_id: typeof s.example_id === 'string' ? s.example_id : null,
+    code: s.code,
+    filename: typeof s.filename === 'string' ? s.filename : 'main.py',
+    threads: typeof s.threads === 'number' ? s.threads : 4,
+    timeout_s: typeof s.timeout_s === 'number' ? s.timeout_s : 60,
+    edited: s.edited === true,
+  }
+}
+
+/** Timeout recuperado dentro del tope actual del backend (0 = sin timeout). */
+function fitTimeout(timeoutS: number, system: SystemInfoDto): number {
+  const cap = system.limits.max_timeout_s
+  return cap > 0 && (timeoutS <= 0 || timeoutS > cap) ? cap : timeoutS
 }
 
 const LAUNCH_ERROR_TEXT: Record<string, string> = {
@@ -42,7 +59,7 @@ export function SimulatorIdle() {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
-  const preload = (location.state as PreloadState | null) ?? null
+  const [preload] = useState(() => readPreload(location.state))
   const { data: system, error: sysError, loading: sysLoading, retry: sysRetry } = useSystemInfo()
 
   const [modules, setModules] = useState<ModuleDto[] | null>(null)
@@ -55,6 +72,10 @@ export function SimulatorIdle() {
   const [launchError, setLaunchError] = useState<ApiError | null>(null)
   const [launching, setLaunching] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
+  // Avisos al recuperar una configuración (Re-ejecutar / Mis configuraciones).
+  const [notices, setNotices] = useState<string[]>([])
+  // Solo la última petición de ejemplo aplica su respuesta (una tardía no pisa).
+  const exampleReq = useRef(0)
 
   const loadModules = useCallback(() => {
     setModulesError(null)
@@ -65,21 +86,80 @@ export function SimulatorIdle() {
   useEffect(loadModules, [loadModules])
 
   const selectExample = useCallback((exampleId: string) => {
+    const req = ++exampleReq.current
+    setNotices([])
     if (exampleId === '') {
       setExample(null)
       return
     }
     getExample(exampleId)
       .then((detail) => {
+        if (req !== exampleReq.current) return
         setExample(detail)
         setCode(detail.source_code)
         setFilename(detail.filename)
         setTimeoutS(detail.default_timeout_s)
       })
       .catch((err: unknown) => {
+        if (req !== exampleReq.current) return
         setLaunchError(err instanceof ApiError ? err : new ApiError('NETWORK_ERROR', String(err), 0))
       })
   }, [])
+
+  // Aplica una configuración recuperada: con ejemplo, primero lo carga (lección
+  // y parser) y luego pone el código, hilos y timeout históricos encima.
+  const applyConfig = useCallback((cfg: SimConfig, sys: SystemInfoDto, extra: string[] = []) => {
+    const req = ++exampleReq.current
+    const { threads: t, clampedFrom } = clampThreads(cfg.threads, sys.max_threads)
+    const threadsNote =
+      clampedFrom != null
+        ? `La configuración pedía ${clampedFrom} hilos; se ajustó a ${t}, el máximo de este equipo.`
+        : null
+    const apply = (ex: ExampleDetailDto | null, notes: string[]) => {
+      if (req !== exampleReq.current) return
+      setExample(ex)
+      setCode(cfg.code)
+      setFilename(cfg.filename)
+      setThreads(t)
+      setTimeoutS(fitTimeout(cfg.timeout_s, sys))
+      const sendsThreads = shouldSendThreads(ex)
+      setNotices([...extra, ...notes, ...(sendsThreads && threadsNote != null ? [threadsNote] : [])])
+    }
+    if (cfg.example_id == null) {
+      apply(null, [])
+      return
+    }
+    const exampleId = cfg.example_id
+    getExample(exampleId)
+      .then((detail) =>
+        apply(
+          detail,
+          !cfg.edited && detail.source_code !== cfg.code
+            ? ['El ejemplo cambió desde esa ejecución: se cargó el código que se ejecutó entonces.']
+            : [],
+        ),
+      )
+      .catch((err: unknown) =>
+        apply(null, [
+          err instanceof ApiError && err.code === 'EXAMPLE_NOT_FOUND'
+            ? `El ejemplo «${exampleId}» ya no existe: su código se cargó como código propio.`
+            : `No se pudo cargar el ejemplo «${exampleId}»: su código se cargó como código propio.`,
+        ]),
+      )
+  }, [])
+
+  // Re-ejecutar: se aplica una sola vez, cuando ya se conoce el máximo de hilos.
+  const preloadApplied = useRef(false)
+  useEffect(() => {
+    if (preload == null || system == null || preloadApplied.current) return
+    preloadApplied.current = true
+    applyConfig(preload, system)
+  }, [preload, system, applyConfig])
+
+  // CU-32.3: lo que se ve es lo que se envía — el slider nunca supera el máximo.
+  useEffect(() => {
+    if (system != null && threads > system.max_threads) setThreads(system.max_threads)
+  }, [system, threads])
 
   // Precarga inicial: ?ejemplo={id} > navigate-state (código propio) >
   // primer ejemplo habilitado del catálogo (helloOpenMP — §6.2, sin hardcodear).
@@ -89,7 +169,7 @@ export function SimulatorIdle() {
       selectExample(queryExample)
       return
     }
-    if (preload?.code != null) return // Re-ejecutar con código propio
+    if (preload != null) return // Re-ejecutar: lo aplica applyConfig
     if (modules != null && modules.length > 0) {
       // E1: `example_id` pasó de '' a null para las lecciones sin código, así
       // que la comprobación es de nulidad. Sin esto, la autoselección elegiría
@@ -106,6 +186,8 @@ export function SimulatorIdle() {
   const cores = system?.cores ?? 4
 
   const onFile = useCallback((file: PickedFile) => {
+    exampleReq.current++
+    setNotices([])
     setExample(null)
     setCode(file.code)
     setFilename(file.filename)
@@ -120,7 +202,7 @@ export function SimulatorIdle() {
     const req: JobCreateRequestDto = {
       ...(example != null ? { example_id: example.id, lesson_id: example.lesson_id } : { filename }),
       ...(example == null || edited ? { code } : null),
-      ...(sendThreads ? { threads: Math.min(threads, system.max_threads) } : null),
+      ...(sendThreads ? { threads } : null),
       timeout_s: timeoutS,
     }
     try {
@@ -236,6 +318,14 @@ export function SimulatorIdle() {
                 : '# Arranca Docker Desktop / el daemon y verifica:\ndocker info\n# Luego reinicia el backend Telar.'}
             </pre>
           )}
+        </div>
+      )}
+
+      {notices.length > 0 && (
+        <div className="sim-notices" role="status">
+          {notices.map((n) => (
+            <p key={n}>{n}</p>
+          ))}
         </div>
       )}
 

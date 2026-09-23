@@ -24,6 +24,7 @@ import {
 import { fmtBytes, fmtTimeMs } from '../../lib/format'
 import { downloadFile } from '../../lib/download'
 import { buildObservations } from '../../lib/observations'
+import { configFromJob } from '../../lib/simConfig'
 import { bestSweepPoint } from '../../lib/speedup'
 import { DistributionCard, ObservationsCard, OutputCard } from './ResultsCards'
 import '../../styles/screens/results.css'
@@ -153,13 +154,9 @@ export default function ResultsScreen() {
         : 'este ejemplo no auto-mide'
   const m = job.metrics_summary
 
-  const rerun = () => {
-    if (job.source_kind === 'example' && job.example_id != null) {
-      navigate(`/simulador?ejemplo=${encodeURIComponent(job.example_id)}`)
-    } else {
-      navigate('/simulador', { state: { code: job.source_code, filename: job.filename } })
-    }
-  }
+  // CU-04.1/32.2: el simulador recupera ejemplo (lección y parser), código,
+  // hilos y timeout de ESTA ejecución, también si el ejemplo estaba editado.
+  const rerun = () => navigate('/simulador', { state: configFromJob(job) })
 
   return (
     <section className="screen results-screen">
