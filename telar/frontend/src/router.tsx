@@ -20,6 +20,7 @@ const ResultsScreen = lazy(() => import('./features/results/ResultsScreen'))
 const ResultsCompare = lazy(() => import('./features/results/ResultsCompare'))
 const CatalogScreen = lazy(() => import('./features/catalog/CatalogScreen'))
 const ModulesScreen = lazy(() => import('./features/modules/ModulesScreen'))
+const RemoteModuleDetailScreen = lazy(() => import('./features/modules/RemoteModuleDetailScreen'))
 const LearnScreen = lazy(() => import('./features/learn/LearnScreen'))
 
 function screen(Component: ComponentType) {
@@ -79,6 +80,9 @@ export const router = createHashRouter([
       // dejaría esta pantalla inalcanzable para siempre. Como ruta de primer
       // nivel, ningún contenido remoto puede taparla.
       { path: 'modulos', element: screen(ModulesScreen) },
+      // S5 · CU-34.1: detalle de una publicación. Bajo /modulos, no bajo
+      // /aprender, por el mismo motivo que su hermana.
+      { path: 'modulos/:moduleId', element: screen(RemoteModuleDetailScreen) },
 
       ...adminRoutes(),
 
