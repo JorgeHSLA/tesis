@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { listSavedConfigs, saveConfig } from '@/lib/savedConfigs'
-import { EXAMPLE_CONFIGURABLE, MODULES, SYSTEM_INFO } from '../../fixtures/rest'
+import { EXAMPLE_CONFIGURABLE, EXAMPLE_FIXED, MODULES, SYSTEM_INFO } from '../../fixtures/rest'
 
 vi.mock('@/api/system', () => ({ getSystem: vi.fn(), getHealth: vi.fn() }))
 vi.mock('@/api/content', () => ({ getModules: vi.fn(), getExample: vi.fn() }))
@@ -68,6 +68,14 @@ describe('guardar sin ejecutar', () => {
       edited: false,
     })
     expect(createJobMock).not.toHaveBeenCalled()
+  })
+
+  it('ejemplo de hilos fijos → guarda los hilos que se ven, no un valor previo', async () => {
+    ;(getExample as Mock).mockResolvedValue({ ...EXAMPLE_FIXED, fixed_threads: 2 })
+    renderSim()
+    await screen.findByText('2 hilos (fijo)')
+    await userEvent.click(within(card()).getByRole('button', { name: /guardar configuración/i }))
+    expect(listSavedConfigs()[0].threads).toBe(2)
   })
 
   it('si el almacenamiento falla, muestra el error', async () => {

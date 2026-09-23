@@ -203,7 +203,8 @@ export function SimulatorIdle() {
     const req: JobCreateRequestDto = {
       ...(example != null ? { example_id: example.id, lesson_id: example.lesson_id } : { filename }),
       ...(example == null || edited ? { code } : null),
-      ...(sendThreads ? { threads } : null),
+      // El effect de CU-32.3 ya mantiene `threads` ≤ max; el min es solo defensa.
+      ...(sendThreads ? { threads: Math.min(threads, system.max_threads) } : null),
       timeout_s: timeoutS,
     }
     try {
@@ -364,7 +365,7 @@ export function SimulatorIdle() {
       />
 
       <SavedConfigs
-        current={{ example_id: example?.id ?? null, code, filename, threads, timeout_s: timeoutS, edited }}
+        current={{ example_id: example?.id ?? null, code, filename, threads: displayThreads, timeout_s: timeoutS, edited }}
         onLoad={(cfg) => applyConfig(cfg, system, [`Configuración «${cfg.name}» cargada.`])}
       />
     </section>
