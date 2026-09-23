@@ -72,8 +72,10 @@ describe('selección de gráfica según parsed_timings', () => {
     renderAt(JOB_NO_TIMINGS.job_id)
     await screen.findByText(/las gráficas en vivo solo están disponibles/i)
     expect(screen.getAllByText('CPU promedio').length).toBeGreaterThan(0)
-    // Semántica OpenMP (BL-40): un solo proceso con N hilos, no "Procesos/hilos".
-    expect(screen.getByText('Hilos (PIDs)')).toBeInTheDocument()
+    // CU-09.4: pids_stats cuenta TODAS las tareas del cgroup, no los hilos OpenMP.
+    const rotulo = screen.getByText('Tareas del contenedor')
+    expect(rotulo).toHaveAttribute('title', expect.stringMatching(/cgroup.*no .*hilos OpenMP/i))
+    expect(screen.queryByText('Hilos (PIDs)')).not.toBeInTheDocument()
   })
 })
 
