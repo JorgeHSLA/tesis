@@ -4,10 +4,12 @@
 // arrastrándolo por el asa (DnD nativo del navegador) o con los botones
 // «Subir»/«Bajar» (fallback accesible por teclado). Borrar un módulo con
 // lecciones → 409 MODULE_NOT_EMPTY → toast. fase4-autoria-design §9.F(2).
-import { useRef, useState, type DragEvent } from 'react'
+// S5 (D+): la cabecera lleva el distintivo «cambios sin publicar» cuando el
+// contenido local difiere de la versión vigente del catálogo (§11.8.3).
+import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
-import { deleteModule } from '../../../api/admin'
+import { deleteModule, getPublishStatus } from '../../../api/admin'
 import type { ModuleDto } from '../../../api/types'
 import { Button } from '../../../components/ui/Button'
 import { PublishModuleDialog } from './PublishModuleDialog'
@@ -60,7 +62,23 @@ export function ModuleGroup({
   const [confirming, setConfirming] = useState(false)
   const [publicando, setPublicando] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [sinPublicar, setSinPublicar] = useState(false)
   const cardRef = useRef<HTMLElement>(null)
+
+  // Bajo demanda: se pide al montar y cada vez que el dashboard recarga el
+  // módulo (tras editar o publicar, `module` es otro objeto). El backend cachea
+  // en memoria la huella de la versión publicada, así que repetir es barato.
+  // Sin red o con error no se pinta nada: el distintivo es una ayuda, no un
+  // estado que pueda romper la fila.
+  useEffect(() => {
+    let vivo = true
+    getPublishStatus(module.id)
+      .then((e) => vivo && setSinPublicar(e.state === 'changed' || e.state === 'out_of_sync'))
+      .catch(() => vivo && setSinPublicar(false))
+    return () => {
+      vivo = false
+    }
+  }, [module])
 
   const lessons = [...module.lessons].sort((a, b) => a.order - b.order)
   const bodyId = `admin-module-body-${module.id}`
@@ -163,6 +181,7 @@ export function ModuleGroup({
           <span className="admin-module-title">{module.title}</span>
           <Chip tone="neutral">{module.level}</Chip>
           <span className="admin-module-count mono-small muted">{lessons.length} lecciones</span>
+          {sinPublicar && <Chip tone="amber">cambios sin publicar</Chip>}
         </button>
         <div className="admin-module-actions">
           <Button variant="outline" size="sm" onClick={() => onEdit(module)}>

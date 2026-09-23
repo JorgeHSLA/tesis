@@ -12,10 +12,11 @@ import type { ModuleDto } from '@/api/types'
 
 vi.mock('@/api/admin', () => ({
   getCatalogCredentials: vi.fn(),
+  getPublishStatus: vi.fn(),
   publishModule: vi.fn(),
 }))
 
-import { getCatalogCredentials, publishModule } from '@/api/admin'
+import { getCatalogCredentials, getPublishStatus, publishModule } from '@/api/admin'
 
 const credencialesMock = getCatalogCredentials as Mock
 const publicarMock = publishModule as Mock
@@ -52,6 +53,7 @@ const ENSAYO = {
   index_updated: false,
   lesson_ids: ['task-intro', 'task-deps'],
   warnings: [],
+  local_state_updated: true,
 }
 
 function montar(onPublished = vi.fn()) {
@@ -69,6 +71,11 @@ beforeEach(() => {
   vi.clearAllMocks()
   credencialesMock.mockResolvedValue(CREDENCIAL_OK)
   publicarMock.mockResolvedValue(ENSAYO)
+  // S5 (D+): estos tests son del flujo ensayo → publicar; con cambios pendientes.
+  ;(getPublishStatus as Mock).mockResolvedValue({
+    module_id: 'm9', state: 'changed', published_version: 2, local_version: 2,
+    content_hash: 'c'.repeat(64), reason: null,
+  })
 })
 
 describe('PublishModuleDialog', () => {

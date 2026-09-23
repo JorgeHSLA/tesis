@@ -6,21 +6,25 @@
 // dependerá de ello. Por eso el flujo tiene dos pasos obligatorios y no uno.
 //
 //   1. ENSAYO (`dry_run`) — recorre el MISMO camino que publicar (construye el
-//      bundle, lo valida, lo firma) pero no escribe nada. Es lo que produce los
-//      avisos, y el que más importa es `LESSON_ID_REMOVED`: dice que quien
-//      actualice PERDERÁ su avance en esa lección. Enseñarlo después de subir
-//      sería enseñarlo tarde.
-//   2. PUBLICAR — solo se habilita cuando el ensayo ha salido bien, y repite la
-//      versión y el checksum que el ensayo mostró.
+//      bundle, lo valida con las reglas del importador, lo firma) pero no
+//      escribe nada. Es lo que produce los avisos, y el que más importa es
+//      `LESSON_ID_REMOVED`: dice que quien actualice PERDERÁ su avance en esa
+//      lección. Enseñarlo después de subir sería enseñarlo tarde.
+//   2. PUBLICAR — solo se habilita tras un ensayo con éxito. NO reenvía la
+//      versión ni el checksum del ensayo: el servidor vuelve a construir y a
+//      validar el bundle, así que publica el contenido de ese momento (anclar
+//      lo ensayado sería CU-37.2, descartado).
 //
 // Antes de todo eso comprueba la credencial (§11.8.1) para poder decir POR QUÉ
-// no se puede publicar en vez de dejar que el admin lo descubra al pulsar.
+// no se puede publicar, y compara el contenido local con la versión vigente
+// (§11.8.3, D+) para decir si hay algo que publicar.
 import { useEffect, useState } from 'react'
 import { ApiError } from '../../../api/client'
-import { getCatalogCredentials, publishModule } from '../../../api/admin'
+import { getCatalogCredentials, getPublishStatus, publishModule } from '../../../api/admin'
 import type {
   AdminCatalogCredentialStatusDto,
   AdminPublishResultDto,
+  AdminPublishStatusDto,
   CredentialReason,
 } from '../../../api/admin-types'
 import type { ModuleDto } from '../../../api/types'
@@ -53,10 +57,40 @@ const AVISO: Record<string, { titulo: string; grave: boolean }> = {
   LESSON_ID_ADDED: { titulo: 'Lección nueva', grave: false },
 }
 
+/** CU-37.4 — la frase exacta del caso «subido pero sin constancia local». */
+const SIN_ESTADO_LOCAL =
+  'Publicado en la nube; no se pudo actualizar el estado local. Reintenta.'
+
+/** `'error'` = la propia consulta falló: se trata igual que «sin red». */
+type Estado = AdminPublishStatusDto | 'error' | null
+
+/** Un problema de validación, ya localizado en su lección (CU-37.1). */
+interface Problema {
+  leccion: string | null
+  campo: string
+  motivo: string
+}
+
+function textoDeEstado(estado: Estado): string {
+  if (estado == null) return 'Comprobando si hay cambios sin publicar…'
+  if (estado === 'error' || estado.state === 'unknown')
+    return 'No se pudo comprobar si hay cambios sin publicar; puedes publicar igualmente.'
+  switch (estado.state) {
+    case 'never_published':
+      return 'Este módulo aún no se ha publicado.'
+    case 'unchanged':
+      return `No hay cambios respecto a v${estado.published_version}.`
+    case 'changed':
+      return `Tienes cambios sin publicar (la publicada es la v${estado.published_version}).`
+    case 'out_of_sync':
+      return SIN_ESTADO_LOCAL
+  }
+}
+
 function mensajeDeError(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.code === 'VERSION_CONFLICT')
-      return 'Esa versión ya está publicada. Las versiones son inmutables: usa la siguiente.'
+      return 'Esa versión ya está publicada con otro contenido. Las versiones son inmutables: usa la siguiente.'
     if (err.code === 'CATALOG_CREDENTIALS_INVALID')
       return 'La credencial de publicación no sirve. Revísala y vuelve a intentarlo.'
     if (err.code === 'CATALOG_DISABLED')
@@ -65,9 +99,31 @@ function mensajeDeError(err: unknown): string {
       return 'No se pudo contactar con el bucket. Comprueba la conexión e inténtalo de nuevo.'
     if (err.code === 'BUNDLE_TOO_LARGE')
       return 'El módulo ocupa más de lo que el catálogo admite.'
+    if (err.code === 'CONTENT_VALIDATION_ERROR' || err.code === 'BUNDLE_INVALID')
+      return 'El módulo no se puede publicar así: un estudiante no podría instalarlo. Corrige esto:'
     return err.message
   }
   return 'No se pudo publicar el módulo.'
+}
+
+/** `details` de un 422 → problemas legibles, con el TÍTULO de la lección. */
+function problemasDe(err: unknown, module: ModuleDto): Problema[] {
+  if (!(err instanceof ApiError) || !Array.isArray(err.details)) return []
+  const titulos = new Map(module.lessons.map((l) => [l.id, l.title]))
+  return err.details.flatMap((d: unknown) => {
+    if (d == null || typeof d !== 'object') return []
+    const { field, reason, lesson_id } = d as Record<string, unknown>
+    if (typeof reason !== 'string') return []
+    const id = typeof lesson_id === 'string' ? lesson_id : null
+    return [
+      {
+        leccion: id == null ? null : (titulos.get(id) ?? id),
+        // Con la lección delante, `lessons[3].` solo es ruido para el autor.
+        campo: typeof field === 'string' ? field.replace(/^lessons\[\d+\]\.?/, '') : '',
+        motivo: reason,
+      },
+    ]
+  })
 }
 
 export function PublishModuleDialog({
@@ -78,10 +134,13 @@ export function PublishModuleDialog({
   const [credencial, setCredencial] = useState<AdminCatalogCredentialStatusDto | null>(
     null,
   )
+  const [estado, setEstado] = useState<Estado>(null)
   const [ensayo, setEnsayo] = useState<AdminPublishResultDto | null>(null)
   const [notas, setNotas] = useState('')
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [problemas, setProblemas] = useState<Problema[]>([])
+  const [sinEstadoLocal, setSinEstadoLocal] = useState(false)
 
   useEffect(() => {
     let vivo = true
@@ -90,20 +149,26 @@ export function PublishModuleDialog({
     getCatalogCredentials(true)
       .then((c) => vivo && setCredencial(c))
       .catch(() => vivo && setError('No se pudo comprobar la credencial de publicación.'))
+    getPublishStatus(module.id)
+      .then((e) => vivo && setEstado(e))
+      .catch(() => vivo && setEstado('error'))
     return () => {
       vivo = false
     }
-  }, [])
+  }, [module.id])
 
   async function ejecutar(dryRun: boolean) {
     setOcupado(true)
     setError(null)
+    setProblemas([])
     try {
       const r = await publishModule(module.id, { dry_run: dryRun, notes: notas })
       if (dryRun) setEnsayo(r)
+      else if (!r.local_state_updated) setSinEstadoLocal(true)
       else onPublished(`«${module.title}» se publicó como v${r.version}.`)
     } catch (err) {
       setError(mensajeDeError(err))
+      setProblemas(problemasDe(err, module))
       // Un ensayo fallido invalida el anterior: si no, el botón de publicar
       // seguiría habilitado por un ensayo que ya no describe la realidad.
       if (dryRun) setEnsayo(null)
@@ -113,6 +178,9 @@ export function PublishModuleDialog({
   }
 
   const puedePublicar = credencial?.usable === true
+  const sinCambios = estado != null && estado !== 'error' && estado.state === 'unchanged'
+  // CU-37.4: la nube ya tiene la versión; publicar de nuevo solo la registra.
+  const reintentar = sinEstadoLocal || (estado !== 'error' && estado?.state === 'out_of_sync')
   const avisos = ensayo?.warnings ?? []
   const graves = avisos.filter((w) => AVISO[w.code]?.grave)
 
@@ -145,13 +213,31 @@ export function PublishModuleDialog({
           </div>
         )}
 
+        {/* ── D+: ¿hay algo que publicar? ─────────────────────────────── */}
+        <p
+          className={['field-hint', reintentar ? 'error' : ''].filter(Boolean).join(' ')}
+          role="status"
+        >
+          {sinEstadoLocal ? SIN_ESTADO_LOCAL : textoDeEstado(estado)}
+        </p>
+
         {error != null && (
           <div className="field-hint error" role="alert" style={{ marginTop: 10 }}>
             {error}
+            {problemas.length > 0 && (
+              <ul className="publish-warnings">
+                {problemas.map((p, i) => (
+                  <li key={`${p.leccion ?? ''}-${p.campo}-${i}`} className="grave">
+                    <strong>{p.leccion ?? 'Módulo'}</strong>
+                    {p.campo !== '' && <code> {p.campo}</code>} — {p.motivo}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
-        {puedePublicar && (
+        {puedePublicar && !reintentar && (
           <>
             <label className="field-label" htmlFor="publish-notes">
               Notas de esta versión (opcional)
@@ -207,22 +293,35 @@ export function PublishModuleDialog({
           <Button variant="ghost" onClick={onClose} disabled={ocupado}>
             Cancelar
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => ejecutar(true)}
-            disabled={!puedePublicar || ocupado}
-          >
-            {ocupado && ensayo == null ? 'Comprobando…' : 'Ver qué se publicará'}
-          </Button>
-          <Button
-            variant="primary"
-            onClick={() => ejecutar(false)}
-            // Solo tras un ensayo con éxito: publicar sin haber visto los avisos
-            // es exactamente lo que este diálogo existe para impedir.
-            disabled={!puedePublicar || ocupado || ensayo == null}
-          >
-            {ocupado && ensayo != null ? 'Publicando…' : `Publicar v${ensayo?.version ?? ''}`}
-          </Button>
+          {reintentar ? (
+            <Button
+              variant="primary"
+              onClick={() => ejecutar(false)}
+              disabled={!puedePublicar || ocupado}
+            >
+              {ocupado ? 'Reintentando…' : 'Reintentar'}
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => ejecutar(true)}
+                disabled={!puedePublicar || ocupado}
+              >
+                {ocupado && ensayo == null ? 'Comprobando…' : 'Ver qué se publicará'}
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => ejecutar(false)}
+                // Solo tras un ensayo con éxito (publicar sin haber visto los
+                // avisos es lo que este diálogo existe para impedir) y solo si
+                // hay algo nuevo: republicar lo mismo crearía una versión vacía.
+                disabled={!puedePublicar || ocupado || ensayo == null || sinCambios}
+              >
+                {ocupado && ensayo != null ? 'Publicando…' : `Publicar v${ensayo?.version ?? ''}`}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>
