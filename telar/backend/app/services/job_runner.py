@@ -472,7 +472,9 @@ class JobRunner:
             try:
                 item = await asyncio.wait_for(
                     handle.central_queue.get(),
-                    timeout=max(0.0, next_flush - loop.time()),
+                    # piso > 0: con timeout=0 wait_for cancela el get() antes
+                    # de correrlo aunque la cola ya tenga un item.
+                    timeout=max(0.001, next_flush - loop.time()),
                 )
             except asyncio.TimeoutError:
                 item = None
