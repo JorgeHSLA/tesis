@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -281,10 +281,12 @@ async def set_locally_modified_no_commit(
 ) -> bool:
     """Marca (o desmarca) «el admin editó este módulo después de instalarlo».
 
-    Lo enciende la ruta admin de autoría al tocar un módulo con manifiesto;
-    actualizar sobre él exige confirmación (``409 MODULE_LOCALLY_MODIFIED``),
-    porque sobrescribir en silencio el trabajo del docente es la misma clase de
-    error que borrar el progreso del estudiante, un nivel más arriba.
+    Lo enciende la autoría (``mark_linked_modified_no_commit``) al tocar un
+    módulo con manifiesto, y lo apaga publicar o actualizar. Actualizar sobre él
+    no se bloquea —el contrato no tiene código de error para eso— pero deja el
+    aviso ``MODULE_LOCALLY_MODIFIED``: sobrescribir EN SILENCIO el trabajo del
+    docente es la misma clase de error que borrar el progreso del estudiante,
+    un nivel más arriba.
 
     Devuelve ``False`` si el módulo no tiene manifiesto (baseline o creado en
     local): **no es un error**, se puede llamar a ciegas desde el writer.
@@ -295,6 +297,39 @@ async def set_locally_modified_no_commit(
         {"module_id": module_id, "valor": int(locally_modified)},
     )
     return cursor.rowcount > 0
+
+
+async def mark_linked_modified_no_commit(
+    db: "aiosqlite.Connection",
+    *,
+    module_ids: Iterable[str] = (),
+    lesson_ids: Iterable[str] = (),
+    example_ids: Iterable[str] = (),
+) -> None:
+    """Enciende ``locally_modified`` en los módulos que toca una edición de §10.
+
+    Resuelve lecciones y ejemplos a su módulo ACTUAL, así que el writer la
+    llama ANTES de la mutación: si la edición mueve una lección, esto marca el
+    módulo de origen y el destino lo pasa el llamador en ``module_ids``. Sin
+    manifiesto no hay fila que marcar y no pasa nada (§2.3 #14).
+    """
+    modulos = set(module_ids)
+    for lesson_id in lesson_ids:
+        cur = await db.execute("SELECT module_id FROM lessons WHERE id = ?", (lesson_id,))
+        fila = await cur.fetchone()
+        if fila is not None:
+            modulos.add(fila[0])
+    for example_id in example_ids:
+        cur = await db.execute(
+            "SELECT l.module_id FROM examples e JOIN lessons l ON l.id = e.lesson_id "
+            "WHERE e.id = ?",
+            (example_id,),
+        )
+        fila = await cur.fetchone()
+        if fila is not None:
+            modulos.add(fila[0])
+    for module_id in sorted(modulos):
+        await set_locally_modified_no_commit(db, module_id, True)
 
 
 async def delete_installed_no_commit(
@@ -556,14 +591,36 @@ async def set_published_no_commit(
     version: int,
     checksum: str,
     published_at: str,
+    object_path: str,
 ) -> None:
     """§11.8.2 paso 5 — deja constancia local de lo que se acaba de publicar.
 
     Sin esto el admin no puede saber en qué versión va sin preguntarle al
     bucket, y el default de `version` (`la publicada + 1`) no tendría de dónde
     salir.
+
+    Si el módulo tiene manifiesto (import vinculado, §11.7) se alinea en la
+    misma unidad: lo instalado ES lo recién publicado. Sin esto el siguiente
+    refresco vería la versión nueva mayor que la instalada y le ofrecería al
+    autor «actualizar» a su propio trabajo (§2.3 #15). ``locally_modified``
+    vuelve a ``False`` por lo mismo: ya no hay cambios locales sin publicar.
+    Sin fila no se crea ninguna: publicar no es incorporar.
     """
     await db.execute(
         "UPDATE modules SET version = ?, checksum = ?, published_at = ? WHERE id = ?",
         (version, checksum, published_at, module_id),
+    )
+    await db.execute(
+        "UPDATE installed_modules SET "
+        "object_path = :object_path, "
+        "installed_version = :version, installed_checksum = :checksum, "
+        "available_version = :version, available_checksum = :checksum, "
+        f"locally_modified = 0, updated_at = {_AHORA} "
+        "WHERE module_id = :module_id",
+        {
+            "object_path": object_path,
+            "version": version,
+            "checksum": checksum,
+            "module_id": module_id,
+        },
     )

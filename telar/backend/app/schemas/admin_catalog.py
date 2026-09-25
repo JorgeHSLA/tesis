@@ -167,6 +167,18 @@ class AdminPublishStatus(BaseModel):
     reason: str | None = None
 
 
+class AdminUnpublishResult(BaseModel):
+    """S7d ``DELETE /admin/modules/{id}/publish`` — retirar del catálogo (§11.8.4).
+
+    Solo se quita la entrada del índice: los bundles siguen en el bucket y el
+    estado local de publicación no se toca.
+    """
+
+    module_id: str
+    #: La versión que el índice anunciaba y dejó de anunciar.
+    retired_version: int
+
+
 __all__ = [
     "AdminCatalogCredentialStatus",
     "AdminImportRequest",
@@ -174,6 +186,7 @@ __all__ = [
     "AdminPublishRequest",
     "AdminPublishResult",
     "AdminPublishStatus",
+    "AdminUnpublishResult",
     "CredentialReason",
     "PublishState",
 ]
