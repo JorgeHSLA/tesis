@@ -19,7 +19,9 @@
 // Lo LOCAL queda fuera de esta pantalla: los módulos `local_only` (baseline o
 // creados en autoría) no se incorporan ni se quitan por §11.6.4 —respondería
 // `404 MODULE_NOT_INSTALLED`—, así que enseñarlos aquí sería ofrecer botones
-// que no funcionan. Su sitio es `/aprender`.
+// que no funcionan. Su sitio es `/aprender`. La excepción es CU-34.3: si el
+// bucket publica un módulo con el MISMO id que uno local, esa publicación sí se
+// enseña, marcada «Conflicto con un módulo local» y sin botón de incorporar.
 import '../../styles/screens/modules.css'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
@@ -33,7 +35,7 @@ import { Chip, type ChipTone } from '../../components/ui/Chip'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { ErrorState } from '../../components/ui/ErrorState'
 import { Skeleton } from '../../components/ui/Skeleton'
-import type { CatalogEntry } from '../../lib/catalogDiff'
+import { isLocalConflict, type CatalogEntry } from '../../lib/catalogDiff'
 import { fmtRelative } from '../../lib/format'
 import {
   selectCatalogDiff,
@@ -90,7 +92,10 @@ export default function ModulesScreen() {
 
   const diff = useMemo(() => selectCatalogDiff({ status, remote }), [status, remote])
 
-  const entries = useMemo(() => diff.entries.filter((e) => e.state !== 'local_only'), [diff])
+  const entries = useMemo(
+    () => diff.entries.filter((e) => e.state !== 'local_only' || isLocalConflict(e)),
+    [diff],
+  )
 
   const counts: ModulesCounts = useMemo(
     () => ({
@@ -444,7 +449,7 @@ const CHANGE_TONE: Record<LessonChange, ChipTone> = {
  */
 const PROGRESS_LABEL: Record<ProgressEffect, string> = {
   preserved: 'Tu avance se conserva',
-  rescored: 'La nota se recalcula; lo aprobado no se revoca',
+  rescored: 'Se recalificará; lo aprobado no se revoca',
   archived: 'Se archiva: tu avance se guarda',
   none: 'Sin avance previo',
 }
@@ -539,7 +544,7 @@ function UpdateDialog({
             <>
               <p className="dialog-note">
                 <b>{preview.progress_summary.preserved}</b> conservan tu avance ·{' '}
-                <b>{preview.progress_summary.rescored}</b> recalculan la nota ·{' '}
+                <b>{preview.progress_summary.rescored}</b> se recalificarán ·{' '}
                 <b>{preview.progress_summary.archived}</b> se archivan ·{' '}
                 <b>{preview.progress_summary.unaffected}</b> sin cambios
               </p>
@@ -607,7 +612,8 @@ function filterEntries(
   return entries.filter((entry) => {
     if (filter === 'available' && entry.state !== 'available') return false
     if (filter === 'updates' && entry.state !== 'update_available') return false
-    if (filter === 'installed' && entry.state === 'available') return false
+    // Un conflicto no cuenta como instalado: allí no hay nada que hacer con él.
+    if (filter === 'installed' && (entry.state === 'available' || entry.state === 'local_only')) return false
     if (q === '') return true
     return [entry.title, entry.moduleId, entry.remote?.description ?? '', entry.remote?.level ?? ''].some(
       (field) => field.toLowerCase().includes(q),

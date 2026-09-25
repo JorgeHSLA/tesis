@@ -33,8 +33,12 @@ export interface ImportModuleDialogProps {
 
 type Modo = 'linked' | 'forked'
 
-function mensajeDeError(err: unknown): string {
+function mensajeDeError(err: unknown, version?: number): string {
   if (err instanceof ApiError) {
+    // CU-36.2: se pidió la versión que se VIO. El índice solo publica una, así
+    // que un 404 con versión es «esa ya no es la publicada» (o se retiró).
+    if (err.code === 'REMOTE_MODULE_NOT_FOUND' && version != null)
+      return `La v${version} que elegiste ya no está publicada (cambió o se retiró). Actualiza la lista y vuelve a elegir.`
     if (err.code === 'DUPLICATE_ID')
       return 'Ese identificador ya lo usa contenido de este equipo. Elige otro para la copia.'
     if (err.code === 'MODULE_ALREADY_INSTALLED')
@@ -105,8 +109,11 @@ export function ImportModuleDialog({
     setOcupado(true)
     setError(null)
     try {
+      // CU-36.2: la versión que el admin VIO en la lista. Si el bucket cambió
+      // entretanto, el backend responde 404 en vez de traer otra en silencio.
       const r: AdminImportResultDto = await importCatalogModule({
         module_id: modulo.id,
+        version: modulo.version,
         ...(modo === 'forked' ? { as_module_id: nuevoId } : {}),
       })
       onImported(
@@ -115,7 +122,7 @@ export function ImportModuleDialog({
           : `«${r.module.title}» se incorporó y ya se puede editar.`,
       )
     } catch (err) {
-      setError(mensajeDeError(err))
+      setError(mensajeDeError(err, modulo.version))
     } finally {
       setOcupado(false)
     }

@@ -419,6 +419,30 @@ describe('CU-35 · explorar el catálogo', () => {
     expect(screen.queryByText('Primeros pasos con OpenMP')).toBeNull()
   })
 
+  it('CU-34.3: una publicación que choca con un módulo local SIGUE visible, marcada', async () => {
+    const remoto = structuredClone(REMOTE)
+    remoto.modules.push({
+      ...structuredClone(REMOTE.modules[0]),
+      id: 'm1',
+      title: 'Primeros pasos con OpenMP (publicado)',
+      object_path: 'modulos/m1/v3.json',
+      version: 3,
+    })
+    getRemoteCatalogMock.mockResolvedValue(remoto)
+    await renderCatalogo()
+
+    const titulo = await screen.findByText('Primeros pasos con OpenMP (publicado)')
+    const tarjeta = titulo.closest('section') as HTMLElement
+    expect(within(tarjeta).getByText('Conflicto con un módulo local')).toBeInTheDocument()
+    // Se puede mirar, pero no incorporar (daría DUPLICATE_ID) ni quitar (404).
+    expect(within(tarjeta).getByRole('link', { name: /Ver detalle/ })).toBeInTheDocument()
+    expect(within(tarjeta).queryByRole('button', { name: /^Incorporar/ })).toBeNull()
+    expect(within(tarjeta).queryByRole('button', { name: /^Quitar/ })).toBeNull()
+    // Y no se cuela en «Instalados»: allí no hay nada que hacer con ella.
+    fireEvent.click(screen.getByRole('button', { name: /^Instalados/ }))
+    expect(screen.queryByText('Primeros pasos con OpenMP (publicado)')).toBeNull()
+  })
+
   it('el buscador filtra por título y descripción', async () => {
     await renderCatalogo()
 
@@ -514,7 +538,10 @@ describe('CU-39 · actualizar', () => {
     expect(within(filas).getByText('Retirada')).toBeInTheDocument()
     expect(within(filas).getByText('Se archiva: tu avance se guarda')).toBeInTheDocument()
     // `rescored` NO es «pierdes la nota»: el contrato prohíbe revocar un aprobado.
+    // CU-38.3: y se dice en futuro, porque es lo que HARÁ la actualización.
+    expect(within(filas).getByText(/Se recalificará/)).toBeInTheDocument()
     expect(within(filas).getByText(/lo aprobado no se revoca/)).toBeInTheDocument()
+    expect(dialogo).toHaveTextContent(/se recalificarán?/)
     // El aviso no bloqueante del preview llega íntegro.
     expect(dialogo).toHaveTextContent(/ya no incluye esta lección/)
   })
