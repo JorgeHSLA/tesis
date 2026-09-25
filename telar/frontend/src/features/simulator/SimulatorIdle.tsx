@@ -228,12 +228,15 @@ export function SimulatorIdle() {
     }
   }, [system, launching, example, adminTest, edited, code, filename, threads, timeoutS, navigate])
 
-  if (sysError != null || modulesError != null) {
+  // CU-05.1/06.2: sin /modules solo falta el selector de ejemplos; el editor
+  // propio y la subida de archivos siguen funcionando. /system sí es necesario
+  // (hilos y núcleos del host), así que su fallo bloquea la pantalla.
+  if (sysError != null) {
     return (
       <section className="screen simulator-screen">
         <ErrorState
           message="No se pudo cargar la configuración del simulador. ¿Está corriendo el backend Telar?"
-          detail={(sysError ?? modulesError)?.message}
+          detail={sysError.message}
           onRetry={() => {
             sysRetry()
             loadModules()
@@ -258,7 +261,7 @@ export function SimulatorIdle() {
     )
   }
 
-  if (sysLoading || system == null || modules == null) {
+  if (sysLoading || system == null || (modules == null && modulesError == null)) {
     return (
       <section className="screen simulator-screen" aria-busy="true">
         <div className="screen-head">
@@ -295,12 +298,14 @@ export function SimulatorIdle() {
           </p>
         </div>
         <div className="screen-actions">
-          <ExamplePicker
-            compact
-            modules={modules}
-            value={example?.id ?? ''}
-            onChange={selectExample}
-          />
+          {modules != null && (
+            <ExamplePicker
+              compact
+              modules={modules}
+              value={example?.id ?? ''}
+              onChange={selectExample}
+            />
+          )}
           <Button variant="primary" size="lg" onClick={() => void launch()} disabled={launching || code.trim() === ''}>
             <IconPlay size={14} /> {launching ? 'Lanzando…' : 'Lanzar ejecución'}
           </Button>
@@ -345,7 +350,16 @@ export function SimulatorIdle() {
             <ThreadTopology threads={displayThreads} />
           </div>
           <div className="config-fields">
-            <ExamplePicker modules={modules} value={example?.id ?? ''} onChange={selectExample} />
+            {modules != null ? (
+              <ExamplePicker modules={modules} value={example?.id ?? ''} onChange={selectExample} />
+            ) : (
+              <ErrorState
+                title="Ejemplos no disponibles"
+                message="No se pudieron cargar los ejemplos del curso. Puedes escribir tu código o subir un archivo."
+                detail={modulesError?.message}
+                onRetry={loadModules}
+              />
+            )}
             <ThreadsField system={system} example={example} edited={edited} value={threads} onChange={setThreads} />
             <div className="field-row" style={{ marginTop: 4 }}>
               <span className="mono-small">Núcleos del host</span>
