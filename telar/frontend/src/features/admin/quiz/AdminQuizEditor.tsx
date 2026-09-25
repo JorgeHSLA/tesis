@@ -2,11 +2,12 @@
 // getAdminQuiz (el GET admin SÍ trae correct_key/explanation); lista de
 // QuestionEditorCard con add/remove/reorder INMUTABLES que recomputan `order`.
 // Guardar → putAdminQuiz (reemplazo total). `pass_threshold` editable como %.
-// fase4-autoria-design §9.F.4.
+// «Eliminar quiz» (CU-18.3) → deleteAdminQuiz, con confirmación: el backend
+// reinicia el progreso de ese quiz. fase4-autoria-design §9.F.4.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
-import { getAdminQuiz, putAdminQuiz } from '../../../api/admin'
+import { deleteAdminQuiz, getAdminQuiz, putAdminQuiz } from '../../../api/admin'
 import type { AdminQuizDto, AdminQuizQuestionDto } from '../../../api/admin-types'
 import { Button } from '../../../components/ui/Button'
 import { EmptyState } from '../../../components/ui/EmptyState'
@@ -15,6 +16,7 @@ import { Field } from '../../../components/ui/Field'
 import { Skeleton } from '../../../components/ui/Skeleton'
 import { IconHelp, IconPlus } from '../../../components/icons/icons'
 import { AdminSaveBar } from '../../../components/admin/AdminSaveBar'
+import { ConfirmDialog } from '../../../components/admin/ConfirmDialog'
 import { useAdminResource } from '../../../hooks/useAdminResource'
 import { parseContentErrors } from '../field-errors'
 import { QuestionEditorCard } from './QuestionEditorCard'
@@ -76,16 +78,23 @@ export default function AdminQuizEditor() {
   // editable (crear el primero). Cualquier OTRO error (LESSON_NOT_FOUND, 401,
   // 500, red…) sigue siendo un ErrorState.
   const isMissingQuiz = error instanceof ApiError && error.code === 'QUIZ_NOT_FOUND'
+  // Tras borrar, `useAdminResource` conserva el `data` anterior aunque la
+  // recarga dé 404: `deleted` lo tapa hasta que se guarde un quiz nuevo.
+  const [deleted, setDeleted] = useState(false)
   const effectiveData = useMemo<AdminQuizDto | null>(
-    () => data ?? (isMissingQuiz ? emptyQuiz(lessonId) : null),
-    [data, isMissingQuiz, lessonId],
+    () => (deleted ? emptyQuiz(lessonId) : (data ?? (isMissingQuiz ? emptyQuiz(lessonId) : null))),
+    [deleted, data, isMissingQuiz, lessonId],
   )
+  /** Hay un quiz guardado en el servidor (no solo el vacío editable). */
+  const hasSavedQuiz = !deleted && data != null
 
   const [rows, setRows] = useState<QRow[] | null>(null)
   const [threshold, setThreshold] = useState(0.8)
   const [initial, setInitial] = useState<string>('') // snapshot serializado
   const [saving, setSaving] = useState(false)
   const [banner, setBanner] = useState<string | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (effectiveData == null) return
@@ -142,6 +151,7 @@ export default function AdminQuizEditor() {
       const body = { pass_threshold: threshold, questions: toQuestions(rows) }
       await putAdminQuiz(lessonId, body)
       setInitial(JSON.stringify({ t: threshold, q: body.questions }))
+      setDeleted(false)
       reload()
     } catch (err) {
       // C1: no descartar error.details — el 422 CONTENT_VALIDATION_ERROR nombra
@@ -153,6 +163,21 @@ export default function AdminQuizEditor() {
       setSaving(false)
     }
   }, [rows, saving, dirty, threshold, lessonId, reload])
+
+  const removeQuiz = useCallback(async () => {
+    setDeleting(true)
+    setBanner(null)
+    try {
+      await deleteAdminQuiz(lessonId)
+      setDeleted(true)
+      setConfirmingDelete(false)
+    } catch (err) {
+      setConfirmingDelete(false)
+      setBanner(err instanceof ApiError ? err.message : 'No se pudo eliminar el quiz.')
+    } finally {
+      setDeleting(false)
+    }
+  }, [lessonId])
 
   if (loading && rows == null) {
     return (
@@ -193,10 +218,22 @@ export default function AdminQuizEditor() {
             Lección {lessonId} · {rows.length} {rows.length === 1 ? 'pregunta' : 'preguntas'}
           </p>
         </div>
-        <Button variant="primary" size="sm" onClick={add}>
-          <IconPlus size={15} />
-          Añadir pregunta
-        </Button>
+        <div className="row" style={{ gap: 8 }}>
+          {hasSavedQuiz && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="admin-btn-danger-ghost"
+              onClick={() => setConfirmingDelete(true)}
+            >
+              Eliminar quiz
+            </Button>
+          )}
+          <Button variant="primary" size="sm" onClick={add}>
+            <IconPlus size={15} />
+            Añadir pregunta
+          </Button>
+        </div>
       </header>
 
       <div style={{ maxWidth: 280, marginBottom: 20 }}>
@@ -252,6 +289,17 @@ export default function AdminQuizEditor() {
         onSave={save}
         onDiscard={discard}
         saveLabel="Guardar quiz"
+      />
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        tone="danger"
+        title="Eliminar quiz"
+        body="Se borrarán todas las preguntas y se reinicia el progreso de los estudiantes en este quiz. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar quiz definitivamente"
+        busy={deleting}
+        onConfirm={removeQuiz}
+        onCancel={() => !deleting && setConfirmingDelete(false)}
       />
     </section>
   )

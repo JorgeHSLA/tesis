@@ -8,14 +8,16 @@ import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 vi.mock('@/api/admin', () => ({
   getAdminQuiz: vi.fn(),
   putAdminQuiz: vi.fn(),
+  deleteAdminQuiz: vi.fn(),
 }))
 
-import { getAdminQuiz, putAdminQuiz } from '@/api/admin'
+import { deleteAdminQuiz, getAdminQuiz, putAdminQuiz } from '@/api/admin'
 import { ApiError } from '@/api/client'
 import AdminQuizEditor from '@/features/admin/quiz/AdminQuizEditor'
 
 const getAdminQuizMock = getAdminQuiz as Mock
 const putAdminQuizMock = putAdminQuiz as Mock
+const deleteAdminQuizMock = deleteAdminQuiz as Mock
 
 const QUIZ = {
   lesson_id: 'lesson-1',
@@ -177,5 +179,49 @@ describe('AdminQuizEditor', () => {
 
     // Tras el reload (getAdminQuiz ya resuelve el quiz creado) → Todo guardado.
     await waitFor(() => expect(screen.getByText('Todo guardado')).toBeInTheDocument())
+  })
+})
+
+describe('AdminQuizEditor · CU-18.3 eliminar quiz', () => {
+  it('pide confirmación, avisa del progreso y borra el quiz', async () => {
+    deleteAdminQuizMock.mockResolvedValue({ deleted: true, id: 'lesson-1' })
+    getAdminQuizMock
+      .mockResolvedValueOnce(structuredClone(QUIZ))
+      .mockRejectedValue(new ApiError('QUIZ_NOT_FOUND', 'sin quiz', 404))
+    renderEditor()
+    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar quiz' }))
+
+    const dialogo = screen.getByRole('dialog')
+    expect(dialogo).toHaveTextContent(/reinicia el progreso/)
+    expect(deleteAdminQuizMock).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar quiz definitivamente' }))
+    await waitFor(() => expect(deleteAdminQuizMock).toHaveBeenCalledWith('lesson-1'))
+    expect(await screen.findByText('Este quiz no tiene preguntas')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Eliminar quiz' })).not.toBeInTheDocument()
+  })
+
+  it('cancelar no borra nada', async () => {
+    renderEditor()
+    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar quiz' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(deleteAdminQuizMock).not.toHaveBeenCalled()
+    expect(screen.getByText('Pregunta 1')).toBeInTheDocument()
+  })
+
+  it('un error al borrar se muestra y el quiz sigue ahí', async () => {
+    deleteAdminQuizMock.mockRejectedValue(new ApiError('INTERNAL', 'falló el borrado', 500))
+    renderEditor()
+    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar quiz' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar quiz definitivamente' }))
+    expect(await screen.findByText('falló el borrado')).toBeInTheDocument()
+    expect(screen.getByText('Pregunta 1')).toBeInTheDocument()
+  })
+
+  it('sin quiz guardado no ofrece eliminarlo', async () => {
+    getAdminQuizMock.mockRejectedValue(new ApiError('QUIZ_NOT_FOUND', 'sin quiz', 404))
+    renderEditor()
+    await screen.findByText('Este quiz no tiene preguntas')
+    expect(screen.queryByRole('button', { name: 'Eliminar quiz' })).not.toBeInTheDocument()
   })
 })
