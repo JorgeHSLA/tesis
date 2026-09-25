@@ -1,6 +1,8 @@
 // ThreadsTable — card «Detalle por hilo» del live (frontend-spec §6.3),
-// honesta con lo medible: la columna Actividad es DECORATIVA (useSimulation)
-// y lleva la sub-etiqueta `ilustrativa`; el Estado es real (running → activo).
+// honesta con lo medible: Actividad y Estado son DECORATIVOS (CU-07.5). La
+// actividad sale de useSimulation y el Estado repite la fase del JOB en cada
+// fila: docker no mide hilos, así que ambos llevan la sub-etiqueta. N filas
+// para N hilos: t0 es el hilo maestro.
 import { Card, CardHead } from '../../components/ui/Card'
 import { Chip } from '../../components/ui/Chip'
 import { MiniBar } from '../../components/ui/MiniBar'
@@ -22,7 +24,7 @@ export function ThreadsTable({ nodes, phase }: ThreadsTableProps) {
       <CardHead
         icon={<IconLayers size={16} />}
         title="Detalle por hilo"
-        right={<span className="mono-small">actividad ilustrativa</span>}
+        right={<span className="mono-small">actividad y estado ilustrativos</span>}
       />
       <div className="threads-table" role="table" aria-label="Detalle por hilo">
         <div className="threads-table-head" role="row">
@@ -31,7 +33,9 @@ export function ThreadsTable({ nodes, phase }: ThreadsTableProps) {
           <span role="columnheader">
             Actividad <span className="threads-table-sub">ilustrativa</span>
           </span>
-          <span role="columnheader">Estado</span>
+          <span role="columnheader">
+            Estado <span className="threads-table-sub">ilustrativo</span>
+          </span>
         </div>
         {nodes.map((n) => (
           <div key={n.id} className="threads-table-row" role="row">

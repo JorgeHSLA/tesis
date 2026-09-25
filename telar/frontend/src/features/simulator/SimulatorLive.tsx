@@ -58,7 +58,8 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
   const reducedMotion = useReducedMotion()
   const { data: system } = useSystemInfo()
 
-  const { phase, logs, logsTruncated, metrics, elapsedSec, wsError, cancel, retry } = useJobSocket(jobId)
+  const { phase, logs, logsTruncated, logsGap, metrics, elapsedSec, wsError, cancelling, cancelError, cancel, retry } =
+    useJobSocket(jobId)
 
   const [job, setJob] = useState<JobDetailDto | null>(null)
   const [jobError, setJobError] = useState<ApiError | null>(null)
@@ -162,13 +163,17 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
         </div>
         <div className="screen-actions">
           {!terminal &&
-            (confirmStop ? (
+            (cancelling ? (
+              <Button variant="outline" disabled>
+                <IconStop size={14} /> Cancelando…
+              </Button>
+            ) : confirmStop && phase !== 'lost' ? (
               <>
                 <span className="mono-small">¿Detener el job?</span>
                 <Button
                   variant="outline"
                   onClick={() => {
-                    cancel()
+                    void cancel()
                     setConfirmStop(false)
                   }}
                 >
@@ -179,7 +184,13 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
                 </Button>
               </>
             ) : (
-              <Button variant="outline" onClick={() => setConfirmStop(true)}>
+              // CU-08.5: sin conexión no hay cómo saber si el job sigue vivo.
+              <Button
+                variant="outline"
+                disabled={phase === 'lost'}
+                title={phase === 'lost' ? 'Sin conexión con el backend' : undefined}
+                onClick={() => setConfirmStop(true)}
+              >
                 <IconStop size={14} /> Detener
               </Button>
             ))}
@@ -199,6 +210,10 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
         <div className="threads-note" role="status">
           {launchState.threadsNote}
         </div>
+      )}
+
+      {cancelError != null && !terminal && (
+        <ErrorState title="Cancelación no enviada" message={cancelError} onRetry={() => void cancel()} />
       )}
 
       {phase === 'lost' && (
@@ -261,7 +276,13 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
             <span className="muted">representación didáctica del fork-join</span>
           </div>
         </Card>
-        <LiveTerminalCard jobId={jobId.slice(0, 8)} phase={phase} logs={logs} logsTruncated={logsTruncated} />
+        <LiveTerminalCard
+          jobId={jobId.slice(0, 8)}
+          phase={phase}
+          logs={logs}
+          logsTruncated={logsTruncated}
+          logsGap={logsGap}
+        />
       </div>
 
       {sweep && example != null && isSweepParser(example.parser_id) ? (

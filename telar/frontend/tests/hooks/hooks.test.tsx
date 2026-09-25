@@ -441,20 +441,25 @@ describe('useDockerStatus (desktop)', () => {
 // ───────────────────────────────── useSimulation ───────────────────────────
 
 describe('useSimulation', () => {
-  it('genera master + N workers', () => {
+  it('genera N nodos: t0 es el maestro (CU-07.5)', () => {
     const { result } = renderHook(() => useSimulation({ threads: 4, running: false, reducedMotion: false }))
-    expect(result.current.nodes).toHaveLength(5) // 1 master + 4 threads
-    expect(result.current.nodes[0].kind).toBe('master')
-    expect(result.current.nodes.filter((n) => n.kind === 'thread')).toHaveLength(4)
+    expect(result.current.nodes).toHaveLength(4) // t0 (maestro) + t1..t3
+    expect(result.current.nodes[0]).toMatchObject({ id: 't0', kind: 'master' })
+    expect(result.current.nodes.filter((n) => n.kind === 'thread').map((n) => n.id)).toEqual(['t1', 't2', 't3'])
+  })
+
+  it('con 1 hilo solo está el maestro', () => {
+    const { result } = renderHook(() => useSimulation({ threads: 1, running: false, reducedMotion: false }))
+    expect(result.current.nodes.map((n) => n.id)).toEqual(['t0'])
   })
 
   it('reconstruye los nodos al cambiar threads', () => {
     const { result, rerender } = renderHook((props: { threads: number }) => useSimulation({ threads: props.threads, running: false, reducedMotion: false }), {
       initialProps: { threads: 2 },
     })
-    expect(result.current.nodes).toHaveLength(3)
+    expect(result.current.nodes).toHaveLength(2)
     rerender({ threads: 8 })
-    expect(result.current.nodes).toHaveLength(9)
+    expect(result.current.nodes).toHaveLength(8)
   })
 
   it('con reducedMotion NO hay tick (nodos congelados)', () => {
@@ -469,7 +474,7 @@ describe('useSimulation', () => {
     vi.useFakeTimers()
     const { result } = renderHook(() => useSimulation({ threads: 4, running: true, reducedMotion: false }))
     act(() => vi.advanceTimersByTime(2100)) // 3 ticks
-    // sigue habiendo master + 4 threads tras el jitter
-    expect(result.current.nodes).toHaveLength(5)
+    // siguen siendo 4 nodos (t0 maestro + 3) tras el jitter
+    expect(result.current.nodes).toHaveLength(4)
   })
 })

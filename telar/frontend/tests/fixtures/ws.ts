@@ -1,7 +1,7 @@
 // tests/fixtures/ws.ts — mensajes WS COPIADOS LITERALMENTE de api-contract §8.2
 // (mismos nombres snake_case, envelope de mensaje con job_id/ts, 8 fases).
 // Un test que pase contra un shape inventado no vale (frontend-spec §10).
-import type { JobPhase, ServerMsg, StatusDetailDto } from '@/ws/messages'
+import type { JobPhase, ServerMsg, StatusDetailDto, WsErrorCode } from '@/ws/messages'
 
 export const JOB_ID = '01a2b3c4d5e64f789a0b1c2d3e4f5061'
 
@@ -47,7 +47,7 @@ export function metricsMsg(overrides: Partial<Extract<ServerMsg, { type: 'metric
 
 /** error — no fatal, no cierra la conexión. §8.2 */
 export function errorMsg(
-  code: 'OUTPUT_TRUNCATED' | 'STREAM_ERROR' | 'BAD_CLIENT_MESSAGE',
+  code: WsErrorCode,
   message = 'Salida cortada a 262144 bytes; el job será terminado.',
 ): ServerMsg {
   return { type: 'error', job_id: JOB_ID, ts: '2026-07-12T15:04:10.000Z', code, message }
