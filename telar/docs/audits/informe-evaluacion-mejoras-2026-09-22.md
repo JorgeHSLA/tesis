@@ -56,7 +56,7 @@ Tres ideas que cambian las prioridades:
 | CU-08 | Cancelar una ejecución | 🟢 | 🟢 | Coherente. |
 | CU-09 | Resultados y métricas | 🟢 | 🟢 | Coherente; 09.4 cuesta minutos y conviene hacerlo. |
 | CU-10 | Descargar la salida | 🟢 | 🟢⚠ | Verificar en Electron: la descarga cruza orígenes y podría no funcionar. |
-| CU-11 | Ejecuciones recientes | 🟢 | 🟢 | Sin paginación después de 50 (sugerencia nueva). |
+| CU-11 | Ejecuciones recientes | 🟢 | 🟢 | Sin paginación después de 50 (sugerencia nueva). ✅ af72fc8, 29cbe1f |
 | CU-12 | Progreso de un curso | 🟡 | 🟡 | 12.1 (S). Hoy afecta a 0 lecciones, pero 17.2 lo vuelve frecuente. |
 | CU-13 | Crear un módulo | 🟢 | 🟢 | Coherente. |
 | CU-14 | Editar un módulo | 🟢 | 🟢 | Coherente. |
@@ -150,7 +150,7 @@ Tres ideas que cambian las prioridades:
 4. ✅ 6b29f57, 5099e7d — **La salida puede llegar con segundos de retraso aunque cada línea termine en `\n`.** `flush_all()` solo corre tras 100 ms **sin** datos (`job_runner.py:467-474`). Con un goteo constante solo se vacía al llegar a 4 KB, lo que incumple §8.4 del contrato. Es S y no toca el contrato.
 5. **La descarga puede no funcionar en Electron** (no se ejecutó, es un riesgo razonado): `API_BASE` es `http://localhost:8000` y la página se sirve desde `file://`. Chromium ignora `download` entre orígenes distintos y `security.ts:50-61` bloquea la navegación http. **Hay que probarlo a mano.**
 6. **La página pública ofrece la v1.0.3** (`site/release.json:2`) mientras la app va por la v1.0.5 (`desktop/package.json:5`). La v1.0.5 es la que activa el catálogo remoto (commit `6b05c1b`), así que quien descargue desde la web podría no tener CU-34/35.
-7. **Resultados dice «Job completado» también para fallidos, cancelados y timeouts** (`ResultsScreen.tsx:146,152`).
+7. ✅ af72fc8 — **Resultados dice «Job completado» también para fallidos, cancelados y timeouts** (`ResultsScreen.tsx:146,152`).
 8. ✅ b638029, f92d9fa — **Tres criterios distintos de progreso.** `/modules` cuenta solo las habilitadas en el numerador y todas en el denominador; `/catalog/status` cuenta todas; `/progress` cuenta solo las habilitadas.
 9. ✅ 6a400bd, f92d9fa — **Una lección archivada es accesible por URL sin ningún aviso** (`LessonDetail.archived` existe, pero ningún `.tsx` lo lee).
 10. ✅ b638029, f92d9fa — **Aprobar el quiz de una lección deshabilitada la completa**, y el frontend suma +1 aunque el backend no lo cuente.
@@ -167,10 +167,10 @@ Tres ideas que cambian las prioridades:
 18. ✅ 0b7b607 — **`--check` de la CLI sin `--db` nunca mira la base instalada**: siempre dice «contenido OK».
 19. ✅ 0b7b607 — **`--prune` deja progreso [huérfano](#g-huerfano)**: un id reutilizado lo «resucita».
 20. ✅ 0b7b607 — **La CLI no avisa al servidor en marcha.** Tras un seed/reset, el estudiante ve el contenido viejo hasta reiniciar.
-21. **`mark_orphans_failed` no fija `finished_at`.**
+21. ✅ 0519c98 — **`mark_orphans_failed` no fija `finished_at`.**
 22. ✅ b638029 — **`POST /jobs` no comprueba que `lesson_id` corresponda al ejemplo.** Si se implementa `run` sin arreglar esto, cualquier ejecución completaría cualquier lección.
 23. ✅ a7a0b42 — **Modo web:** el pie de estado se pone verde con cualquier `/health` 200, aunque Docker esté caído.
-24. **`ThreadsTable` pinta N+1 filas** («master» más t0..tN-1). En OpenMP el master **es** el hilo 0: es un error conceptual en un curso de OpenMP.
+24. ✅ 7e32ef1 — **`ThreadsTable` pinta N+1 filas** («master» más t0..tN-1). En OpenMP el master **es** el hilo 0: es un error conceptual en un curso de OpenMP.
 25. **Versiones internas descuadradas:** el compose empaquetado fija `telar-backend:1.0.2` y `BACKEND_VERSION = "1.0.1"`, mientras la app va por la 1.0.5.
 
 **Aviso sobre los archivos «modificados» de `git status`:** los 29 son **solo cambios de fin de línea (CRLF)**. `git diff --ignore-cr-at-eol` sale vacío y no hay arreglos en curso. Un `.gitattributes` con `* text=auto eol=lf` más un `git add --renormalize .` lo dejaría limpio (también aparece `.gitattributes` como modificado).
@@ -536,24 +536,24 @@ Leyenda:
 | CU-02.5 | Completar por ejecución (`run` no implementado) | 💡 | ✅ | HACER YA ✅ b638029, 5f79a02 | S | Bajo | Requisitos de completitud |
 | CU-03.1 | Aprobar el quiz marca toda la lección | 💡 | ✅ | HACER YA ✅ b638029, 5f79a02 | S | Bajo | Requisitos de completitud |
 | CU-04.1 | Re-ejecutar pierde ejemplo, lección y parser | 🚨 | ✅ | HACER YA ✅ 1d17085 | S | Bajo | Simulador: re-ejecución y editor |
-| CU-05.1 | El editor se bloquea si falla `/modules` | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Simulador: re-ejecución y editor |
+| CU-05.1 | El editor se bloquea si falla `/modules` | 💡 | ✅ | SI HAY TIEMPO ✅ 25a3339, 29cbe1f | S | Bajo | Simulador: re-ejecución y editor |
 | CU-05.2 | Un ejemplo que llega tarde pisa «Código propio» | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
 | CU-06.1 | Una carga anterior pisa el archivo actual | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
-| CU-06.2 | Subir archivo bloqueado si falla el catálogo | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Simulador: re-ejecución y editor |
+| CU-06.2 | Subir archivo bloqueado si falla el catálogo | 💡 | ✅ | SI HAY TIEMPO ✅ 25a3339, 29cbe1f | S | Bajo | Simulador: re-ejecución y editor |
 | CU-06.3 | Nombre de archivo validado distinto en front y back | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
 | CU-07.1 | «Compilando» vs. «Ejecutando» (coincide con el contrato) | 🚨 | ◐ | HACER YA ✅ 6d65d04, 82c10fa | S | Bajo | En vivo y resultados |
 | CU-07.2 | Salida sin `\n` retenida | 💡 | ✅ | NO HACER | M | Medio | En vivo y resultados |
-| CU-07.3 | Huecos de salida tras reconectar, sin aviso | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
+| CU-07.3 | Huecos de salida tras reconectar, sin aviso | 💡 | ✅ | SI HAY TIEMPO ✅ 7e32ef1 | S | Bajo | En vivo y resultados |
 | CU-07.4 | El cronómetro se reinicia al volver | 💡 | ✅ | HACER YA ✅ 6d65d04, 82c10fa | S | Bajo | En vivo y resultados |
-| CU-07.5 | Estado por hilo presentado como medido | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
-| CU-08.1 | Cancelar pisa un fin natural | 💡 | ✅ | SI HAY TIEMPO | S | Medio | Limpieza y reconciliación |
-| CU-08.2 | Cancelar con el WebSocket caído no avisa | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
-| CU-08.3 | No se comprueba que el contenedor se detuvo | 💡 | ◐ | SI HAY TIEMPO | S-M | Medio | Limpieza y reconciliación |
+| CU-07.5 | Estado por hilo presentado como medido | 💡 | ✅ | SI HAY TIEMPO ✅ 7e32ef1 | S | Bajo | En vivo y resultados |
+| CU-08.1 | Cancelar pisa un fin natural | 💡 | ✅ | SI HAY TIEMPO ✅ 0519c98 | S | Medio | Limpieza y reconciliación |
+| CU-08.2 | Cancelar con el WebSocket caído no avisa | 💡 | ✅ | SI HAY TIEMPO ✅ 7e32ef1, 29cbe1f | S | Bajo | En vivo y resultados |
+| CU-08.3 | No se comprueba que el contenedor se detuvo | 💡 | ◐ | SI HAY TIEMPO ✅ 0519c98, 4223d75 | S-M | Medio | Limpieza y reconciliación |
 | CU-08.4 | Se emite el estado antes de persistirlo | 💡 | ✅ | NO HACER | M | Medio | Limpieza y reconciliación |
-| CU-08.5 | Botón Detener visible sin conexión | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
-| CU-09.1 | Mostrar la configuración completa del job | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
-| CU-09.2 | stderr y causa del error completos | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
-| CU-09.3 | Métrica ausente mostrada como 0 (el 0 nace en el backend) | 💡 | ◐ | SI HAY TIEMPO | S | Bajo | En vivo y resultados |
+| CU-08.5 | Botón Detener visible sin conexión | 💡 | ✅ | SI HAY TIEMPO ✅ 7e32ef1 | S | Bajo | En vivo y resultados |
+| CU-09.1 | Mostrar la configuración completa del job | 💡 | ✅ | SI HAY TIEMPO ✅ af72fc8 | S | Bajo | En vivo y resultados |
+| CU-09.2 | stderr y causa del error completos | 💡 | ✅ | SI HAY TIEMPO ✅ af72fc8 | S | Bajo | En vivo y resultados |
+| CU-09.3 | Métrica ausente mostrada como 0 (el 0 nace en el backend) | 💡 | ◐ | SI HAY TIEMPO ✅ 0519c98 | S | Bajo | En vivo y resultados |
 | CU-09.4 | Rótulo «Hilos (PIDs)» engañoso | 💡 | ✅ | HACER YA ✅ d370739 | S | Bajo | En vivo y resultados |
 | CU-10.1 | Error de descarga no manejado (y posible fallo en Electron) | 💡 | ✅ | HACER YA ✅ 71eee1a, 82c10fa | S | Bajo | En vivo y resultados |
 | CU-12.1 | Lecciones `viewed`/`run` nunca se completan | 🚨 | ✅ | HACER YA ✅ b638029, f92d9fa, 5f79a02, 66ab557 (viewed respeta la disponibilidad) | S | Bajo | Requisitos de completitud |
@@ -600,12 +600,12 @@ Leyenda:
 | CU-23.3 | El reset no deja el estado base | 🚨 | ✅ | SI HAY TIEMPO ✅ 0b7b607 | S-M | Medio | CLI del contenido base |
 | CU-24.1 | Un error del parser convierte un éxito en fallo | 💡 | ✅ | HACER YA ✅ 6b29f57 | S | Bajo | Limpieza y reconciliación |
 | CU-24.2 | El drainer puede morir sin detectarse | 💡 | ◐ | NO HACER | M | Medio | Limpieza y reconciliación |
-| CU-24.3 | Limpieza parcial al fallar la preparación | 💡 | ◐ | SI HAY TIEMPO | S | Bajo | Limpieza y reconciliación |
+| CU-24.3 | Limpieza parcial al fallar la preparación | 💡 | ◐ | SI HAY TIEMPO ✅ 0519c98 | S | Bajo | Limpieza y reconciliación |
 | CU-24.4 | Cupo liberado antes de limpiar | 💡 | ✅ | NO HACER | M | Medio | Limpieza y reconciliación |
 | CU-24.5 | Fallo al guardar en SQLite pierde el resultado real | 💡 | ✅ | NO HACER | M | Medio | Limpieza y reconciliación |
-| CU-24.6 | Docker caído registrado como timeout | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Limpieza y reconciliación |
-| CU-25.1 | Limpiar directorios sin Docker | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Limpieza y reconciliación |
-| CU-25.2 | `rmtree(ignore_errors=True)` cuenta lo no borrado | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Limpieza y reconciliación |
+| CU-24.6 | Docker caído registrado como timeout | 💡 | ✅ | SI HAY TIEMPO ✅ 0519c98 | S | Bajo | Limpieza y reconciliación |
+| CU-25.1 | Limpiar directorios sin Docker | 💡 | ✅ | SI HAY TIEMPO ✅ 0519c98 | S | Bajo | Limpieza y reconciliación |
+| CU-25.2 | `rmtree(ignore_errors=True)` cuenta lo no borrado | 💡 | ✅ | SI HAY TIEMPO ✅ 0519c98 | S | Bajo | Limpieza y reconciliación |
 | CU-25.3 | Contenedores no eliminados sin seguimiento | 💡 | ✅ | NO HACER | M | Medio | Limpieza y reconciliación |
 | CU-26.1 | Imagen ausente vs. no comprobada | 💡 | ✅ | SI HAY TIEMPO ✅ 7f079e2 | S | Bajo | Escritorio y salud |
 | CU-26.2 | Los checks de Docker bloquean el event loop | 💡 | ✅ | SI HAY TIEMPO ✅ 7f079e2, f0d9980 | S | Bajo | Escritorio y salud |
