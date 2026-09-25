@@ -10,6 +10,8 @@ variante de DESPLIEGUE, no un login):
 * ``POST /api/v1/admin/modules/{id}/publish`` — §11.8 CU-38, publicarlo.
 * ``GET  /api/v1/admin/modules/{id}/publish/status`` — S5 (D+), ¿hay cambios
   sin publicar?
+* ``DELETE /api/v1/admin/modules/{id}/publish`` — S7d (CU-41.1), retirarlo del
+  catálogo.
 
 Como ``routers/admin.py``, este módulo es OPCIONAL a nivel de artefacto: el
 ``Dockerfile`` no lo copia con ``TELAR_ADMIN_BUILD=0``, su import falla y
@@ -48,9 +50,15 @@ from app.schemas.admin_catalog import (
     AdminPublishRequest,
     AdminPublishResult,
     AdminPublishStatus,
+    AdminUnpublishResult,
 )
 from app.schemas.catalog import CatalogIndexEntry, ModuleBundle
-from app.services import catalog_import, catalog_publish, module_installer
+from app.services import (
+    catalog_import,
+    catalog_publish,
+    catalog_retirar,
+    module_installer,
+)
 from app.services.bundle_guard import BundleGuardError, parse_bundle
 from app.services.catalog_hash import content_hash
 from app.services.content_writer import _persist
@@ -451,6 +459,7 @@ async def admin_publish_module(
                 version=resultado.version,
                 checksum=resultado.checksum,
                 published_at=resultado.published_at,
+                object_path=resultado.object_path,
             )
 
         try:
@@ -469,3 +478,41 @@ async def admin_publish_module(
             resultado = resultado.model_copy(update={"local_state_updated": False})
 
     return envelope_ok(resultado, status_code=200 if body.dry_run else 201)
+
+
+# ═══════════ §11.8.4 DELETE /admin/modules/{id}/publish (CU-41.1) ════════════
+
+
+@router.delete("/modules/{module_id}/publish")
+async def admin_unpublish_module(request: Request, module_id: str) -> JSONResponse:
+    """§11.8.4 — retira el módulo del catálogo: quita su entrada del índice.
+
+    Misma puerta que publicar (credencial de escritura utilizable) y el módulo
+    tiene que existir aquí: se retira desde Autoría. **No escribe nada local**:
+    ``modules.version``/``published_at`` se conservan para que republicar salga
+    con la versión siguiente y nunca reutilice un número ya subido; el estado
+    de publicación pasa a ``never_published`` porque se lee del índice.
+    """
+    app = request.app
+    settings = _settings(request)
+    credencial = inspeccionar_credencial(settings)
+    if not credencial.usable:
+        raise ApiException(
+            "CATALOG_CREDENTIALS_INVALID",
+            "No hay una credencial de escritura utilizable para retirar módulos.",
+            status_code=403,
+            details={"reason": credencial.reason},
+        )
+    if await catalog_repo.get_published_state(app.state.db, module_id) is None:
+        raise ApiException(
+            "MODULE_NOT_FOUND", f"No existe el módulo '{module_id}'.", status_code=404
+        )
+
+    publisher = build_publisher(settings, credencial)
+    try:
+        resultado: AdminUnpublishResult = await catalog_retirar.retirar_modulo(
+            settings, publisher, module_id
+        )
+    finally:
+        await publisher.aclose()
+    return envelope_ok(resultado)

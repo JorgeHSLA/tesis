@@ -28,6 +28,7 @@ import type {
   AdminPublishRequestDto,
   AdminPublishResultDto,
   AdminPublishStatusDto,
+  AdminUnpublishResultDto,
 } from './admin-types'
 
 const P = '/api/v1/admin'
@@ -164,6 +165,17 @@ export function publishModule(
  */
 export function getPublishStatus(moduleId: string): Promise<AdminPublishStatusDto> {
   return fetchJson<AdminPublishStatusDto>(`${P}/modules/${enc(moduleId)}/publish/status`)
+}
+
+/**
+ * §11.8.4 `DELETE /admin/modules/{id}/publish` — retira el módulo del catálogo
+ * (CU-41.1). Solo quita la entrada del índice: no borra bundles ni toca nada
+ * local, y quien ya lo incorporó lo conserva como «Ya no publicado».
+ */
+export function unpublishModule(moduleId: string): Promise<AdminUnpublishResultDto> {
+  return fetchJson<AdminUnpublishResultDto>(`${P}/modules/${enc(moduleId)}/publish`, {
+    method: 'DELETE',
+  })
 }
 
 /**

@@ -79,13 +79,15 @@ describe('ImportModuleDialog', () => {
     expect(screen.getByText(/no recibe actualizaciones/)).toBeInTheDocument()
   })
 
-  it('por defecto importa VINCULADO: sin as_module_id', async () => {
+  it('por defecto importa VINCULADO: sin as_module_id, y la versión que VIO', async () => {
     const { onImported } = montar()
     await screen.findByText(/Fundamentos de paralelismo/)
 
     fireEvent.click(screen.getByRole('button', { name: 'Importar' }))
+    // CU-36.2: la versión elegida viaja; si cambió, el backend da 404 en vez de
+    // sustituirla en silencio por otra.
     await waitFor(() =>
-      expect(importarMock).toHaveBeenCalledWith({ module_id: 'mFundamentos' }),
+      expect(importarMock).toHaveBeenCalledWith({ module_id: 'mFundamentos', version: 2 }),
     )
     await waitFor(() => expect(onImported).toHaveBeenCalled())
   })
@@ -117,6 +119,7 @@ describe('ImportModuleDialog', () => {
     await waitFor(() =>
       expect(importarMock).toHaveBeenCalledWith({
         module_id: 'mFundamentos',
+        version: 2,
         as_module_id: 'miversion',
       }),
     )
@@ -160,5 +163,19 @@ describe('ImportModuleDialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Importar' }))
     expect(await screen.findByText(/Elige otro para la copia/)).toBeInTheDocument()
+  })
+
+  it('si la versión elegida ya no es la publicada, lo dice claro (CU-36.2)', async () => {
+    montar()
+    await screen.findByText(/Fundamentos de paralelismo/)
+    importarMock.mockRejectedValue(
+      new ApiError('REMOTE_MODULE_NOT_FOUND', 'La versión 2 no está', 404, null),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Importar' }))
+    const aviso = await screen.findByRole('alert')
+    expect(aviso).toHaveTextContent(/v2/)
+    expect(aviso).toHaveTextContent(/ya no está publicada/i)
+    expect(aviso).toHaveTextContent(/Actualiza la lista/i)
   })
 })

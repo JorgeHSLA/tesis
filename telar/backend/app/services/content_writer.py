@@ -26,6 +26,7 @@ import re
 from typing import TYPE_CHECKING
 
 from app.errors import ApiException
+from app.repositories import catalog as catalog_repo
 from app.repositories import content_admin
 from app.repositories.content import ContentError, ContentRepository
 from app.schemas import (
@@ -333,7 +334,11 @@ async def update_module(
             raise ApiException(
                 "ORDER_CONFLICT", f"El order {body.order} de módulo ya está en uso."
             )
-        await _persist(app, lambda: content_admin.update_module(db, module_id, body))
+        async def _write() -> None:
+            await catalog_repo.mark_linked_modified_no_commit(db, module_ids=[module_id])
+            await content_admin.update_module(db, module_id, body)
+
+        await _persist(app, _write)
         result = await content_admin.select_admin_module(db, module_id)
     assert result is not None
     return result
@@ -399,9 +404,11 @@ async def create_lesson(
         body = body.model_copy(
             update={"video_url": youtube.normalizar(body.video_url)}
         )
-        await _persist(
-            app, lambda: content_admin.insert_lesson_with_example(db, body)
-        )
+        async def _write() -> None:
+            await catalog_repo.mark_linked_modified_no_commit(db, module_ids=[body.module_id])
+            await content_admin.insert_lesson_with_example(db, body)
+
+        await _persist(app, _write)
         result = await content_admin.select_admin_lesson_detail(db, body.id)
     assert result is not None
     return result
@@ -444,7 +451,14 @@ async def update_lesson(
         body = body.model_copy(
             update={"video_url": youtube.normalizar(body.video_url)}
         )
-        await _persist(app, lambda: content_admin.update_lesson(db, lesson_id, body))
+        async def _write() -> None:
+            # Origen (resuelto antes de mover) y destino.
+            await catalog_repo.mark_linked_modified_no_commit(
+                db, lesson_ids=[lesson_id], module_ids=[body.module_id]
+            )
+            await content_admin.update_lesson(db, lesson_id, body)
+
+        await _persist(app, _write)
         result = await content_admin.select_admin_lesson_detail(db, lesson_id)
     assert result is not None
     return result
@@ -457,7 +471,11 @@ async def delete_lesson(app: "FastAPI", lesson_id: str) -> None:
             raise ApiException(
                 "LESSON_NOT_FOUND", f"No existe la lección {lesson_id}."
             )
-        await _persist(app, lambda: content_admin.delete_lesson(db, lesson_id))
+        async def _write() -> None:
+            await catalog_repo.mark_linked_modified_no_commit(db, lesson_ids=[lesson_id])
+            await content_admin.delete_lesson(db, lesson_id)
+
+        await _persist(app, _write)
 
 
 # ───────────────────────────── reorden por lote ─────────────────────────────
@@ -558,12 +576,25 @@ async def reorder_lessons(
     async def _par(db, item: AdminReorderItem) -> tuple[str, str, int]:
         return (item.id, await _modulo(db, item), item.order)
 
+    async def _escribir(db, escrituras: list[tuple[str, str, int]]) -> None:
+        # El orden de las lecciones es contenido publicable (el bundle las
+        # numera así); el de los módulos no, es local. Solo se marcan las que
+        # de verdad cambian: el reorden suele reenviar el módulo entero.
+        actuales = await content_admin.all_lesson_orders(db)
+        cambian = [e for e in escrituras if actuales.get(e[0]) != (e[1], e[2])]
+        await catalog_repo.mark_linked_modified_no_commit(
+            db,
+            lesson_ids=[e[0] for e in cambian],
+            module_ids=[e[1] for e in cambian],
+        )
+        await content_admin.reorder_lessons(db, escrituras)
+
     return await _reorder(
         app,
         items,
         exists=content_admin.lesson_exists,
         get_orders=content_admin.all_lesson_orders,
-        persist_write=content_admin.reorder_lessons,
+        persist_write=_escribir,
         clave_final=_clave,
         pares=_par,
         not_found_code="LESSON_NOT_FOUND",
@@ -586,7 +617,11 @@ async def update_example(
         issues = _example_coherence_issues(body)
         if issues:
             raise _content_error(issues)
-        await _persist(app, lambda: content_admin.update_example(db, example_id, body))
+        async def _write() -> None:
+            await catalog_repo.mark_linked_modified_no_commit(db, example_ids=[example_id])
+            await content_admin.update_example(db, example_id, body)
+
+        await _persist(app, _write)
         result = await content_admin.select_admin_example(db, example_id)
     assert result is not None
     return result
@@ -620,12 +655,13 @@ async def add_example_to_lesson(
         issues = _example_coherence_issues(body.example)
         if issues:
             raise _content_error(issues)
-        await _persist(
-            app,
-            lambda: content_admin.insert_example_for_lesson(
+        async def _write() -> None:
+            await catalog_repo.mark_linked_modified_no_commit(db, lesson_ids=[lesson_id])
+            await content_admin.insert_example_for_lesson(
                 db, lesson_id, body.example, body.source_code
-            ),
-        )
+            )
+
+        await _persist(app, _write)
         result = await content_admin.select_admin_example(db, lesson_id)
     assert result is not None
     return result
@@ -647,9 +683,11 @@ async def remove_example_from_lesson(app: "FastAPI", lesson_id: str) -> None:
             raise ApiException(
                 "EXAMPLE_NOT_FOUND", f"La lección {lesson_id} no tiene ejemplo."
             )
-        await _persist(
-            app, lambda: content_admin.delete_example_of_lesson(db, lesson_id)
-        )
+        async def _write() -> None:
+            await catalog_repo.mark_linked_modified_no_commit(db, lesson_ids=[lesson_id])
+            await content_admin.delete_example_of_lesson(db, lesson_id)
+
+        await _persist(app, _write)
 
 
 async def set_example_code(
@@ -662,12 +700,13 @@ async def set_example_code(
             raise ApiException(
                 "EXAMPLE_NOT_FOUND", f"No existe el ejemplo {example_id}."
             )
-        await _persist(
-            app,
-            lambda: content_admin.set_example_code(
+        async def _write() -> None:
+            await catalog_repo.mark_linked_modified_no_commit(db, example_ids=[example_id])
+            await content_admin.set_example_code(
                 db, example_id, source_code=source_code, filename=filename
-            ),
-        )
+            )
+
+        await _persist(app, _write)
         result = await content_admin.select_admin_example(db, example_id)
     assert result is not None
     return result
@@ -714,6 +753,7 @@ async def replace_quiz(
         )
 
         async def _write() -> None:
+            await catalog_repo.mark_linked_modified_no_commit(db, lesson_ids=[lesson_id])
             await content_admin.replace_quiz(db, lesson_id, body)
             if reset_progress:
                 await content_admin.reset_quiz_progress(db, lesson_id)
@@ -739,6 +779,7 @@ async def delete_quiz(app: "FastAPI", lesson_id: str) -> None:
         # BL-06 (§10.5): borrar el quiz siempre cambia el nº de preguntas
         # (el guard de arriba garantiza que había ≥1) ⇒ reset incondicional.
         async def _write() -> None:
+            await catalog_repo.mark_linked_modified_no_commit(db, lesson_ids=[lesson_id])
             await content_admin.delete_quiz(db, lesson_id)
             await content_admin.reset_quiz_progress(db, lesson_id)
 

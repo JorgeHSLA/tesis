@@ -484,27 +484,41 @@ def _entrada_de(bundle: ModuleBundle, object_path: str, tamano: int) -> CatalogI
     )
 
 
+def _entradas_del_indice(crudo: bytes) -> list[CatalogIndexEntry]:
+    """Las entradas del índice del bucket; ``[]`` solo si de verdad está vacío.
+
+    Un índice ilegible **no** se sobrescribe en silencio. Si trae basura,
+    preferimos fallar y que alguien lo mire a borrar el catálogo entero de los
+    demás módulos.
+    """
+    if not crudo.strip():
+        return []
+    try:
+        return list(CatalogIndex.model_validate_json(crudo).modules)
+    except Exception as exc:
+        logger.error("índice del bucket ilegible: %s", type(exc).__name__)
+        raise _api(
+            "CONTENT_VALIDATION_ERROR",
+            "El índice publicado no es válido; revísalo antes de publicar.",
+        ) from exc
+
+
 def _indice_con(
-    crudo: bytes, entrada: CatalogIndexEntry, generado_en: str
+    crudo: bytes,
+    entrada: CatalogIndexEntry | None,
+    generado_en: str,
+    *,
+    sin: str | None = None,
 ) -> bytes:
     """Índice existente + la entrada nueva, sustituyendo la del mismo módulo.
 
-    Un índice ilegible **no** se sobrescribe en silencio: se trata como vacío
-    solo si de verdad está vacío. Si trae basura, preferimos fallar y que alguien
-    lo mire a borrar el catálogo entero de los demás módulos.
+    Con ``entrada=None`` y ``sin=<module_id>`` solo QUITA la de ese módulo: es
+    retirarlo del catálogo (CU-41.1) por el mismo camino que publicarlo.
     """
-    entradas: list[CatalogIndexEntry] = []
-    if crudo.strip():
-        try:
-            actual = CatalogIndex.model_validate_json(crudo)
-        except Exception as exc:
-            logger.error("índice del bucket ilegible: %s", type(exc).__name__)
-            raise _api(
-                "CONTENT_VALIDATION_ERROR",
-                "El índice publicado no es válido; revísalo antes de publicar.",
-            ) from exc
-        entradas = [e for e in actual.modules if e.id != entrada.id]
-    entradas.append(entrada)
+    quitar = entrada.id if entrada is not None else sin
+    entradas = [e for e in _entradas_del_indice(crudo) if e.id != quitar]
+    if entrada is not None:
+        entradas.append(entrada)
     entradas.sort(key=lambda e: (e.order_hint, e.id))
     indice = CatalogIndex(
         index_format=INDEX_FORMAT, generated_at=generado_en, modules=entradas

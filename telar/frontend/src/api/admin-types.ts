@@ -249,6 +249,13 @@ export interface AdminPublishStatusDto {
   reason: string | null
 }
 
+// S7d §11.8.4
+/** `DELETE /admin/modules/{id}/publish` — la entrada que el índice dejó de anunciar. */
+export interface AdminUnpublishResultDto {
+  module_id: string
+  retired_version: number
+}
+
 /** §11.7 `POST /admin/catalog/import`. */
 export interface AdminImportRequestDto {
   module_id: string

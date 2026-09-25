@@ -56,6 +56,15 @@ export interface CatalogDiff {
   byState: Record<CatalogEntryState, CatalogEntry[]>
 }
 
+/**
+ * CU-34.3: ¿es una publicación que CHOCA con un módulo local del mismo id?
+ * Es `local_only` con entrada en el índice. Se enseña en el catálogo (lo
+ * publicado no se esconde) pero no se puede incorporar: daría `DUPLICATE_ID`.
+ */
+export function isLocalConflict(entry: CatalogEntry): boolean {
+  return entry.state === 'local_only' && entry.remote !== null
+}
+
 /** ¿Está en este equipo? Todo menos `available` lo está (incluido `local_only`). */
 export function isInstalled(entry: CatalogEntry): boolean {
   return entry.state !== 'available'

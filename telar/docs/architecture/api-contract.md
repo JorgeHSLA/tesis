@@ -1076,6 +1076,7 @@ C:      GET /api/v1/jobs/01a2…   → parsed_timings (curva de speedup)
 | POST | `/api/v1/admin/catalog/import` | Descargar un módulo para editarlo (§11.7) | 201 | 401, 404, 409, 413, 422, 503 |
 | POST | `/api/v1/admin/modules/{id}/publish` | Publicar el módulo en el bucket (§11.8) | 201/200 | 401, 403, 404, 409, 413, 422, 503 |
 | GET | `/api/v1/admin/modules/{id}/publish/status` | ¿Hay cambios sin publicar? (§11.8.3, S5) | 200 | 401, 404, 422 |
+| DELETE | `/api/v1/admin/modules/{id}/publish` | Retirar el módulo del catálogo (§11.8.4, S7d) | 200 | 401, 403, 404, 409, 422, 503 |
 
 ---
 
@@ -2127,6 +2128,19 @@ ya publicados lo verifican al instalar):**
 - **`local_state_updated`** (`bool`, default `true`) en la respuesta: `false`
   si el bucket quedó publicado pero falló el paso 5. Se responde `201` igual (la
   versión ya es inmutable); reintentar reconcilia sin crear otra versión.
+- **Manifiesto del autor (S7d, §2.3 #15).** Si el módulo publicado tiene fila
+  en `installed_modules` (import vinculado, §11.7), el paso 5 la alinea en la
+  misma transacción: `installed_*` y `available_*` pasan a la versión y el
+  checksum recién publicados y `locally_modified` vuelve a `false`. Sin eso el
+  autor se vería a sí mismo con «actualización disponible». Sin fila no se crea
+  ninguna.
+- **`locally_modified` (S7d, §2.3 #14).** Toda escritura de §10 sobre un módulo
+  con fila en `installed_modules` (el módulo, sus lecciones —también la que sale
+  o entra al moverla—, sus ejemplos y sus quizzes) la pone a `true`. El
+  reorden de lecciones solo marca las que de verdad cambian de `(módulo, order)`;
+  el de módulos no marca, porque su `order` es local y no viaja en el bundle. Actualizar
+  sobre él sigue sin bloquear: `POST …/update` lo aplica y deja el aviso
+  `MODULE_LOCALLY_MODIFIED` en el informe.
 
 #### 11.8.3 `GET /api/v1/admin/modules/{module_id}/publish/status` — ¿hay cambios sin publicar? *(S5, D+)*
 
@@ -2162,6 +2176,37 @@ se publica ni se guarda en el índice (que no admite campos nuevos,
 | 404 `MODULE_NOT_FOUND` | — |
 | 422 `CONTENT_VALIDATION_ERROR` | El módulo no tiene lecciones publicables |
 
+#### 11.8.4 `DELETE /api/v1/admin/modules/{module_id}/publish` — retirar del catálogo *(S7d, CU-41.1)*
+
+«Curso» = el módulo publicable (§3.10 del informe de evaluación). Retirar
+**quita la entrada del índice** con el mismo CAS de §11.8.2 paso 4 (un
+reintento). **No borra ningún bundle**: las versiones siguen siendo inmutables
+y quien ya incorporó el módulo lo conserva, marcado «Ya no publicado» por
+`GET /catalog/status`/`remote` como cualquier módulo que sale del índice.
+
+Exige la misma credencial de escritura que publicar (§11.8.1) y que el módulo
+exista en local. **No escribe nada local**: si el bucket falla, todo queda
+como estaba; si va bien, `modules.version`/`published_at` se conservan, así
+que republicar después sale con la versión siguiente (nunca reutiliza un
+número ya subido) y `GET …/publish/status` responde `never_published`.
+
+Sin cuerpo. `200` — `AdminUnpublishResult`:
+
+```json
+{ "module_id": "m1", "retired_version": 3 }
+```
+
+| Código | Cuándo |
+|---|---|
+| 200 | Entrada quitada del índice |
+| 401 `UNAUTHORIZED` | Modo admin apagado (imagen estudiante → `404`) |
+| 403 `CATALOG_CREDENTIALS_INVALID` | Sin credencial de escritura utilizable, o sin permiso sobre el bucket |
+| 404 `MODULE_NOT_FOUND` | El módulo no existe en local |
+| 404 `REMOTE_MODULE_NOT_FOUND` | El índice no anuncia el módulo |
+| 409 `VERSION_CONFLICT` | El CAS falló dos veces (`details.stage = "index"`); nada cambió, reintentar |
+| 422 `CONTENT_VALIDATION_ERROR` | El índice del bucket es ilegible: no se sobrescribe |
+| 503 `CATALOG_DISABLED` · 503 `CATALOG_UNAVAILABLE` | — |
+
 ### 11.9 Sin red: qué sigue funcionando (requisito de escritorio)
 
 La app de escritorio **debe seguir siendo plenamente usable con lo ya instalado**.
@@ -2180,6 +2225,7 @@ contenido se sirve desde SQLite igual que en Fase 4.
 | `DELETE /catalog/modules/{id}` | **200.** Desinstalar es 100 % local |
 | `POST /admin/catalog/import`, `POST /admin/modules/{id}/publish` | **503 `CATALOG_UNAVAILABLE`** |
 | `GET /admin/modules/{id}/publish/status` (S5) | **200** con `state="unknown"`: no poder comprobar no impide publicar |
+| `DELETE /admin/modules/{id}/publish` (S7d) | **503 `CATALOG_UNAVAILABLE`**; nada local cambia |
 | `GET /admin/catalog/credentials` | **200.** Comprobar la credencial es local (parseo del JSON y permisos del archivo); solo `?probe=true` sale a la red y entonces devuelve `usable:false, reason:"forbidden"` |
 | §10 completo (autoría admin local) | **Idéntico.** Crear/editar módulos, lecciones y quizzes es 100 % local |
 
@@ -2639,6 +2685,11 @@ class AdminPublishStatus(BaseModel):
     local_version: int | None = None
     content_hash: str = Field(pattern=CHECKSUM_PATTERN)
     reason: str | None = None
+
+# S7d §11.8.4
+class AdminUnpublishResult(BaseModel):
+    module_id: str
+    retired_version: int                # la versión que el índice dejó de anunciar
 ```
 
 #### 11.11.3 TypeScript — `frontend/src/api/catalog-types.ts` (nuevo)
@@ -2881,6 +2932,12 @@ export interface AdminPublishStatusDto {
   content_hash: string
   reason: string | null
 }
+
+// S7d §11.8.4
+export interface AdminUnpublishResultDto {
+  module_id: string
+  retired_version: number
+}
 ```
 
 Y la unión **cerrada** `ApiErrorCode` de `api/types.ts` gana:
@@ -2967,3 +3024,4 @@ Y la unión **cerrada** `ApiErrorCode` de `api/types.ts` gana:
 | POST | `/api/v1/admin/catalog/import` | Descargar un módulo para editarlo (§11.7) | 201 | 401, 404, 409, 413, 422, 503 |
 | POST | `/api/v1/admin/modules/{id}/publish` | Publicar el módulo en el bucket (§11.8) | 201/200 | 401, 403, 404, 409, 413, 422, 503 |
 | GET | `/api/v1/admin/modules/{id}/publish/status` | ¿Hay cambios sin publicar? (§11.8.3, S5) | 200 | 401, 404, 422 |
+| DELETE | `/api/v1/admin/modules/{id}/publish` | Retirar el módulo del catálogo (§11.8.4, S7d) | 200 | 401, 403, 404, 409, 422, 503 |

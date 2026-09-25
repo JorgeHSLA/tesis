@@ -160,8 +160,8 @@ Tres ideas que cambian las prioridades:
 11. ✅ 1dc3950 — **El DTO admin del frontend no sigue el contrato** (`api/admin-types.ts:113-139`): le faltan `video_url`, `enabled` y `completion_rule`. Es la **causa raíz** de 17.1, 17.2 y 18.1.
 12. **Los 422 de pydantic no se entienden en el front**: `coerceEntries` busca `{field, reason}` y pydantic envía `{type, loc, msg}`. Es la causa raíz del grupo «errores por campo».
 13. ✅ 7f079e2, f0d9980 — **`/health` y `/system` bloquean el [event loop](#g-event-loop)** con llamadas síncronas a Docker de hasta 120 s. `useSystemInfo` reintenta `/system` 60 veces.
-14. **`locally_modified` nunca se activa** (`set_locally_modified_no_commit` no tiene llamadores). Una actualización pisa sin avisar las ediciones del admin.
-15. **Probable (no ejecutado): el autor se verá a sí mismo con «actualización disponible»** tras publicar, porque `installed_modules.installed_version` no se actualiza.
+14. ✅ 785aaa0 — **`locally_modified` nunca se activa** (`set_locally_modified_no_commit` no tiene llamadores). Una actualización pisa sin avisar las ediciones del admin.
+15. ✅ 785aaa0 — **Probable (no ejecutado): el autor se verá a sí mismo con «actualización disponible»** tras publicar, porque `installed_modules.installed_version` no se actualiza.
 16. **Un comentario falso en la UI:** `PublishModuleDialog.tsx:13-14` asegura que se anclan versión y checksum. No es así.
 17. **El checksum del ensayo nunca coincide con el publicado**, porque `published_at` entra en el hash y se recalcula en cada llamada.
 18. ✅ 0b7b607 — **`--check` de la CLI sin `--db` nunca mira la base instalada**: siempre dice «contenido OK».
@@ -637,10 +637,10 @@ Leyenda:
 | CU-33.1 | QA versionada de instalación (y la web ofrece v1.0.3) | 💡 | ✅ | HACER YA ◐ 2ff51c1 (web a v1.0.5; falta la QA de instalación) | S | Bajo | Escritorio y salud |
 | CU-34.1 | Detalle de publicación (endpoint listo, sin pantalla) | 🚨 | ✅ | HACER YA ✅ 1cddb1a | M | Bajo | Catálogo y publicación |
 | CU-34.2 | El detalle usa una caché de 15 min | 💡 | ✅ | SI HAY TIEMPO ✅ 8df6234 | S | Bajo | Catálogo y publicación |
-| CU-34.3 | `local_only` oculta publicaciones (filtro del front) | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Catálogo y publicación |
+| CU-34.3 | `local_only` oculta publicaciones (filtro del front) | 💡 | ✅ | SI HAY TIEMPO ✅ cbbb670 | S | Bajo | Catálogo y publicación |
 | CU-35.1 | Progreso heredado por `lesson_id` (nota) | 📝 | ✅ | NO HACER | L | Alto | Identidad del progreso |
 | CU-36.1 | Separar versión de trabajo de Aprender | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
-| CU-36.2 | El import no fija la versión | 💡 | ◐ | SI HAY TIEMPO | S | Bajo | Catálogo y publicación |
+| CU-36.2 | El import no fija la versión | 💡 | ◐ | SI HAY TIEMPO ✅ cbbb670 | S | Bajo | Catálogo y publicación |
 | CU-36.3 | Copias bifurcadas sin origen | 💡 | ✅ | NO HACER | M | Medio | Catálogo y publicación |
 | CU-37.1 | Validar la publicación como el importador | 🚨 | ✅ | HACER YA ✅ 8df6234 99585b7 | S-M | Bajo | Catálogo y publicación |
 | CU-37.2 | Confirmar lo que se ensayó (checksum) | 💡 | ✅ | NO HACER | M | Medio | Catálogo y publicación |
@@ -648,7 +648,7 @@ Leyenda:
 | CU-37.4 | Reconciliar publicación remota y estado local | 💡 | ◐ | HACER YA ✅ 8df6234 99585b7 | S | Bajo | Limpieza y reconciliación |
 | CU-38.1 | Lecciones archivadas en Aprender y en los totales | 🚨 | ✅ | HACER YA ✅ b638029, f92d9fa | S | Bajo | Disponibilidad de lecciones |
 | CU-38.2 | Lección nueva hereda progreso ajeno | 💡 | ✅ | NO HACER | L | Alto | Identidad del progreso |
-| CU-38.3 | El preview dice «conservado» y se recalifica | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Catálogo y publicación |
+| CU-38.3 | El preview dice «conservado» y se recalifica | 💡 | ✅ | SI HAY TIEMPO ✅ 440204b, cbbb670 | S | Bajo | Catálogo y publicación |
 | CU-39.1 | Entidad curso | 🚨 | ✅ | RECLASIFICAR | L | Alto | Entidad curso |
 | CU-39.2 | Asociar módulos a un curso | 🚨 | ✅ | RECLASIFICAR | L | Alto | Entidad curso |
 | CU-39.3 | Curso en edición separado | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
@@ -656,7 +656,7 @@ Leyenda:
 | CU-40.1 | Información general editable del curso | 🚨 | ✅ | RECLASIFICAR | M | Medio | Entidad curso |
 | CU-40.2 | Aviso de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
 | CU-40.3 | Información editada separada de la publicada | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
-| CU-41.1 | Retirar una publicación del catálogo | 🚨 | ✅ | SI HAY TIEMPO | M | Medio | Catálogo y publicación |
+| CU-41.1 | Retirar una publicación del catálogo | 🚨 | ✅ | SI HAY TIEMPO ✅ 785aaa0, bfa870c | M | Medio | Catálogo y publicación |
 | CU-41.2 | Actualizar no revalida el índice | 🚨 | ◐ | HACER YA ✅ 8df6234 | S | Bajo | Catálogo y publicación |
 | CU-41.3 | Coordinar fallos entre borrado local y retirada remota | 💡 | ✅ | NO HACER | M | Medio | Limpieza y reconciliación |
 

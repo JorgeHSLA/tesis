@@ -4,7 +4,7 @@
 // desconocido», que es la que evita marcar medio catálogo como retirado cuando
 // lo único que pasa es que no hay red.
 import { describe, expect, it } from 'vitest'
-import { diffCatalog, isInstalled, pendingUpdates } from '@/lib/catalogDiff'
+import { diffCatalog, isInstalled, isLocalConflict, pendingUpdates } from '@/lib/catalogDiff'
 import type { InstalledModuleStatusDto, RemoteModuleSummaryDto } from '@/api/catalog-types'
 
 function instalado(over: Partial<InstalledModuleStatusDto> = {}): InstalledModuleStatusDto {
@@ -205,6 +205,20 @@ describe('diffCatalog — orden, duplicados y robustez', () => {
     const agrupadas = Object.values(byState).flat()
     expect(agrupadas).toHaveLength(entries.length)
     expect(new Set(agrupadas.map((e) => e.moduleId)).size).toBe(entries.length)
+  })
+})
+
+describe('isLocalConflict — CU-34.3', () => {
+  it('solo es conflicto un local que el bucket TAMBIÉN publica', () => {
+    const local = instalado({ module_id: 'm1', origin: 'local', state: 'local_only' })
+    const otroLocal = instalado({ module_id: 'm8', origin: 'local', state: 'local_only' })
+    const { entries } = diffCatalog([local, otroLocal], [publicado({ id: 'm1' }), publicado({ id: 'm9' })])
+    const porId = new Map(entries.map((e) => [e.moduleId, e]))
+    expect(isLocalConflict(porId.get('m1')!)).toBe(true)
+    // Local puro: no está en el catálogo, no hay nada que enseñar.
+    expect(isLocalConflict(porId.get('m8')!)).toBe(false)
+    // Publicado y ausente aquí: disponible, no conflicto.
+    expect(isLocalConflict(porId.get('m9')!)).toBe(false)
   })
 })
 

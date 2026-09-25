@@ -10,8 +10,9 @@
 //   up_to_date       chip VERDE «Instalado»             → Quitar
 //   update_available chip ámbar «Actualización · v{n}»  → Ver qué cambia · Actualizar · Quitar
 //   unpublished      chip neutro «Ya no publicado»      → Quitar
-//   local_only       (no debería llegar: el padre lo filtra — §11.6.4 responde
-//                    404 MODULE_NOT_INSTALLED sobre un módulo local)
+//   local_only       chip ámbar «Conflicto con un módulo local» → solo Ver detalle
+//                    (CU-34.3: el padre solo deja pasar los que SÍ están
+//                    publicados; incorporar daría DUPLICATE_ID y quitar, 404)
 //
 // Los datos que NO existen no se inventan ni se pintan como «—»: un módulo
 // despublicado solo conserva lo que hay en SQLite (título, versión, lecciones),
@@ -97,7 +98,7 @@ function stateSpec(entry: CatalogEntry): StateSpec {
     case 'unpublished':
       return { label: 'Ya no publicado', tone: 'neutral' }
     case 'local_only':
-      return { label: 'De este equipo', tone: 'neutral' }
+      return { label: 'Conflicto con un módulo local', tone: 'amber' }
   }
 }
 
@@ -164,6 +165,13 @@ export function ModuleCard({
         {installed != null && installed.lessons_total > 0 && (
           <p className="mods-card-progress">
             {installed.lessons_completed} de {installed.lessons_total} lecciones completadas
+          </p>
+        )}
+
+        {entry.state === 'local_only' && (
+          <p className="mods-card-note">
+            Ya tienes en este equipo un módulo local con el mismo identificador, así que esta publicación no se
+            puede incorporar.
           </p>
         )}
 
