@@ -207,7 +207,10 @@ class JobRepository:
             try:
                 cursor = await self._db.execute(
                     "UPDATE jobs SET status = 'failed', "
-                    "error_detail = 'orphaned_on_restart' "
+                    "error_detail = 'orphaned_on_restart', "
+                    # §2.3 #21: un terminal siempre lleva finished_at (§0).
+                    "finished_at = COALESCE(finished_at, "
+                    "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
                     "WHERE status IN ('queued','creating','compiling','running')"
                 )
                 await self._db.commit()

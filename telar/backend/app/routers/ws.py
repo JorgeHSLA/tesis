@@ -21,6 +21,7 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from ..services import DockerServiceError
 from ..services.job_runner import TERMINAL_STATUSES, JobHandle, utc_now_iso
 
 logger = logging.getLogger("telar.ws")
@@ -258,7 +259,16 @@ async def _listen(
             data = None
         if isinstance(data, dict) and data.get("type") == "cancel":
             # idempotente: cancelar dos veces o un job terminal se ignora
-            await runner.cancel(job_id)
+            try:
+                await runner.cancel(job_id)
+            except DockerServiceError:
+                # CU-08.3: el kill falló; el cliente puede reintentar.
+                with contextlib.suppress(asyncio.QueueFull):
+                    queue.put_nowait(_error_msg(
+                        job_id, "CANCEL_FAILED",
+                        "No fue posible solicitar la cancelación. "
+                        "La ejecución puede continuar activa.",
+                    ))
             continue
         # el error viaja por la cola propia para no entrelazar sends
         try:

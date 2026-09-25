@@ -30,8 +30,9 @@ export type StatusDetailDto = {
   error_detail: string | null
 }
 
-/** Códigos de `error` no fatal del stream (§8.2). No cierran la conexión. */
-export type WsErrorCode = 'OUTPUT_TRUNCATED' | 'STREAM_ERROR' | 'BAD_CLIENT_MESSAGE'
+/** Códigos de `error` no fatal del stream (§8.2). No cierran la conexión.
+ *  CANCEL_FAILED: enmienda aditiva 2026-09-24 (CU-08.3). */
+export type WsErrorCode = 'OUTPUT_TRUNCATED' | 'STREAM_ERROR' | 'BAD_CLIENT_MESSAGE' | 'CANCEL_FAILED'
 
 export type ServerMsg =
   | (WsBase & {

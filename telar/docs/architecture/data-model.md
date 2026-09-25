@@ -667,7 +667,8 @@ class JobRepository:
         # única escritura del resultado (terminal); idempotente por status terminal
 
     async def mark_orphans_failed(self) -> int
-        # UPDATE … SET status='failed', error_detail='orphaned_on_restart'
+        # UPDATE … SET status='failed', error_detail='orphaned_on_restart',
+        #        finished_at = COALESCE(finished_at, now)  (S7b: todo terminal lleva finished_at)
         # WHERE status IN ('queued','creating','compiling','running');
         # devuelve nº de filas (se llama en el lifespan tras el reaper de contenedores)
 ```

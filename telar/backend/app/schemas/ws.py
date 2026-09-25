@@ -14,7 +14,9 @@ from .jobs import JobStatus
 # ──────────────────── §8 Protocolo WebSocket (mensajes) ─────────────────────
 
 #: Códigos de ``error`` no fatal del stream (§8.2). No cierran la conexión.
-WsErrorCode = Literal["OUTPUT_TRUNCATED", "STREAM_ERROR", "BAD_CLIENT_MESSAGE"]
+WsErrorCode = Literal[
+    "OUTPUT_TRUNCATED", "STREAM_ERROR", "BAD_CLIENT_MESSAGE", "CANCEL_FAILED"
+]
 
 
 class WsStatusDetail(BaseModel):
