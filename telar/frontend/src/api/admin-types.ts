@@ -59,6 +59,9 @@ export interface AdminModulesResponseDto {
 export interface AdminReorderItemDto {
   id: string
   order: number
+  /** §10.3 (Fase 5): solo lecciones. Opcional; enviarlo mueve la lección a ese
+   * módulo. Si falta, el servidor usa el módulo actual. Se ignora en módulos. */
+  module_id?: string | null
 }
 
 export interface AdminReorderRequestDto {
@@ -131,6 +134,12 @@ export interface AdminLessonCreateDto extends AdminLessonBaseDto {
   id: string
   example: AdminExampleBaseDto | null
   source_code: string | null
+}
+
+/** §10.3 `POST /admin/lessons/{id}/example` — dar código a una lección sin él. */
+export interface AdminLessonExampleCreateDto {
+  example: AdminExampleBaseDto
+  source_code: string
 }
 
 /** Faceta lección + markdown (el ejemplo se edita por sus endpoints). */

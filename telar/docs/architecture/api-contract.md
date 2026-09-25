@@ -1235,7 +1235,7 @@ endpoint lo hace innecesario.)*
 | PUT | `/admin/lessons/reorder` | `AdminReorderRequest` | `{ "modules": [AdminModule…] }` | 401, 404 `LESSON_NOT_FOUND`, 409 `ORDER_CONFLICT`, 422 |
 | PUT | `/admin/lessons/{id}` | `AdminLessonUpdate` | `AdminLessonDetail` | 401, 404, 409 `ORDER_CONFLICT`, 422 |
 | DELETE | `/admin/lessons/{id}` | — | `{ "deleted": true, "id": "…" }` | 401, 404 |
-| POST | `/admin/lessons/{id}/example` | `AdminExampleBase` + `source_code` | `AdminExample` | 401, 404, 409 `DUPLICATE_ID`, 413 `CODE_TOO_LARGE`, 422 |
+| POST | `/admin/lessons/{id}/example` | `{ example: AdminExampleBase, source_code }` | `AdminExample` | 401, 404, 409 `DUPLICATE_ID`, 413 `CODE_TOO_LARGE`, 422 |
 | DELETE | `/admin/lessons/{id}/example` | — | `{ "deleted": true, "lesson_id": "…" }` | 401, 404 |
 
 `AdminLessonBase` = `{ module_id, order, title, estimated_minutes, content_markdown,

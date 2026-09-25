@@ -13,6 +13,7 @@ import type {
   AdminExampleUpdateDto,
   AdminLessonCreateDto,
   AdminLessonDetailDto,
+  AdminLessonExampleCreateDto,
   AdminLessonUpdateDto,
   AdminModuleCreateDto,
   AdminModuleDto,
@@ -82,6 +83,27 @@ export function updateLesson(id: string, body: AdminLessonUpdateDto): Promise<Ad
 
 export function deleteLesson(id: string): Promise<AdminDeleteResultDto> {
   return fetchJson<AdminDeleteResultDto>(`${P}/lessons/${enc(id)}`, { method: 'DELETE' })
+}
+
+/**
+ * §10.3 PUT /admin/lessons/reorder — reasigna el `order` (y, con `module_id`,
+ * el módulo) de varias lecciones en una sola transacción. Es lo que permite
+ * insertar en una posición ocupada: el PUT de una lección daría 409.
+ */
+export function reorderLessons(items: AdminReorderItemDto[]): Promise<AdminModulesResponseDto> {
+  const body: AdminReorderRequestDto = { items }
+  return fetchJson<AdminModulesResponseDto>(`${P}/lessons/reorder`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
+
+/** §10.3 POST /admin/lessons/{id}/example — da ejemplo y código a una lección sin él. */
+export function addLessonExample(id: string, body: AdminLessonExampleCreateDto): Promise<AdminExampleDto> {
+  return fetchJson<AdminExampleDto>(`${P}/lessons/${enc(id)}/example`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
 }
 
 // ── §10.6 Quiz (el GET admin SÍ trae correct_key/explanation) ────────────────
