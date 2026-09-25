@@ -78,11 +78,20 @@ export function SimulatorIdle() {
   // Solo la última petición de ejemplo aplica su respuesta (una tardía no pisa).
   const exampleReq = useRef(0)
 
+  // CU-05.1: tras un fallo de /modules el usuario ya pudo escribir código.
+  // El error se limpia solo al recuperar (sin volver al skeleton, que
+  // desmontaría el editor) y la recuperación no autoselecciona un ejemplo.
+  const modulesFailed = useRef(false)
   const loadModules = useCallback(() => {
-    setModulesError(null)
     getModules()
-      .then((res) => setModules(res.modules))
-      .catch((err: unknown) => setModulesError(err instanceof Error ? err : new Error(String(err))))
+      .then((res) => {
+        setModules(res.modules)
+        setModulesError(null)
+      })
+      .catch((err: unknown) => {
+        modulesFailed.current = true
+        setModulesError(err instanceof Error ? err : new Error(String(err)))
+      })
   }, [])
   useEffect(loadModules, [loadModules])
 
@@ -169,6 +178,7 @@ export function SimulatorIdle() {
   // nunca toca el progreso de la lección (ni last_job_id ni la regla `run`).
   const adminTest = searchParams.get('prueba') === 'admin'
   useEffect(() => {
+    if (modulesFailed.current) return // CU-05.1: no pisar el código escrito
     if (queryExample != null && queryExample !== '') {
       selectExample(queryExample)
       return

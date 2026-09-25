@@ -70,6 +70,18 @@ describe('CU-08.2/08.3 · cancel()', () => {
     expect(closed.cancel()).toBe(false)
   })
 
+  it('una reconexión automática quita el «Cancelando…» (el frame pudo perderse)', () => {
+    vi.useFakeTimers()
+    const { ws } = connectOpen()
+    ws.emit(statusMsg('running'))
+    store().setCancelling(true)
+    ws.serverClose(1006)
+    vi.advanceTimersByTime(1000)
+    FakeWebSocket.last!.open()
+    FakeWebSocket.last!.emit(statusMsg('running'))
+    expect(store().cancelling).toBe(false)
+  })
+
   it('error CANCEL_FAILED quita el «Cancelando…» y deja el aviso', () => {
     const { ws } = connectOpen()
     ws.emit(statusMsg('running'))

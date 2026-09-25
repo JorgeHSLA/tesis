@@ -121,9 +121,10 @@ export const useJobStore = create<JobState>()((set) => ({
   // vez (no viaja en el backlog), así que resetearlo perdería el banner de un job
   // ya truncado tras un blip. `logsGap` sí se resetea: los logs se re-pueblan
   // y el socket vuelve a detectar el hueco sobre lo que llegue. `cancelling`
-  // se preserva: la cancelación pedida sigue en curso.
+  // también: el frame de cancel pudo perderse con la conexión, así que
+  // Detener vuelve a estar disponible (repetirlo es idempotente).
   beginReconnect: (jobId) =>
-    set({ jobId, phase: 'connecting', logs: [], logsGap: false, wsError: null, sawEof: false }),
+    set({ jobId, phase: 'connecting', logs: [], logsGap: false, wsError: null, cancelling: false, sawEof: false }),
 
   appendLogs: (lines) =>
     set((s) => {

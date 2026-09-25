@@ -141,6 +141,21 @@ describe('CU-11 · paginación del historial', () => {
     await waitFor(() => expect(listJobs).toHaveBeenLastCalledWith({ limit: 50, offset: 0 }))
   })
 
+  it('si el total baja estando en otra página, deja volver atrás', async () => {
+    ;(listJobs as Mock)
+      .mockResolvedValueOnce({ jobs: summaries(0, 50), meta: { total: 90, limit: 50, offset: 0 } })
+      .mockResolvedValueOnce({ jobs: [], meta: { total: 30, limit: 50, offset: 50 } })
+      .mockResolvedValue({ jobs: summaries(0, 30), meta: { total: 30, limit: 50, offset: 0 } })
+    render(
+      <MemoryRouter>
+        <ResultsList />
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Siguiente' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Anterior' }))
+    expect(await screen.findByText('f29.py')).toBeInTheDocument()
+  })
+
   it('sin más de una página no muestra la paginación', async () => {
     ;(listJobs as Mock).mockResolvedValue({ jobs: summaries(0, 3), meta: { total: 3, limit: 50, offset: 0 } })
     render(

@@ -3,7 +3,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { MODULES, SYSTEM_INFO } from '../../fixtures/rest'
+import { EXAMPLE_CONFIGURABLE, MODULES, SYSTEM_INFO } from '../../fixtures/rest'
 
 vi.mock('@/api/content', () => ({ getModules: vi.fn(), getExample: vi.fn() }))
 vi.mock('@/api/jobs', () => ({ createJob: vi.fn() }))
@@ -11,7 +11,7 @@ vi.mock('@/hooks/useSystemInfo', () => ({
   useSystemInfo: () => ({ data: SYSTEM_INFO, error: null, loading: false, retry: vi.fn() }),
 }))
 
-import { getModules } from '@/api/content'
+import { getExample, getModules } from '@/api/content'
 import { createJob } from '@/api/jobs'
 import { SimulatorIdle } from '@/features/simulator/SimulatorIdle'
 
@@ -56,5 +56,19 @@ describe('SimulatorIdle · /modules falla', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     await waitFor(() => expect(screen.queryByText(/No se pudieron cargar los ejemplos/)).toBeNull())
     expect(getModules).toHaveBeenCalledTimes(2)
+  })
+
+  it('al recuperar /modules no pisa el código escrito ni desmonta el editor', async () => {
+    ;(getExample as Mock).mockResolvedValue({ ...EXAMPLE_CONFIGURABLE, source_code: '# ejemplo\n' })
+    renderIdle()
+    const editor = await screen.findByRole('textbox', { name: 'Editor de código Python' })
+    fireEvent.change(editor, { target: { value: 'MI CODIGO\n' } })
+    ;(getModules as Mock).mockResolvedValue(structuredClone(MODULES))
+    fireEvent.click(await screen.findByRole('button', { name: 'Reintentar' }))
+    await waitFor(() => expect(screen.queryByText(/No se pudieron cargar los ejemplos/)).toBeNull())
+    const after = screen.getByRole('textbox', { name: 'Editor de código Python' })
+    expect(after).toBe(editor)
+    expect(after).toHaveValue('MI CODIGO\n')
+    expect(getExample).not.toHaveBeenCalled()
   })
 })

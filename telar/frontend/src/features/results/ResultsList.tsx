@@ -69,7 +69,7 @@ export default function ResultsList() {
             ))}
           </div>
         </Card>
-      ) : page.jobs.length === 0 && offset === 0 ? (
+      ) : total === 0 ? (
         <EmptyState
           icon={<IconResults size={22} />}
           title="Aún no has lanzado ninguna ejecución"
@@ -148,7 +148,8 @@ export default function ResultsList() {
               )
             })}
           </div>
-          {total > PAGE_SIZE && (
+          {/* offset > 0: aunque el total haya bajado, siempre hay vuelta atrás. */}
+          {(total > PAGE_SIZE || offset > 0) && (
             <nav className="results-pager" aria-label="Páginas del historial">
               <span className="mono-small">
                 {page.jobs.length === 0
