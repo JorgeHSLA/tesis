@@ -272,7 +272,9 @@ async def test_cancel_idempotente(db, settings):
     handle = await launch(runner, repo, "j1")
     await wait_phase(handle, "compiling", "running")
     assert await runner.cancel("j1") == "cancelling"
-    assert await runner.cancel("j1") == "cancelling"  # repetir no rompe
+    # repetir no rompe. S7b: el kill ahora se espera, así que el job puede
+    # haber cerrado ya (None → el router responde 409 de terminal).
+    assert await runner.cancel("j1") in ("cancelling", None)
     await asyncio.wait_for(handle.task, 10)
     record = await repo.find_by_id("j1")
     assert record.status == "cancelled"

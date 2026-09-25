@@ -185,6 +185,37 @@ def test_cancel_ws_con_kill_fallido_avisa_cancel_failed(client, fake_docker):
     assert execution.kill_attempts == 2
 
 
+def test_kill_con_daemon_inalcanzable_es_docker_service_error():
+    for exc in (
+        requests.exceptions.ConnectionError("daemon caído"),
+        requests.exceptions.ReadTimeout("t"),
+    ):
+        with pytest.raises(DockerServiceError) as info:
+            JobExecution(StubContainer(kill_error=exc)).kill()
+        assert not isinstance(info.value, RunnerNotFound)
+
+
+async def test_kill_que_no_responde_se_propaga(db, settings, monkeypatch):
+    monkeypatch.setattr("app.services.job_runner.KILL_REQUEST_TIMEOUT_S", 0.05)
+    release = threading.Event()
+
+    class _SlowKill(FakeExecution):
+        def kill(self) -> None:
+            release.wait(timeout=5)
+            super().kill()
+
+    docker = FakeDockerService()
+    repo = JobRepository(db)
+    runner = make_runner(docker, repo, settings)
+    docker.queue_execution(_SlowKill(stdout=[b"x\n"], hang=True))
+    handle = await launch(runner, repo, "j1")
+    await wait_phase(handle, "compiling", "running")
+    with pytest.raises(DockerServiceError):
+        await runner.cancel("j1")
+    release.set()
+    await asyncio.wait_for(handle.task, 10)
+
+
 # ─────────────────── 09.3: muestras incompletas se descartan ─────────────────
 
 

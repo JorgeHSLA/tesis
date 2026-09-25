@@ -59,6 +59,9 @@ FLUSH_INTERVAL_S = 0.1  # un mensaje `log` cada ~100 ms… (§8.4)
 FLUSH_MAX_BYTES = 4096  # …o al acumular 4 KB, lo que ocurra antes (§8.4)
 BRIDGE_PUT_TIMEOUT_S = 5.0  # .result(timeout): el thread jamás cuelga (§3 p.3)
 KILL_GRACE_S = 5.0  # wait() tras kill para el exit code real (137)
+#: CU-08.3: tope de la espera del kill pedido por un cancel (el pool de
+#: threads por defecto también lo ocupan los wait() de los jobs vivos).
+KILL_REQUEST_TIMEOUT_S = 15.0
 STREAMS_EOF_GRACE_S = 10.0  # espera de EOF de logs tras exit
 # §3.4 paso 5 diferido (§8.2/BL-09): el handle terminal se retiene este
 # periodo para que una reconexión (backoff 1s/2s/4s del cliente) reciba el
@@ -371,9 +374,13 @@ class JobRunner:
     async def _kill_now(execution: "JobExecutionPort") -> None:
         """kill() esperado (CU-08.3): el llamador se entera si falló."""
         try:
-            await asyncio.to_thread(execution.kill)
+            await asyncio.wait_for(
+                asyncio.to_thread(execution.kill), timeout=KILL_REQUEST_TIMEOUT_S
+            )
         except RunnerNotFound:
             pass  # el contenedor ya no existe: nada que detener
+        except asyncio.TimeoutError as exc:
+            raise DockerServiceError("kill() no respondió a tiempo") from exc
 
     def subscribe(self, handle: JobHandle) -> tuple[int, asyncio.Queue, list[dict]]:
         """Cola por-conexión + snapshot (status actual + backlog) — §8.1."""

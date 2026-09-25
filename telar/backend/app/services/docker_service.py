@@ -181,6 +181,10 @@ class JobExecution:
         except docker.errors.APIError:
             # "not running": ya había muerto — carrera benigna.
             pass
+        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as exc:
+            # CU-08.3: daemon inalcanzable — docker-py deja escapar la
+            # excepción cruda de requests (como en wait()).
+            raise DockerServiceError(str(exc)) from exc
 
     def oom_killed(self) -> bool:
         try:
