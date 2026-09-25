@@ -25,10 +25,11 @@ import {
 import { fmtBytes, fmtTimeMs } from '../../lib/format'
 import { downloadFile, saveBlob } from '../../lib/download'
 import { jobExportBlob, jobExportFilename } from '../../lib/jobExport'
+import { jobConfigParts, resultEyebrow } from '../../lib/jobCause'
 import { buildObservations } from '../../lib/observations'
 import { configFromJob } from '../../lib/simConfig'
 import { bestSweepPoint } from '../../lib/speedup'
-import { DistributionCard, ObservationsCard, OutputCard } from './ResultsCards'
+import { DistributionCard, FailureCard, ObservationsCard, OutputCard } from './ResultsCards'
 import '../../styles/screens/results.css'
 
 const TERMINAL = ['completed', 'failed', 'timeout', 'cancelled']
@@ -181,14 +182,21 @@ export default function ResultsScreen() {
     <section className="screen results-screen">
       <header className="screen-head">
         <div>
-          <div className="eyebrow">Job completado</div>
+          <div className="eyebrow">{resultEyebrow(job.status)}</div>
           <h2 className="display-lg">Resultados · {job.filename}</h2>
           <div className="live-head-row">
             <HeaderChip job={job} />
             <span className="mono-small">
               job #{job.job_id.slice(0, 8)}
-              {job.wall_time_ms != null ? ` · completado en ${fmtTimeMs(job.wall_time_ms)}` : ''} · {job.threads} hilos
+              {job.wall_time_ms != null
+                ? ` · ${job.status === 'completed' ? 'completado en' : 'duró'} ${fmtTimeMs(job.wall_time_ms)}`
+                : ''}{' '}
+              · {job.threads} hilos
             </span>
+          </div>
+          {/* CU-09.1: la configuración completa con la que corrió. */}
+          <div className="mono-small muted results-config" role="note" aria-label="Configuración de la ejecución">
+            {jobConfigParts(job).join(' · ')}
           </div>
         </div>
         <div className="screen-actions">
@@ -236,6 +244,8 @@ export default function ResultsScreen() {
         <DistributionCard job={job} />
         <ObservationsCard observations={observations} />
       </div>
+
+      <FailureCard job={job} />
 
       <OutputCard job={job} onDownload={downloadOutput} downloading={downloading} />
     </section>

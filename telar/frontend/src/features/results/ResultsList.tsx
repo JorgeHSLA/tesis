@@ -2,6 +2,8 @@
 // GET /api/v1/jobs?limit=50 con chips terminales de la tabla §6.3 (StatusChip)
 // y botón Ver → detalle. Vacío → EmptyState con link al simulador.
 // CU-30.1: selección múltiple de jobs terminales → «Comparar (n)» (≥2).
+// CU-11: páginas de 50 con offset (meta.total); la selección se conserva
+// entre páginas.
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { listJobs, type JobsPage } from '../../api/jobs'
@@ -16,11 +18,13 @@ import { fmtRelative, fmtTimeMs } from '../../lib/format'
 import '../../styles/screens/results.css'
 
 const TERMINAL = ['completed', 'failed', 'timeout', 'cancelled']
+const PAGE_SIZE = 50
 
 export default function ResultsList() {
   const navigate = useNavigate()
   const [page, setPage] = useState<JobsPage | null>(null)
   const [error, setError] = useState<Error | null>(null)
+  const [offset, setOffset] = useState(0)
   // Orden de selección = orden de la comparación.
   const [selected, setSelected] = useState<string[]>([])
 
@@ -30,11 +34,13 @@ export default function ResultsList() {
   const load = useCallback(() => {
     setError(null)
     setPage(null)
-    listJobs({ limit: 50 })
+    listJobs({ limit: PAGE_SIZE, offset })
       .then(setPage)
       .catch((err: unknown) => setError(err instanceof Error ? err : new Error(String(err))))
-  }, [])
+  }, [offset])
   useEffect(load, [load])
+
+  const total = page?.meta?.total ?? page?.jobs.length ?? 0
 
   return (
     <section className="screen results-screen">
@@ -63,7 +69,7 @@ export default function ResultsList() {
             ))}
           </div>
         </Card>
-      ) : page.jobs.length === 0 ? (
+      ) : page.jobs.length === 0 && offset === 0 ? (
         <EmptyState
           icon={<IconResults size={22} />}
           title="Aún no has lanzado ninguna ejecución"
@@ -79,7 +85,7 @@ export default function ResultsList() {
           <CardHead
             icon={<IconTerminal size={16} />}
             title="Jobs recientes"
-            sub={`${page.meta?.total ?? page.jobs.length} en total`}
+            sub={`${total} en total`}
             right={
               <Button
                 size="sm"
@@ -142,6 +148,21 @@ export default function ResultsList() {
               )
             })}
           </div>
+          {total > PAGE_SIZE && (
+            <nav className="results-pager" aria-label="Páginas del historial">
+              <span className="mono-small">
+                {page.jobs.length === 0
+                  ? `0 de ${total}`
+                  : `${offset + 1}–${offset + page.jobs.length} de ${total}`}
+              </span>
+              <Button size="sm" variant="outline" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
+                Anterior
+              </Button>
+              <Button size="sm" variant="outline" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>
+                Siguiente
+              </Button>
+            </nav>
+          )}
         </Card>
       )}
     </section>

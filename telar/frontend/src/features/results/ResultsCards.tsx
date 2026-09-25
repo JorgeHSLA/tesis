@@ -1,6 +1,7 @@
 // ResultsCards — cards del detalle de resultados (frontend-spec §6.4):
 // «Distribución del trabajo» (SpeedupChart | ComparisonBars | LiveMetricsChart
-// | resumen degradado), «Observaciones» (lib/observations) y «Output».
+// | resumen degradado), «Observaciones» (lib/observations), «Causa y stderr»
+// (CU-09.2, solo si no completó) y «Output».
 import { Card, CardHead, CardPad } from '../../components/ui/Card'
 import { Terminal, TermLine } from '../../components/ui/Terminal'
 import {
@@ -17,6 +18,7 @@ import { ComparisonBars } from '../../components/viz/ComparisonBars'
 import { LiveMetricsChart } from '../../components/viz/LiveMetricsChart'
 import { SpeedupChart } from '../../components/viz/SpeedupChart'
 import { fmtBytes } from '../../lib/format'
+import { jobCause } from '../../lib/jobCause'
 import type { Observation } from '../../lib/observations'
 import { useJobStore } from '../../stores/jobStore'
 
@@ -112,6 +114,34 @@ export function ObservationsCard({ observations }: { observations: Observation[]
           </div>
         ))}
       </div>
+    </Card>
+  )
+}
+
+// ─────────────────────────── Causa y stderr ────────────────────────────────
+
+/** CU-09.2: causa del fin y stderr COMPLETO (Observaciones solo cita 3 líneas). */
+export function FailureCard({ job }: { job: JobDetailDto }) {
+  const cause = jobCause(job)
+  if (cause == null) return null
+  const stderr = (job.stderr ?? '').replace(/\n$/, '')
+  return (
+    <Card style={{ marginTop: 20 }} aria-label="Causa y stderr">
+      <CardHead icon={<IconAlert size={16} />} title="Causa y stderr" />
+      <CardPad>
+        <p className="failure-cause">{cause}</p>
+        <Terminal dots={false} label="stderr completo del job" bodyClassName="output-terminal-body">
+          {stderr === '' ? (
+            <TermLine tagClass="term-dim" tag="(sin salida en stderr)" />
+          ) : (
+            stderr.split('\n').map((line, i) => (
+              <div key={i} className="term-line">
+                <span>{line === '' ? ' ' : line}</span>
+              </div>
+            ))
+          )}
+        </Terminal>
+      </CardPad>
     </Card>
   )
 }
