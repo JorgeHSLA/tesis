@@ -35,7 +35,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
@@ -737,29 +737,21 @@ def _efecto_en_avance(
     cambio: str,
     *,
     con_avance: bool,
-    recalificadas: set[str],
+    efectos: Mapping[str, str],
 ) -> tuple[str, str | None]:
     """``(progress, reason)`` de UNA lección, con el vocabulario del CABLE.
 
-    Cable y plan comparten vocabulario desde que §11 se corrigió: ``preserved``,
-    ``rescored``, ``archived``, ``none``. Antes había aquí en medio una tabla de
-    traducción, y sobraba.
-
-    **Limitación conocida, y es la única de este archivo.** ``UpdateReport`` no
-    transporta el efecto POR LECCIÓN, solo los recuentos más
-    ``scores_invalidated`` y ``completed_gained``. Con eso se identifican todas
-    las recalificaciones salvo una: la del autor que corrige únicamente un
-    ``correct_key`` —mismo conjunto de preguntas, mismos textos de opción— y la
-    nota recalculada resulta ser otra pero no nula. Esa lección se anuncia como
-    ``preserved`` y la actualización real sí la recalifica. El arreglo son dos
-    líneas en otro archivo (``UpdateReport`` ganando la lista de efectos que
-    ``MergePlan.progress_ops`` ya tiene); ver el resumen de esta tanda.
+    Cable y plan comparten vocabulario (``preserved``, ``rescored``,
+    ``archived``, ``none``). El efecto sale de ``UpdateReport.progress_effects``,
+    que es el ``ProgressOp`` que el aplicador ejecutará (CU-38.3): la vista
+    previa dice «se recalificará» exactamente cuando la actualización lo hace,
+    también si solo cambió una ``correct_key`` y la nota nueva no es nula.
     """
     if cambio == "added" or not con_avance:
         return "none", None
     if cambio == "removed":
         return "archived", AVISO_LECCION_RETIRADA
-    if lesson_id in recalificadas:
+    if efectos.get(lesson_id) == "rescored":
         return "rescored", "QUIZ_CHANGED"
     return "preserved", None
 
@@ -767,9 +759,6 @@ def _efecto_en_avance(
 def _diff_de_lecciones(
     report: UpdateReport, *, con_avance: set[str]
 ) -> list[LessonDiffEntry]:
-    recalificadas = {
-        nota.lesson_id for nota in report.progress.scores_invalidated
-    } | set(report.progress.completed_gained)
     vistas: set[str] = set()
     filas: list[LessonDiffEntry] = []
     for cubo, cambio in _CAMBIO_POR_CUBO:
@@ -781,7 +770,7 @@ def _diff_de_lecciones(
                 lesson_id,
                 cambio,
                 con_avance=lesson_id in con_avance,
-                recalificadas=recalificadas,
+                efectos=report.progress_effects,
             )
             filas.append(
                 LessonDiffEntry(

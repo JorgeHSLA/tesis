@@ -293,6 +293,11 @@ class UpdateReport(_Plan):
     lesson_titles: dict[str, str] = Field(default_factory=dict)
     lessons: UpdateLessonsReport = Field(default_factory=UpdateLessonsReport)
     progress: UpdateProgressReport = Field(default_factory=UpdateProgressReport)
+    #: ``lesson_id`` → efecto que el plan aplica a SU progreso (``ProgressOp``).
+    #: Solo las lecciones con avance previo. Es lo que la vista previa anuncia
+    #: (CU-38.3): deducirlo de los recuentos confundía una nota recalculada no
+    #: nula con «conservada».
+    progress_effects: dict[str, ProgressEffect] = Field(default_factory=dict)
     warnings: list[MergeWarning] = Field(default_factory=list)
 
 

@@ -592,6 +592,7 @@ def build_report(
             scores_invalidated=invalidadas,
             lost=perdidas,
         ),
+        progress_effects={op.lesson_id: op.effect for op in plan.progress_ops},
         warnings=list(plan.warnings),
     )
 

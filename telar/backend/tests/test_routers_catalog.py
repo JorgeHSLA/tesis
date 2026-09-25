@@ -921,6 +921,49 @@ def test_preview_marca_rescored_cuando_el_quiz_deja_de_ser_corregible(
     assert data["progress_summary"]["rescored"] == 1
 
 
+# ═════════ S7d 38.3 · el preview usa el efecto real del plan ═════════════════
+
+
+def test_preview_anuncia_rescored_si_solo_cambia_la_clave(
+    cliente, fake_catalog
+):
+    """La limitación que documentaba `_efecto_en_avance`: mismo conjunto de
+    preguntas y mismas opciones, pero otra ``correct_key``. La nota recalculada
+    no es nula (no sale en ``scores_invalidated``) y la lección ya estaba
+    aprobada (no sale en ``completed_gained``): antes se anunciaba «preserved»."""
+    v1 = bundle("mx", leccion("mx-a", quiz=quiz(pregunta(1), pregunta(2))))
+    instalar_manifiesto(cliente, fake_catalog, v1)
+    ok(
+        cliente.post(
+            "/api/v1/lessons/mx-a/quiz/attempts",
+            json={"answers": {"mx-a-q1": "a", "mx-a-q2": "a"}},
+        ),
+        201,
+    )
+
+    v2 = bundle(
+        "mx",
+        leccion("mx-a", quiz=quiz(pregunta(1), pregunta(2, correct_key="b"))),
+        version=2,
+    )
+    publicar_todo(fake_catalog, v2)
+    data = ok(
+        cliente.get(
+            "/api/v1/catalog/modules/mx/update/preview", params={"to_version": 2}
+        )
+    )
+    fila = next(f for f in data["lessons"] if f["lesson_id"] == "mx-a")
+    assert fila["progress"] == "rescored"
+    assert fila["reason"] == "QUIZ_CHANGED"
+    assert data["progress_summary"]["rescored"] == 1
+
+    # Y lo anunciado es lo que ocurre.
+    ok(cliente.post("/api/v1/catalog/modules/mx/update", json={"to_version": 2}))
+    fila_progreso = ok(cliente.get("/api/v1/progress"))["lessons"]["mx-a"]
+    assert fila_progreso["best_quiz_score"] == 1
+    assert fila_progreso["completed"] is True  # monótono: no se revoca
+
+
 def test_preview_de_un_modulo_no_instalado_es_404(cliente, fake_catalog):
     publicar_todo(fake_catalog, bundle("mx"))
     falla(
