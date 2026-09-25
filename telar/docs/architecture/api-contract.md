@@ -2136,7 +2136,9 @@ ya publicados lo verifican al instalar):**
   ninguna.
 - **`locally_modified` (S7d, §2.3 #14).** Toda escritura de §10 sobre un módulo
   con fila en `installed_modules` (el módulo, sus lecciones —también la que sale
-  o entra al moverla—, sus ejemplos y sus quizzes) la pone a `true`. Actualizar
+  o entra al moverla—, sus ejemplos y sus quizzes) la pone a `true`. El
+  reorden de lecciones solo marca las que de verdad cambian de `(módulo, order)`;
+  el de módulos no marca, porque su `order` es local y no viaja en el bundle. Actualizar
   sobre él sigue sin bloquear: `POST …/update` lo aplica y deja el aviso
   `MODULE_LOCALLY_MODIFIED` en el informe.
 
