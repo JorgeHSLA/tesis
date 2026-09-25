@@ -571,20 +571,20 @@ Leyenda:
 | CU-16.1 | Eliminar módulo con sus lecciones | 🚨 | ✅ | SI HAY TIEMPO | M | Medio | Huecos de UI en Autoría |
 | CU-16.2 | Advertir del contenido asociado | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Huecos de UI en Autoría |
 | CU-16.3 | Separar eliminación de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
-| CU-17.1 | Crear lección sin ejemplo | 🚨 | ✅ | HACER YA | S | Bajo | Huecos de UI en Autoría |
-| CU-17.2 | Configurar regla de completitud y video | 🚨 | ✅ | HACER YA | S-M | Bajo | Huecos de UI en Autoría |
+| CU-17.1 | Crear lección sin ejemplo | 🚨 | ✅ | HACER YA ✅ d16a36e | S | Bajo | Huecos de UI en Autoría |
+| CU-17.2 | Configurar regla de completitud y video | 🚨 | ✅ | HACER YA ✅ d16a36e | S-M | Bajo | Huecos de UI en Autoría |
 | CU-17.3 | Aviso completo de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
 | CU-17.4 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
 | CU-17.5 | Separar creación de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-18.1 | Guardar pisa video, regla y `enabled` | 🚨 | ✅ | HACER YA ✅ 1dc3950 | S | Bajo | PUT que reemplaza la lección |
-| CU-18.2 | Agregar ejemplo a lección sin ejemplo | 🚨 | ✅ | HACER YA | M | Bajo | Huecos de UI en Autoría |
-| CU-18.3 | Eliminar el quiz (backend listo, sin botón) | 🚨 | ✅ | HACER YA | S | Bajo | Huecos de UI en Autoría |
+| CU-18.2 | Agregar ejemplo a lección sin ejemplo | 🚨 | ✅ | HACER YA ✅ d16a36e | M | Bajo | Huecos de UI en Autoría |
+| CU-18.3 | Eliminar el quiz (backend listo, sin botón) | 🚨 | ✅ | HACER YA ✅ d9dc146 | S | Bajo | Huecos de UI en Autoría |
 | CU-18.4 | Aviso completo de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
 | CU-18.5 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
 | CU-18.6 | Separar edición de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
-| CU-19.1 | Recolocar las demás lecciones al mover una | 🚨 | ✅ | HACER YA | M | Bajo | Huecos de UI en Autoría |
+| CU-19.1 | Recolocar las demás lecciones al mover una | 🚨 | ✅ | HACER YA ✅ d16a36e | M | Bajo | Huecos de UI en Autoría |
 | CU-19.2 | Mover no debe tocar otros datos | 🚨 | ✅ | HACER YA ✅ 1dc3950 | S | Bajo | PUT que reemplaza la lección |
-| CU-19.3 | Posición decimal aceptada (2.5 → 2) | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
+| CU-19.3 | Posición decimal aceptada (2.5 → 2) | 💡 | ✅ | SI HAY TIEMPO ✅ d16a36e | S | Bajo | Errores por campo |
 | CU-19.4 | Separar reorden de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-20.1 | Advertencia fija «ejemplo y quiz» | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Huecos de UI en Autoría |
 | CU-20.2 | Separar eliminación de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |

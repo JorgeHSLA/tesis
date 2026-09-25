@@ -1,6 +1,9 @@
 // LessonAdminRow — fila de una lección en el dashboard admin. Badges de estado
 // (habilitada, quiz·nº preguntas) y acciones de edición: [Lección] [Quiz]
-// [Ejemplo] [borrar]. El borrado pide confirmación y refresca el dashboard.
+// [Ejemplo | Agregar ejemplo] [borrar]. Sin ejemplo, «Agregar ejemplo» abre el
+// editor de la lección con el formulario abierto (CU-18.2). Las archivadas no
+// llegan aquí: GET /modules las excluye; su estado se ve en el editor.
+// El borrado pide confirmación y refresca el dashboard.
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
@@ -20,6 +23,7 @@ export function LessonAdminRow({ lesson, onReload, onToast }: LessonAdminRowProp
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const exampleId = lesson.example_id
 
   const remove = async () => {
     setDeleting(true)
@@ -64,9 +68,23 @@ export function LessonAdminRow({ lesson, onReload, onToast }: LessonAdminRowProp
         <Button variant="outline" size="sm" onClick={() => navigate(`/admin/quiz/${lesson.id}`)}>
           Quiz
         </Button>
-        <Button variant="outline" size="sm" onClick={() => navigate(`/admin/ejemplos/${lesson.example_id}`)}>
-          Ejemplo
-        </Button>
+        {exampleId != null ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/admin/ejemplos/${encodeURIComponent(exampleId)}`)}
+          >
+            Ejemplo
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/admin/lecciones/${encodeURIComponent(lesson.id)}?ejemplo=nuevo`)}
+          >
+            Agregar ejemplo
+          </Button>
+        )}
         <Button variant="ghost" size="sm" className="admin-btn-danger-ghost" onClick={() => setConfirming(true)}>
           Borrar
         </Button>

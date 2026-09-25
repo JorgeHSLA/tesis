@@ -2,7 +2,13 @@
 // `fetchJson` normal (api/client), SIN cabecera Authorization/Bearer. El modo
 // autoría se decide en build (VITE_ADMIN) + config del backend, no por sesión.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createModule, getAdminModules, reorderModules } from '@/api/admin'
+import {
+  addLessonExample,
+  createModule,
+  getAdminModules,
+  reorderLessons,
+  reorderModules,
+} from '@/api/admin'
 import type { AdminModuleCreateDto, AdminReorderRequestDto } from '@/api/admin-types'
 
 const originalFetch = globalThis.fetch
@@ -71,5 +77,26 @@ describe('api/admin (sin login/Bearer)', () => {
     expect(sent).toEqual({ items })
     expect(headersOf(0).Authorization).toBeUndefined()
     expect(headersOf(0)['Content-Type']).toBe('application/json')
+  })
+
+  it('PUT /admin/lessons/reorder manda los items con module_id', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(ok({ modules: [] })))
+    const items = [
+      { id: 'A', order: 1, module_id: 'm1' },
+      { id: 'C', order: 2, module_id: 'm1' },
+    ]
+    await reorderLessons(items)
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/admin/lessons/reorder')
+    expect(initOf(0).method).toBe('PUT')
+    expect(JSON.parse(initOf(0).body as string)).toEqual({ items })
+  })
+
+  it('POST /admin/lessons/{id}/example manda {example, source_code}', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(ok({ id: 'l 1' })))
+    const body = { example: { title: 'E' } as never, source_code: 'print(1)' }
+    await addLessonExample('l 1', body)
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/admin/lessons/l%201/example')
+    expect(initOf(0).method).toBe('POST')
+    expect(JSON.parse(initOf(0).body as string)).toEqual(body)
   })
 })
