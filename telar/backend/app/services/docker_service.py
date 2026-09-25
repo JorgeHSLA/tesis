@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import shutil
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterator, Protocol
 
@@ -22,6 +23,7 @@ import requests
 from docker.types import Ulimit
 
 from . import DockerServiceError, RunnerNotFound, RunnerTimeout
+from .code_dirs import code_base_dir, sweep_code_dirs
 
 if TYPE_CHECKING:  # pragma: no cover
     from docker.models.containers import Container
@@ -156,6 +158,7 @@ class JobExecution:
         return self._container.stats(stream=True, decode=True)
 
     def wait(self, timeout: float | None) -> int:
+        started = time.monotonic()
         try:
             # timeout=None ⇒ docker-py no fija read-timeout HTTP: espera hasta
             # que el contenedor muera (job sin timeout).
@@ -163,7 +166,11 @@ class JobExecution:
         except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as exc:
             # timeout= es read-timeout HTTP; sobre socket UNIX puede venir
             # envuelto en ConnectionError (docker-py.md §5.1) — capturar ambos.
-            raise RunnerTimeout(str(exc)) from exc
+            # CU-24.6: solo es timeout si de verdad pasó el tiempo; antes, es
+            # el daemon que se cayó (sandbox_error), no el programa.
+            if timeout is not None and time.monotonic() - started >= timeout:
+                raise RunnerTimeout(str(exc)) from exc
+            raise DockerServiceError(str(exc)) from exc
         return int(result.get("StatusCode", -1))
 
     def kill(self) -> None:
@@ -174,6 +181,10 @@ class JobExecution:
         except docker.errors.APIError:
             # "not running": ya había muerto — carrera benigna.
             pass
+        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as exc:
+            # CU-08.3: daemon inalcanzable — docker-py deja escapar la
+            # excepción cruda de requests (como en wait()).
+            raise DockerServiceError(str(exc)) from exc
 
     def oom_killed(self) -> bool:
         try:
@@ -225,14 +236,17 @@ class DockerService:
     # ---- entrega de código (§3.1) -------------------------------------------
 
     def _code_base_dir(self) -> Path:
-        if self._settings.code_delivery == "bind":
-            return self._settings.jobs_dir_expanded
-        return Path("/submissions")
+        return code_base_dir(self._settings)
 
     def prepare_code(self, job_id: str, source_code: str) -> str:
         job_dir = self._code_base_dir() / job_id
         job_dir.mkdir(parents=True, exist_ok=True)
-        (job_dir / "main.py").write_text(source_code, encoding="utf-8")
+        try:
+            (job_dir / "main.py").write_text(source_code, encoding="utf-8")
+        except OSError:
+            # CU-24.3: sin esto el directorio a medias queda hasta el reaper.
+            shutil.rmtree(job_dir, ignore_errors=True)
+            raise
         return str(job_dir)
 
     def cleanup_code(self, job_id: str) -> None:
@@ -350,11 +364,4 @@ class DockerService:
         except docker.errors.DockerException:
             logger.exception("reaper: fallo listando contenedores huérfanos")
 
-        dirs_removed = 0
-        base = self._code_base_dir()
-        if base.is_dir():
-            for child in base.iterdir():
-                if child.is_dir():
-                    shutil.rmtree(child, ignore_errors=True)
-                    dirs_removed += 1
-        return removed, dirs_removed
+        return removed, sweep_code_dirs(self._code_base_dir())

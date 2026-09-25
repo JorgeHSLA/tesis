@@ -61,7 +61,14 @@ export interface JobState {
   /** Cap local descartó líneas O eof.truncated / error OUTPUT_TRUNCATED. */
   logsTruncated: boolean
   metrics: MetricSample[]
+  /** CU-07.3: un salto de `seq` (o un primer seq > 1) — faltan líneas. */
+  logsGap: boolean
   wsError: string | null
+  /** CU-08.2: la cancelación se pidió y aún no llegó el estado terminal. */
+  cancelling: boolean
+  /** CU-08.2/08.3: la cancelación no se pudo pedir (sin socket y REST caído,
+   *  o el servidor avisó CANCEL_FAILED). */
+  cancelError: string | null
   /** El servidor emitió `eof` (cierre 1000 posterior = normal). */
   sawEof: boolean
   // Acciones llamadas por JobSocket (fuera de React):
@@ -74,7 +81,10 @@ export interface JobState {
    *  local. Se ignora si `jobId` ya no es el job activo del store. */
   setStartedAt(jobId: string, iso: string | null): void
   markLogsTruncated(): void
+  markLogsGap(): void
   setWsError(msg: string | null): void
+  setCancelling(cancelling: boolean): void
+  setCancelError(msg: string | null): void
   markEof(truncated: boolean): void
   reset(): void
 }
@@ -89,7 +99,10 @@ const INITIAL = {
   logs: [] as LogLine[],
   logsTruncated: false,
   metrics: [] as MetricSample[],
+  logsGap: false,
   wsError: null as string | null,
+  cancelling: false,
+  cancelError: null as string | null,
   sawEof: false,
 }
 
@@ -106,9 +119,12 @@ export const useJobStore = create<JobState>()((set) => ({
   // status de replay los reescribe si aplica) y `logsTruncated`: es un latch (el
   // resto de reducers hace `|| truncated`) y `OUTPUT_TRUNCATED` se señaliza UNA
   // vez (no viaja en el backlog), así que resetearlo perdería el banner de un job
-  // ya truncado tras un blip.
+  // ya truncado tras un blip. `logsGap` sí se resetea: los logs se re-pueblan
+  // y el socket vuelve a detectar el hueco sobre lo que llegue. `cancelling`
+  // también: el frame de cancel pudo perderse con la conexión, así que
+  // Detener vuelve a estar disponible (repetirlo es idempotente).
   beginReconnect: (jobId) =>
-    set({ jobId, phase: 'connecting', logs: [], wsError: null, sawEof: false }),
+    set({ jobId, phase: 'connecting', logs: [], logsGap: false, wsError: null, cancelling: false, sawEof: false }),
 
   appendLogs: (lines) =>
     set((s) => {
@@ -150,7 +166,13 @@ export const useJobStore = create<JobState>()((set) => ({
 
   markLogsTruncated: () => set({ logsTruncated: true }),
 
+  markLogsGap: () => set({ logsGap: true }),
+
   setWsError: (msg) => set({ wsError: msg }),
+
+  setCancelling: (cancelling) => set({ cancelling }),
+
+  setCancelError: (msg) => set({ cancelError: msg }),
 
   markEof: (truncated) => set((s) => ({ sawEof: true, logsTruncated: s.logsTruncated || truncated })),
 

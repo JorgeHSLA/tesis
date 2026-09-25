@@ -15,12 +15,17 @@
 //   + close 1000). Si nunca se vio una fase NO terminal en vivo →
 //   onReplayTerminal (el hook redirige a /resultados/{jobId}).
 // - error OUTPUT_TRUNCATED / eof.truncated → logsTruncated (banner §6.3.5).
-// - cancel() envía {"type":"cancel"} (idempotente en el servidor).
+// - CU-07.3: un salto de `seq` o un primer seq > 1 → logsGap (aviso).
+// - cancel() envía {"type":"cancel"} (idempotente en el servidor) y dice si
+//   pudo enviarlo; error CANCEL_FAILED → cancelError (CU-08.3).
 import { WS_BASE } from '../config'
 import { useJobStore, type LogLine } from '../stores/jobStore'
 import type { ClientMsg, JobPhase, ServerMsg } from './messages'
 
 const BACKOFF_MS = [1000, 2000, 4000] as const
+
+/** Aviso único de CU-08.2/08.3 (REST caído o CANCEL_FAILED del servidor). */
+export const CANCEL_FAILED_MESSAGE = 'No fue posible solicitar la cancelación. La ejecución puede continuar activa.'
 const TERMINAL: ReadonlySet<JobPhase> = new Set(['completed', 'failed', 'timeout', 'cancelled'])
 
 export interface JobSocketOptions {
@@ -66,12 +71,13 @@ export class JobSocket {
     this.connect()
   }
 
-  /** Envía el único comando del contrato (§8.3). */
-  cancel(): void {
-    if (this.ws != null && this.ws.readyState === WebSocket.OPEN) {
-      const msg: ClientMsg = { type: 'cancel' }
-      this.ws.send(JSON.stringify(msg))
-    }
+  /** Envía el único comando del contrato (§8.3). `false` si el socket no
+   *  está abierto: el llamador cae al REST (CU-08.2). */
+  cancel(): boolean {
+    if (this.ws == null || this.ws.readyState !== WebSocket.OPEN) return false
+    const msg: ClientMsg = { type: 'cancel' }
+    this.ws.send(JSON.stringify(msg))
+    return true
   }
 
   /** Cierre iniciado por el cliente (unmount/cambio de job): sin reintentos. */
@@ -171,6 +177,9 @@ export class JobSocket {
       case 'log': {
         // Dedupe del backlog tras reconexión (los seq originales se re-usan).
         if (msg.seq <= this.lastLogSeq) return
+        // CU-07.3: seq empieza en 1 y crece de 1 en 1; un salto significa que
+        // el anillo del backend o la cola lossy descartaron mensajes.
+        if (msg.seq > (this.lastLogSeq < 0 ? 1 : this.lastLogSeq + 1)) store.markLogsGap()
         this.lastLogSeq = msg.seq
         for (const text of msg.lines) {
           this.buffer.push({ seq: msg.seq, ts: msg.ts, stream: msg.stream, text })
@@ -192,7 +201,10 @@ export class JobSocket {
       case 'error': {
         // No cierra la conexión (§8.2). OUTPUT_TRUNCATED → banner del terminal.
         if (msg.code === 'OUTPUT_TRUNCATED') store.markLogsTruncated()
-        else store.setWsError(msg.message)
+        else if (msg.code === 'CANCEL_FAILED') {
+          store.setCancelling(false)
+          store.setCancelError(CANCEL_FAILED_MESSAGE)
+        } else store.setWsError(msg.message)
         break
       }
       case 'eof': {

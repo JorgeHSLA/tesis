@@ -1,6 +1,7 @@
 // LiveTopology — reinterpretada (frontend-spec §5.4): misma geometría SVG del
 // handoff §5.7 (viewBox 800×280, rombos, codos, dashes), nueva semántica OpenMP:
-// - rombo superior = HILO MAESTRO (`master`); fila inferior = t0..t{N-1}.
+// - rombo superior = HILO MAESTRO (t0: en OpenMP el maestro es el hilo 0 del
+//   equipo, CU-07.5); fila inferior = t1..t{N-1}.
 // - paquetes terracota ida (var(--viz-packet)) / marrón vuelta (var(--viz-node)) =
 //   accesos a memoria compartida / sincronizaciones — DECORATIVOS (la card
 //   lleva la sub-etiqueta `representación didáctica del fork-join`).
@@ -18,7 +19,7 @@ const MASTER = { x: 400, y: 60 }
 const ROW_Y = 190
 
 export interface LiveTopologyProps {
-  /** Nodos decorativos de useSimulation (master + t0..tN-1). */
+  /** Nodos decorativos de useSimulation (t0 maestro + t1..tN-1). */
   nodes: DecorNode[]
   /** true mientras el job corre (paquetes + etiqueta `activo`). */
   running: boolean
@@ -26,7 +27,8 @@ export interface LiveTopologyProps {
 }
 
 export function LiveTopology({ nodes, running, reducedMotion }: LiveTopologyProps) {
-  const threads = nodes.filter((n) => n.kind === 'thread')
+  const master = nodes.find((node) => node.kind === 'master')
+  const threads = nodes.filter((node) => node.kind === 'thread')
   const n = Math.max(1, threads.length)
   const spacing = Math.min(100, 720 / n)
   const startX = MASTER.x - ((n - 1) * spacing) / 2
@@ -37,7 +39,7 @@ export function LiveTopology({ nodes, running, reducedMotion }: LiveTopologyProp
   // (preserveAspectRatio "meet") y dejaba franja vertical vacía en contenedores
   // estrechos.
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`Hilo maestro y ${n} hilos del equipo (representación didáctica)`} style={{ display: 'block', height: 'auto' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`Hilo maestro t0 y ${threads.length} hilos más del equipo (representación didáctica)`} style={{ display: 'block', height: 'auto' }}>
       {/* Halo pulsante del maestro (decorativo; sin SMIL con reduced-motion) */}
       <circle cx={MASTER.x} cy={MASTER.y} r={38} fill="var(--viz-node)" fillOpacity={0.08}>
         {animate && <animate attributeName="r" values="30;42;30" dur="2s" repeatCount="indefinite" />}
@@ -103,10 +105,10 @@ export function LiveTopology({ nodes, running, reducedMotion }: LiveTopologyProp
         <rect x={-22} y={-22} width={44} height={44} rx={5} fill="var(--viz-node-master)" />
       </g>
       <text x={MASTER.x} y={MASTER.y + 5} textAnchor="middle" fontSize={10} fill="var(--viz-on-node)" fontFamily="var(--font-mono)">
-        master
+        {master?.id ?? 't0'}
       </text>
       <text x={MASTER.x} y={MASTER.y - 32} textAnchor="middle" fontSize={11} fill="var(--viz-label)" fontFamily="var(--font-mono)">
-        hilo maestro
+        hilo maestro{running ? ' · activo' : ''}
       </text>
     </svg>
   )

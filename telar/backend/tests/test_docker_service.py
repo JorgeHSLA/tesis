@@ -376,8 +376,10 @@ def test_execution_wait_exit_y_timeout():
         requests.exceptions.ReadTimeout("t"),
         requests.exceptions.ConnectionError("c"),  # socket UNIX (docker-py §5.1)
     ):
+        # timeout=0: el tiempo transcurrido ya alcanzó el límite (CU-24.6:
+        # antes del límite el mismo error es del daemon, no un timeout).
         with pytest.raises(RunnerTimeout):
-            JobExecution(StubContainer(wait_error=exc)).wait(0.1)
+            JobExecution(StubContainer(wait_error=exc)).wait(0)
 
 
 def test_execution_kill_variantes():

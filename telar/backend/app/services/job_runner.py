@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable
 
-from . import DockerServiceError, RunnerTimeout
+from . import DockerServiceError, RunnerNotFound, RunnerTimeout
 from .output_parser import parse_output
 
 if TYPE_CHECKING:  # pragma: no cover — solo tipos; jamás importa docker
@@ -39,6 +39,9 @@ KILL_NONE = "none"
 KILL_CANCEL = "cancel"
 KILL_OUTPUT_LIMIT = "output_limit"
 KILL_TIMEOUT = "timeout"
+
+#: 128 + SIGKILL: el exit code de un contenedor matado con kill().
+KILLED_EXIT_CODE = 137
 
 TERMINAL_STATUSES = frozenset({"completed", "failed", "timeout", "cancelled"})
 
@@ -56,6 +59,9 @@ FLUSH_INTERVAL_S = 0.1  # un mensaje `log` cada ~100 ms… (§8.4)
 FLUSH_MAX_BYTES = 4096  # …o al acumular 4 KB, lo que ocurra antes (§8.4)
 BRIDGE_PUT_TIMEOUT_S = 5.0  # .result(timeout): el thread jamás cuelga (§3 p.3)
 KILL_GRACE_S = 5.0  # wait() tras kill para el exit code real (137)
+#: CU-08.3: tope de la espera del kill pedido por un cancel (el pool de
+#: threads por defecto también lo ocupan los wait() de los jobs vivos).
+KILL_REQUEST_TIMEOUT_S = 15.0
 STREAMS_EOF_GRACE_S = 10.0  # espera de EOF de logs tras exit
 # §3.4 paso 5 diferido (§8.2/BL-09): el handle terminal se retiene este
 # periodo para que una reconexión (backoff 1s/2s/4s del cliente) reciba el
@@ -82,12 +88,15 @@ def _iso_delta_ms(start: str, end: str) -> int | None:
 def compute_metrics(sample: dict) -> dict | None:
     """Stats crudos → métricas WS (cgroups v2); None si la muestra es
     incompleta (la 1ª sin precpu, o la final). Formato puro: por eso vive
-    aquí y no en docker_service (que arrastraría el import de docker)."""
+    aquí y no en docker_service (que arrastraría el import de docker).
+
+    CU-09.3: un campo ausente descarta la muestra; jamás se rellena con 0
+    (un 0 inventado se vería como «0 % de CPU» o «0 procesos» medidos)."""
     try:
         cpu = sample["cpu_stats"]
         pre = sample["precpu_stats"]
         cpu_delta = cpu["cpu_usage"]["total_usage"] - pre["cpu_usage"]["total_usage"]
-        system_delta = cpu["system_cpu_usage"] - pre.get("system_cpu_usage", 0)
+        system_delta = cpu["system_cpu_usage"] - pre["system_cpu_usage"]
         online = cpu.get("online_cpus") or 1
         cpu_percent = 0.0
         if system_delta > 0 and cpu_delta >= 0:
@@ -97,15 +106,15 @@ def compute_metrics(sample: dict) -> dict | None:
         stats = mem.get("stats", {})
         cache = stats.get("inactive_file", stats.get("total_inactive_file", 0))
         mem_used = max(mem["usage"] - cache, 0)
-        mem_limit = mem.get("limit", 0)
+        mem_limit = mem["limit"]
         return {
             "cpu_percent": round(cpu_percent, 2),
             "online_cpus": int(online),
             "mem_used_bytes": int(mem_used),
             "mem_limit_bytes": int(mem_limit),
             "mem_percent": round(mem_used / mem_limit * 100, 2) if mem_limit else 0.0,
-            "pids": int(sample.get("pids_stats", {}).get("current", 0)),
-            "throttled_periods": int(cpu.get("throttling_data", {}).get("throttled_periods", 0)),
+            "pids": int(sample["pids_stats"]["current"]),
+            "throttled_periods": int(cpu["throttling_data"]["throttled_periods"]),
         }
     except (KeyError, TypeError):
         return None
@@ -168,6 +177,9 @@ class JobHandle:
     drainer: asyncio.Task | None = None
     execution: "JobExecutionPort | None" = None
     code_prepared: bool = False
+    #: CU-08.1: el contenedor ya salió (wait() volvió); un cancel tardío ya
+    #: no puede detener nada y no debe reclasificar el fin natural.
+    exited: bool = False
     closed: bool = False  # terminal + eof emitidos y colas cerradas
     started_at: str | None = None
     terminal_detail: dict | None = None
@@ -310,14 +322,20 @@ class JobRunner:
         return handle
 
     async def cancel(self, job_id: str) -> str | None:
-        """§3.3/§7.5 — devuelve "cancelling" si aceptado; None si no activo.
+        """§3.3/§7.5 — devuelve "cancelling" si aceptado; None si no activo
+        o si el contenedor ya salió solo (CU-08.1).
 
-        Idempotente: repetir un cancel ya aceptado devuelve "cancelling".
+        Idempotente: repetir un cancel ya aceptado devuelve "cancelling" y
+        vuelve a pedir el kill (CU-08.3: el anterior pudo fallar). Un kill
+        fallido se propaga como ``DockerServiceError`` (el router responde
+        503 y el cliente puede reintentar).
         """
         handle = self.registry.get(job_id)
-        if handle is None or handle.closed:
+        if handle is None or handle.closed or handle.exited:
             return None
         if handle.cancel_requested:
+            if handle.execution is not None:
+                await self._kill_now(handle.execution)
             return "cancelling"
         if handle.phase == "queued" and handle.execution is None:
             # cancel sobre queued: flag + cancelled en DB YA; el task lo ve
@@ -349,8 +367,20 @@ class JobRunner:
         handle.cancel_requested = True
         handle.request_kill(KILL_CANCEL)
         if handle.execution is not None:
-            self._spawn_kill(handle)
+            await self._kill_now(handle.execution)
         return "cancelling"
+
+    @staticmethod
+    async def _kill_now(execution: "JobExecutionPort") -> None:
+        """kill() esperado (CU-08.3): el llamador se entera si falló."""
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(execution.kill), timeout=KILL_REQUEST_TIMEOUT_S
+            )
+        except RunnerNotFound:
+            pass  # el contenedor ya no existe: nada que detener
+        except asyncio.TimeoutError as exc:
+            raise DockerServiceError("kill() no respondió a tiempo") from exc
 
     def subscribe(self, handle: JobHandle) -> tuple[int, asyncio.Queue, list[dict]]:
         """Cola por-conexión + snapshot (status actual + backlog) — §8.1."""
@@ -399,8 +429,10 @@ class JobRunner:
         async def _kill() -> None:
             try:
                 await asyncio.to_thread(execution.kill)
-            except DockerServiceError:
+            except RunnerNotFound:
                 pass  # ya muerto: carrera benigna
+            except DockerServiceError:
+                logger.warning("job %s: kill() falló", handle.job_id, exc_info=True)
 
         task = asyncio.create_task(_kill())
         handle.aux_tasks.append(task)  # referencia viva (trampa GC de asyncio)
@@ -668,6 +700,7 @@ class JobRunner:
                 ).start()
 
                 exit_code = await self._wait_with_timeout(handle, execution)
+                handle.exited = True
                 oom = False
                 try:
                     oom = await asyncio.to_thread(execution.oom_killed)
@@ -841,8 +874,12 @@ class JobRunner:
     def _derive_terminal(
         kill_reason: str, exit_code: int | None, oom: bool
     ) -> tuple[str, str | None]:
-        """Tabla §3.3: status/error_detail SOLO de kill_reason+exit+OOM."""
-        if kill_reason == KILL_CANCEL:
+        """Tabla §3.3: status/error_detail SOLO de kill_reason+exit+OOM.
+
+        CU-08.1: un cancel cuenta solo si el kill mató al proceso (137, o
+        exit desconocido); con otro exit_code el programa terminó solo.
+        """
+        if kill_reason == KILL_CANCEL and exit_code in (None, KILLED_EXIT_CODE):
             return "cancelled", None
         if kill_reason == KILL_TIMEOUT:
             return "timeout", "wall_timeout"

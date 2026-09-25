@@ -4,6 +4,8 @@
 // ni progreso (eso es del WS). Tick 700 ms con jitter; con reducedMotion no
 // hay tick (nodos estáticos, sin paquetes SMIL); running=false congela el
 // último estado.
+// CU-07.5: N nodos para N hilos. En OpenMP el maestro ES el hilo 0 del
+// equipo: t0 (kind 'master') + t1..t{N-1}; no hay un hilo «extra».
 import { useEffect, useState } from 'react'
 
 export interface DecorNode {
@@ -26,9 +28,9 @@ function clamp01(v: number): number {
 }
 
 function makeNodes(threads: number): DecorNode[] {
-  const master: DecorNode = { id: 'master', kind: 'master', activity: 0.35 }
-  const workers: DecorNode[] = Array.from({ length: Math.max(1, threads) }, (_, i) => ({
-    id: `t${i}`,
+  const master: DecorNode = { id: 't0', kind: 'master', activity: 0.35 }
+  const workers: DecorNode[] = Array.from({ length: Math.max(1, threads) - 1 }, (_, i) => ({
+    id: `t${i + 1}`,
     kind: 'thread' as const,
     activity: clamp01(0.65 + Math.random() * 0.3),
   }))

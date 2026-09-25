@@ -785,6 +785,13 @@ Sin body. `202`:
   crear el contenedor (mecanismo exacto en `architecture.md` §3.3 — sin
   carrera: el job jamás llega a ejecutarse tras un cancel aceptado).
 - Errores: `404 JOB_NOT_FOUND`; `409 JOB_NOT_CANCELLABLE` si ya es terminal.
+- **(Enmienda aditiva 2026-09-24, CU-08.1/08.3)** `409 JOB_NOT_CANCELLABLE`
+  también si el contenedor **ya salió solo** (el job está cerrando): un cancel
+  tardío no reclasifica un fin natural. Y un `status` terminal solo es
+  `cancelled` si el kill mató al proceso (exit 137 o desconocido); con otro
+  exit code se aplica la tabla normal (`completed`/`failed`).
+  `503 DOCKER_UNAVAILABLE` si el `kill()` falla: el job queda marcado para
+  cancelar y repetir el POST **reintenta** el kill.
 
 ### 7.6 `GET /api/v1/jobs/{job_id}/output` — descargar stdout
 
@@ -961,7 +968,10 @@ Códigos: `OUTPUT_TRUNCATED` (se alcanzó el límite de 256 KB: se deja de leer,
 se mata el contenedor, el job termina `failed` con
 `error_detail="output_limit_exceeded"` — patrón glot),
 `STREAM_ERROR` (excepción leyendo logs/stats; el job continúa si es posible),
-`BAD_CLIENT_MESSAGE` (ver 8.3).
+`BAD_CLIENT_MESSAGE` (ver 8.3),
+`CANCEL_FAILED` (**enmienda aditiva 2026-09-24, CU-08.3**: el `kill()` pedido
+por un `cancel` falló; el job sigue marcado para cancelar y otro `cancel`
+reintenta el kill).
 Un `error` **no** cierra la conexión; el cierre siempre lo marca `eof`.
 
 #### `eof` — fin del stream
@@ -985,7 +995,9 @@ código 1000.
 - Efecto: `container.kill()` (cierra ejecución + streams a la vez); el job
   termina con `status.phase="cancelled"` + `eof`. Si el job está en `queued`,
   se marca `cancelled` sin crear contenedor. Idempotente: cancelar dos veces
-  o cancelar un job terminal se ignora en silencio.
+  o cancelar un job terminal se ignora en silencio (repetirlo sobre un job
+  vivo vuelve a pedir el kill). Si el kill falla, el servidor responde
+  `error CANCEL_FAILED` (ver 8.2).
 - Cualquier otro mensaje (JSON inválido, `type` desconocido) → el servidor
   responde `{"type":"error","code":"BAD_CLIENT_MESSAGE",...}` y lo ignora;
   no cierra la conexión.
@@ -1043,7 +1055,7 @@ C:      GET /api/v1/jobs/01a2…   → parsed_timings (curva de speedup)
 | POST | `/api/v1/jobs/upload` | Crear job (archivo .py) | 202 | 404, 409, 413, 415, 422, 429, 503 |
 | GET | `/api/v1/jobs` | Listar recientes | 200 | 422 |
 | GET | `/api/v1/jobs/{id}` | Detalle + resultados | 200 | 404 |
-| POST | `/api/v1/jobs/{id}/cancel` | Cancelar | 202 | 404, 409 |
+| POST | `/api/v1/jobs/{id}/cancel` | Cancelar | 202 | 404, 409, 503 |
 | GET | `/api/v1/jobs/{id}/output` | Descargar salida (text/plain) | 200 | 404, 409, 422 |
 | WS | `/ws/jobs/{id}` | Stream multiplexado del job | — | close 4404 |
 | GET | `/api/v1/admin/modules` | Módulos con detalle admin (§10) | 200 | 401 |

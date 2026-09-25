@@ -26,6 +26,27 @@
   margin-top: 6px;
 }
 
+/* CU-09.1: configuración de la ejecución bajo el encabezado. */
+.results-config {
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+
+/* CU-09.2: causa del fin encima del stderr completo. */
+.failure-cause {
+  margin: 0 0 12px;
+}
+
+/* CU-11: paginación del historial. */
+.results-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  padding: 12px 16px;
+  flex-wrap: wrap;
+}
+
 /* Los 4 stat tiles ya son auto-fit en components.css (.metrics-row). */
 
 .two-col {

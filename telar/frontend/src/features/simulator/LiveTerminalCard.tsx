@@ -3,6 +3,7 @@
 // del WS (sin heurísticas de tiempo): creating → «Creando contenedor…»;
 // compiling → «Compilando con Numba…». Auto-scroll con pausa por scroll
 // manual y botón «↓ seguir salida» (§5.3). logsTruncated → línea fija ámbar.
+// logsGap (CU-07.3) → aviso ámbar al principio: faltan líneas intermedias.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card } from '../../components/ui/Card'
 import { Terminal, TermLine } from '../../components/ui/Terminal'
@@ -16,6 +17,8 @@ export interface LiveTerminalCardProps {
   phase: UiPhase
   logs: LogLine[]
   logsTruncated: boolean
+  /** CU-07.3: hubo un salto de seq (líneas perdidas en el vivo). */
+  logsGap?: boolean
 }
 
 function tsToClock(ts: string): string {
@@ -38,7 +41,7 @@ function placeholderFor(phase: UiPhase): string | null {
   }
 }
 
-export function LiveTerminalCard({ jobId, phase, logs, logsTruncated }: LiveTerminalCardProps) {
+export function LiveTerminalCard({ jobId, phase, logs, logsTruncated, logsGap = false }: LiveTerminalCardProps) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const [follow, setFollow] = useState(true)
   const reducedMotion = useReducedMotion()
@@ -73,6 +76,12 @@ export function LiveTerminalCard({ jobId, phase, logs, logsTruncated }: LiveTerm
           label="Salida en vivo de la ejecución"
           bodyClassName="live-terminal-body"
         >
+          {logsGap && (
+            <TermLine
+              tagClass="term-amber"
+              tag="— Parte de la salida no se pudo recuperar; el output completo queda en Resultados —"
+            />
+          )}
           {placeholder != null && <TermLine tagClass="term-dim" tag={placeholder} />}
           {logs.map((line, i) => (
             <TermLine

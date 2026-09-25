@@ -24,6 +24,7 @@ from ..errors import sanitize_validation_errors
 from ..repositories.content import cuenta_para_progreso
 from ..repositories.records import JobRecord
 from ..schemas import FILENAME_PATTERN, JobCreateRequest
+from ..services import DockerServiceError
 from ..services.job_runner import NO_TIMEOUT, TERMINAL_STATUSES, utc_now_iso
 from .system import ensure_docker
 
@@ -428,23 +429,33 @@ async def get_job(request: Request, job_id: str) -> JSONResponse:
 
 @router.post("/{job_id}/cancel")
 async def cancel_job(request: Request, job_id: str) -> JSONResponse:
-    """§7.5 — equivalente REST del mensaje WS ``cancel``."""
+    """§7.5 — equivalente REST del mensaje WS ``cancel``.
+
+    CU-08.3: si el kill falla responde 503 ``DOCKER_UNAVAILABLE``; el job
+    queda marcado para cancelar y un nuevo POST reintenta el kill.
+    """
     state = request.app.state
-    result = await state.job_runner.cancel(job_id)
-    if result is None:
-        # ventana de transición §3.4: reintento único tras ~100 ms
-        record = await state.job_repo.find_by_id(job_id)
-        if record is None:
-            return _err(404, "JOB_NOT_FOUND", f"No existe el job {job_id}.")
-        if record.status not in TERMINAL_STATUSES:
-            await asyncio.sleep(0.1)
-            result = await state.job_runner.cancel(job_id)
-            if result is None:
-                record = await state.job_repo.find_by_id(job_id)
+    try:
+        result = await state.job_runner.cancel(job_id)
         if result is None:
-            if record is not None and record.status in TERMINAL_STATUSES:
-                return _err(409, "JOB_NOT_CANCELLABLE", "El job ya es terminal.")
-            return _err(409, "JOB_NOT_CANCELLABLE", "El job no se puede cancelar.")
+            # ventana de transición §3.4: reintento único tras ~100 ms
+            record = await state.job_repo.find_by_id(job_id)
+            if record is None:
+                return _err(404, "JOB_NOT_FOUND", f"No existe el job {job_id}.")
+            if record.status not in TERMINAL_STATUSES:
+                await asyncio.sleep(0.1)
+                result = await state.job_runner.cancel(job_id)
+                if result is None:
+                    record = await state.job_repo.find_by_id(job_id)
+    except DockerServiceError:
+        return _err(
+            503, "DOCKER_UNAVAILABLE",
+            "No fue posible detener el contenedor; inténtalo de nuevo.",
+        )
+    if result is None:
+        if record is not None and record.status in TERMINAL_STATUSES:
+            return _err(409, "JOB_NOT_CANCELLABLE", "El job ya es terminal.")
+        return _err(409, "JOB_NOT_CANCELLABLE", "El job no se puede cancelar.")
     return _ok({"job_id": job_id, "status": "cancelling"}, status_code=202)
 
 

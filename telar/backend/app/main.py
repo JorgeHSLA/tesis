@@ -35,6 +35,7 @@ from app.repositories.quiz_attempts import QuizAttemptRepository
 from app.repositories.content import ContentRepository
 from app.routers import system as system_router
 from app.routers.system import BACKEND_VERSION
+from app.services.code_dirs import code_base_dir, sweep_code_dirs
 from app.services.job_runner import JobRunner
 from app.tools.seed_content import (
     backfill_seed_marker,
@@ -99,13 +100,20 @@ async def _seed_content_if_unseeded(db_conn: Any) -> None:
     await seed_content_into(db_conn)
 
 
-async def _reap_orphans(docker: Any, db_conn: Any) -> None:
+async def _reap_orphans(docker: Any, db_conn: Any, cfg: Settings) -> None:
     """Reaper por interfaz + huérfanos en DB (architecture §3, punto 8)."""
     if docker is not None:
         try:
             await _maybe_await(docker.reap_orphans())
         except Exception:
             logger.exception("Reaper de contenedores huérfanos fallido")
+    else:
+        # CU-25.1: sin cliente Docker no hay contenedores que listar, pero los
+        # directorios de código huérfanos sí se pueden barrer.
+        try:
+            await asyncio.to_thread(sweep_code_dirs, code_base_dir(cfg))
+        except Exception:
+            logger.exception("Barrido de directorios huérfanos fallido")
     orphaned = await JobRepository(db_conn).mark_orphans_failed()
     if orphaned:
         logger.warning("%d jobs huérfanos marcados failed/orphaned_on_restart", orphaned)
@@ -160,7 +168,7 @@ def create_app(
             )
             app.state.catalog = None
 
-        await _reap_orphans(docker, db_conn)
+        await _reap_orphans(docker, db_conn, cfg)
 
         # Repositorios de estado (firmas congeladas data-model §5) y runner
         # (WP2) — inyectados en app.state para los routers WP2/WP3.
