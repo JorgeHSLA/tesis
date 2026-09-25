@@ -1,9 +1,10 @@
 // LessonMetaFields — panel derecho del editor de lección (fase4-autoria §9.F.3):
-// metadatos de la faceta lección (título, id, módulo, orden, minutos) y las
-// lecciones recomendadas. El `id` es de solo lectura al editar (patrón estable).
-// El ejemplo pareado + source_code viven en el contenedor (solo en /nueva).
+// metadatos de la faceta lección (título, id, módulo, orden, minutos), cómo se
+// completa (regla, video, habilitada) y las lecciones recomendadas. El `id` es
+// de solo lectura al editar (patrón estable). El ejemplo + source_code viven en
+// el contenedor.
 import { useId } from 'react'
-import type { AdminModuleDto, AdminRecommendedDto } from '../../../api/admin-types'
+import type { AdminModuleDto, AdminRecommendedDto, CompletionRule } from '../../../api/admin-types'
 import { Button } from '../../../components/ui/Button'
 import { Field } from '../../../components/ui/Field'
 import { IconPlus } from '../../../components/icons/icons'
@@ -14,20 +15,72 @@ export interface LessonMeta {
   order: string
   title: string
   estimated_minutes: string
+  /** Texto libre; vacío ⇒ `null` al guardar. El backend lo valida y normaliza. */
+  video_url: string
+  enabled: boolean
+  completion_rule: CompletionRule
   recommended: AdminRecommendedDto[]
+}
+
+const RULE_OPTIONS: { id: CompletionRule; label: string }[] = [
+  { id: 'quiz', label: 'Aprobar el quiz' },
+  { id: 'viewed', label: 'Ver la lección' },
+  { id: 'run', label: 'Ejecutar el ejemplo' },
+]
+
+export interface RuleIssue {
+  /** `error` bloquea el guardado; `warning` solo avisa. */
+  level: 'error' | 'warning'
+  message: string
+}
+
+/**
+ * CU-17.2 — ¿la regla se puede cumplir? `run` sin ejemplo es incoherente (el
+ * backend también lo rechaza). `quiz` sin quiz es el estado normal mientras se
+ * escribe la lección, así que solo avisa: el quiz se crea después.
+ */
+export function completionRuleIssue(
+  rule: CompletionRule,
+  { hasExample, hasQuiz }: { hasExample: boolean; hasQuiz: boolean },
+): RuleIssue | null {
+  if (rule === 'run' && !hasExample) {
+    return {
+      level: 'error',
+      message: 'La regla «Ejecutar el ejemplo» exige que la lección tenga ejemplo ejecutable.',
+    }
+  }
+  if (rule === 'quiz' && !hasQuiz) {
+    return {
+      level: 'warning',
+      message: 'Esta lección aún no tiene quiz: crea el quiz después o elige otra regla.',
+    }
+  }
+  return null
 }
 
 export interface LessonMetaFieldsProps {
   mode: 'create' | 'edit'
   value: LessonMeta
   modules: AdminModuleDto[]
+  /** Para validar la regla de completitud. */
+  hasExample: boolean
+  hasQuiz: boolean
   errors?: Readonly<Record<string, string>>
   onChange: (patch: Partial<LessonMeta>) => void
 }
 
-export function LessonMetaFields({ mode, value, modules, errors = {}, onChange }: LessonMetaFieldsProps) {
+export function LessonMetaFields({
+  mode,
+  value,
+  modules,
+  hasExample,
+  hasQuiz,
+  errors = {},
+  onChange,
+}: LessonMetaFieldsProps) {
   const uid = useId()
   const err = (field: string): string | undefined => errors[field]
+  const ruleIssue = completionRuleIssue(value.completion_rule, { hasExample, hasQuiz })
 
   const setRec = (index: number, patch: Partial<AdminRecommendedDto>) => {
     onChange({
@@ -108,6 +161,61 @@ export function LessonMetaFields({ mode, value, modules, errors = {}, onChange }
           />
         </Field>
       </div>
+
+      {/* ── Cómo se completa (CU-17.2) ───────────────────────────────────── */}
+      <Field
+        label="Regla de completitud"
+        htmlFor={`${uid}-rule`}
+        error={err('completion_rule') ?? (ruleIssue?.level === 'error' ? ruleIssue.message : undefined)}
+        hint={
+          ruleIssue?.level === 'warning' ? (
+            <span className="admin-hint-warn" role="status">
+              {ruleIssue.message}
+            </span>
+          ) : (
+            'Qué debe hacer el estudiante para completarla.'
+          )
+        }
+      >
+        <select
+          id={`${uid}-rule`}
+          className="select"
+          value={value.completion_rule}
+          onChange={(e) => onChange({ completion_rule: e.currentTarget.value as CompletionRule })}
+        >
+          {RULE_OPTIONS.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field
+        label="Video (YouTube)"
+        htmlFor={`${uid}-video`}
+        hint="Opcional. Enlace de YouTube (puede ser no listado)."
+        error={err('video_url')}
+      >
+        <input
+          id={`${uid}-video`}
+          className="input"
+          type="url"
+          value={value.video_url}
+          placeholder="https://youtu.be/…"
+          spellCheck={false}
+          onChange={(e) => onChange({ video_url: e.currentTarget.value })}
+        />
+      </Field>
+
+      <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <input
+          type="checkbox"
+          checked={value.enabled}
+          onChange={(e) => onChange({ enabled: e.currentTarget.checked })}
+        />
+        <span>Lección habilitada</span>
+      </label>
 
       {/* ── Lecciones recomendadas ────────────────────────────────────────── */}
       <div role="group" aria-labelledby={`${uid}-rec`}>

@@ -517,3 +517,6 @@
 .import-modo .field-hint {
   margin: 0;
 }
+
+/* S3 (CU-17.2): aviso no bloqueante bajo un campo (p. ej. regla «quiz» sin quiz). */
+.admin-hint-warn { color: var(--warn-ink); }
