@@ -6,10 +6,13 @@
 // lecciones → 409 MODULE_NOT_EMPTY → toast. fase4-autoria-design §9.F(2).
 // S5 (D+): la cabecera lleva el distintivo «cambios sin publicar» cuando el
 // contenido local difiere de la versión vigente del catálogo (§11.8.3).
+// S7d (CU-41.1): si el índice anuncia el módulo, «Retirar del catálogo» quita
+// esa entrada (§11.8.4) tras confirmar. No borra nada local.
 import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
-import { deleteModule, getPublishStatus } from '../../../api/admin'
+import { deleteModule, getPublishStatus, unpublishModule } from '../../../api/admin'
+import type { AdminPublishStatusDto } from '../../../api/admin-types'
 import type { ModuleDto } from '../../../api/types'
 import { Button } from '../../../components/ui/Button'
 import { PublishModuleDialog } from './PublishModuleDialog'
@@ -62,7 +65,11 @@ export function ModuleGroup({
   const [confirming, setConfirming] = useState(false)
   const [publicando, setPublicando] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [sinPublicar, setSinPublicar] = useState(false)
+  const [estadoPublicacion, setEstadoPublicacion] = useState<AdminPublishStatusDto | null>(null)
+  const [retirando, setRetirando] = useState(false)
+  const [confirmandoRetirar, setConfirmandoRetirar] = useState(false)
+  /** Tras retirar, fuerza releer el estado aunque `module` no cambie. */
+  const [consulta, setConsulta] = useState(0)
   const cardRef = useRef<HTMLElement>(null)
 
   // Bajo demanda: se pide al montar y cuando CAMBIAN los datos del módulo
@@ -76,13 +83,22 @@ export function ModuleGroup({
   useEffect(() => {
     let vivo = true
     getPublishStatus(module.id)
-      .then((e) => vivo && setSinPublicar(e.state === 'changed' || e.state === 'out_of_sync'))
-      .catch(() => vivo && setSinPublicar(false))
+      .then((e) => vivo && setEstadoPublicacion(e))
+      .catch(() => vivo && setEstadoPublicacion(null))
     return () => {
       vivo = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `firma` resume `module`
-  }, [firma])
+  }, [firma, consulta])
+
+  const estado = estadoPublicacion?.state
+  const sinPublicar = estado === 'changed' || estado === 'out_of_sync'
+  // Solo hay algo que retirar si el índice anuncia el módulo. `unknown` (sin
+  // red) no lo afirma, así que no se ofrece: el botón fallaría seguro.
+  const versionPublicada =
+    estado === 'unchanged' || estado === 'changed' || estado === 'out_of_sync'
+      ? estadoPublicacion?.published_version ?? null
+      : null
 
   const lessons = [...module.lessons].sort((a, b) => a.order - b.order)
   const bodyId = `admin-module-body-${module.id}`
@@ -122,6 +138,24 @@ export function ModuleGroup({
       }
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const retirar = async () => {
+    setRetirando(true)
+    try {
+      await unpublishModule(module.id)
+      onToast(`Se retiró «${module.title}» del catálogo.`)
+      setConfirmandoRetirar(false)
+      setConsulta((n) => n + 1)
+      onReload()
+    } catch (err) {
+      // El backend no toca nada local si el bucket falla: basta con decirlo.
+      const motivo = err instanceof ApiError ? err.message : 'Inténtalo de nuevo.'
+      onToast(`No se pudo retirar el módulo del catálogo. ${motivo}`, 'error')
+      setConfirmandoRetirar(false)
+    } finally {
+      setRetirando(false)
     }
   }
 
@@ -202,6 +236,11 @@ export function ModuleGroup({
           <Button variant="outline" size="sm" onClick={() => setPublicando(true)}>
             Publicar
           </Button>
+          {versionPublicada != null && (
+            <Button variant="ghost" size="sm" onClick={() => setConfirmandoRetirar(true)}>
+              Retirar del catálogo
+            </Button>
+          )}
           <Button variant="ghost" size="sm" className="admin-btn-danger-ghost" onClick={() => setConfirming(true)}>
             Borrar
           </Button>
@@ -231,6 +270,23 @@ export function ModuleGroup({
         busy={deleting}
         onConfirm={remove}
         onCancel={() => setConfirming(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmandoRetirar}
+        tone="danger"
+        title="Retirar del catálogo"
+        body={
+          `«${module.title}» (v${versionPublicada ?? '?'}) dejará de aparecer en el catálogo. ` +
+          'No se borra nada: el módulo sigue aquí y las versiones subidas se conservan. ' +
+          'Quien ya lo incorporó lo mantiene, marcado «Ya no publicado». ' +
+          'Si lo vuelves a publicar, saldrá con la versión siguiente.'
+        }
+        confirmLabel="Retirar"
+        busy={retirando}
+        onConfirm={retirar}
+        // Con la retirada en vuelo no se cierra: el resultado llega por toast.
+        onCancel={() => !retirando && setConfirmandoRetirar(false)}
       />
 
       {publicando && (
