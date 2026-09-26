@@ -27,4 +27,11 @@ describe('completionRequirement', () => {
     expect(completionRequirement({ ...base, enabled: false }, false)).toBeNull()
     expect(completionRequirement({ ...base, archived: true }, false)).toBeNull()
   })
+
+  it('S6: un taller se completa marcando sus pasos, pida lo que pida la regla guardada', () => {
+    expect(completionRequirement({ ...base, completion_rule: 'viewed', kind: 'taller' }, false)).toBe(
+      'Para completarlo: marca «Lo hice» en todos sus pasos.',
+    )
+    expect(completionRequirement({ ...base, kind: 'taller', archived: true }, false)).toBeNull()
+  })
 })
