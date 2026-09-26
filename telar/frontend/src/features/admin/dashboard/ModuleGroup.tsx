@@ -269,7 +269,8 @@ export function ModuleGroup({
         confirmLabel="Borrar módulo"
         busy={deleting}
         onConfirm={remove}
-        onCancel={() => setConfirming(false)}
+        // Con el borrado en vuelo no se cierra (Escape/fondo): el resultado llega por toast.
+        onCancel={() => !deleting && setConfirming(false)}
       />
 
       <ConfirmDialog
