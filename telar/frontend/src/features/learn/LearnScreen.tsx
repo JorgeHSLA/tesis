@@ -32,6 +32,7 @@ import { MarkReadCard } from './MarkReadCard'
 import { completionRequirement } from '../../lib/completionRequirement'
 import { QuizRunner } from './QuizRunner'
 import { TracksCard } from './TracksCard'
+import { WorkshopSteps } from './WorkshopSteps'
 
 // El panel "módulo + progreso" es un drawer a la derecha, OCULTO por defecto;
 // su estado (abierto/cerrado) se persiste como preferencia de UI en localStorage.
@@ -191,6 +192,9 @@ export default function LearnScreen() {
   const runDisabled = gpuLocked || (example != null && !example.enabled)
   // CU-12.3: qué falta para completarla, según su regla (null si no cuenta).
   const requirement = completionRequirement(lesson, cachedProgress.completed)
+  // S6 (CU-28): un taller es una guía de pasos; no lleva video, quiz ni «Marcar
+  // como leída» (su regla guardada es 'viewed', pero lo completan sus pasos).
+  const isTaller = lesson.kind === 'taller'
 
   return (
     <section className="screen learn">
@@ -209,6 +213,7 @@ export default function LearnScreen() {
             {/* C4: `estimated_minutes` se escribía en autoría y no llegaba a
                 ninguna pantalla. Es el tiempo de LECTURA, distinto del
                 `~{est_run_seconds}s` de ejecución que muestra el catálogo. */}
+            {isTaller && <Chip tone="orange">Taller</Chip>}
             <Chip>~{lesson.estimated_minutes} min</Chip>
             {summary && (
               <span className="mono-small">
@@ -276,15 +281,26 @@ export default function LearnScreen() {
               <span>Esta lección requiere GPU NVIDIA + gcc; puedes leerla pero no ejecutarla.</span>
             </div>
           )}
-          <LessonMedia
-            lessonId={lesson.id}
-            videoUrl={lesson.video_url}
-            exampleId={example?.id ?? null}
-            filename={example?.filename ?? null}
-            runDisabled={runDisabled}
-          />
+          {!isTaller && (
+            <LessonMedia
+              lessonId={lesson.id}
+              videoUrl={lesson.video_url}
+              exampleId={example?.id ?? null}
+              filename={example?.filename ?? null}
+              runDisabled={runDisabled}
+            />
+          )}
           <LessonInfo lesson={lesson} example={example} runDisabled={runDisabled} />
-          {lesson.completion_rule === 'viewed' && lesson.enabled && !lesson.archived && (
+          {isTaller && (
+            <WorkshopSteps
+              key={lesson.id}
+              lessonId={lesson.id}
+              steps={lesson.steps ?? []}
+              completed={cachedProgress.completed}
+              countsForProgress={lesson.enabled && !lesson.archived}
+            />
+          )}
+          {!isTaller && lesson.completion_rule === 'viewed' && lesson.enabled && !lesson.archived && (
             <MarkReadCard lessonId={lesson.id} completed={cachedProgress.completed} />
           )}
           {lesson.has_quiz && (

@@ -141,6 +141,10 @@ class LocalLesson:
     example_id: str | None = None
     example_source_code: str | None = None
     questions: tuple[LocalQuestion, ...] = ()
+    #: S6: ``leccion`` | ``taller`` y la firma ``(title, body, example_id)`` de
+    #: sus pasos. Solo alimentan el reporte («sin cambios»), como el resto.
+    kind: str = "leccion"
+    steps: tuple[tuple[str, str, str | None], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -836,6 +840,9 @@ def _sin_cambios(anterior: LocalLesson, entrante: BundleLesson) -> bool:
         and anterior.example_source_code
         == (entrante.example.source_code if entrante.example else None)
         and _firma_quiz_local(anterior) == _firma_quiz_bundle(entrante)
+        and anterior.kind == (entrante.kind or "leccion")
+        and anterior.steps
+        == tuple((p.title, p.body_markdown, p.example_id) for p in entrante.steps or ())
     )
 
 

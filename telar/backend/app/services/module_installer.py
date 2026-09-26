@@ -55,6 +55,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from app.errors import ApiException
 from app.repositories import catalog as catalog_repo
 from app.repositories import content_admin
+from app.repositories import workshop as workshop_repo
 from app.schemas.admin import QUESTION_ID_PATTERN
 from app.schemas.catalog import (
     BundleLesson,
@@ -645,8 +646,8 @@ _UPSERT_LESSON = """
 INSERT INTO lessons
     (id, module_id, "order", title, estimated_minutes, content_markdown,
      video_url, pass_threshold, recommended_json, enabled, completion_rule,
-     archived_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+     kind, archived_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
 ON CONFLICT(id) DO UPDATE SET
     module_id         = excluded.module_id,
     "order"           = excluded."order",
@@ -658,6 +659,7 @@ ON CONFLICT(id) DO UPDATE SET
     recommended_json  = excluded.recommended_json,
     enabled           = excluded.enabled,
     completion_rule   = excluded.completion_rule,
+    kind              = excluded.kind,
     archived_at       = NULL
 """
 
@@ -726,7 +728,30 @@ def _params_leccion(leccion: BundleLesson, module_id: str) -> tuple:
         ),
         int(leccion.enabled),
         leccion.completion_rule,
+        leccion.kind or "leccion",  # S6: ausente (bundle 1) = lección
     )
+
+
+async def _escribir_pasos(
+    db: "aiosqlite.Connection", lecciones: "Sequence[BundleLesson]"
+) -> None:
+    """S6 (§12.5): los pasos de cada lección, tal como vienen en el bundle.
+
+    Se reescriben SIEMPRE, también en las lecciones que no son taller (con la
+    lista vacía): el contenido instalado es el del bundle, y una lección que dejó
+    de ser taller no conserva pasos del publicador anterior. Las casillas del
+    estudiante no se tocan (data-model §9).
+    """
+    for leccion in lecciones:
+        pasos = leccion.steps if leccion.es_taller and leccion.steps else []
+        await workshop_repo.replace_steps_no_commit(
+            db,
+            leccion.id,
+            [
+                workshop_repo.StepContent(p.title, p.body_markdown, p.example_id)
+                for p in pasos
+            ],
+        )
 
 
 def _params_ejemplo(leccion: BundleLesson) -> tuple:
@@ -790,6 +815,7 @@ async def _escribir(
     )
     for leccion in bundle.lessons:
         await db.execute(_UPSERT_LESSON, _params_leccion(leccion, modulo.id))
+    await _escribir_pasos(db, bundle.lessons)
     for leccion in bundle.lessons:
         if leccion.example is not None:
             await db.execute(_UPSERT_EXAMPLE, _params_ejemplo(leccion))
@@ -843,6 +869,7 @@ UPSERT_EXAMPLE = _UPSERT_EXAMPLE
 UPSERT_QUESTION = _UPSERT_QUESTION
 params_leccion = _params_leccion
 params_ejemplo = _params_ejemplo
+escribir_pasos = _escribir_pasos
 dumps_json = _dumps
 
 

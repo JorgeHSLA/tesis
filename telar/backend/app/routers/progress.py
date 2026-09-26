@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from app.repositories.content import ContentRepository, cuenta_para_progreso
@@ -27,7 +27,9 @@ from app.schemas import (
     ProgressResponse,
     ProgressSummary,
     ProgressUpdateRequest,
+    WorkshopStepUpdateRequest,
 )
+from app.services.taller import marcar_paso
 
 router = APIRouter(prefix="/api/v1", tags=["progress"])
 
@@ -122,7 +124,9 @@ async def put_lesson_progress(
     completed = body.completed
     completed_via = None
     if completed is not None and (
-        lesson.completion_rule != "viewed" or not cuenta_para_progreso(lesson)
+        lesson.completion_rule != "viewed"
+        or lesson.is_taller  # S6 (§12): a un taller solo lo completan sus pasos
+        or not cuenta_para_progreso(lesson)
     ):
         # No es el cliente quien completa esta lección, o la lección no está
         # disponible (deshabilitada/archivada): api-contract §6.2.
@@ -136,3 +140,36 @@ async def put_lesson_progress(
         completed_via=completed_via,
     )
     return envelope_ok(_entry(record, quiz_total_for(content, lesson_id)))
+
+
+@router.put("/progress/lessons/{lesson_id}/steps/{idx}")
+async def put_workshop_step(
+    request: Request,
+    lesson_id: str,
+    idx: int,
+    body: WorkshopStepUpdateRequest,
+    content: ContentRepository = Depends(get_content),
+    progress_repo: Any = Depends(get_progress_repo),
+) -> JSONResponse:
+    """§12 — marca o desmarca la casilla «Lo hice» de un paso de un taller.
+
+    Idempotente. Al quedar todos los pasos marcados, completa el taller
+    (``completed_via="manual"``) si está disponible; desmarcar no lo
+    descompleta. ``404 STEP_NOT_FOUND`` si la lección no es un taller o no
+    tiene ese paso.
+    """
+    lesson = content.lesson(lesson_id)
+    if lesson is None:
+        return envelope_error(
+            404, "LESSON_NOT_FOUND", f"No existe la lección {lesson_id}"
+        )
+    if not lesson.is_taller or all(step.idx != idx for step in lesson.steps):
+        return envelope_error(
+            404, "STEP_NOT_FOUND", f"La lección {lesson_id} no tiene el paso {idx}"
+        )
+    # Filtro rápido contra el snapshot; la verdad (pasos vigentes) se relee
+    # dentro del lock en `marcar_paso`.
+    result = await marcar_paso(
+        request.app.state.db, progress_repo, lesson_id, idx, body.done
+    )
+    return envelope_ok(result)

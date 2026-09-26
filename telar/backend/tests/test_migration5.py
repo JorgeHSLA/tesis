@@ -74,13 +74,13 @@ def db_migrada() -> sqlite3.Connection:
     """DB en Fase 4 (base + migraciones 2-4), sembrada, y luego migrada a la 5."""
     texto = SCHEMA.read_text(encoding="utf-8")
     base, bloques = _partir_esquema(texto)
-    assert [n for n, _ in bloques] == [2, 3, 4, 5], "cambió el juego de migraciones"
+    assert [n for n, _ in bloques][:4] == [2, 3, 4, 5], "cambió el juego de migraciones"
 
     db = sqlite3.connect(":memory:")
     db.executescript(base)
     for numero, bloque in bloques:
-        if numero == 5:
-            continue  # se aplica DESPUÉS de sembrar, que es el caso real
+        if numero >= 5:
+            continue  # la 5 se aplica DESPUÉS de sembrar (el caso real); la 6+ no es de este test
         db.executescript(bloque)
     db.executescript(SEMILLA_FASE4)
     db.commit()

@@ -31,7 +31,7 @@ OTRO_EJEMPLO = "primerEjemplo"
 
 _BASE = (
     "module_id", "order", "title", "estimated_minutes", "content_markdown",
-    "video_url", "enabled", "completion_rule", "recommended",
+    "video_url", "enabled", "completion_rule", "recommended", "kind",
 )
 
 
@@ -340,6 +340,17 @@ def test_quiz_no_completa_si_la_regla_cambio_tras_leer_el_snapshot(cliente):
 # ──────────── invariante: ninguna vía completa lo que no está disponible ─────
 
 
+def _convertir_en_taller(cliente, lesson_id: str) -> None:
+    """S6: un taller no lleva quiz ni video; se le quita el quiz y se le da un paso."""
+    cliente.delete(f"/api/v1/admin/lessons/{lesson_id}/quiz")
+    _ajustar(cliente, lesson_id, kind="taller", video_url=None)
+    respuesta = cliente.post(
+        f"/api/v1/admin/lessons/{lesson_id}/steps",
+        json={"title": "Único paso", "body_markdown": "Hazlo.\n"},
+    )
+    assert respuesta.status_code == 201, respuesta.text
+
+
 def _completar_por(cliente, docker, via: str) -> None:
     """Intenta completar ``LECCION`` por la vía dada, sin exigir que lo logre."""
     if via == "quiz":
@@ -349,6 +360,10 @@ def _completar_por(cliente, docker, via: str) -> None:
         )
     elif via == "run":
         _job(cliente, docker, example_id=LECCION, lesson_id=LECCION)
+    elif via == "taller":  # S6: marcar el único paso completa el taller
+        cliente.put(
+            f"/api/v1/progress/lessons/{LECCION}/steps/0", json={"done": True}
+        )
     else:  # viewed: el estudiante la marca como leída
         respuesta = cliente.put(
             f"/api/v1/progress/lessons/{LECCION}",
@@ -358,14 +373,19 @@ def _completar_por(cliente, docker, via: str) -> None:
 
 
 @pytest.mark.parametrize("estado", ["deshabilitada", "archivada"])
-@pytest.mark.parametrize("via", ["quiz", "run", "viewed"])
+@pytest.mark.parametrize("via", ["quiz", "run", "viewed", "taller"])
 def test_ninguna_via_completa_una_leccion_no_disponible(cliente, docker, via, estado):
     """api-contract §6.2: ninguna vía completa una lección deshabilitada o
-    archivada — la misma regla (``cuenta_para_progreso``) para las tres."""
-    if estado == "deshabilitada":
-        _ajustar(cliente, LECCION, completion_rule=via, enabled=False)
+    archivada — la misma regla (``cuenta_para_progreso``) para las cuatro."""
+    if via == "taller":
+        _convertir_en_taller(cliente, LECCION)
+        cambios: dict = {"kind": "taller"}
     else:
-        _ajustar(cliente, LECCION, completion_rule=via)
+        cambios = {"completion_rule": via}
+    if estado == "deshabilitada":
+        _ajustar(cliente, LECCION, **cambios, enabled=False)
+    else:
+        _ajustar(cliente, LECCION, **cambios)
         _archivar(cliente, LECCION)
     _completar_por(cliente, docker, via)
     progreso = _progreso(cliente, LECCION)

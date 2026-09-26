@@ -43,6 +43,7 @@ from app.services.module_installer import (
     ESTADO_HTTP,
     descargar_y_validar,
     dumps_json,
+    escribir_pasos,
     install_module,
     params_ejemplo,
     params_leccion,
@@ -139,6 +140,14 @@ def reescribir_bundle(
             if rec["lesson_id"] in remap:
                 rec["lesson_id"] = remap[rec["lesson_id"]]
 
+    # S6: el ejemplo de un paso de taller es una referencia DENTRO del bundle
+    # (el guard lo exige), así que sigue a su ejemplo. Va después del bucle
+    # porque el paso puede nombrar el ejemplo de una lección posterior.
+    for leccion in datos["lessons"]:
+        for paso in leccion.get("steps") or []:
+            if paso.get("example_id") in remap:
+                paso["example_id"] = remap[paso["example_id"]]
+
     reescrito = ModuleBundle.model_validate(datos)
     return (
         reescrito.model_copy(update={"checksum": bundle_checksum(reescrito)}),
@@ -181,6 +190,7 @@ async def _escribir_fork(
     )
     for leccion in bundle.lessons:
         await db.execute(UPSERT_LESSON, params_leccion(leccion, modulo.id))
+    await escribir_pasos(db, bundle.lessons)
     for leccion in bundle.lessons:
         if leccion.example is not None:
             await db.execute(UPSERT_EXAMPLE, params_ejemplo(leccion))

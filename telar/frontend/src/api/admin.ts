@@ -30,6 +30,8 @@ import type {
   AdminPublishResultDto,
   AdminPublishStatusDto,
   AdminUnpublishResultDto,
+  AdminWorkshopStepInputDto,
+  AdminWorkshopStepsDto,
 } from './admin-types'
 
 const P = '/api/v1/admin'
@@ -109,6 +111,41 @@ export function addLessonExample(id: string, body: AdminLessonExampleCreateDto):
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+// ── §12.3 Pasos de un taller (S6) — cada operación devuelve la lista entera ──
+
+/** POST /admin/lessons/{id}/steps — añade un paso al final. */
+export function addWorkshopStep(lessonId: string, body: AdminWorkshopStepInputDto): Promise<AdminWorkshopStepsDto> {
+  return fetchJson<AdminWorkshopStepsDto>(`${P}/lessons/${enc(lessonId)}/steps`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/** PUT /admin/lessons/{id}/steps/{idx} — reemplaza el contenido de un paso. */
+export function updateWorkshopStep(
+  lessonId: string,
+  idx: number,
+  body: AdminWorkshopStepInputDto,
+): Promise<AdminWorkshopStepsDto> {
+  return fetchJson<AdminWorkshopStepsDto>(`${P}/lessons/${enc(lessonId)}/steps/${idx}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
+
+/** PUT /admin/lessons/{id}/steps/reorder — `order[i]` = idx actual del paso que pasa a `i`. */
+export function reorderWorkshopSteps(lessonId: string, order: number[]): Promise<AdminWorkshopStepsDto> {
+  return fetchJson<AdminWorkshopStepsDto>(`${P}/lessons/${enc(lessonId)}/steps/reorder`, {
+    method: 'PUT',
+    body: JSON.stringify({ order }),
+  })
+}
+
+/** DELETE /admin/lessons/{id}/steps/{idx} — borra el paso y compacta los idx. */
+export function deleteWorkshopStep(lessonId: string, idx: number): Promise<AdminWorkshopStepsDto> {
+  return fetchJson<AdminWorkshopStepsDto>(`${P}/lessons/${enc(lessonId)}/steps/${idx}`, { method: 'DELETE' })
 }
 
 // ── §10.6 Quiz (el GET admin SÍ trae correct_key/explanation) ────────────────

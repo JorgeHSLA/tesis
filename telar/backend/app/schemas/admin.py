@@ -179,6 +179,9 @@ class AdminLessonBase(BaseModel):
     #: Fase 5 (E4): qué cuenta como completarla.
     completion_rule: Literal["quiz", "viewed", "run"] = "quiz"
     recommended: list[AdminRecommended] = Field(default_factory=list, max_length=6)
+    #: S6 (§12): ``"taller"`` = guía de pasos. En un taller la
+    #: ``completion_rule`` se ignora y el servidor guarda ``"viewed"``.
+    kind: Literal["leccion", "taller"] = "leccion"
 
 
 class AdminLessonCreate(AdminLessonBase):
@@ -223,6 +226,45 @@ class AdminLessonDetail(AdminLessonBase):
     #: Fase 5 (E1): ``None`` en una lección conceptual. El GET responde **200**,
     #: no 404: la lección existe aunque no tenga código.
     example: AdminExample | None
+    #: S6 (§12): pasos del taller en orden de ``idx``; vacío en una lección.
+    steps: list["AdminWorkshopStep"] = Field(default_factory=list)
+
+
+# ── S6 §12 Pasos de un taller ────────────────────────────────────────────────
+
+#: Tope de pasos por taller (autoría y bundle): acota lo absurdo, no lo legítimo.
+MAX_WORKSHOP_STEPS = 50
+#: Tope del markdown de un paso: un paso es una instrucción, no una lección.
+MAX_STEP_MARKDOWN = 20_000
+
+
+class AdminWorkshopStepInput(BaseModel):
+    """§12 ``POST``/``PUT /admin/lessons/{id}/steps[/{idx}]`` — un paso."""
+
+    title: str = Field(min_length=1, max_length=160)
+    body_markdown: str = Field(min_length=1, max_length=MAX_STEP_MARKDOWN)
+    #: Opcional: con él el paso ofrece «Abrir en el simulador».
+    example_id: str | None = Field(default=None, pattern=ID_PATTERN)
+
+
+class AdminWorkshopStep(AdminWorkshopStepInput):
+    idx: int
+
+
+class AdminWorkshopStepsReorder(BaseModel):
+    """§12 ``PUT /admin/lessons/{id}/steps/reorder`` — permutación de los idx.
+
+    ``order[i]`` = idx ACTUAL del paso que pasa a la posición ``i``.
+    """
+
+    order: list[int] = Field(min_length=1, max_length=MAX_WORKSHOP_STEPS)
+
+
+class AdminWorkshopSteps(BaseModel):
+    """§12 — respuesta de toda operación sobre pasos: la lista resultante."""
+
+    lesson_id: str
+    steps: list[AdminWorkshopStep]
 
 
 # ── §10.6 Quiz (GET admin SÍ trae correct_key/explanation) ───────────────────
@@ -286,9 +328,18 @@ __all__ = [
     "AdminLessonCreate",
     "AdminLessonUpdate",
     "AdminLessonDetail",
+    "AdminWorkshopStepInput",
+    "AdminWorkshopStep",
+    "AdminWorkshopStepsReorder",
+    "AdminWorkshopSteps",
+    "MAX_WORKSHOP_STEPS",
+    "MAX_STEP_MARKDOWN",
     "AdminQuizOption",
     "AdminQuizQuestion",
     "AdminQuizUpsert",
     "AdminQuiz",
     "AdminDeleteResult",
 ]
+
+
+AdminLessonDetail.model_rebuild()

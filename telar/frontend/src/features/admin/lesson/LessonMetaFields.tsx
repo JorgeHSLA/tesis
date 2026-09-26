@@ -5,6 +5,7 @@
 // el contenedor.
 import { useId } from 'react'
 import type { AdminModuleDto, AdminRecommendedDto, CompletionRule } from '../../../api/admin-types'
+import type { LessonKind } from '../../../api/types'
 import { Button } from '../../../components/ui/Button'
 import { Field } from '../../../components/ui/Field'
 import { IconPlus } from '../../../components/icons/icons'
@@ -20,6 +21,24 @@ export interface LessonMeta {
   enabled: boolean
   completion_rule: CompletionRule
   recommended: AdminRecommendedDto[]
+  /** S6 (CU-28): una lección normal o un taller guiado (pasos con «Lo hice»). */
+  kind: LessonKind
+}
+
+const KIND_OPTIONS: { id: LessonKind; label: string }[] = [
+  { id: 'leccion', label: 'Lección' },
+  { id: 'taller', label: 'Taller guiado (pasos con «Lo hice»)' },
+]
+
+/**
+ * S6 (CU-28) — un taller no lleva quiz ni video (el backend también lo exige).
+ * El quiz no se borra solo: convertirla con quiz bloquea el guardado.
+ */
+export function kindIssue(kind: LessonKind, { hasQuiz }: { hasQuiz: boolean }): RuleIssue | null {
+  if (kind === 'taller' && hasQuiz) {
+    return { level: 'error', message: 'Un taller no lleva quiz: borra el quiz de la lección antes de convertirla.' }
+  }
+  return null
 }
 
 const RULE_OPTIONS: { id: CompletionRule; label: string }[] = [
@@ -80,7 +99,10 @@ export function LessonMetaFields({
 }: LessonMetaFieldsProps) {
   const uid = useId()
   const err = (field: string): string | undefined => errors[field]
-  const ruleIssue = completionRuleIssue(value.completion_rule, { hasExample, hasQuiz })
+  const isTaller = value.kind === 'taller'
+  // En un taller la regla no se elige (la ignora el backend): no hay aviso de regla.
+  const ruleIssue = isTaller ? null : completionRuleIssue(value.completion_rule, { hasExample, hasQuiz })
+  const tallerIssue = kindIssue(value.kind, { hasQuiz })
 
   const setRec = (index: number, patch: Partial<AdminRecommendedDto>) => {
     onChange({
@@ -163,28 +185,24 @@ export function LessonMetaFields({
         </Field>
       </div>
 
-      {/* ── Cómo se completa (CU-17.2) ───────────────────────────────────── */}
+      {/* ── Tipo de lección (S6 · CU-28) ─────────────────────────────────── */}
       <Field
-        label="Regla de completitud"
-        htmlFor={`${uid}-rule`}
-        error={err('completion_rule') ?? (ruleIssue?.level === 'error' ? ruleIssue.message : undefined)}
+        label="Tipo de lección"
+        htmlFor={`${uid}-kind`}
+        error={err('kind') ?? tallerIssue?.message}
         hint={
-          ruleIssue?.level === 'warning' ? (
-            <span className="admin-hint-warn" role="status">
-              {ruleIssue.message}
-            </span>
-          ) : (
-            'Qué debe hacer el estudiante para completarla.'
-          )
+          isTaller
+            ? 'Una guía de pasos: se completa al marcar todos. No lleva quiz ni video.'
+            : 'Una lección con contenido, y opcionalmente video, ejemplo y quiz.'
         }
       >
         <select
-          id={`${uid}-rule`}
+          id={`${uid}-kind`}
           className="select"
-          value={value.completion_rule}
-          onChange={(e) => onChange({ completion_rule: e.currentTarget.value as CompletionRule })}
+          value={value.kind}
+          onChange={(e) => onChange({ kind: e.currentTarget.value as LessonKind })}
         >
-          {RULE_OPTIONS.map((o) => (
+          {KIND_OPTIONS.map((o) => (
             <option key={o.id} value={o.id}>
               {o.label}
             </option>
@@ -192,22 +210,55 @@ export function LessonMetaFields({
         </select>
       </Field>
 
-      <Field
-        label="Video (YouTube)"
-        htmlFor={`${uid}-video`}
-        hint="Opcional. Enlace de YouTube (puede ser no listado)."
-        error={err('video_url')}
-      >
-        <input
-          id={`${uid}-video`}
-          className="input"
-          type="url"
-          value={value.video_url}
-          placeholder="https://youtu.be/…"
-          spellCheck={false}
-          onChange={(e) => onChange({ video_url: e.currentTarget.value })}
-        />
-      </Field>
+      {/* ── Cómo se completa (CU-17.2) ───────────────────────────────────── */}
+      {!isTaller && (
+        <>
+          <Field
+            label="Regla de completitud"
+            htmlFor={`${uid}-rule`}
+            error={err('completion_rule') ?? (ruleIssue?.level === 'error' ? ruleIssue.message : undefined)}
+            hint={
+              ruleIssue?.level === 'warning' ? (
+                <span className="admin-hint-warn" role="status">
+                  {ruleIssue.message}
+                </span>
+              ) : (
+                'Qué debe hacer el estudiante para completarla.'
+              )
+            }
+          >
+            <select
+              id={`${uid}-rule`}
+              className="select"
+              value={value.completion_rule}
+              onChange={(e) => onChange({ completion_rule: e.currentTarget.value as CompletionRule })}
+            >
+              {RULE_OPTIONS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field
+            label="Video (YouTube)"
+            htmlFor={`${uid}-video`}
+            hint="Opcional. Enlace de YouTube (puede ser no listado)."
+            error={err('video_url')}
+          >
+            <input
+              id={`${uid}-video`}
+              className="input"
+              type="url"
+              value={value.video_url}
+              placeholder="https://youtu.be/…"
+              spellCheck={false}
+              onChange={(e) => onChange({ video_url: e.currentTarget.value })}
+            />
+          </Field>
+        </>
+      )}
 
       <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <input

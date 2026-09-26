@@ -52,6 +52,7 @@ from .content import (
     ModulesResponse,
     ModulesSummary,
     RecommendedLesson,
+    WorkshopStepView,
 )
 
 # §5 Quizzes (provee QuizOptionKey).
@@ -73,6 +74,8 @@ from .progress import (
     ProgressResponse,
     ProgressSummary,
     ProgressUpdateRequest,
+    WorkshopStepUpdateRequest,
+    WorkshopStepUpdateResult,
 )
 
 # §7 Jobs (reutiliza ParserId; provee FILENAME_PATTERN y JobStatus).
@@ -136,12 +139,21 @@ from .admin import (
     AdminRecommended,
     AdminReorderItem,
     AdminReorderRequest,
+    AdminWorkshopStep,
+    AdminWorkshopStepInput,
+    AdminWorkshopSteps,
+    AdminWorkshopStepsReorder,
+    MAX_STEP_MARKDOWN,
+    MAX_WORKSHOP_STEPS,
 )
 
 # §11 Catálogo remoto de módulos publicables, Fase 5 (reutiliza ID_PATTERN,
 # AdminExampleBase/AdminQuizQuestion/AdminQuizOption/AdminRecommended de §10).
 from .catalog import (
     BUNDLE_FORMAT,
+    BUNDLE_FORMAT_TALLERES,
+    BUNDLE_FORMATS,
+    BundleStep,
     CHECKSUM_PATTERN,
     INDEX_FORMAT,
     OBJECT_PATH_PATTERN,
@@ -228,6 +240,7 @@ __all__ = [
     "ModulesSummary",
     "ModulesResponse",
     "RecommendedLesson",
+    "WorkshopStepView",
     "LessonDetail",
     # §5 Quizzes
     "QuizOptionKey",
@@ -244,6 +257,8 @@ __all__ = [
     "ProgressSummary",
     "ProgressResponse",
     "ProgressUpdateRequest",
+    "WorkshopStepUpdateRequest",
+    "WorkshopStepUpdateResult",
     # §7 Jobs
     "JobStatus",
     "JobTerminalStatus",
@@ -283,6 +298,12 @@ __all__ = [
     "AdminModulesResponse",
     "AdminReorderItem",
     "AdminReorderRequest",
+    "AdminWorkshopStep",
+    "AdminWorkshopStepInput",
+    "AdminWorkshopSteps",
+    "AdminWorkshopStepsReorder",
+    "MAX_STEP_MARKDOWN",
+    "MAX_WORKSHOP_STEPS",
     "AdminExampleBase",
     "AdminExampleUpdate",
     "AdminExample",
@@ -300,6 +321,9 @@ __all__ = [
     "AdminDeleteResult",
     # §11 Catálogo remoto (Fase 5) — formato de intercambio
     "BUNDLE_FORMAT",
+    "BUNDLE_FORMAT_TALLERES",
+    "BUNDLE_FORMATS",
+    "BundleStep",
     "INDEX_FORMAT",
     "CHECKSUM_PATTERN",
     "OBJECT_PATH_PATTERN",

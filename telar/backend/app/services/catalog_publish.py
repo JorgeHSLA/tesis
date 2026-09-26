@@ -33,6 +33,7 @@ from app.errors import ApiException
 from app.schemas.admin_catalog import AdminPublishRequest, AdminPublishResult
 from app.schemas.catalog import (
     BUNDLE_FORMAT,
+    BUNDLE_FORMAT_TALLERES,
     INDEX_FORMAT,
     BundleExample,
     BundleLesson,
@@ -41,6 +42,7 @@ from app.schemas.catalog import (
     BundleQuizOption,
     BundleQuizQuestion,
     BundleRecommended,
+    BundleStep,
     CatalogIndex,
     CatalogIndexEntry,
     ContentWarning,
@@ -203,6 +205,32 @@ def _quiz(content: "ContentRepository", leccion: "Lesson") -> BundleQuiz | None:
     )
 
 
+def _pasos(
+    leccion: "Lesson", publicado_de: dict[str, str]
+) -> list[BundleStep] | None:
+    """S6 (§12.5): los pasos de un taller, con el ``example_id`` PUBLICADO.
+
+    Un ejemplo renombrado por `_resolver_ids_de_ejemplo` viaja con otro id; el
+    paso tiene que nombrarlo así o el bundle no se instalaría. Un ejemplo que no
+    es de este módulo se deja tal cual y lo rechaza el guard antes de subir.
+    ``None`` en una lección normal: el campo no se publica (bundle 1 intacto).
+    """
+    if not leccion.is_taller:
+        return None
+    return [
+        BundleStep(
+            title=paso.title,
+            body_markdown=paso.body_markdown,
+            example_id=(
+                publicado_de.get(paso.example_id, paso.example_id)
+                if paso.example_id is not None
+                else None
+            ),
+        )
+        for paso in leccion.steps
+    ]
+
+
 def _resolver_ids_de_ejemplo(
     content: "ContentRepository", lecciones: "list[Lesson]"
 ) -> tuple[dict[str, str], list[ContentWarning]]:
@@ -290,9 +318,20 @@ def construir_bundle(
         )
 
     ids_ejemplo, avisos_ids = _resolver_ids_de_ejemplo(content, lecciones)
+    # S6: id local del ejemplo → id con el que se publica (para los pasos).
+    publicado_de = {
+        l.example_id: ids_ejemplo[l.id]
+        for l in lecciones
+        if l.example_id is not None and l.id in ids_ejemplo
+    }
+    # S6 (§12.5): el formato 2 SOLO si hay talleres; sin ellos el bundle sale
+    # byte a byte como antes y la v1.0.5 lo sigue instalando.
+    formato = (
+        BUNDLE_FORMAT_TALLERES if any(l.is_taller for l in lecciones) else BUNDLE_FORMAT
+    )
 
     bundle = ModuleBundle(
-        bundle_format=BUNDLE_FORMAT,
+        bundle_format=formato,
         checksum="0" * 64,
         module=BundleModule(
             id=modulo.id,
@@ -321,6 +360,8 @@ def construir_bundle(
                 recommended=_recomendadas(l),
                 example=_ejemplo(content, l, ids_ejemplo.get(l.id)),
                 quiz=_quiz(content, l),
+                kind="taller" if l.is_taller else None,
+                steps=_pasos(l, publicado_de),
             )
             for posicion, l in enumerate(lecciones, start=1)
         ],

@@ -25,10 +25,19 @@ solo puede responder ``422 BUNDLE_INVALID``, que es otra cosa.
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+)
 
 from .admin import (
     ID_PATTERN,
+    MAX_STEP_MARKDOWN,
+    MAX_WORKSHOP_STEPS,
     AdminExampleBase,
     AdminQuizOption,
     AdminQuizQuestion,
@@ -37,6 +46,12 @@ from .admin import (
 
 #: §11.10 — versión del formato del bundle. Un valor distinto ⇒ ``BUNDLE_INVALID``.
 BUNDLE_FORMAT = 1
+#: S6 (§12.5) — formato de un bundle que lleva talleres (``kind``/``steps``). La
+#: v1.0.5 lo rechaza por esquema (``Literal[1]``); los bundles sin talleres se
+#: siguen publicando como 1, byte a byte iguales que antes.
+BUNDLE_FORMAT_TALLERES = 2
+#: Los formatos que este lector entiende.
+BUNDLE_FORMATS = (BUNDLE_FORMAT, BUNDLE_FORMAT_TALLERES)
 #: §11.10 — versión del formato del índice del bucket.
 INDEX_FORMAT = 1
 #: sha256 en hex, 64 chars. Minúsculas: es la forma que emite ``hexdigest()`` y
@@ -162,6 +177,24 @@ class BundleQuiz(_Strict):
     questions: list[BundleQuizQuestion] = Field(min_length=1, max_length=50)
 
 
+class BundleStep(_Strict):
+    """S6 (§12.5) ``lessons[].steps[]`` — un paso de un taller.
+
+    La posición la da el orden de la lista (``idx`` = índice). ``example_id``
+    tiene que ser el id de un ejemplo que viaje en ESTE bundle: la regla es de
+    contenido y la comprueba ``bundle_guard``.
+    """
+
+    title: str = Field(min_length=1, max_length=160)
+    body_markdown: str = Field(min_length=1, max_length=MAX_STEP_MARKDOWN)
+    example_id: str | None = Field(default=None, pattern=ID_PATTERN)
+
+
+#: Campos del taller que se OMITEN al serializar cuando faltan: un bundle 1 se
+#: vuelca exactamente igual que antes de S6 y su checksum (§11.8.2) no cambia.
+_CAMPOS_DE_TALLER = ("kind", "steps")
+
+
 class BundleLesson(_Strict):
     """§11.10 ``lessons[]`` — una lección del bundle.
 
@@ -186,6 +219,24 @@ class BundleLesson(_Strict):
     recommended: list[BundleRecommended] = Field(default_factory=list, max_length=6)
     example: BundleExample | None = None  # E1: opcional
     quiz: BundleQuiz | None = None
+    #: S6 (§12.5): solo en ``bundle_format: 2``. Ausente = ``leccion``.
+    kind: Literal["leccion", "taller"] | None = None
+    #: S6 (§12.5): pasos de un taller, en orden. Solo con ``kind="taller"``.
+    steps: list[BundleStep] | None = Field(default=None, max_length=MAX_WORKSHOP_STEPS)
+
+    @model_serializer(mode="wrap")
+    def _sin_campos_de_taller_ausentes(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> dict:
+        datos = handler(self)
+        for campo in _CAMPOS_DE_TALLER:
+            if datos.get(campo) is None:
+                datos.pop(campo, None)
+        return datos
+
+    @property
+    def es_taller(self) -> bool:
+        return self.kind == "taller"
 
 
 class BundleModule(_Strict):
@@ -216,7 +267,8 @@ class ModuleBundle(_Strict):
     (``409 CHECKSUM_MISMATCH``).
     """
 
-    bundle_format: Literal[1]
+    #: 1 = sin talleres (todas las versiones); 2 = con talleres (S6, §12.5).
+    bundle_format: Literal[1, 2]
     checksum: str = Field(pattern=CHECKSUM_PATTERN)
     module: BundleModule
     lessons: list[BundleLesson] = Field(min_length=1, max_length=100)
@@ -515,6 +567,9 @@ class UninstallResult(BaseModel):
 __all__ = [
     # Constantes y literales
     "BUNDLE_FORMAT",
+    "BUNDLE_FORMAT_TALLERES",
+    "BUNDLE_FORMATS",
+    "BundleStep",
     "INDEX_FORMAT",
     "CHECKSUM_PATTERN",
     "OBJECT_PATH_PATTERN",

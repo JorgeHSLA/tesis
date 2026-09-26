@@ -39,8 +39,10 @@ from app.schemas import (
     AdminModulesResponse,
     AdminQuizUpsert,
     AdminReorderRequest,
+    AdminWorkshopStepInput,
+    AdminWorkshopStepsReorder,
 )
-from app.services import content_writer
+from app.services import content_writer, workshop_writer
 
 router = APIRouter(
     prefix="/api/v1/admin",
@@ -199,6 +201,46 @@ async def delete_lesson_example(request: Request, lesson_id: str) -> JSONRespons
     """
     await content_writer.remove_example_from_lesson(request.app, lesson_id)
     return envelope_ok({"deleted": True, "lesson_id": lesson_id})
+
+
+# ───────────────────────── pasos de un taller (S6 §12) ──────────────────────
+
+
+@router.post("/lessons/{lesson_id}/steps")
+async def add_workshop_step(
+    request: Request, lesson_id: str, body: AdminWorkshopStepInput
+) -> JSONResponse:
+    """§12 ``POST /admin/lessons/{id}/steps`` — añade un paso al final."""
+    result = await workshop_writer.add_step(request.app, lesson_id, body)
+    return envelope_ok(result, status_code=201)
+
+
+# Registrado ANTES de ``/steps/{idx}``: ``reorder`` no es un índice.
+@router.put("/lessons/{lesson_id}/steps/reorder")
+async def reorder_workshop_steps(
+    request: Request, lesson_id: str, body: AdminWorkshopStepsReorder
+) -> JSONResponse:
+    """§12 ``PUT /admin/lessons/{id}/steps/reorder`` — permutación de los pasos."""
+    result = await workshop_writer.reorder_steps(request.app, lesson_id, body.order)
+    return envelope_ok(result)
+
+
+@router.put("/lessons/{lesson_id}/steps/{idx}")
+async def update_workshop_step(
+    request: Request, lesson_id: str, idx: int, body: AdminWorkshopStepInput
+) -> JSONResponse:
+    """§12 ``PUT /admin/lessons/{id}/steps/{idx}`` — edita un paso."""
+    result = await workshop_writer.update_step(request.app, lesson_id, idx, body)
+    return envelope_ok(result)
+
+
+@router.delete("/lessons/{lesson_id}/steps/{idx}")
+async def delete_workshop_step(
+    request: Request, lesson_id: str, idx: int
+) -> JSONResponse:
+    """§12 ``DELETE /admin/lessons/{id}/steps/{idx}`` — borra un paso y compacta."""
+    result = await workshop_writer.delete_step(request.app, lesson_id, idx)
+    return envelope_ok(result)
 
 
 # ────────────────────────────────── quiz ────────────────────────────────────

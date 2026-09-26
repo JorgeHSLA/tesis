@@ -438,3 +438,42 @@ CREATE INDEX IF NOT EXISTS idx_update_log_module
     ON module_update_log (module_id, created_at DESC);
 
 PRAGMA foreign_keys = ON;
+
+-- migration 6
+-- S6 · CU-28: el taller guiado como TIPO de lección (informe de mejoras §3.2).
+-- Un taller es una lección con `kind = 'taller'`: una guía de pasos ordenados,
+-- cada uno con su casilla «Lo hice». Al marcar todos, la lección se completa
+-- (`lesson_progress.completed = 1`, `completed_via = 'manual'`) y cuenta en el
+-- progreso del módulo como cualquier otra, sin tocar los agregados.
+--
+-- `ADD COLUMN` basta: ni se reconstruye `lessons` ni se toca el CHECK de
+-- `completion_rule`. En un taller esa regla SE IGNORA y se guarda 'viewed'
+-- (el único valor que no exige quiz ni ejemplo); el endpoint genérico de
+-- progreso no puede completarlo: solo los pasos (api-contract §12).
+ALTER TABLE lessons ADD COLUMN kind TEXT NOT NULL DEFAULT 'leccion'
+    CHECK (kind IN ('leccion','taller'));
+
+-- Los pasos del taller, en orden `idx` = 0..n-1. `example_id` es opcional: si
+-- existe, el paso ofrece «Abrir en el simulador» (taller CON código); si no, es
+-- solo lectura y acción. Sin FK a `examples` a propósito: el snapshot valida la
+-- referencia al cargar y la autoría al escribir, y un FK aquí haría que borrar
+-- un ejemplo fallara por un paso que lo menciona.
+CREATE TABLE IF NOT EXISTS workshop_steps (
+    lesson_id      TEXT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+    idx            INTEGER NOT NULL CHECK (idx >= 0),
+    title          TEXT NOT NULL CHECK (length(title) > 0),
+    body_markdown  TEXT NOT NULL,
+    example_id     TEXT,
+    PRIMARY KEY (lesson_id, idx)
+);
+
+-- Las casillas «Lo hice». Sin FK a `lessons`, igual que `lesson_progress`: el
+-- avance del estudiante sobrevive a que una versión nueva archive el taller
+-- (data-model §8.3). Borrar la lección en autoría lo purga explícitamente
+-- (`content_admin.delete_lesson`), como hace con el resto del progreso.
+CREATE TABLE IF NOT EXISTS workshop_step_progress (
+    lesson_id  TEXT NOT NULL,
+    idx        INTEGER NOT NULL CHECK (idx >= 0),
+    done_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    PRIMARY KEY (lesson_id, idx)
+);

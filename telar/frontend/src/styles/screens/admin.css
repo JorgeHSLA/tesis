@@ -520,3 +520,6 @@
 
 /* S3 (CU-17.2): aviso no bloqueante bajo un campo (p. ej. regla «quiz» sin quiz). */
 .admin-hint-warn { color: var(--warn-ink); }
+
+/* S6 · CU-28 — lista de pasos del taller en el editor de lección. */
+.admin-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
