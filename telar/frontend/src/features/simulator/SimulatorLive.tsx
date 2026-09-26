@@ -93,6 +93,12 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
     }
   }, [jobId, navigate])
 
+  // Perder la conexión descarta la confirmación de «Detener»: si solo se
+  // ocultara, reaparecería sola al reconectar sin que nadie la pidiera.
+  useEffect(() => {
+    if (phase === 'lost') setConfirmStop(false)
+  }, [phase])
+
   const exampleId = job?.example_id ?? null
   useEffect(() => {
     if (exampleId == null) {
