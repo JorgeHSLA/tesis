@@ -10,6 +10,7 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
     "check:contract": "node scripts/check-contract.mjs",
+    "test": "node scripts/test.mjs",
     "dev": "concurrently -k -n web,esb,app \"npm --prefix ../frontend run dev\" \"node scripts/build.mjs --watch\" \"wait-on http://localhost:5173 dist-electron/main.cjs && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "dist:linux": "npm run build && electron-builder --linux",
     "dist:win": "npm run build && electron-builder --win"

@@ -27,7 +27,7 @@ telar/
    │  ├─ main.ts                    # ciclo de vida, BrowserWindow, carga dev/prod (§4)
    │  ├─ preload.ts                 # contextBridge → window.telar (§5)
    │  ├─ ipc-docker.ts              # whitelist de acciones compose + execFile + validación sender (§5.2)
-   │  ├─ security.ts                # CSP onHeadersReceived, will-navigate, windowOpenHandler (§7)
+   │  ├─ security.ts                # CSP onHeadersReceived, Referer YouTube, will-navigate, windowOpenHandler (§7)
    │  └─ constants.ts               # orígenes permitidos, rutas, nombre del compose project
    ├─ types/
    │  └─ telar-api.d.ts              # contrato TS de window.telar — se COMPARTE con frontend/src/types/telar.d.ts
@@ -534,12 +534,38 @@ const CSP = [
 
 export function hardenSession(): void {
   session.defaultSession.webRequest.onHeadersReceived((details, cb) => {
+    if (!debeAplicarCsp(details)) return cb({})          // ver «Alcance de la CSP»
     cb({ responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [CSP] } })
   })
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: YOUTUBE_URL_PATTERNS },                      // ver «Referer para YouTube»
+    (details, cb) => cb({ requestHeaders: cabecerasYouTube(details.url, details.requestHeaders) }),
+  )
   // Denegar TODOS los permisos del navegador (cámara, geoloc, notificaciones…):
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false))
 }
 ```
+
+**Alcance de la CSP.** `onHeadersReceived` ve TODO el tráfico de la sesión, incluido el del
+iframe de YouTube. La CSP de Telar se aplica solo a los documentos propios de la app —
+`file://`, el origen de `VITE_DEV_SERVER_URL` en dev, y cualquier `mainFrame`— y NUNCA a un
+`subFrame` ni a respuestas de otros orígenes (`debeAplicarCsp`). Antes se aplicaba a todo, y el
+reproductor de youtube-nocookie recibía `script-src 'self'`/`font-src 'self' data:`: sus
+scripts inline, fuentes y video quedaban bloqueados y el iframe mostraba «An error occurred».
+Qué se puede incrustar lo sigue acotando `frame-src` de la CSP del documento de la app.
+
+**Referer para YouTube.** En la app instalada la página es `file://` y Chromium no manda
+`Referer` al iframe; YouTube rechaza los embeds sin Referer («Video player configuration
+error», error 153). `onBeforeSendHeaders`, filtrado SOLO a `https://*.{youtube-nocookie.com,
+youtube.com, ytimg.com, googlevideo.com, ggpht.com}/*`, añade
+`Referer: https://telar-javeriana.github.io/` (la página pública del proyecto, solo el origen,
+como haría `strict-origin-when-cross-origin`) cuando la petición no trae uno (`cabecerasYouTube`).
+Ninguna otra petición se toca (backend local incluido). En dev la página es http://localhost y
+el navegador ya manda su propio Referer, que no se pisa.
+
+La prueba real de ambos puntos es `desktop/scripts/check-youtube-embed.mjs` (necesita red y
+pantalla; no forma parte de los tests automáticos): carga el iframe de LessonMedia con la misma
+seguridad que la app, por `loadFile` y por http://localhost, y comprueba que el video avanza.
 
 ### 7.2 Guardas de navegación (`security.ts`)
 
@@ -576,7 +602,7 @@ export function attachNavigationGuards(win: BrowserWindow): void {
 | 4 | `sandbox: true` | Explícito (§4); preload compatible (solo ipcRenderer.invoke) |
 | 5 | Permission handler | `setPermissionRequestHandler` → deny todo (§7.1) |
 | 6 | `webSecurity` no desactivado | Explícito `true`; CORS del backend resuelto con `Origin: null` en FastAPI, no aquí |
-| 7 | CSP | Inyectada por `onHeadersReceived` (§7.1) |
+| 7 | CSP | Inyectada por `onHeadersReceived` solo en los documentos de la app (§7.1) |
 | 8 | `allowRunningInsecureContent` | No se toca (default false) |
 | 9 | Sin `experimentalFeatures` | No se usa |
 | 10 | Sin `enableBlinkFeatures` | No se usa |
