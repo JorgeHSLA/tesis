@@ -139,3 +139,13 @@ describe('WorkshopStepsEditor', () => {
     expect(screen.getByLabelText('Título del paso')).toHaveValue('X')
   })
 })
+
+describe('WorkshopStepsEditor · borrador abierto', () => {
+  it('con un paso en edición no se puede borrar ni mover otro (su idx quedaría desfasado)', () => {
+    montar([paso(0), paso(1), paso(2)])
+    fireEvent.click(screen.getByRole('button', { name: 'Editar paso 3' }))
+    expect(screen.getByRole('button', { name: 'Borrar paso 1' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Bajar paso 1' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Subir paso 2' })).toBeDisabled()
+  })
+})

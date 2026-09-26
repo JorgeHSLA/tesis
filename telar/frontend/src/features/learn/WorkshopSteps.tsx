@@ -9,7 +9,7 @@
 //   PUT falla, se desmarca (vuelve a su estado) y aparece un aviso.
 // - Mientras un paso se guarda, su casilla queda deshabilitada (sin carreras).
 // - `completed` es monótono: desmarcar un paso no «descompleta» el taller.
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { putWorkshopStep } from '../../api/content'
 import type { WorkshopStepDto } from '../../api/types'
@@ -43,6 +43,14 @@ export function WorkshopSteps({ lessonId, steps: initialSteps, completed: initia
   const [completed, setCompleted] = useState(initialCompleted)
   const [saving, setSaving] = useState<ReadonlySet<number>>(() => new Set())
   const [failure, setFailure] = useState<string | null>(null)
+  // Lo que ve la respuesta del PUT al llegar: el estado ACTUAL, no el del clic
+  // (el estudiante puede haber cambiado de paso o marcado otro mientras tanto).
+  const currentRef = useRef(current)
+  currentRef.current = current
+  const stepsRef = useRef(steps)
+  stepsRef.current = steps
+  const completedRef = useRef(completed)
+  completedRef.current = completed
 
   const step = steps[current]
   const bodyHtml = useMemo(() => (step ? renderMarkdown(step.body_markdown) : ''), [step])
@@ -51,6 +59,7 @@ export function WorkshopSteps({ lessonId, steps: initialSteps, completed: initia
     return <EmptyState title="Este taller todavía no tiene pasos." />
   }
 
+  const exampleId = step?.example_id ?? null
   const doneCount = steps.filter((s) => s.done).length
   const pct = Math.round((doneCount / steps.length) * 100)
 
@@ -66,13 +75,15 @@ export function WorkshopSteps({ lessonId, steps: initialSteps, completed: initia
     putWorkshopStep(lessonId, target.idx, done)
       .then((res) => {
         setDone(res.idx, res.done)
-        if (res.completed && !completed) {
+        if (res.completed && !completedRef.current) {
+          completedRef.current = true
           setCompleted(true)
           void hydrate(true) // el módulo y los contadores reflejan el taller hecho
         }
-        // Avanza al siguiente paso pendiente tras marcar el actual.
-        if (res.done && position === current) {
-          const next = steps.findIndex((s, i) => i > position && !s.done)
+        // Avanza al siguiente pendiente solo si el estudiante sigue en este paso:
+        // nunca se le quita de donde navegó mientras se guardaba.
+        if (res.done && currentRef.current === position) {
+          const next = stepsRef.current.findIndex((s, i) => i > position && !s.done)
           if (next !== -1) setCurrent(next)
         }
       })
@@ -152,12 +163,12 @@ export function WorkshopSteps({ lessonId, steps: initialSteps, completed: initia
               <h4 className="workshop-step-title">{step.title}</h4>
               {/* Markdown generado por lib/markdown.ts: subset seguro que escapa todo el texto. */}
               <div className="markdown" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
-              {step.example_id != null && (
+              {exampleId != null && (
                 <Button
                   variant="outline"
                   size="sm"
                   style={{ marginTop: 12 }}
-                  onClick={() => navigate(`/simulador?ejemplo=${encodeURIComponent(step.example_id!)}`)}
+                  onClick={() => navigate(`/simulador?ejemplo=${encodeURIComponent(exampleId)}`)}
                 >
                   <IconPlay size={14} /> Abrir en el simulador
                 </Button>

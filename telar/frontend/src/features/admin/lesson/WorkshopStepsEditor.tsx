@@ -153,13 +153,13 @@ export function WorkshopStepsEditor({ lessonId, steps: initial, onStepsChange, o
                 {s.example_id != null && <span className="mono-small muted">ejemplo: {s.example_id}</span>}
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <Button variant="ghost" size="sm" disabled={busy || i === 0} aria-label={`Subir paso ${i + 1}`} onClick={() => move(i, i - 1)}>
+                <Button variant="ghost" size="sm" disabled={busy || editing != null || i === 0} aria-label={`Subir paso ${i + 1}`} onClick={() => move(i, i - 1)}>
                   Subir
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={busy || i === steps.length - 1}
+                  disabled={busy || editing != null || i === steps.length - 1}
                   aria-label={`Bajar paso ${i + 1}`}
                   onClick={() => move(i, i + 1)}
                 >
@@ -184,7 +184,9 @@ export function WorkshopStepsEditor({ lessonId, steps: initial, onStepsChange, o
                   variant="ghost"
                   size="sm"
                   className="admin-btn-danger-ghost"
-                  disabled={busy}
+                  // Con un borrador abierto no se renumera nada: su idx dejaría
+                  // de apuntar al paso que se está editando.
+                  disabled={busy || editing != null}
                   aria-label={`Borrar paso ${i + 1}`}
                   onClick={() => setConfirmDelete(s.idx)}
                 >

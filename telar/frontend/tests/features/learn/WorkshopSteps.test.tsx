@@ -207,3 +207,15 @@ describe('LearnScreen · taller', () => {
     expect(screen.queryByRole('checkbox', { name: 'Lo hice' })).not.toBeInTheDocument()
   })
 })
+
+describe('WorkshopSteps · respuestas que llegan tarde', () => {
+  it('no devuelve al estudiante al paso que marcó si navegó a otro mientras se guardaba', async () => {
+    let resolver: (v: unknown) => void = () => {}
+    ;(putWorkshopStep as Mock).mockReturnValue(new Promise((r) => (resolver = r)))
+    montarPasos(pasos(false, false, false))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Lo hice' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Paso 3: Paso 3' }))
+    await act(async () => resolver(resultado(0, true, 1, 3)))
+    expect(screen.getByRole('heading', { name: 'Paso 3 de 3' })).toBeInTheDocument()
+  })
+})
