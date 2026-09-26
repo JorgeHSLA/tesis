@@ -246,7 +246,7 @@ def _resolver_ids_de_ejemplo(
     únicamente al bundle publicado (la base local no se toca), pero cambia lo que
     devolverá una reimportación, y eso el admin tiene que saberlo.
     """
-    ids_de_leccion = {l.id for l in lecciones}
+    ids_de_leccion = {lec.id for lec in lecciones}
     resuelto: dict[str, str] = {}
     avisos: list[ContentWarning] = []
     for leccion in lecciones:
@@ -302,11 +302,11 @@ def construir_bundle(
 
     lecciones = sorted(
         (
-            l
-            for l in content.lessons()
-            if l.module_id == module_id and not l.archived
+            lec
+            for lec in content.lessons()
+            if lec.module_id == module_id and not lec.archived
         ),
-        key=lambda l: l.order,
+        key=lambda lec: lec.order,
     )
     if not lecciones:
         # El esquema exige `min_length=1`; un 422 explicado es mejor que un
@@ -320,14 +320,14 @@ def construir_bundle(
     ids_ejemplo, avisos_ids = _resolver_ids_de_ejemplo(content, lecciones)
     # S6: id local del ejemplo → id con el que se publica (para los pasos).
     publicado_de = {
-        l.example_id: ids_ejemplo[l.id]
-        for l in lecciones
-        if l.example_id is not None and l.id in ids_ejemplo
+        lec.example_id: ids_ejemplo[lec.id]
+        for lec in lecciones
+        if lec.example_id is not None and lec.id in ids_ejemplo
     }
     # S6 (§12.4): el formato 2 SOLO si hay talleres; sin ellos el bundle sale
     # byte a byte como antes y la v1.0.5 lo sigue instalando.
     formato = (
-        BUNDLE_FORMAT_TALLERES if any(l.is_taller for l in lecciones) else BUNDLE_FORMAT
+        BUNDLE_FORMAT_TALLERES if any(lec.is_taller for lec in lecciones) else BUNDLE_FORMAT
     )
 
     bundle = ModuleBundle(
@@ -346,24 +346,24 @@ def construir_bundle(
         ),
         lessons=[
             BundleLesson(
-                id=l.id,
+                id=lec.id,
                 order=posicion,
-                title=l.title,
-                estimated_minutes=l.estimated_minutes,
-                content_markdown=l.content_markdown,
-                video_url=l.video_url,
-                enabled=l.enabled,
-                completion_rule=l.completion_rule,
+                title=lec.title,
+                estimated_minutes=lec.estimated_minutes,
+                content_markdown=lec.content_markdown,
+                video_url=lec.video_url,
+                enabled=lec.enabled,
+                completion_rule=lec.completion_rule,
                 pass_threshold=(
-                    q.pass_threshold if (q := _quiz(content, l)) is not None else 0.6
+                    q.pass_threshold if (q := _quiz(content, lec)) is not None else 0.6
                 ),
-                recommended=_recomendadas(l),
-                example=_ejemplo(content, l, ids_ejemplo.get(l.id)),
-                quiz=_quiz(content, l),
-                kind="taller" if l.is_taller else None,
-                steps=_pasos(l, publicado_de),
+                recommended=_recomendadas(lec),
+                example=_ejemplo(content, lec, ids_ejemplo.get(lec.id)),
+                quiz=_quiz(content, lec),
+                kind="taller" if lec.is_taller else None,
+                steps=_pasos(lec, publicado_de),
             )
-            for posicion, l in enumerate(lecciones, start=1)
+            for posicion, lec in enumerate(lecciones, start=1)
         ],
     )
     # Normalizar ANTES de firmar: el checksum tiene que ser el de lo que se sube.
@@ -453,8 +453,8 @@ def calcular_avisos(
     if publicado is None:
         return []
 
-    antiguas = {l.id: l for l in publicado.lessons}
-    nuevas = {l.id: l for l in nuevo.lessons}
+    antiguas = {lec.id: lec for lec in publicado.lessons}
+    nuevas = {lec.id: lec for lec in nuevo.lessons}
     avisos: list[ContentWarning] = []
 
     for lid in antiguas.keys() - nuevas.keys():
@@ -517,10 +517,10 @@ def _entrada_de(bundle: ModuleBundle, object_path: str, tamano: int) -> CatalogI
         published_at=bundle.module.published_at,
         author_label=bundle.module.author_label,
         lessons_count=len(bundle.lessons),
-        questions_count=sum(len(l.quiz.questions) for l in bundle.lessons if l.quiz),
-        estimated_minutes_total=sum(l.estimated_minutes for l in bundle.lessons),
+        questions_count=sum(len(lec.quiz.questions) for lec in bundle.lessons if lec.quiz),
+        estimated_minutes_total=sum(lec.estimated_minutes for lec in bundle.lessons),
         requires_gpu=any(
-            l.example.requires_gpu for l in bundle.lessons if l.example is not None
+            lec.example.requires_gpu for lec in bundle.lessons if lec.example is not None
         ),
     )
 
@@ -652,7 +652,7 @@ async def publish_module(
         avisos = []
 
     object_path = object_path_for(settings.catalog_prefix, module_id, version)
-    lesson_ids = [l.id for l in bundle.lessons]
+    lesson_ids = [lec.id for lec in bundle.lessons]
 
     if body.dry_run:
         # No se toca el bucket. Es la vía para ver LESSON_ID_REMOVED antes de que
