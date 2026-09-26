@@ -14,6 +14,7 @@ import type {
   QuizAttemptResultDto,
   QuizDto,
   QuizOptionKey,
+  WorkshopStepUpdateResultDto,
 } from './types'
 
 /** §3.1 GET /api/v1/examples — listado sin código fuente. */
@@ -66,6 +67,21 @@ export function putLessonProgress(
     method: 'PUT',
     body: JSON.stringify(body),
   })
+}
+
+/**
+ * §12.2 PUT /api/v1/progress/lessons/{id}/steps/{idx} — casilla «Lo hice» de un
+ * paso de taller. Idempotente; `completed` en la respuesta es monótono.
+ */
+export function putWorkshopStep(
+  lessonId: string,
+  idx: number,
+  done: boolean,
+): Promise<WorkshopStepUpdateResultDto> {
+  return fetchJson<WorkshopStepUpdateResultDto>(
+    `/api/v1/progress/lessons/${encodeURIComponent(lessonId)}/steps/${idx}`,
+    { method: 'PUT', body: JSON.stringify({ done }) },
+  )
 }
 
 // ── Índice de ejemplos memoizado (frontend-spec §3: fetch + caché simple a

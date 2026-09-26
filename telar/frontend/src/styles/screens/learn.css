@@ -603,3 +603,50 @@
   border-radius: var(--r-sm);
   padding: 2px 7px;
 }
+
+/* ── S6 · Taller guiado (CU-28): guía de pasos con casillas «Lo hice» ────── */
+.workshop-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: var(--sp-3); flex-wrap: wrap;
+}
+.workshop-bar {
+  height: 6px; margin: var(--sp-3) 0 0;
+  background: var(--surface-3); border-radius: 999px; overflow: hidden;
+}
+.workshop-bar > div {
+  height: 100%; background: var(--progress); border-radius: 999px;
+  transition: width .3s var(--ease);
+}
+.workshop-done {
+  display: flex; align-items: center; gap: 6px;
+  margin: var(--sp-3) 0 0; font-size: var(--fs-sm); color: var(--success-ink, var(--text));
+}
+.workshop-grid {
+  display: grid; gap: var(--sp-4); margin-top: var(--sp-4);
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+}
+@media (max-width: 720px) {
+  .workshop-grid { grid-template-columns: minmax(0, 1fr); }
+}
+.workshop-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.workshop-item {
+  display: flex; align-items: center; gap: var(--sp-2); width: 100%;
+  padding: 8px 10px; border: 1px solid transparent; border-radius: var(--r-md);
+  background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.workshop-item:hover { background: var(--surface-2); }
+.workshop-item.current { border-color: var(--border-strong, var(--border)); background: var(--surface-2); }
+.workshop-item.done .workshop-item-title { color: var(--text-muted); }
+.workshop-num {
+  display: inline-grid; place-items: center; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: 999px;
+  background: var(--surface-3); font-family: var(--font-mono); font-size: var(--fs-xs);
+}
+.workshop-item.done .workshop-num { background: var(--progress); color: var(--on-primary, #fff); }
+.workshop-item-title { min-width: 0; overflow-wrap: anywhere; font-size: var(--fs-sm); }
+.workshop-step-title { margin: 0 0 var(--sp-2); font-size: var(--fs-md); }
+.workshop-check {
+  display: flex; align-items: center; gap: 8px; margin-top: var(--sp-4);
+  font-weight: 600; cursor: pointer;
+}
+.workshop-check input { width: 18px; height: 18px; }

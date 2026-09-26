@@ -77,6 +77,7 @@ export function LessonSidebar({ module, currentLessonId, examplesIndex }: Lesson
                     {lesson.title}
                   </span>
                   <span className="lesson-side-meta mono-small">
+                    {lesson.kind === 'taller' && <>Taller · </>}
                     <IconPlay size={9} /> {est != null ? `~${est}s` : '—'}
                     {lesson.has_quiz && (
                       <>
