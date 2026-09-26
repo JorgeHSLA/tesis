@@ -29,6 +29,8 @@ export interface ModuleGroupProps {
   index: number
   /** Total de módulos (para deshabilitar «Subir»/«Bajar» en los bordes). */
   count: number
+  /** Hay un reorden guardándose: no se admite otro hasta que termine (CU-15.1). */
+  reorderDisabled?: boolean
   /** Este módulo se está arrastrando ahora mismo. */
   isDragging: boolean
   /** Otro módulo se suelta sobre este (destino del drop). */
@@ -50,6 +52,7 @@ export function ModuleGroup({
   module,
   index,
   count,
+  reorderDisabled = false,
   isDragging,
   isDropTarget,
   open,
@@ -189,7 +192,7 @@ export function ModuleGroup({
             className="admin-module-grip"
             aria-hidden="true"
             title="Arrastra para reordenar"
-            draggable
+            draggable={!reorderDisabled}
             onDragStart={handleGripDragStart}
             onDragEnd={onReorderEnd}
           >
@@ -201,7 +204,7 @@ export function ModuleGroup({
               size="sm"
               className="admin-module-move"
               aria-label={`Subir el módulo ${module.title}`}
-              disabled={index === 0}
+              disabled={reorderDisabled || index === 0}
               onClick={() => onMove(index, index - 1)}
             >
               <IconChevronUp size={15} />
@@ -211,7 +214,7 @@ export function ModuleGroup({
               size="sm"
               className="admin-module-move"
               aria-label={`Bajar el módulo ${module.title}`}
-              disabled={index === count - 1}
+              disabled={reorderDisabled || index === count - 1}
               onClick={() => onMove(index, index + 1)}
             >
               <IconChevronDown size={15} />

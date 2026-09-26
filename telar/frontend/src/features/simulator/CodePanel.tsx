@@ -7,7 +7,8 @@ import { Button } from '../../components/ui/Button'
 import { Card, CardHead } from '../../components/ui/Card'
 import { Chip } from '../../components/ui/Chip'
 import { IconCode, IconUpload } from '../../components/icons/icons'
-import { MAX_CODE_BYTES, validatePyFile, type PickedFile } from '../../lib/pyfile'
+import { MAX_CODE_BYTES, type PickedFile } from '../../lib/pyfile'
+import { usePyFilePicker } from '../../hooks/usePyFilePicker'
 
 // Re-export para no romper a los importadores existentes (SimulatorIdle usa
 // `PickedFile` y el tope de bytes desde este módulo).
@@ -27,18 +28,7 @@ export interface CodePanelProps {
 export function CodePanel({ filename, code, edited, onCodeChange, onFile }: CodePanelProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
-  const [fileError, setFileError] = useState<string | null>(null)
-
-  const handleFile = async (file: File | undefined) => {
-    if (file == null) return
-    const result = await validatePyFile(file)
-    if (result.ok) {
-      setFileError(null)
-      onFile(result.value)
-    } else {
-      setFileError(result.error)
-    }
-  }
+  const { fileError, pick: handleFile } = usePyFilePicker(onFile)
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault()
