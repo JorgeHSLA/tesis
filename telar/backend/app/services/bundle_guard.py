@@ -61,7 +61,13 @@ from typing import Any, ClassVar
 from pydantic import ValidationError
 
 from app.errors import sanitize_validation_errors
-from app.schemas.catalog import BundleLesson, BundleQuiz, ModuleBundle
+from app.schemas.catalog import (
+    BUNDLE_FORMAT,
+    BUNDLE_FORMATS,
+    BundleLesson,
+    BundleQuiz,
+    ModuleBundle,
+)
 from app.services import youtube
 from app.services.markdown_validator import validate as validate_markdown
 
@@ -97,7 +103,7 @@ _BIDI_RE = re.compile(r"[\u202a-\u202e\u2066-\u2069]")
 _ANCHO_CERO_RE = re.compile(r"[\u200b-\u200d\ufeff]")
 
 #: Claves del JSON cuyo valor es un identificador (y por tanto se endurece).
-_CLAVES_ID = frozenset({"id", "lesson_id", "module_id"})
+_CLAVES_ID = frozenset({"id", "lesson_id", "module_id", "example_id"})
 
 #: Subcadenas que jamás pueden aparecer en un id. ``ID_PATTERN`` ya las excluye,
 #: pero esta comprobación corre ANTES del esquema y sobrevive a que el patrón se
@@ -379,6 +385,29 @@ def _detalles_de_pydantic(exc: ValidationError) -> list[dict]:
     return detalles[:_MAX_DETALLES]
 
 
+def _verificar_formato(payload: dict) -> None:
+    """``bundle_format`` conocido, ANTES del esquema, con un mensaje accionable.
+
+    Sin esto un formato futuro saldría como un error de pydantic («Input should
+    be 1 or 2») que el estudiante no sabe interpretar. Es la lección de la
+    v1.0.5, que rechaza el formato 2 por esquema: el mensaje correcto es
+    «actualiza Telar», no «el bundle está mal».
+    """
+    formato = payload.get("bundle_format")
+    if type(formato) is int and formato in BUNDLE_FORMATS:  # bool no es formato
+        return
+    raise BundleInvalid(
+        "Formato de módulo no soportado por esta versión de Telar; actualiza la "
+        "aplicación para instalarlo.",
+        details=[
+            _issue(
+                "bundle_format",
+                "formatos admitidos: " + ", ".join(str(f) for f in BUNDLE_FORMATS),
+            )
+        ],
+    )
+
+
 def _validar_esquema(payload: dict) -> ModuleBundle:
     try:
         return ModuleBundle.model_validate(payload)
@@ -458,6 +487,32 @@ def _issues_espacio_de_ids(bundle: ModuleBundle) -> list[dict]:
     return issues
 
 
+def _issues_de_forma_de_taller(bundle: ModuleBundle) -> list[dict]:
+    """S6 (§12.5): ``kind``/``steps`` solo en el formato 2, y ``steps`` solo en talleres.
+
+    Es FORMA, no contenido: un bundle 1 con talleres no lo produce el publicador
+    canónico, y una lección con pasos que no es taller es una contradicción del
+    propio documento.
+    """
+    issues: list[dict] = []
+    for indice, leccion in enumerate(bundle.lessons):
+        base = f"lessons[{indice}]"
+        if bundle.bundle_format == BUNDLE_FORMAT and (
+            leccion.kind is not None or leccion.steps is not None
+        ):
+            issues.append(
+                _issue(
+                    "bundle_format",
+                    f"{base} trae kind/steps: los talleres exigen bundle_format 2",
+                )
+            )
+        if leccion.steps is not None and not leccion.es_taller:
+            issues.append(
+                _issue(f"{base}.steps", "solo un taller (kind='taller') lleva pasos")
+            )
+    return issues
+
+
 # ──────────────────── etapa 7: reglas de negocio (§10.6) ────────────────────
 
 
@@ -487,6 +542,48 @@ def _issues_de_completion_rule(base: str, leccion: BundleLesson) -> list[dict]:
             )
         ]
     return []
+
+
+def _issues_de_taller(
+    base: str, leccion: BundleLesson, ejemplos: frozenset[str]
+) -> list[dict]:
+    """S6 (§12.5): un taller publicado es una guía de pasos completable.
+
+    Al menos un paso (sin pasos sería incompletable), sin quiz ni video, regla
+    ``viewed`` (la que se guarda; se ignora), el markdown de cada paso en el
+    MISMO subset que la lección, y cada ``example_id`` apuntando a un ejemplo que
+    viaja en este bundle: en la máquina del estudiante no hay otro.
+    """
+    if not leccion.es_taller:
+        return []
+    issues: list[dict] = []
+    if not leccion.steps:
+        issues.append(
+            _issue(f"{base}.steps", "un taller necesita al menos un paso para poder completarse")
+        )
+    if leccion.quiz is not None:
+        issues.append(_issue(f"{base}.quiz", "un taller no lleva quiz"))
+    if leccion.video_url is not None:
+        issues.append(_issue(f"{base}.video_url", "un taller no lleva video"))
+    if leccion.completion_rule != "viewed":
+        issues.append(
+            _issue(
+                f"{base}.completion_rule",
+                "en un taller la regla se ignora y se publica como 'viewed'",
+            )
+        )
+    for numero, paso in enumerate(leccion.steps or []):
+        campo = f"{base}.steps[{numero}]"
+        for problema in validate_markdown(paso.body_markdown):
+            issues.append({**problema, "field": _ruta_segura(f"{campo}.body_markdown")})
+        if paso.example_id is not None and paso.example_id not in ejemplos:
+            issues.append(
+                _issue(
+                    f"{campo}.example_id",
+                    "el ejemplo del paso tiene que viajar en este mismo módulo",
+                )
+            )
+    return issues
 
 
 def _issues_de_quiz(base: str, quiz: BundleQuiz) -> list[dict]:
@@ -536,8 +633,14 @@ def _issues_de_orden(bundle: ModuleBundle) -> list[dict]:
 def _issues_de_contenido(bundle: ModuleBundle) -> list[dict]:
     """Reglas de §10.6 aplicadas al bundle, delegando en los módulos que ya existen."""
     issues: list[dict] = _issues_de_orden(bundle)
+    ejemplos = frozenset(
+        leccion.example.id for leccion in bundle.lessons if leccion.example is not None
+    )
     for indice, leccion in enumerate(bundle.lessons):
         base = f"lessons[{indice}]"
+        # S6: las reglas del taller primero; su regla 'viewed' no dispara la de
+        # 'quiz exige quiz'.
+        issues += _issues_de_taller(base, leccion, ejemplos)
         # La vía admin (`content_writer._recommended_issues`) prohíbe que una
         # lección se recomiende a sí misma. La frontera NO confiable no puede ser
         # más laxa que la de confianza: sería una tarjeta «sigue con…» que
@@ -597,6 +700,7 @@ def parse_bundle(raw: bytes, *, max_bytes: int) -> ModuleBundle:
             "El bundle contiene caracteres o identificadores prohibidos.",
             issues_de_texto(payload),
         )
+        _verificar_formato(payload)
         bundle = _validar_esquema(payload)
     except RecursionError as exc:
         # Un JSON hondo puede agotar la pila en el barrido o en pydantic, no
@@ -610,6 +714,11 @@ def parse_bundle(raw: bytes, *, max_bytes: int) -> ModuleBundle:
         BundleInvalid,
         "El bundle usa identificadores no utilizables.",
         _issues_espacio_de_ids(bundle),
+    )
+    _alzar_si_hay(
+        BundleInvalid,
+        "El bundle mezcla talleres con un formato que no los admite.",
+        _issues_de_forma_de_taller(bundle),
     )
     _alzar_si_hay(
         BundleContentInvalid,

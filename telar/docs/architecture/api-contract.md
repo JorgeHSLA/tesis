@@ -2264,6 +2264,10 @@ contenido se sirve desde SQLite igual que en Fase 4.
 Layout: `modulos/<module_id>/v<version>.json` (bundle, **inmutable**) +
 `modulos/index.json` (índice, **mutable** por CAS).
 
+> **S6 (§12.5):** un bundle con talleres lleva `lessons[].kind`/`steps` y se
+> publica como `bundle_format: 2`; sin talleres sigue siendo `1`, byte a byte
+> igual. El checksum (§11.8.2) y el índice no cambian.
+
 **Índice** (`CatalogIndex`, `index_format: 1`):
 
 ```json
@@ -3151,9 +3155,53 @@ acepta `viewed`).
 - `DELETE /admin/lessons/{id}` purga también `workshop_step_progress` (BL-01): un
   id reutilizado no resucita casillas de un taller anterior.
 
+### 12.5 Catálogo (§11.10): `bundle_format: 2`
+
+- Un bundle que lleva al menos un taller se publica con `bundle_format: 2`; uno
+  sin talleres sigue siendo `1` y se serializa **exactamente** como antes (los
+  campos nuevos se omiten cuando faltan), así que su checksum no cambia. **No
+  cambian** ni el algoritmo del checksum (§11.8.2) ni el formato del índice
+  (`index_format: 1`).
+- `BundleLesson` gana dos campos opcionales, solo válidos en el formato 2:
+
+```jsonc
+{ "id": "tallerHilos", "…": "…", "completion_rule": "viewed",
+  "example": null, "quiz": null, "video_url": null,
+  "kind": "taller",
+  "steps": [ { "title": "Lee el código", "body_markdown": "…", "example_id": "base-ej" },
+             { "title": "Piensa",        "body_markdown": "…", "example_id": null } ] }
+```
+
+  La posición de cada paso es su índice en la lista. `BundleStep` es
+  `extra="forbid"`: `title` 1..160, `body_markdown` 1..20 000, `example_id` con
+  `ID_PATTERN` o `null`; como mucho 50 pasos.
+- **Lector** (`bundle_guard.parse_bundle`): acepta 1 y 2. Un formato distinto ⇒
+  `422 BUNDLE_INVALID` con mensaje «Formato de módulo no soportado por esta
+  versión de Telar; actualiza la aplicación…» (`field: "bundle_format"`), antes
+  del esquema. `kind`/`steps` en un bundle 1, o `steps` en una lección que no es
+  taller ⇒ `BUNDLE_INVALID`. Reglas de contenido (⇒ `CONTENT_VALIDATION_ERROR`):
+  un taller tiene ≥ 1 paso, no lleva quiz ni video, su regla es `viewed`, el
+  markdown de cada paso está en el subset, y cada `example_id` es el de un
+  ejemplo que viaja en el mismo bundle. `example_id` se endurece como un id
+  (barrido de texto: control, BIDI, ancho cero, `..`/`/`).
+- **v1.0.5**: su `ModuleBundle` tiene `bundle_format: Literal[1]` y
+  `extra="forbid"` (verificado en `schemas/catalog.py` del commit `6b05c1b`), así
+  que un bundle 2 sale como `422 BUNDLE_INVALID` «El bundle no cumple el esquema
+  de §11.10.» con detalle en `bundle_format`; no se instala nada.
+- **Publicar** (§11.8.2) valida igual que en S5 (`parse_bundle` +
+  `validar_bundle`/`_verificar_contenido`): un taller cuyo paso apunta a un
+  ejemplo de otro módulo falla con 422 antes de subir. El `example_id` de cada
+  paso se publica con el id **publicado** del ejemplo (`EXAMPLE_ID_RENAMED`).
+  `content_hash` (§11.8.3) incluye `kind` y los pasos.
+- **Instalar / actualizar / importar** escriben `lessons.kind` y reescriben los
+  pasos de cada lección del bundle; las casillas del estudiante no se tocan. El
+  fork (§11.7) prefija también el `example_id` de los pasos.
+
 ### 12.4 DTOs
 
-- pydantic: `schemas/content.py` (`LessonKind`, `WorkshopStepView`,
+- pydantic: `schemas/catalog.py` (`BundleStep`, `BundleLesson.kind/steps`,
+  `ModuleBundle.bundle_format: Literal[1, 2]`, `BUNDLE_FORMAT_TALLERES`),
+  `schemas/content.py` (`LessonKind`, `WorkshopStepView`,
   `ModuleLesson.kind`, `LessonDetail.kind/steps`), `schemas/progress.py`
   (`WorkshopStepUpdateRequest`, `WorkshopStepUpdateResult`), `schemas/admin.py`
   (`AdminLessonBase.kind`, `AdminLessonDetail.steps`, `AdminWorkshopStepInput`,

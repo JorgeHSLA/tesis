@@ -480,7 +480,8 @@ def test_el_nombre_de_la_clave_desconocida_se_sanea_antes_de_devolverlo(bundle):
 
 
 def test_rechaza_un_bundle_format_desconocido(bundle):
-    bundle["bundle_format"] = 2
+    # S6: el 2 existe (bundles con talleres); el primero desconocido es el 3.
+    bundle["bundle_format"] = 3
     with pytest.raises(BundleInvalid):
         parse(bundle)
 

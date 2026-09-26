@@ -56,6 +56,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..errors import ApiException
 from ..repositories import catalog as repo_catalog
+from ..repositories import workshop as workshop_repo
 from ..schemas.catalog import BundleLesson, ModuleBundle
 from ..schemas.updates import (
     InvalidatedScore,
@@ -89,7 +90,7 @@ from .catalog_hash import BundleHashError, bundle_checksum
 # el segundo es la coherencia threads/GPU de §10.6, que ya existe y que
 # `bundle_guard` deja explícitamente al instalador.
 from .content_writer import _example_coherence_issues, _persist
-from .module_installer import fetch_index
+from .module_installer import escribir_pasos, fetch_index
 from .module_merge import (
     LocalAttempt,
     LocalLesson,
@@ -264,11 +265,22 @@ async def read_local_state(
         )
         duenia_de_pregunta[fila["id"]] = fila["lesson_id"]
 
+    # S6: firma de los pasos de cada taller, para que un cambio solo en los
+    # pasos no se informe como «sin cambios».
+    pasos_por_leccion: dict[str, list[tuple[str, str, str | None]]] = {}
+    for fila in await (await db.execute(
+        "SELECT lesson_id, title, body_markdown, example_id FROM workshop_steps "
+        "ORDER BY lesson_id, idx"
+    )).fetchall():
+        pasos_por_leccion.setdefault(fila["lesson_id"], []).append(
+            (fila["title"], fila["body_markdown"], fila["example_id"])
+        )
+
     lecciones: dict[str, LocalLesson] = {}
     for fila in await (await db.execute(
         'SELECT id, module_id, "order", title, estimated_minutes, '
         "content_markdown, video_url, enabled, completion_rule, pass_threshold, "
-        "recommended_json, archived_at FROM lessons"
+        "recommended_json, archived_at, kind FROM lessons"
     )).fetchall():
         lid = fila["id"]
         ejemplo = ejemplos_por_leccion.get(lid)
@@ -298,6 +310,8 @@ async def read_local_state(
             example_id=None if ejemplo is None else ejemplo[0],
             example_source_code=None if ejemplo is None else ejemplo[1],
             questions=tuple(preguntas_por_leccion.get(lid, ())),
+            kind=fila["kind"],
+            steps=tuple(pasos_por_leccion.get(lid, ())),
         )
 
     progreso = {
@@ -622,10 +636,10 @@ _UPSERT_LESSON = """
 INSERT INTO lessons
     (id, module_id, "order", title, estimated_minutes, content_markdown,
      video_url, pass_threshold, recommended_json, enabled, completion_rule,
-     archived_at)
+     kind, archived_at)
 VALUES (:id, :module_id, :order, :title, :estimated_minutes, :content_markdown,
         :video_url, :pass_threshold, :recommended_json, :enabled,
-        :completion_rule, NULL)
+        :completion_rule, :kind, NULL)
 ON CONFLICT(id) DO UPDATE SET
     module_id         = :module_id,
     "order"           = :order,
@@ -637,6 +651,7 @@ ON CONFLICT(id) DO UPDATE SET
     recommended_json  = :recommended_json,
     enabled           = :enabled,
     completion_rule   = :completion_rule,
+    kind              = :kind,
     archived_at       = NULL
 """
 
@@ -858,6 +873,7 @@ async def _borrar(db: "aiosqlite.Connection", plan: MergePlan) -> None:
             await db.execute(
                 "DELETE FROM quiz_attempts WHERE lesson_id = ?", (lesson_id,)
             )
+            await workshop_repo.purge_marks_no_commit(db, lesson_id)  # S6
     for lesson_id in plan.removed:
         # CASCADE se lleva ejemplo y preguntas de la lección.
         await db.execute("DELETE FROM lessons WHERE id = ?", (lesson_id,))
@@ -931,8 +947,10 @@ async def _upsert_lecciones(
                 ),
                 "enabled": int(leccion.enabled),
                 "completion_rule": leccion.completion_rule,
+                "kind": leccion.kind or "leccion",  # S6: ausente = lección
             },
         )
+    await escribir_pasos(db, list(entrantes.values()))
 
 
 async def _reemplazar_ejemplos(

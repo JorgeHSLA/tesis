@@ -151,6 +151,9 @@ from .admin import (
 # AdminExampleBase/AdminQuizQuestion/AdminQuizOption/AdminRecommended de §10).
 from .catalog import (
     BUNDLE_FORMAT,
+    BUNDLE_FORMAT_TALLERES,
+    BUNDLE_FORMATS,
+    BundleStep,
     CHECKSUM_PATTERN,
     INDEX_FORMAT,
     OBJECT_PATH_PATTERN,
@@ -318,6 +321,9 @@ __all__ = [
     "AdminDeleteResult",
     # §11 Catálogo remoto (Fase 5) — formato de intercambio
     "BUNDLE_FORMAT",
+    "BUNDLE_FORMAT_TALLERES",
+    "BUNDLE_FORMATS",
+    "BundleStep",
     "INDEX_FORMAT",
     "CHECKSUM_PATTERN",
     "OBJECT_PATH_PATTERN",
