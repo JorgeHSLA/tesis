@@ -488,7 +488,7 @@ def _issues_espacio_de_ids(bundle: ModuleBundle) -> list[dict]:
 
 
 def _issues_de_forma_de_taller(bundle: ModuleBundle) -> list[dict]:
-    """S6 (§12.5): ``kind``/``steps`` solo en el formato 2, y ``steps`` solo en talleres.
+    """S6 (§12.4): ``kind``/``steps`` solo en el formato 2, y ``steps`` solo en talleres.
 
     Es FORMA, no contenido: un bundle 1 con talleres no lo produce el publicador
     canónico, y una lección con pasos que no es taller es una contradicción del
@@ -547,7 +547,7 @@ def _issues_de_completion_rule(base: str, leccion: BundleLesson) -> list[dict]:
 def _issues_de_taller(
     base: str, leccion: BundleLesson, ejemplos: frozenset[str]
 ) -> list[dict]:
-    """S6 (§12.5): un taller publicado es una guía de pasos completable.
+    """S6 (§12.4): un taller publicado es una guía de pasos completable.
 
     Al menos un paso (sin pasos sería incompletable), sin quiz ni video, regla
     ``viewed`` (la que se guarda; se ignora), el markdown de cada paso en el

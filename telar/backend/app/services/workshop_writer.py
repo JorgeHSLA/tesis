@@ -57,18 +57,35 @@ def _paso(pasos: list[StepRow], lesson_id: str, idx: int) -> StepRow:
 
 
 async def _issues_del_paso(
-    db: "aiosqlite.Connection", body: AdminWorkshopStepInput
+    db: "aiosqlite.Connection", lesson_id: str, body: AdminWorkshopStepInput
 ) -> list[dict]:
-    """Markdown en el subset de siempre y un ejemplo que exista."""
+    """Markdown en el subset de siempre y un ejemplo del MISMO módulo.
+
+    Publicar exige que el ejemplo de cada paso viaje en el bundle del módulo
+    (``bundle_guard``); comprobarlo aquí evita guardar un paso que luego no se
+    podría publicar.
+    """
     issues = [
         {**problema, "field": "body_markdown"}
         for problema in validate_markdown(body.body_markdown)
     ]
-    if body.example_id is not None and not await content_admin.example_exists(
-        db, body.example_id
-    ):
+    if body.example_id is None:
+        return issues
+    if not await content_admin.example_exists(db, body.example_id):
         issues.append(
             {"field": "example_id", "reason": f"no existe el ejemplo '{body.example_id}'."}
+        )
+    elif await content_admin.example_module_id(
+        db, body.example_id
+    ) != await content_admin.lesson_module_id(db, lesson_id):
+        issues.append(
+            {
+                "field": "example_id",
+                "reason": (
+                    f"el ejemplo '{body.example_id}' no es de este módulo; un "
+                    "paso solo puede abrir ejemplos del módulo del taller."
+                ),
+            }
         )
     return issues
 
@@ -110,7 +127,7 @@ async def add_step(
     db = app.state.db
     async with app.state.write_lock:
         pasos = await _pasos_del_taller(db, lesson_id)
-        issues = await _issues_del_paso(db, body)
+        issues = await _issues_del_paso(db, lesson_id, body)
         if len(pasos) >= MAX_WORKSHOP_STEPS:
             issues.append(
                 {"field": "steps", "reason": f"un taller admite como mucho {MAX_WORKSHOP_STEPS} pasos."}
@@ -128,7 +145,7 @@ async def update_step(
     async with app.state.write_lock:
         pasos = await _pasos_del_taller(db, lesson_id)
         _paso(pasos, lesson_id, idx)
-        issues = await _issues_del_paso(db, body)
+        issues = await _issues_del_paso(db, lesson_id, body)
         if issues:
             raise _content_error(issues)
         nuevos = _contenido(pasos)

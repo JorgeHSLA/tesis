@@ -106,7 +106,7 @@ export function LessonAdminRow({ lesson, onReload, onToast }: LessonAdminRowProp
         confirmLabel="Borrar lección"
         busy={deleting}
         onConfirm={remove}
-        onCancel={() => setConfirming(false)}
+        onCancel={() => !deleting && setConfirming(false)}
       />
     </div>
   )

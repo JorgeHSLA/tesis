@@ -1,12 +1,15 @@
 // LessonAdminRow — el botón de ejemplo depende de si la lección lo tiene.
 // Antes navegaba a /admin/ejemplos/null en una lección sin ejemplo (CU-18.2).
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 vi.mock('@/api/admin', () => ({ deleteLesson: vi.fn() }))
 
+import { deleteLesson } from '@/api/admin'
 import { LessonAdminRow } from '@/features/admin/dashboard/LessonAdminRow'
+
+const borrarMock = deleteLesson as Mock
 
 const LESSON = {
   id: 'hola', order: 1, title: 'Hola hilos', example_id: 'hola-ej', has_quiz: false,
@@ -20,10 +23,13 @@ function Destino() {
   return <div data-testid="destino">{loc.pathname + loc.search}</div>
 }
 
-function renderRow(lesson: typeof LESSON | (Omit<typeof LESSON, 'example_id'> & { example_id: null })) {
+function renderRow(
+  lesson: typeof LESSON | (Omit<typeof LESSON, 'example_id'> & { example_id: null }),
+  onReload = vi.fn(),
+) {
   const router = createMemoryRouter(
     [
-      { path: '/admin', element: <LessonAdminRow lesson={lesson as never} onReload={vi.fn()} onToast={vi.fn()} /> },
+      { path: '/admin', element: <LessonAdminRow lesson={lesson as never} onReload={onReload} onToast={vi.fn()} /> },
       { path: '*', element: <Destino /> },
     ],
     { initialEntries: ['/admin'] },
@@ -67,5 +73,73 @@ describe('LessonAdminRow · advertencia al borrar', () => {
     expect(dialogo).not.toHaveTextContent('ejemplo')
     expect(dialogo).not.toHaveTextContent('quiz')
     expect(dialogo).toHaveTextContent('Se eliminará "Hola hilos" y el progreso de los estudiantes en ella.')
+  })
+})
+
+// «Borrar lección» — con el DELETE en vuelo, Escape y el fondo no cierran el
+// diálogo (mismo patrón que «Borrar módulo» en ModuleGroup).
+describe('LessonAdminRow · borrar con el DELETE en vuelo', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  /** Promesa controlable: el DELETE queda pendiente hasta que el test lo diga. */
+  function pendiente() {
+    let resolver!: (v: unknown) => void
+    const promesa = new Promise((r) => {
+      resolver = r
+    })
+    return { promesa, resolver }
+  }
+
+  async function abrirYConfirmar() {
+    fireEvent.click(screen.getByRole('button', { name: /^Borrar$/ }))
+    const dialogo = await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: 'Borrar lección' }))
+    await waitFor(() => expect(borrarMock).toHaveBeenCalledWith('hola'))
+    return dialogo
+  }
+
+  it('Escape no cierra el diálogo mientras borra; al resolver, se cierra', async () => {
+    const { promesa, resolver } = pendiente()
+    borrarMock.mockReturnValue(promesa)
+    const onReload = vi.fn()
+    renderRow(LESSON, onReload)
+    await abrirYConfirmar()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    await act(async () => {
+      resolver(undefined)
+      await promesa
+    })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(onReload).toHaveBeenCalled()
+  })
+
+  it('el clic en el fondo tampoco lo cierra mientras borra', async () => {
+    const { promesa, resolver } = pendiente()
+    borrarMock.mockReturnValue(promesa)
+    renderRow(LESSON)
+    const dialogo = await abrirYConfirmar()
+
+    fireEvent.mouseDown(dialogo.parentElement as HTMLElement)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    await act(async () => {
+      resolver(undefined)
+      await promesa
+    })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('sin borrado en curso, Escape cancela como siempre', async () => {
+    renderRow(LESSON)
+    fireEvent.click(screen.getByRole('button', { name: /^Borrar$/ }))
+    await screen.findByRole('dialog')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(borrarMock).not.toHaveBeenCalled()
   })
 })

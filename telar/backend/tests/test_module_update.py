@@ -59,9 +59,11 @@ TABLAS = (
     "jobs",
     "installed_modules",
     "module_update_log",
+    "workshop_steps",
+    "workshop_step_progress",
 )
 #: Lo que define el CONTENIDO del curso (sin marcas de tiempo de manifiesto).
-TABLAS_CONTENIDO = ("modules", "lessons", "examples", "quiz_questions")
+TABLAS_CONTENIDO = ("modules", "lessons", "examples", "quiz_questions", "workshop_steps")
 
 
 # ───────────────────────────── constructores ────────────────────────────────
@@ -167,7 +169,8 @@ def paquete(
     checksum=None,
 ) -> Paquete:
     payload = {
-        "bundle_format": 1,
+        # Formato 2 solo si algún taller lo exige (§12.4): el resto, como siempre.
+        "bundle_format": 2 if any(lec.get("kind") == "taller" for lec in lecciones) else 1,
         "module": {
             "id": module_id,
             "order_hint": hint,
@@ -186,6 +189,18 @@ def paquete(
     return Paquete(
         payload, crudo, ModuleBundle.model_validate(payload), payload["checksum"]
     )
+
+
+def taller_(lid, order, pasos):
+    """Taller (S6) con un paso por título; el cuerpo sale del título."""
+    return {
+        **leccion(lid, order, regla="viewed"),
+        "kind": "taller",
+        "steps": [
+            {"title": t, "body_markdown": f"Haz {t}.", "example_id": None}
+            for t in pasos
+        ],
+    }
 
 
 def con_quiz(lid, order, *, correcta="a", preguntas=2, umbral=0.6, **kw):
@@ -299,8 +314,8 @@ def fila_indice(paq: Paquete) -> dict:
         "published_at": b.module.published_at,
         "author_label": b.module.author_label,
         "lessons_count": len(b.lessons),
-        "questions_count": sum(len(l.quiz.questions) for l in b.lessons if l.quiz),
-        "estimated_minutes_total": sum(l.estimated_minutes for l in b.lessons),
+        "questions_count": sum(len(lec.quiz.questions) for lec in b.lessons if lec.quiz),
+        "estimated_minutes_total": sum(lec.estimated_minutes for lec in b.lessons),
         "requires_gpu": False,
     }
 
@@ -411,6 +426,10 @@ async def sembrar_job(db, job_id, lesson_id):
     await db.commit()
 
 
+async def escalar_marcas(db) -> int:
+    return (await filas(db, "SELECT COUNT(*) AS n FROM workshop_step_progress"))[0]["n"]
+
+
 async def progreso_de(db, lesson_id) -> dict | None:
     encontradas = await filas(
         db, "SELECT * FROM lesson_progress WHERE lesson_id = ?", (lesson_id,)
@@ -433,6 +452,7 @@ def _historia_de_cuatro_versiones() -> list[Paquete]:
         con_quiz("l2", 2),
         con_quiz("l3", 3, ejemplo_=ejemplo("ej-l3")),
         con_quiz("l4", 4),
+        taller_("t1", 5, ["A", "B", "C"]),
         version=1,
     )
     # v2: nace l5, se retira l2 (que TIENE avance ⇒ se archiva), y todo se
@@ -442,6 +462,7 @@ def _historia_de_cuatro_versiones() -> list[Paquete]:
         con_quiz("l1", 2, ejemplo_=ejemplo("ej-l1")),
         con_quiz("l4", 3),
         con_quiz("l5", 4),
+        taller_("t1", 5, ["C", "A", "B"]),  # reordena
         version=2,
     )
     # v3: l1 gana una pregunta (el set cambia ⇒ su nota se anula), l4 pierde el
@@ -451,6 +472,7 @@ def _historia_de_cuatro_versiones() -> list[Paquete]:
         con_quiz("l1", 2, preguntas=3, ejemplo_=ejemplo("ej-l1")),
         leccion("l4", 3, regla="viewed"),
         con_quiz("l2", 4),
+        taller_("t1", 5, ["N", "C", "A", "B"]),  # un paso nuevo delante
         version=3,
     )
     # v4: se retira l5 (que para entonces ya tiene avance ⇒ se archiva), l3
@@ -460,6 +482,7 @@ def _historia_de_cuatro_versiones() -> list[Paquete]:
         con_quiz("l1", 2, preguntas=3, correcta="b", ejemplo_=ejemplo("ej-l1")),
         con_quiz("l3", 3, ejemplo_=ejemplo("ej-l3-bis")),
         leccion("l4", 4, regla="viewed", markdown="# l4\n\nReescrita."),
+        taller_("t1", 5, ["A", "N", "B", "C"]),  # y vuelve a moverse
         version=4,
     )
     return [v1, v2, v3, v4]
@@ -476,7 +499,9 @@ async def test_ninguna_fila_de_avance_desaparece_al_encadenar_versiones(app):
     * ninguna fila de ``lesson_progress`` desapareció,
     * ninguna fila de ``quiz_attempts`` desapareció,
     * ningún ``completed`` pasó de ``True`` a ``False``,
-    * ningún informe declaró pérdida alguna.
+    * ningún informe declaró pérdida alguna,
+    * ninguna casilla del taller desapareció ni cambió de paso (los pasos
+      marcados solo se reordenan, y se miden por su contenido).
     """
     db = app.state.db
     v1, v2, v3, v4 = _historia_de_cuatro_versiones()
@@ -489,13 +514,33 @@ async def test_ninguna_fila_de_avance_desaparece_al_encadenar_versiones(app):
             db, f"at{numero}", lid, {f"{lid}-q1": "a", f"{lid}-q2": "a"}
         )
 
+    for idx in range(3):  # A, B y C del taller, todos hechos
+        await db.execute(
+            "INSERT INTO workshop_step_progress (lesson_id, idx) VALUES ('t1', ?)",
+            (idx,),
+        )
+    await db.commit()
+    await sembrar_progreso(db, "t1", best=None, via="manual")
+
+    async def pasos_marcados() -> list[str]:
+        return sorted(
+            fila["title"]
+            for fila in await filas(
+                db,
+                "SELECT s.title FROM workshop_step_progress p JOIN workshop_steps s "
+                "ON s.lesson_id = p.lesson_id AND s.idx = p.idx WHERE p.lesson_id = 't1'",
+            )
+        )
+
+    assert await pasos_marcados() == ["A", "B", "C"]
+
     progreso_inicial = {
         fila["lesson_id"]: fila for fila in await filas(db, "SELECT * FROM lesson_progress")
     }
     intentos_iniciales = {
         fila["id"] for fila in await filas(db, "SELECT id FROM quiz_attempts")
     }
-    assert len(progreso_inicial) == 4
+    assert len(progreso_inicial) == 5
 
     completados = {lid for lid, f in progreso_inicial.items() if f["completed"]}
     informes = []
@@ -526,6 +571,9 @@ async def test_ninguna_fila_de_avance_desaparece_al_encadenar_versiones(app):
             assert vivas[lid]["completed"] == 1, f"'{lid}' perdió su completado"
         # 4 · el informe no declara pérdidas
         assert informe.progress.lost == []
+        # 5 · ninguna casilla desapareció ni quedó en un paso que no se hizo
+        assert await pasos_marcados() == ["A", "B", "C"]
+        assert await escalar_marcas(db) == 3
 
     # `viewed` es un HECHO observado: pase lo que pase con el contenido, sigue.
     final = {

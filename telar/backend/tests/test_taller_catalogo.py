@@ -238,7 +238,7 @@ def test_un_taller_admite_como_mucho_50_pasos():
 # ──────────────────────────────── instalar ───────────────────────────────────
 
 
-async def test_instalar_un_bundle_2_escribe_kind_y_pasos(app_vacia, catalogo):
+async def test_instalar_un_bundle_2_escribe_kind_y_pasos(app_vacia, catalogo):  # noqa: F811
     montar(catalogo, sellar(con_taller()))
 
     await install_module(app_vacia, InstallRequest(module_id="m9"), catalog=catalogo)
@@ -262,36 +262,221 @@ async def test_instalar_un_bundle_2_escribe_kind_y_pasos(app_vacia, catalogo):
 # ─────────────────────────────── actualizar ──────────────────────────────────
 
 
-async def test_actualizar_reemplaza_los_pasos_del_taller():
-    """El aplicador del actualizador escribe `kind` y reescribe los pasos."""
-    from test_module_update import Paquete, _app_nueva, actualizar, instalar
+def _paquete_taller(version: int, pasos: list[dict]):
+    """Bundle m9 (lección base + taller) en la forma que usa ``test_module_update``."""
+    from test_module_update import Paquete
 
-    def paquete2(version: int, pasos: list[dict]) -> Paquete:
-        datos = payload(
-            leccion("base", order=1, example=ejemplo("base-ej")),
-            taller(pasos=pasos),
-            module_id="m9",
+    datos = payload(
+        leccion("base", order=1, example=ejemplo("base-ej")),
+        taller(pasos=pasos),
+        module_id="m9",
+    )
+    datos["module"]["version"] = version
+    datos["checksum"] = bundle_checksum(datos)
+    return Paquete(datos, crudo(datos), ModuleBundle.model_validate(datos), datos["checksum"])
+
+
+async def _marcar(db, *idxs: int, lesson_id: str = "tallerHilos") -> None:
+    for idx in idxs:
+        await db.execute(
+            "INSERT INTO workshop_step_progress (lesson_id, idx) VALUES (?, ?)",
+            (lesson_id, idx),
         )
-        datos["module"]["version"] = version
-        datos["checksum"] = bundle_checksum(datos)
-        raw = crudo(datos)
-        return Paquete(datos, raw, ModuleBundle.model_validate(datos), datos["checksum"])
+    await db.commit()
+
+
+async def _titulos_marcados(db, lesson_id: str = "tallerHilos") -> set[str]:
+    """Los pasos marcados, por su TÍTULO: lo que el estudiante hizo de verdad."""
+    return {
+        f[0]
+        for f in await filas(
+            db,
+            "SELECT s.title FROM workshop_step_progress p JOIN workshop_steps s "
+            "ON s.lesson_id = p.lesson_id AND s.idx = p.idx WHERE p.lesson_id = ?",
+            (lesson_id,),
+        )
+    }
+
+
+async def _idxs_marcados(db, lesson_id: str = "tallerHilos") -> set[int]:
+    return {
+        f[0]
+        for f in await filas(
+            db, "SELECT idx FROM workshop_step_progress WHERE lesson_id = ?", (lesson_id,)
+        )
+    }
+
+
+@pytest.fixture
+async def app_upd():
+    from test_module_update import _app_nueva
 
     app = await _app_nueva()
-    try:
-        await instalar(app, paquete2(1, [paso(1), paso(2), paso(3)]))
-        await actualizar(app, paquete2(2, [paso(1, title="Nuevo primero")]))
-        pasos = [
-            tuple(f)
-            for f in await filas(
-                app.state.db,
-                "SELECT idx, title FROM workshop_steps WHERE lesson_id='tallerHilos' ORDER BY idx",
-            )
-        ]
-        assert pasos == [(0, "Nuevo primero")]
-        assert app.state.content.lesson("tallerHilos").kind == "taller"
-    finally:
-        await app.state.db.close()
+    yield app
+    await app.state.db.close()
+
+
+async def test_actualizar_reemplaza_los_pasos_del_taller(app_upd):
+    """El aplicador del actualizador escribe `kind` y reescribe los pasos."""
+    from test_module_update import actualizar, instalar
+
+    await instalar(app_upd, _paquete_taller(1, [paso(1), paso(2), paso(3)]))
+    await actualizar(app_upd, _paquete_taller(2, [paso(1, title="Nuevo primero")]))
+    pasos = [
+        tuple(f)
+        for f in await filas(
+            app_upd.state.db,
+            "SELECT idx, title FROM workshop_steps WHERE lesson_id='tallerHilos' ORDER BY idx",
+        )
+    ]
+    assert pasos == [(0, "Nuevo primero")]
+    assert app_upd.state.content.lesson("tallerHilos").kind == "taller"
+
+
+# ─────────────── casillas del estudiante tras actualizar (CU-38) ──────────────
+
+
+async def test_reordenar_los_pasos_conserva_cada_marca_en_su_paso(app_upd):
+    """v1 [A,B,C] con A marcado; v2 [C,A,B] → sigue marcado A (idx 1), no C."""
+    from test_module_update import actualizar, instalar
+
+    db = app_upd.state.db
+    await instalar(app_upd, _paquete_taller(1, [paso(1), paso(2), paso(3)]))
+    await _marcar(db, 0, 2)
+
+    await actualizar(app_upd, _paquete_taller(2, [paso(3), paso(1), paso(2)]))
+
+    assert await _titulos_marcados(db) == {"Paso 1", "Paso 3"}
+    assert await _idxs_marcados(db) == {1, 0}
+
+
+async def test_un_paso_eliminado_pierde_su_marca(app_upd):
+    from test_module_update import actualizar, instalar
+
+    db = app_upd.state.db
+    await instalar(app_upd, _paquete_taller(1, [paso(1), paso(2), paso(3)]))
+    await _marcar(db, 0, 1)
+
+    await actualizar(app_upd, _paquete_taller(2, [paso(2), paso(3)]))
+
+    assert await _titulos_marcados(db) == {"Paso 2"}
+    assert await _idxs_marcados(db) == {0}
+
+
+async def test_un_paso_modificado_pierde_su_marca(app_upd):
+    from test_module_update import actualizar, instalar
+
+    db = app_upd.state.db
+    await instalar(app_upd, _paquete_taller(1, [paso(1), paso(2)]))
+    await _marcar(db, 0, 1)
+
+    await actualizar(
+        app_upd, _paquete_taller(2, [paso(1, body_markdown="Otra cosa.\n"), paso(2)])
+    )
+
+    assert await _idxs_marcados(db) == {1}
+
+
+async def test_un_paso_anadido_nace_sin_marca(app_upd):
+    from test_module_update import actualizar, instalar
+
+    db = app_upd.state.db
+    await instalar(app_upd, _paquete_taller(1, [paso(1), paso(2)]))
+    await _marcar(db, 0, 1)
+
+    await actualizar(app_upd, _paquete_taller(2, [paso(0), paso(1), paso(2)]))
+
+    assert await _idxs_marcados(db) == {1, 2}
+    assert await _titulos_marcados(db) == {"Paso 1", "Paso 2"}
+
+
+async def test_pasos_duplicados_se_emparejan_en_orden(app_upd):
+    from test_module_update import actualizar, instalar
+
+    db = app_upd.state.db
+    await instalar(app_upd, _paquete_taller(1, [paso(1), paso(1), paso(2)]))
+    await _marcar(db, 0)
+
+    await actualizar(app_upd, _paquete_taller(2, [paso(2), paso(1), paso(1)]))
+
+    assert await _idxs_marcados(db) == {1}
+
+
+async def test_un_taller_completado_sigue_completado_aunque_pierda_marcas(app_upd):
+    from test_module_update import actualizar, instalar, progreso_de, sembrar_progreso
+
+    db = app_upd.state.db
+    await instalar(app_upd, _paquete_taller(1, [paso(1), paso(2)]))
+    await _marcar(db, 0, 1)
+    await sembrar_progreso(db, "tallerHilos", best=None, via="manual")
+
+    await actualizar(app_upd, _paquete_taller(2, [paso(1, title="Otro"), paso(3)]))
+
+    assert await _idxs_marcados(db) == set()
+    assert (await progreso_de(db, "tallerHilos"))["completed"] == 1
+
+
+async def test_la_vista_previa_anuncia_las_casillas_que_se_reinician(app_upd):
+    from test_module_update import actualizar, instalar
+
+    db = app_upd.state.db
+    await instalar(app_upd, _paquete_taller(1, [paso(1), paso(2)]))
+    await _marcar(db, 0, 1)
+
+    informe = await actualizar(
+        app_upd, _paquete_taller(2, [paso(2), paso(1, title="Cambiado")]), preview=True
+    )
+
+    avisos = [w for w in informe.warnings if w.code == "WORKSHOP_MARKS_RESET"]
+    assert [w.lesson_id for w in avisos] == ["tallerHilos"]
+    assert "1" in avisos[0].message
+    # La vista previa no escribe: las marcas siguen donde estaban.
+    assert await _idxs_marcados(db) == {0, 1}
+
+
+async def test_la_vista_previa_no_avisa_si_solo_se_reordena(app_upd):
+    from test_module_update import actualizar, instalar
+
+    db = app_upd.state.db
+    await instalar(app_upd, _paquete_taller(1, [paso(1), paso(2)]))
+    await _marcar(db, 0, 1)
+
+    informe = await actualizar(
+        app_upd, _paquete_taller(2, [paso(2), paso(1)]), preview=True
+    )
+
+    assert not [w for w in informe.warnings if w.code == "WORKSHOP_MARKS_RESET"]
+
+
+async def test_reinstalar_tras_desinstalar_no_hereda_marcas_huerfanas(
+    app_vacia, catalogo  # noqa: F811
+):
+    """Desinstalar deja las casillas huérfanas (sin FK, como ``lesson_progress``)
+    pero los pasos se van con la lección: al reinstalar no hay con qué
+    emparejarlas, así que no se aplican a pasos que quizá sean otros. El
+    ``completed`` del taller, que vive en ``lesson_progress``, sí se recupera."""
+    db = app_vacia.state.db
+    montar(catalogo, sellar(con_taller()))
+    await install_module(app_vacia, InstallRequest(module_id="m9"), catalog=catalogo)
+    await _marcar(db, 0)
+    await db.execute(
+        "INSERT INTO lesson_progress (lesson_id, viewed, completed, completed_via) "
+        "VALUES ('tallerHilos', 1, 1, 'manual')"
+    )
+    await db.execute("DELETE FROM modules WHERE id = 'm9'")  # lo que hace desinstalar
+    await db.commit()
+    assert await _idxs_marcados(db) == {0}  # huérfana, como el progreso
+
+    v2 = con_taller()
+    v2["module"]["version"] = 2
+    v2["lessons"][1]["steps"] = [paso(9), paso(1, example_id="base-ej"), paso(2)]
+    montar(catalogo, sellar(v2))
+    await install_module(app_vacia, InstallRequest(module_id="m9"), catalog=catalogo)
+
+    assert await _idxs_marcados(db) == set()
+    assert await escalar(
+        db, "SELECT completed FROM lesson_progress WHERE lesson_id='tallerHilos'"
+    ) == 1
 
 
 # ─────────────────────────────── publicar ────────────────────────────────────
@@ -333,7 +518,7 @@ def test_publicar_sin_talleres_sigue_siendo_formato_1(tmp_path, fake_docker, rea
         assert respuesta.status_code == 201, respuesta.text
     datos = _bundle_publicado(raiz)
     assert datos["bundle_format"] == 1
-    assert all("kind" not in l and "steps" not in l for l in datos["lessons"])
+    assert all("kind" not in lec and "steps" not in lec for lec in datos["lessons"])
 
 
 def test_publicar_con_un_taller_es_formato_2_con_los_ids_publicados(
@@ -348,14 +533,14 @@ def test_publicar_con_un_taller_es_formato_2_con_los_ids_publicados(
         assert respuesta.status_code == 201, respuesta.text
     datos = _bundle_publicado(raiz)
     assert datos["bundle_format"] == 2
-    t = next(l for l in datos["lessons"] if l["id"] == "tallerHilos")
+    t = next(lec for lec in datos["lessons"] if lec["id"] == "tallerHilos")
     assert t["kind"] == "taller" and t["completion_rule"] == "viewed"
     # `primerEjemplo` choca con el id de su lección y se publica renombrado: el
     # paso tiene que apuntar al id PUBLICADO, o el bundle no se instalaría.
-    ids_publicados = {l["example"]["id"] for l in datos["lessons"] if l.get("example")}
+    ids_publicados = {lec["example"]["id"] for lec in datos["lessons"] if lec.get("example")}
     assert t["steps"][0]["example_id"] in ids_publicados
     assert t["steps"][1]["example_id"] is None
-    assert all("kind" not in l for l in datos["lessons"] if l["id"] != "tallerHilos")
+    assert all("kind" not in lec for lec in datos["lessons"] if lec["id"] != "tallerHilos")
     # Y lo publicado pasa la misma puerta que usará el estudiante.
     parse_bundle(json.dumps(datos, ensure_ascii=False).encode("utf-8"), max_bytes=MAX_BYTES)
 
@@ -363,24 +548,30 @@ def test_publicar_con_un_taller_es_formato_2_con_los_ids_publicados(
 def test_publicar_un_taller_con_un_ejemplo_de_otro_modulo_falla_antes_de_subir(
     tmp_path, fake_docker, real_content
 ):
+    """La autoría ya no deja GUARDAR un paso con un ejemplo de otro módulo, pero
+    mover el taller de módulo sí puede dejarlo así: publicar lo sigue parando."""
     cliente, raiz = _cliente_publicador(tmp_path, fake_docker, real_content)
     with cliente:
-        from test_taller import crear_taller
+        from test_taller import TALLER, crear_taller
 
-        crear_taller(cliente, pasos=0)
-        otro = next(
-            e["id"]
-            for e in cliente.get("/api/v1/examples").json()["data"]["examples"]
-            if e["module_id"] != "m1"
+        detalle = crear_taller(cliente, pasos=1)  # el paso 0 usa `primerEjemplo`, de m1
+        cuerpo = {
+            k: detalle[k]
+            for k in (
+                "title", "estimated_minutes", "content_markdown", "video_url",
+                "completion_rule", "kind", "recommended", "enabled",
+            )
+            if k in detalle
+        }
+        movida = cliente.put(
+            f"/api/v1/admin/lessons/{TALLER}",
+            json={**cuerpo, "module_id": "m2", "order": 50},
         )
-        r = cliente.post(
-            "/api/v1/admin/lessons/tallerHilos/steps",
-            json={"title": "P", "body_markdown": "x", "example_id": otro},
-        )
-        assert r.status_code == 201, r.text
-        respuesta = _publicar(cliente)
+        assert movida.status_code == 200, movida.text
+        respuesta = _publicar(cliente, "m2")
         assert respuesta.status_code == 422, respuesta.text
-    assert not (raiz / "modulos" / "m1").exists()
+        assert "steps" in respuesta.text and "example_id" in respuesta.text
+    assert not (raiz / "modulos" / "m2").exists()
 
 
 def test_el_fork_traduce_el_ejemplo_de_los_pasos():

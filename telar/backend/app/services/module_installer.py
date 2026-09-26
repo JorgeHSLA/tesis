@@ -735,12 +735,13 @@ def _params_leccion(leccion: BundleLesson, module_id: str) -> tuple:
 async def _escribir_pasos(
     db: "aiosqlite.Connection", lecciones: "Sequence[BundleLesson]"
 ) -> None:
-    """S6 (§12.5): los pasos de cada lección, tal como vienen en el bundle.
+    """S6 (§12.4): los pasos de cada lección, tal como vienen en el bundle.
 
     Se reescriben SIEMPRE, también en las lecciones que no son taller (con la
     lista vacía): el contenido instalado es el del bundle, y una lección que dejó
     de ser taller no conserva pasos del publicador anterior. Las casillas del
-    estudiante no se tocan (data-model §9).
+    estudiante no se tocan aquí: las mueve el llamador (el actualizador las
+    empareja por contenido; la incorporación descarta las huérfanas).
     """
     for leccion in lecciones:
         pasos = leccion.steps if leccion.es_taller and leccion.steps else []
@@ -816,6 +817,13 @@ async def _escribir(
     for leccion in bundle.lessons:
         await db.execute(_UPSERT_LESSON, _params_leccion(leccion, modulo.id))
     await _escribir_pasos(db, bundle.lessons)
+    for leccion in bundle.lessons:
+        # Reinstalar tras desinstalar: las casillas «Lo hice» sobreviven huérfanas
+        # (sin FK, como `lesson_progress`), pero sus pasos se fueron con la
+        # lección y no hay con qué emparejarlas; aplicarlas por `idx` marcaría
+        # pasos que quizá sean otros. Se descartan; el `completed` del taller
+        # vive en `lesson_progress` y se recupera como el resto del avance.
+        await workshop_repo.purge_marks_no_commit(db, leccion.id)
     for leccion in bundle.lessons:
         if leccion.example is not None:
             await db.execute(_UPSERT_EXAMPLE, _params_ejemplo(leccion))
