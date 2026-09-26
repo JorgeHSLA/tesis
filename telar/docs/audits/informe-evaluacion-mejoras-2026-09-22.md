@@ -616,12 +616,12 @@ Leyenda:
 | CU-27.3 | Verificar la imagen del runner | 💡 | ✅ | SI HAY TIEMPO ✅ a7a0b42 | S-M | Bajo | Escritorio y salud |
 | CU-27.4 | Mostrar la causa real del fallo de inicio | 💡 | ✅ | SI HAY TIEMPO ✅ a7a0b42 | S | Bajo | Escritorio y salud |
 | CU-27.5 | Fallo de carga de la interfaz (did-fail-load) | 💡 | ✅ | SI HAY TIEMPO ✅ d7631e6, 2a219a9 | S | Bajo | Escritorio y salud |
-| CU-28.1 | Taller como actividad identificable | 🚨 | ✅ | HACER YA | M | Medio | Requisitos de completitud |
-| CU-28.2 | Talleres con y sin código | 🚨 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
-| CU-28.3 | Guardar estado y retomar | 🚨 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
-| CU-28.4 | Condición de realización propia | 🚨 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
-| CU-28.5 | Integrar con el progreso de la lección | 🚨 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
-| CU-28.6 | Errores dentro del taller | 🚨 | ✅ | HACER YA | S | Bajo | Requisitos de completitud |
+| CU-28.1 | Taller como actividad identificable | 🚨 | ✅ | HACER YA ✅ 14308ce, 0f7475f, fba410e, ff4c99e | M | Medio | Requisitos de completitud |
+| CU-28.2 | Talleres con y sin código | 🚨 | ✅ | HACER YA ✅ 0f7475f, 0fdfb66, ff4c99e | S | Bajo | Requisitos de completitud |
+| CU-28.3 | Guardar estado y retomar | 🚨 | ✅ | HACER YA ✅ 0f7475f, 0fdfb66 | S | Bajo | Requisitos de completitud |
+| CU-28.4 | Condición de realización propia | 🚨 | ✅ | HACER YA ✅ 0f7475f, 24b15a0 | S | Bajo | Requisitos de completitud |
+| CU-28.5 | Integrar con el progreso de la lección | 🚨 | ✅ | HACER YA ✅ 0f7475f, ebc03a9 | S | Bajo | Requisitos de completitud |
+| CU-28.6 | Errores dentro del taller | 🚨 | ✅ | HACER YA ✅ 0fdfb66, 29c5087 | S | Bajo | Requisitos de completitud |
 | CU-29.1 | Archivadas vs. deshabilitadas tratadas distinto | 💡 | ✅ | HACER YA ✅ b638029, 6a400bd, f92d9fa | S-M | Bajo | Disponibilidad de lecciones |
 | CU-29.2 | «Continuar/Empezar» con id fijo | 💡 | ✅ | HACER YA ✅ f92d9fa | S | Bajo | Disponibilidad de lecciones |
 | CU-30.1 | Seleccionar varias ejecuciones | 🚨 | ✅ | HACER YA ✅ 3975c62 | M | Bajo | Análisis de ejecuciones |
