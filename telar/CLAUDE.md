@@ -2,7 +2,7 @@
 
 Plataforma educativa para aprender paralelismo **OpenMP vía PyOMP**: cursos estilo Coursera + un **simulador** que ejecuta código real del estudiante en contenedores Docker aislados. Corre como **web** (nginx) Y como **app de escritorio Electron**, desde el MISMO build del frontend. Artefacto central de la tesis de Jorge (español).
 
-**Estado: Fase 3 completa y verificada en verde** (backend cobertura 93.79% / 205 tests, frontend 163 tests, E2E por navegador y smoke E2E pasando). Ver `docs/CHANGELOG-fase3.md`.
+**Estado (2026-09-26): mejoras S1–S8 completas y verificadas en verde.** 39 de los 41 casos de uso en 🟢; CU-39 y CU-40 dependen de la decisión «curso = módulo publicable». Backend 1160 tests con cobertura 95.43 %, frontend 777 tests, desktop 15 tests + `check:contract`. Ver `docs/CHANGELOG-mejoras.md` (y antes `CHANGELOG-fase3.md`/`-fase4.md`). Catálogo de CU: `docs/casos-de-uso.md` (41 CU, misma numeración que `docs/audits/`).
 
 ## Cómo correr
 

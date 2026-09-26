@@ -42,53 +42,57 @@ Tres ideas que cambian las prioridades:
 
 **Estimación total:** ≈**24 días** para HACER YA (incluye la opción D con detección de cambios por checksum), ≈**6–7 días** para la *feature* del taller (CU-28) y ≈**20 días** para HACER SI HAY TIEMPO. Todo son arreglos simples.
 
-### 1.1 Los 41 CU: estado del director y estado propuesto
+### 1.1 Los 41 CU: estado del director, propuesto y actual
 
-| CU | Caso de uso | Director | Propuesto | Qué lo cierra / nota |
-|---|---|:-:|:-:|---|
-| CU-01 | Explorar el catálogo de módulos y lecciones | 🟡 | 🟡 | 01.1 (S). Se cierra en la Fase 1. |
-| CU-02 | Realizar una lección | 🟡 | 🟢 | Reclasificar: el taller es otro tipo de lección (CU-28), no un componente de esta. |
-| CU-03 | Responder el quiz | 🟢 | 🟢 | Coherente; 03.1 se arregla gratis con el diseño A. |
-| CU-04 | Ejecutar un ejemplo en el simulador | 🟡 | 🟡 | 04.1 (S). Pierde también el parser. |
-| CU-05 | Código propio desde el editor | 🟢 | 🟢 | Coherente. |
-| CU-06 | Subir un archivo .py | 🟢 | 🟢 | Coherente. |
-| CU-07 | Observar una ejecución en vivo | 🟡 | 🟡 | 07.1 coincide con el contrato: basta cambiar el rótulo y el cronómetro. |
-| CU-08 | Cancelar una ejecución | 🟢 | 🟢 | Coherente. |
-| CU-09 | Resultados y métricas | 🟢 | 🟢 | Coherente; 09.4 cuesta minutos y conviene hacerlo. |
-| CU-10 | Descargar la salida | 🟢 | 🟢⚠ | Verificar en Electron: la descarga cruza orígenes y podría no funcionar. |
-| CU-11 | Ejecuciones recientes | 🟢 | 🟢 | Sin paginación después de 50 (sugerencia nueva). ✅ af72fc8, 29cbe1f |
-| CU-12 | Progreso de un curso | 🟡 | 🟡 | 12.1 (S). Hoy afecta a 0 lecciones, pero 17.2 lo vuelve frecuente. |
-| CU-13 | Crear un módulo | 🟢 | 🟢 | Coherente. |
-| CU-14 | Editar un módulo | 🟢 | 🟢 | Coherente. |
-| CU-15 | Reordenar módulos | 🟢 | 🟢 | Coherente. |
-| CU-16 | Eliminar un módulo | 🟡 | 🟡 | 16.1 (M): necesita un parámetro aditivo `?cascade=true`. |
-| CU-17 | Crear una lección | 🟡 | 🟡 | 17.1 y 17.2 (S). La causa es un DTO desfasado. |
-| CU-18 | Editar una lección | 🟡 | 🟡 | 18.1 es peor de lo descrito: también reactiva lecciones deshabilitadas. |
-| CU-19 | Reordenar lecciones | 🟡 | 🟡 | 19.1 (M): el endpoint por lotes ya existe; 19.2 sale con 18.1. |
-| CU-20 | Eliminar una lección | 🟢 | 🟢 | Coherente. |
-| CU-21 | Editar un ejemplo | 🟢 | 🟢 | Coherente. |
-| CU-22 | Probar un ejemplo | 🟢 | 🟢 | 22.2 pasa a obligatorio en cuanto exista la regla `run`. |
-| CU-23 | Gestionar el contenido base (CLI) | 🟡 | 🟡 | 23.2 y 23.3 (M). La numeración 2,3 / 1 conserva los ids. |
-| CU-24 | Ejecución aislada | 🟢 | 🟢 | Coherente; 24.1 cuesta un try/except. |
-| CU-25 | Recuperar ejecuciones al iniciar | 🟢 | 🟢 | Coherente. |
-| CU-26 | Reportar salud del sistema | 🟡 | 🟢 | Reclasificar 26.3: en el paquete el backend se reinicia junto con Docker. |
-| CU-27 | Iniciar la app de escritorio | 🟢 | 🟢 | Coherente. Duplicado en el archivo en disco. |
-| CU-28 | Realizar un taller guiado | 🔴 | 🔴 | Feature: lección de tipo `taller` con pasos y casillas (≈6–7 días). |
-| CU-29 | Progresión recomendada | 🟢 | 🟢 | Coherente. |
-| CU-30 | Comparar ejecuciones | 🔴 | 🔴 | Se cierra solo con frontend (≈3 días). |
-| CU-31 | Exportar resultados y métricas | 🔴 | 🔴 | Se cierra solo con frontend (≈1 día). |
-| CU-32 | Guardar y reutilizar configuración | 🟡 | 🟡 | 32.1 con localStorage y 32.2 (≈2 días). |
-| CU-33 | Instalar Telar | 🟢 | 🟢⚠ | La página ofrece la v1.0.3; la app va en la v1.0.5. |
-| CU-34 | Explorar el catálogo de cursos | 🟡 | 🟡 | 34.1 (M): el endpoint y el cliente ya existen. |
-| CU-35 | Incorporar un curso | 🟢 | 🟢 | Coherente. |
-| CU-36 | Descargar un curso para edición | 🟢 | 🟢 | Coherente. |
-| CU-37 | Publicar un curso | 🟡 | 🟡 | 37.1 (S–M) + comparar checksum antes de publicar (37.3, 37.4). |
-| CU-38 | Actualizar un curso incorporado | 🟡 | 🟡 | 38.1 (S): filtrar las archivadas en el servidor. |
-| CU-39 | Crear un curso | 🔴 | 🔴? | Decisión: ¿«curso» = módulo publicable? |
-| CU-40 | Editar información de un curso | 🔴 | 🔴? | Depende de la decisión de CU-39. |
-| CU-41 | Eliminar un curso | 🔴 | 🔴 | 41.1 (M) + 41.2 (S) si curso = módulo. |
+> **Actualización 2026-09-26 (sesión S8, cierre).** La columna «Estado (26-09)» sale de los ✅ reales de la tabla §4 tras las sesiones S1–S7, sus rondas de revisión y S8. Un ítem sin ✅ sigue pendiente; los NO HACER y el parcial CU-33.1 figuran como **limitaciones conocidas** (`docs/casos-de-uso.md` §6).
+
+| CU | Caso de uso | Director | Propuesto (22-09) | Estado (26-09) | Qué lo cerró / nota |
+|---|---|:-:|:-:|:-:|---|
+| CU-01 | Explorar el catálogo de módulos y lecciones | 🟡 | 🟡 | 🟢 | 01.1–01.3 ✅ (S2). |
+| CU-02 | Realizar una lección | 🟡 | 🟢 | 🟢 | 02.3–02.5 ✅ (S2); 02.1 reclasificado a CU-28 ✅ (S8). Limitación: 02.2. |
+| CU-03 | Responder el quiz | 🟢 | 🟢 | 🟢 | 03.1 ✅ (S2). |
+| CU-04 | Ejecutar un ejemplo en el simulador | 🟡 | 🟡 | 🟢 | 04.1 ✅ (S4). |
+| CU-05 | Código propio desde el editor | 🟢 | 🟢 | 🟢 | 05.1–05.2 ✅ (S7b, S7a). |
+| CU-06 | Subir un archivo .py | 🟢 | 🟢 | 🟢 | 06.1–06.3 ✅ (S7a, S7b). |
+| CU-07 | Observar una ejecución en vivo | 🟡 | 🟡 | 🟢 | 07.1, 07.3–07.5 ✅ (S1, S7b). Limitación: 07.2. |
+| CU-08 | Cancelar una ejecución | 🟢 | 🟢 | 🟢 | 08.1–08.3, 08.5 ✅ (S7b). Limitación: 08.4. |
+| CU-09 | Resultados y métricas | 🟢 | 🟢 | 🟢 | 09.1–09.4 ✅ (S1, S7b). |
+| CU-10 | Descargar la salida | 🟢 | 🟢⚠ | 🟢 | 10.1 ✅ (S1): la descarga va por fetch → Blob, que no depende de `<a download>` entre orígenes. |
+| CU-11 | Ejecuciones recientes | 🟢 | 🟢 | 🟢 | Paginación ✅ af72fc8, 29cbe1f. |
+| CU-12 | Progreso de un curso | 🟡 | 🟡 | 🟢 | 12.1–12.4 ✅ (S2, S7a). |
+| CU-13 | Crear un módulo | 🟢 | 🟢 | 🟢 | 13.1, 13.3 ✅ (S7a); 13.2 reclasificado por D+ ✅ (S5). |
+| CU-14 | Editar un módulo | 🟢 | 🟢 | 🟢 | 14.1, 14.3 ✅ (S7a); 14.2 por D+ ✅. |
+| CU-15 | Reordenar módulos | 🟢 | 🟢 | 🟢 | 15.1 ✅ (S7a); 15.2 por D+ ✅. |
+| CU-16 | Eliminar un módulo | 🟡 | 🟡 | 🟢 | 16.1–16.2 ✅ (S7a, `?cascade=true`); 16.3 por D+ ✅. |
+| CU-17 | Crear una lección | 🟡 | 🟡 | 🟢 | 17.1–17.4 ✅ (S3, S7a); 17.5 por D+ ✅. |
+| CU-18 | Editar una lección | 🟡 | 🟡 | 🟢 | 18.1–18.5 ✅ (S2, S3, S7a); 18.6 por D+ ✅. |
+| CU-19 | Reordenar lecciones | 🟡 | 🟡 | 🟢 | 19.1–19.3 ✅ (S2, S3); 19.4 por D+ ✅. |
+| CU-20 | Eliminar una lección | 🟢 | 🟢 | 🟢 | 20.1 ✅ (S7a); 20.2 por D+ ✅. |
+| CU-21 | Editar un ejemplo | 🟢 | 🟢 | 🟢 | 21.1–21.3 ✅ (S7a); 21.4 por D+ ✅. |
+| CU-22 | Probar un ejemplo | 🟢 | 🟢 | 🟢 | 22.2–22.3 ✅ (S2, S7a); 22.1 por D+ ✅. |
+| CU-23 | Gestionar el contenido base (CLI) | 🟡 | 🟡 | 🟢 | 23.1–23.3 ✅ (S7c). |
+| CU-24 | Ejecución aislada | 🟢 | 🟢 | 🟢 | 24.1, 24.3, 24.6 ✅ (S1, S7b). Limitaciones: 24.2, 24.4, 24.5. |
+| CU-25 | Recuperar ejecuciones al iniciar | 🟢 | 🟢 | 🟢 | 25.1–25.2 ✅ (S7b). Limitación: 25.3. |
+| CU-26 | Reportar salud del sistema | 🟡 | 🟢 | 🟢 | 26.1–26.3 ✅ (S7c, revisión). Limitación: 26.4. |
+| CU-27 | Iniciar la app de escritorio | 🟢 | 🟢 | 🟢 | 27.1–27.5 ✅ (S7c). |
+| CU-28 | Realizar un taller guiado | 🔴 | 🔴 | 🟢 | 28.1–28.6 ✅ (S6): taller como tipo de lección. |
+| CU-29 | Progresión recomendada | 🟢 | 🟢 | 🟢 | 29.1–29.2 ✅ (S2). |
+| CU-30 | Comparar ejecuciones | 🔴 | 🔴 | 🟢 | 30.1–30.4 ✅ (S4). |
+| CU-31 | Exportar resultados y métricas | 🔴 | 🔴 | 🟢 | 31.1–31.3 ✅ (S4). |
+| CU-32 | Guardar y reutilizar configuración | 🟡 | 🟡 | 🟢 | 32.1–32.3 ✅ (S4). |
+| CU-33 | Instalar Telar | 🟢 | 🟢⚠ | 🟢 | 33.1 ◐ (S1): la web ya ofrece la v1.0.5; falta la QA de instalación → limitación conocida. |
+| CU-34 | Explorar el catálogo de cursos | 🟡 | 🟡 | 🟢 | 34.1–34.3 ✅ (S5, S7d). |
+| CU-35 | Incorporar un curso | 🟢 | 🟢 | 🟢 | Limitación: 35.1 (progreso anclado en `lesson_id`). |
+| CU-36 | Descargar un curso para edición | 🟢 | 🟢 | 🟢 | 36.2 ✅ (S7d); 36.1 por D+ ✅. Limitación: 36.3. |
+| CU-37 | Publicar un curso | 🟡 | 🟡 | 🟢 | 37.1, 37.3, 37.4 ✅ (S5). Limitación: 37.2. |
+| CU-38 | Actualizar un curso incorporado | 🟡 | 🟡 | 🟢 | 38.1, 38.3 ✅ (S2, S7d). Limitación: 38.2. |
+| CU-39 | Crear un curso | 🔴 | 🔴? | 🔴? | 39.3–39.4 ✅ (D+, S7a). 39.1–39.2 siguen pendientes de la decisión «curso = módulo». |
+| CU-40 | Editar información de un curso | 🔴 | 🔴? | 🔴? | 40.2–40.3 ✅ (S7a, D+). 40.1 sigue pendiente de la misma decisión. |
+| CU-41 | Eliminar un curso | 🔴 | 🔴 | 🟢 | 41.1–41.2 ✅ (S7d, S5), ya con curso = módulo publicable (api-contract §11.8.4). Limitación: 41.3. |
 
 **Recuento.** Director: 20 🟢 / 15 🟡 / 6 🔴. Propuesto hoy, sin tocar código: **22 🟢 / 13 🟡 / 6 🔴**, con 2 🟢 pendientes de verificar (⚠). Al terminar el plan HACER YA más el taller quedarían **36 🟢 / 2 🟡 (CU-16, CU-23) / 3 pendientes de la decisión «curso = módulo» (CU-39, 40, 41)**. Si el director la acepta, CU-39 y CU-40 pasan a 🟢 y CU-41 se cierra con 41.1 (SI HAY TIEMPO).
+
+**Recuento actual (26-09):** **39 🟢 / 0 🟡 / 2 🔴?** (CU-39 y CU-40). Todos los 🚨 de CU-01 a CU-38 y de CU-41 tienen ✅. CU-39 y CU-40 dependen solo de que el director acepte «curso = módulo publicable»: si la acepta, pasan a 🟢 sin más código (CU-39 ≡ CU-13 + CU-37, CU-40 ≡ CU-14). El contrato (§11.8.4) y CU-41 ya usan esa equivalencia.
 
 ### 1.2 Top 10 de trabajo priorizado
 
@@ -145,11 +149,11 @@ Tres ideas que cambian las prioridades:
 **Bugs que un jurado podría ver:**
 
 1. ✅ b638029, 5f79a02 — **El contrato promete algo que el código no hace.** `api-contract.md:510` y el docstring de `routers/progress.py:105` dicen que una lección `run` se completa al terminar el job. `job_runner.py:679-687` solo escribe `last_job_id`, y ningún test lo cubre.
-2. **Re-ejecutar un ejemplo editado pierde el parser** (`jobs.py:117-125`): desaparecen la curva de speedup, las barras comparativas y las observaciones. Es la parte más pedagógica del simulador.
-3. **El cronómetro no corre durante `compiling`.** Un programa que no imprime nada muestra 0:00 toda la ejecución y al final salta de golpe (`jobStore.ts:325`, `useJobSocket.ts:422-427`).
+2. ✅ 1d17085 — **Re-ejecutar un ejemplo editado pierde el parser** (`jobs.py:117-125`): desaparecen la curva de speedup, las barras comparativas y las observaciones. Es la parte más pedagógica del simulador.
+3. ✅ 6d65d04, 82c10fa — **El cronómetro no corre durante `compiling`.** Un programa que no imprime nada muestra 0:00 toda la ejecución y al final salta de golpe (`jobStore.ts:325`, `useJobSocket.ts:422-427`).
 4. ✅ 6b29f57, 5099e7d — **La salida puede llegar con segundos de retraso aunque cada línea termine en `\n`.** `flush_all()` solo corre tras 100 ms **sin** datos (`job_runner.py:467-474`). Con un goteo constante solo se vacía al llegar a 4 KB, lo que incumple §8.4 del contrato. Es S y no toca el contrato.
-5. **La descarga puede no funcionar en Electron** (no se ejecutó, es un riesgo razonado): `API_BASE` es `http://localhost:8000` y la página se sirve desde `file://`. Chromium ignora `download` entre orígenes distintos y `security.ts:50-61` bloquea la navegación http. **Hay que probarlo a mano.**
-6. **La página pública ofrece la v1.0.3** (`site/release.json:2`) mientras la app va por la v1.0.5 (`desktop/package.json:5`). La v1.0.5 es la que activa el catálogo remoto (commit `6b05c1b`), así que quien descargue desde la web podría no tener CU-34/35.
+5. ✅ 71eee1a, 82c10fa — **La descarga puede no funcionar en Electron** (no se ejecutó, es un riesgo razonado): `API_BASE` es `http://localhost:8000` y la página se sirve desde `file://`. Chromium ignora `download` entre orígenes distintos y `security.ts:50-61` bloquea la navegación http. **Hay que probarlo a mano.**
+6. ◐ 2ff51c1 (la web ya ofrece la v1.0.5; falta la QA de instalación de CU-33.1) — **La página pública ofrece la v1.0.3** (`site/release.json:2`) mientras la app va por la v1.0.5 (`desktop/package.json:5`). La v1.0.5 es la que activa el catálogo remoto (commit `6b05c1b`), así que quien descargue desde la web podría no tener CU-34/35.
 7. ✅ af72fc8 — **Resultados dice «Job completado» también para fallidos, cancelados y timeouts** (`ResultsScreen.tsx:146,152`).
 8. ✅ b638029, f92d9fa — **Tres criterios distintos de progreso.** `/modules` cuenta solo las habilitadas en el numerador y todas en el denominador; `/catalog/status` cuenta todas; `/progress` cuenta solo las habilitadas.
 9. ✅ 6a400bd, f92d9fa — **Una lección archivada es accesible por URL sin ningún aviso** (`LessonDetail.archived` existe, pero ningún `.tsx` lo lee).
@@ -158,12 +162,12 @@ Tres ideas que cambian las prioridades:
 **Deuda técnica:**
 
 11. ✅ 1dc3950 — **El DTO admin del frontend no sigue el contrato** (`api/admin-types.ts:113-139`): le faltan `video_url`, `enabled` y `completion_rule`. Es la **causa raíz** de 17.1, 17.2 y 18.1.
-12. **Los 422 de pydantic no se entienden en el front**: `coerceEntries` busca `{field, reason}` y pydantic envía `{type, loc, msg}`. Es la causa raíz del grupo «errores por campo».
+12. ✅ 2eece9d — **Los 422 de pydantic no se entienden en el front**: `coerceEntries` busca `{field, reason}` y pydantic envía `{type, loc, msg}`. Es la causa raíz del grupo «errores por campo».
 13. ✅ 7f079e2, f0d9980 — **`/health` y `/system` bloquean el [event loop](#g-event-loop)** con llamadas síncronas a Docker de hasta 120 s. `useSystemInfo` reintenta `/system` 60 veces.
 14. ✅ 785aaa0 — **`locally_modified` nunca se activa** (`set_locally_modified_no_commit` no tiene llamadores). Una actualización pisa sin avisar las ediciones del admin.
 15. ✅ 785aaa0 — **Probable (no ejecutado): el autor se verá a sí mismo con «actualización disponible»** tras publicar, porque `installed_modules.installed_version` no se actualiza.
-16. **Un comentario falso en la UI:** `PublishModuleDialog.tsx:13-14` asegura que se anclan versión y checksum. No es así.
-17. **El checksum del ensayo nunca coincide con el publicado**, porque `published_at` entra en el hash y se recalcula en cada llamada.
+16. ✅ 99585b7 — **Un comentario falso en la UI:** `PublishModuleDialog.tsx:13-14` asegura que se anclan versión y checksum. No es así.
+17. Pendiente, limitación conocida (ligada a 37.2, NO HACER): D+ lo sortea comparando `content_hash` (8df6234), que no incluye `published_at`. — **El checksum del ensayo nunca coincide con el publicado**, porque `published_at` entra en el hash y se recalcula en cada llamada.
 18. ✅ 0b7b607 — **`--check` de la CLI sin `--db` nunca mira la base instalada**: siempre dice «contenido OK».
 19. ✅ 0b7b607 — **`--prune` deja progreso [huérfano](#g-huerfano)**: un id reutilizado lo «resucita».
 20. ✅ 0b7b607 — **La CLI no avisa al servidor en marcha.** Tras un seed/reset, el estudiante ve el contenido viejo hasta reiniciar.
@@ -171,7 +175,7 @@ Tres ideas que cambian las prioridades:
 22. ✅ b638029 — **`POST /jobs` no comprueba que `lesson_id` corresponda al ejemplo.** Si se implementa `run` sin arreglar esto, cualquier ejecución completaría cualquier lección.
 23. ✅ a7a0b42 — **Modo web:** el pie de estado se pone verde con cualquier `/health` 200, aunque Docker esté caído.
 24. ✅ 7e32ef1 — **`ThreadsTable` pinta N+1 filas** («master» más t0..tN-1). En OpenMP el master **es** el hilo 0: es un error conceptual en un curso de OpenMP.
-25. **Versiones internas descuadradas:** el compose empaquetado fija `telar-backend:1.0.2` y `BACKEND_VERSION = "1.0.1"`, mientras la app va por la 1.0.5.
+25. **Pendiente** (sin ✅ en ninguna sesión; sigue igual a 2026-09-26) — **Versiones internas descuadradas:** el compose empaquetado fija `telar-backend:1.0.2` y `BACKEND_VERSION = "1.0.1"`, mientras la app va por la 1.0.5.
 
 **Aviso sobre los archivos «modificados» de `git status`:** los 29 son **solo cambios de fin de línea (CRLF)**. `git diff --ignore-cr-at-eol` sale vacío y no hay arreglos en curso. Un `.gitattributes` con `* text=auto eol=lf` más un `git add --renormalize .` lo dejaría limpio (también aparece `.gitattributes` como modificado).
 
@@ -529,7 +533,7 @@ Leyenda:
 | CU-01.1 | Búsqueda y filtros: módulos sin coincidencias y resultados ocultos en módulos cerrados | 🚨 | ✅ | HACER YA ✅ f92d9fa | S | Bajo | Disponibilidad de lecciones |
 | CU-01.2 | Mensaje global «sin resultados» | 💡 | ✅ | SI HAY TIEMPO ✅ f92d9fa | S | Bajo | Suelto |
 | CU-01.3 | «Continuar/Empezar» con id fijo `primerEjemplo` | 💡 | ✅ | HACER YA ✅ f92d9fa | S | Bajo | Disponibilidad de lecciones |
-| CU-02.1 | Taller asociado a la lección | 🚨 | ✅ | RECLASIFICAR | L | Alto | Requisitos de completitud |
+| CU-02.1 | Taller asociado a la lección | 🚨 | ✅ | RECLASIFICAR ✅ a26fee9 (el taller es un tipo de lección, CU-28) | L | Alto | Requisitos de completitud |
 | CU-02.2 | Componentes obligatorios y opcionales | 💡 | ✅ | NO HACER | L | Medio | Requisitos de completitud |
 | CU-02.3 | El quiz completa la lección aunque haya otros requisitos | 💡 | ✅ | HACER YA ✅ b638029, 5f79a02 | S | Bajo | Requisitos de completitud |
 | CU-02.4 | Completar por visualización (falta el botón; el backend ya lo soporta) | 💡 | ◐ | HACER YA ✅ f92d9fa | S | Bajo | Requisitos de completitud |
@@ -684,7 +688,7 @@ F0 Verificar (0,5 d) ──► F1 Datos correctos (3,5 d) ──► F2 Autoría 
 | **F2 · Autoría** | DTO admin al día → lección sin ejemplo (17.1), selector de regla y video (17.2, **exige F1**), agregar ejemplo (18.2), eliminar quiz (18.3), reorden automático con `PUT /admin/lessons/reorder` (19.1, **exige 18.1**) | 4,5 | F1 | CU-17, CU-18, CU-19 |
 | **F3 · Simulador y análisis** | Re-ejecutar (04.1, 32.2, 32.3) → configuraciones guardadas (32.1) → exportar JSON (31) → comparar (30, reutiliza el formateo de 31). Rótulo y cronómetro en vivo (07.1, 07.4) + flush del drainer + error de descarga (10.1) | 8,5 | F0 | CU-04, CU-07, CU-30, CU-31, CU-32 |
 | **F4 · Catálogo y D+** | Validar al publicar con `parse_bundle` + `_verificar_contenido`, también en el ensayo (37.1); pantalla de detalle (34.1); revalidar el índice al actualizar (41.2); **D+**: etiqueta «Vista previa (borrador)» en Aprender y detección de cambios por checksum sin `published_at` (37.3, 37.4) | 5,5 | F0 | CU-34, CU-37; reclasifica los 13 ítems de borrador/publicado |
-| **Cierre** | Alinear `casos-de-uso.md` a los 41 CU; actualizar los estados en la auditoría | 0,5 | Todo | Documentación |
+| **Cierre** | Alinear `casos-de-uso.md` a los 41 CU; actualizar los estados en la auditoría | 0,5 | Todo | Documentación ✅ a26fee9, ab68f55, 96bd6a2 (S8) |
 | **Subtotal HACER YA** | | **≈24** | | 🟢 pasa de 20 a 35 |
 | **F5 · Feature taller** | Migración 6 (`lessons.kind`, `workshop_steps`, `workshop_step_progress`) → endpoints aditivos → vista de pasos con casillas → editor de pasos en Autoría → `bundle_format: 2` solo para bundles con talleres | 6–7 | F1 (diseño A), F2 (editor de lecciones) | CU-28 → 🟢 |
 | **F6 · Si hay tiempo** | Solo arreglos simples. Transversales de UX: respuestas tardías (1), guardas (1,5), errores por campo (1). Simulador sin catálogo (0,5). En vivo y resultados (2). Robustez selectiva (2). Escritorio y salud (2,5). CLI (2). Autoría: borrar en cascada 16.1–16.2, 20.1, 21.1 (2,75). Requisito visible 12.3 (1). Catálogo: 34.2, 34.3, 36.2, 38.3 (1,5) y retirar del catálogo 41.1 (2,5) | ≈20 | F1–F4 | CU-16, CU-23, CU-41 y sugerencias |
