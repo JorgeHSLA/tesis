@@ -211,6 +211,25 @@ class Example:
 
 
 @dataclass(frozen=True)
+class WorkshopStep:
+    """S6 · CU-28: un paso de un taller (``workshop_steps``).
+
+    ``idx`` es la posición 0..n-1. ``example_id`` es opcional: con él el paso
+    ofrece «Abrir en el simulador»; sin él es solo lectura y acción.
+    """
+
+    idx: int
+    title: str
+    body_markdown: str
+    example_id: str | None
+
+
+#: S6 · CU-28: los dos tipos de lección (``lessons.kind``).
+KIND_LECCION = "leccion"
+KIND_TALLER = "taller"
+
+
+@dataclass(frozen=True)
 class Lesson:
     id: str
     module_id: str
@@ -240,6 +259,15 @@ class Lesson:
     recommended: tuple[Recommended, ...]
     prev_lesson_id: str | None
     next_lesson_id: str | None
+    #: S6 · CU-28: ``leccion`` | ``taller``. En un taller la ``completion_rule``
+    #: se ignora (se guarda ``viewed``): lo completan sus pasos.
+    kind: str = KIND_LECCION
+    #: Pasos del taller en orden de ``idx``. Vacío en una lección normal.
+    steps: tuple[WorkshopStep, ...] = ()
+
+    @property
+    def is_taller(self) -> bool:
+        return self.kind == KIND_TALLER
 
 
 #: La misma regla que ``cuenta_para_progreso``, para las consultas que la
@@ -710,12 +738,37 @@ def _vecinos_de_la_ruta(rows: list) -> list[tuple[str | None, str | None]]:
     return vecinos
 
 
+def _load_steps_from_db(
+    rows: list, example_ids: set[str]
+) -> dict[str, tuple[WorkshopStep, ...]]:
+    """``workshop_steps`` → pasos por lección, ya en orden de ``idx``.
+
+    Un ``example_id`` cuyo ejemplo ya no existe (el autor lo borró) se poda del
+    SNAPSHOT, no del dato, igual que ``recommended``: el paso queda como de solo
+    lectura en vez de ofrecer un «Abrir en el simulador» que daría 404.
+    """
+    pasos: dict[str, list[WorkshopStep]] = {}
+    for row in rows:  # ya vienen ORDER BY lesson_id, idx
+        example_id = row["example_id"]
+        pasos.setdefault(row["lesson_id"], []).append(
+            WorkshopStep(
+                idx=row["idx"],
+                title=row["title"],
+                body_markdown=row["body_markdown"],
+                example_id=example_id if example_id in example_ids else None,
+            )
+        )
+    return {lesson_id: tuple(lista) for lesson_id, lista in pasos.items()}
+
+
 def _load_lessons_from_db(
     rows: list,
     example_ids_by_lesson: dict[str, str],
     quizzes: dict[str, Quiz],
     module_ids: set[str],
+    steps_by_lesson: dict[str, tuple[WorkshopStep, ...]] | None = None,
 ) -> dict[str, Lesson]:
+    steps_by_lesson = steps_by_lesson or {}
     ordered = list(rows)  # ya vienen ORDER BY (modules."order", lessons."order")
     # E2: la unicidad del `order` es POR MÓDULO y solo entre lecciones vivas
     # (índice parcial de la migración 5). Un `order` repetido entre módulos
@@ -771,6 +824,14 @@ def _load_lessons_from_db(
             ),
             prev_lesson_id=vecinos[index][0],
             next_lesson_id=vecinos[index][1],
+            kind=row["kind"],
+            # Los pasos de una lección que dejó de ser taller se conservan en la
+            # tabla (el autor puede volver a convertirla) pero no se exponen.
+            steps=(
+                steps_by_lesson.get(lesson_id, ())
+                if row["kind"] == KIND_TALLER
+                else ()
+            ),
         )
     return _podar_recommended(lessons)
 
@@ -910,6 +971,15 @@ class ContentRepository:
             ).fetchall()
         )
 
+        step_rows = list(
+            await (
+                await db.execute(
+                    "SELECT lesson_id, idx, title, body_markdown, example_id "
+                    "FROM workshop_steps ORDER BY lesson_id, idx"
+                )
+            ).fetchall()
+        )
+
         module_ids = {row["id"] for row in module_rows}
         lesson_ids_by_module: dict[str, list[str]] = {}
         for row in lesson_rows:
@@ -924,7 +994,11 @@ class ContentRepository:
         }
         quizzes = _load_quizzes_from_db(quiz_rows, pass_thresholds)
         lessons = _load_lessons_from_db(
-            lesson_rows, example_ids_by_lesson, quizzes, module_ids
+            lesson_rows,
+            example_ids_by_lesson,
+            quizzes,
+            module_ids,
+            _load_steps_from_db(step_rows, set(examples)),
         )
         modules = _load_modules_from_db(module_rows, lesson_ids_by_module)
         return cls(

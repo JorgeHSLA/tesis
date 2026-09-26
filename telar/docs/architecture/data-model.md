@@ -1030,3 +1030,47 @@ esquema, y esta tabla es el sitio donde esa decisión se vería.
 Es el único campo del bundle que **podría** contener un dato personal si alguien
 escribe ahí su nombre; se documenta para que sea una elección consciente del
 autor y no una fuga.
+
+---
+
+## 9. Talleres guiados (S6 · CU-28) — migration 6
+
+Un taller es una lección con `kind = 'taller'`: una guía de pasos ordenados con
+una casilla «Lo hice» por paso (api-contract §12). La migración 6 no reconstruye
+ninguna tabla:
+
+```sql
+ALTER TABLE lessons ADD COLUMN kind TEXT NOT NULL DEFAULT 'leccion'
+    CHECK (kind IN ('leccion','taller'));
+
+CREATE TABLE workshop_steps (          -- contenido (viaja en el bundle)
+    lesson_id      TEXT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+    idx            INTEGER NOT NULL CHECK (idx >= 0),   -- 0..n-1, contiguo
+    title          TEXT NOT NULL CHECK (length(title) > 0),
+    body_markdown  TEXT NOT NULL,
+    example_id     TEXT,                                -- opcional, sin FK
+    PRIMARY KEY (lesson_id, idx)
+);
+
+CREATE TABLE workshop_step_progress (  -- estado del estudiante (nunca sale)
+    lesson_id  TEXT NOT NULL,                           -- sin FK, como lesson_progress
+    idx        INTEGER NOT NULL CHECK (idx >= 0),
+    done_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    PRIMARY KEY (lesson_id, idx)
+);
+```
+
+- **Una base existente abre igual**: todas sus lecciones quedan `leccion`.
+- **`completion_rule` en un taller**: se guarda `'viewed'` y se ignora; el CHECK
+  de la migración 5 no se toca. Completar = todos los pasos marcados
+  (`services/taller.taller_completo`) → `lesson_progress.completed = 1`,
+  `completed_via = 'manual'`. `completed` es monótono (desmarcar no descompleta).
+- **Casillas y ciclo de vida**: sin FK a `lessons` a propósito (§8.3): sobreviven
+  a un archivado. `content_admin.delete_lesson` las purga al borrar (BL-01); el
+  actualizador solo las purga con `on_removed_lessons="purge"`. Una casilla
+  queda anclada al `idx`: si una versión nueva del módulo reescribe los pasos,
+  las marcas se quedan en su posición (el taller ya completado sigue
+  completado); en autoría local, reordenar o borrar pasos las mueve con su paso.
+- **Contenido vs. estado (§8.5)**: `kind` y `workshop_steps` son contenido y
+  viajan en el bundle (formato 2, §11.10); `workshop_step_progress` es estado y
+  jamás sale de la máquina.
