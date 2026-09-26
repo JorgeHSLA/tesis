@@ -167,7 +167,9 @@ async def put_workshop_step(
         return envelope_error(
             404, "STEP_NOT_FOUND", f"La lección {lesson_id} no tiene el paso {idx}"
         )
+    # Filtro rápido contra el snapshot; la verdad (pasos vigentes) se relee
+    # dentro del lock en `marcar_paso`.
     result = await marcar_paso(
-        request.app.state.db, progress_repo, lesson, idx, body.done
+        request.app.state.db, progress_repo, lesson_id, idx, body.done
     )
     return envelope_ok(result)

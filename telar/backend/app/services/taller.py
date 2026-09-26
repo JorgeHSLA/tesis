@@ -23,29 +23,33 @@ Reglas que este módulo sostiene:
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from app import db as database
+from app.errors import ApiException
+from app.repositories import content_admin
 from app.repositories import workshop as workshop_repo
-from app.repositories.content import (
-    KIND_TALLER,
-    SQL_CUENTA_PARA_PROGRESO,
-    WorkshopStep,
-)
+from app.repositories.content import KIND_TALLER, SQL_CUENTA_PARA_PROGRESO
 from app.schemas import WorkshopStepUpdateResult
 
 if TYPE_CHECKING:
     import aiosqlite
 
-    from app.repositories.content import Lesson
     from app.repositories.progress import ProgressRepository
+
+
+class _ConIdx(Protocol):
+    """Un paso, del snapshot (``WorkshopStep``) o de la DB (``StepRow``)."""
+
+    @property
+    def idx(self) -> int: ...
 
 #: ``lesson_progress.completed_via`` de un taller: ya admitido por el CHECK de la
 #: migración 5; el estudiante lo completa con sus propias marcas.
 COMPLETED_VIA_TALLER = "manual"
 
 
-def taller_completo(steps: Sequence[WorkshopStep], marcas: Iterable[int]) -> bool:
+def taller_completo(steps: Sequence[_ConIdx], marcas: Iterable[int]) -> bool:
     """¿Están marcados todos los pasos? Un taller sin pasos nunca está completo.
 
     Las marcas de pasos que ya no existen (un idx retirado) no cuentan: solo se
@@ -68,25 +72,36 @@ async def _completable(db: "aiosqlite.Connection", lesson_id: str) -> bool:
 async def marcar_paso(
     db: "aiosqlite.Connection",
     progress: "ProgressRepository",
-    lesson: "Lesson",
+    lesson_id: str,
     idx: int,
     done: bool,
 ) -> WorkshopStepUpdateResult:
     """Una unidad de escritura: casilla + ``viewed`` + (quizá) ``completed``.
 
-    El llamador ya comprobó que ``lesson`` es un taller y que ``idx`` existe.
+    Los pasos se releen de la DB DENTRO del lock, no del snapshot en memoria
+    (mismo criterio que ``QuizService._ensure_content_current``): si el autor
+    añadió, borró o reordenó pasos mientras la petición esperaba, se decide con
+    la lista vigente. Así no se completa un taller al que le falta un paso nuevo
+    ni se marca un idx que ya es otro paso (``404 STEP_NOT_FOUND``).
     """
     async with database.write_lock:
         try:
-            await workshop_repo.set_mark_no_commit(db, lesson.id, idx, done)
-            marcas = await workshop_repo.select_marks(db, lesson.id)
+            pasos = await workshop_repo.select_steps(db, lesson_id)
+            if await content_admin.lesson_kind(db, lesson_id) != KIND_TALLER or all(
+                paso.idx != idx for paso in pasos
+            ):
+                raise ApiException(
+                    "STEP_NOT_FOUND", f"La lección {lesson_id} no tiene el paso {idx}"
+                )
+            await workshop_repo.set_mark_no_commit(db, lesson_id, idx, done)
+            marcas = await workshop_repo.select_marks(db, lesson_id)
             completa = (
                 done
-                and taller_completo(lesson.steps, marcas)
-                and await _completable(db, lesson.id)
+                and taller_completo(pasos, marcas)
+                and await _completable(db, lesson_id)
             )
             await progress.upsert_no_commit(
-                lesson.id,
+                lesson_id,
                 viewed=True,
                 completed=True if completa else None,  # None = no tocar (monótono)
                 completed_via=COMPLETED_VIA_TALLER if completa else None,
@@ -95,13 +110,14 @@ async def marcar_paso(
         except Exception:
             await db.rollback()
             raise
-    record = await progress.get(lesson.id)
+        # Dentro del lock: la respuesta es exactamente lo que ESTA unidad dejó.
+        record = await progress.get(lesson_id)
     return WorkshopStepUpdateResult(
-        lesson_id=lesson.id,
+        lesson_id=lesson_id,
         idx=idx,
         done=idx in marcas,
-        steps_done=sum(1 for step in lesson.steps if step.idx in marcas),
-        steps_total=len(lesson.steps),
+        steps_done=sum(1 for paso in pasos if paso.idx in marcas),
+        steps_total=len(pasos),
         completed=bool(record is not None and record.completed),
     )
 

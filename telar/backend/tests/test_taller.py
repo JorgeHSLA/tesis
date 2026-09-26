@@ -502,3 +502,41 @@ def test_borrar_la_leccion_purga_pasos_y_casillas(cliente):
     crear_taller(cliente)
     pasos = _ok(cliente.get(f"/api/v1/lessons/{TALLER}"))["steps"]
     assert all(p["done"] is False for p in pasos)
+
+
+# ───────────── carreras: los pasos se deciden al ESCRIBIR, no al leer ─────────
+
+
+def _sql(cliente, sql: str, *args) -> None:
+    """Cambia la DB SIN recargar el snapshot: la petición verá pasos viejos."""
+    app = cliente.app
+
+    async def _hazlo() -> None:
+        await app.state.db.execute(sql, args)
+        await app.state.db.commit()
+
+    cliente.portal.call(_hazlo)
+
+
+def test_no_se_completa_si_el_autor_anadio_un_paso_mientras_tanto(cliente):
+    crear_taller(cliente, pasos=3)
+    _ok(marcar(cliente, 0))
+    _ok(marcar(cliente, 1))
+    _sql(
+        cliente,
+        "INSERT INTO workshop_steps (lesson_id, idx, title, body_markdown) VALUES (?, 3, 'Nuevo', 'x')",
+        TALLER,
+    )
+    resultado = _ok(marcar(cliente, 2))
+    assert resultado["completed"] is False
+    assert (resultado["steps_done"], resultado["steps_total"]) == (3, 4)
+    assert _progreso(cliente, TALLER)["completed"] is False
+
+
+def test_un_paso_retirado_mientras_tanto_da_404_y_no_deja_casilla(cliente):
+    crear_taller(cliente, pasos=3)
+    _sql(cliente, "DELETE FROM workshop_steps WHERE lesson_id = ? AND idx = 2", TALLER)
+    _error(marcar(cliente, 2), 404, "STEP_NOT_FOUND")
+    assert _filas(
+        cliente, "SELECT COUNT(*) FROM workshop_step_progress WHERE lesson_id = ?", TALLER
+    ) == [(0,)]

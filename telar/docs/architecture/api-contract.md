@@ -3123,6 +3123,10 @@ acepta `viewed`).
   borrarse (§11.6.2).
 - Errores: `404 LESSON_NOT_FOUND`; `404 STEP_NOT_FOUND` si la lección no es un
   taller o no tiene ese `idx`; `422 VALIDATION_ERROR` si el body no es válido.
+- **Pasos vigentes**: la lista de pasos se relee de la DB dentro del lock (como
+  el quiz): si el autor añadió, borró o reordenó pasos mientras la petición
+  esperaba, se decide con la lista actual (`steps_total` la refleja) y un `idx`
+  retirado da `404 STEP_NOT_FOUND` sin dejar casilla.
 
 ### 12.3 Autoría (§10)
 
