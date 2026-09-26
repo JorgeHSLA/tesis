@@ -423,7 +423,7 @@ def _ejemplo_de_otro_modulo(cliente) -> str:
 
 
 def test_el_ejemplo_de_un_paso_tiene_que_ser_del_modulo_del_taller(cliente):
-    """Publicar exige que el ejemplo viaje en el bundle del módulo (§12.5); la
+    """Publicar exige que el ejemplo viaje en el bundle del módulo (§12.4); la
     autoría lo rechaza al guardar, no al publicar."""
     crear_taller(cliente, pasos=1)
     otro = _ejemplo_de_otro_modulo(cliente)

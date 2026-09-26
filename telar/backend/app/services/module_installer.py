@@ -735,7 +735,7 @@ def _params_leccion(leccion: BundleLesson, module_id: str) -> tuple:
 async def _escribir_pasos(
     db: "aiosqlite.Connection", lecciones: "Sequence[BundleLesson]"
 ) -> None:
-    """S6 (§12.5): los pasos de cada lección, tal como vienen en el bundle.
+    """S6 (§12.4): los pasos de cada lección, tal como vienen en el bundle.
 
     Se reescriben SIEMPRE, también en las lecciones que no son taller (con la
     lista vacía): el contenido instalado es el del bundle, y una lección que dejó

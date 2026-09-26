@@ -169,7 +169,7 @@ def paquete(
     checksum=None,
 ) -> Paquete:
     payload = {
-        # Formato 2 solo si algún taller lo exige (§12.5): el resto, como siempre.
+        # Formato 2 solo si algún taller lo exige (§12.4): el resto, como siempre.
         "bundle_format": 2 if any(lec.get("kind") == "taller" for lec in lecciones) else 1,
         "module": {
             "id": module_id,

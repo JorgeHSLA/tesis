@@ -208,7 +208,7 @@ def _quiz(content: "ContentRepository", leccion: "Lesson") -> BundleQuiz | None:
 def _pasos(
     leccion: "Lesson", publicado_de: dict[str, str]
 ) -> list[BundleStep] | None:
-    """S6 (§12.5): los pasos de un taller, con el ``example_id`` PUBLICADO.
+    """S6 (§12.4): los pasos de un taller, con el ``example_id`` PUBLICADO.
 
     Un ejemplo renombrado por `_resolver_ids_de_ejemplo` viaja con otro id; el
     paso tiene que nombrarlo así o el bundle no se instalaría. Un ejemplo que no
@@ -324,7 +324,7 @@ def construir_bundle(
         for l in lecciones
         if l.example_id is not None and l.id in ids_ejemplo
     }
-    # S6 (§12.5): el formato 2 SOLO si hay talleres; sin ellos el bundle sale
+    # S6 (§12.4): el formato 2 SOLO si hay talleres; sin ellos el bundle sale
     # byte a byte como antes y la v1.0.5 lo sigue instalando.
     formato = (
         BUNDLE_FORMAT_TALLERES if any(l.is_taller for l in lecciones) else BUNDLE_FORMAT

@@ -46,7 +46,7 @@ from .admin import (
 
 #: §11.10 — versión del formato del bundle. Un valor distinto ⇒ ``BUNDLE_INVALID``.
 BUNDLE_FORMAT = 1
-#: S6 (§12.5) — formato de un bundle que lleva talleres (``kind``/``steps``). La
+#: S6 (§12.4) — formato de un bundle que lleva talleres (``kind``/``steps``). La
 #: v1.0.5 lo rechaza por esquema (``Literal[1]``); los bundles sin talleres se
 #: siguen publicando como 1, byte a byte iguales que antes.
 BUNDLE_FORMAT_TALLERES = 2
@@ -178,7 +178,7 @@ class BundleQuiz(_Strict):
 
 
 class BundleStep(_Strict):
-    """S6 (§12.5) ``lessons[].steps[]`` — un paso de un taller.
+    """S6 (§12.4) ``lessons[].steps[]`` — un paso de un taller.
 
     La posición la da el orden de la lista (``idx`` = índice). ``example_id``
     tiene que ser el id de un ejemplo que viaje en ESTE bundle: la regla es de
@@ -219,9 +219,9 @@ class BundleLesson(_Strict):
     recommended: list[BundleRecommended] = Field(default_factory=list, max_length=6)
     example: BundleExample | None = None  # E1: opcional
     quiz: BundleQuiz | None = None
-    #: S6 (§12.5): solo en ``bundle_format: 2``. Ausente = ``leccion``.
+    #: S6 (§12.4): solo en ``bundle_format: 2``. Ausente = ``leccion``.
     kind: Literal["leccion", "taller"] | None = None
-    #: S6 (§12.5): pasos de un taller, en orden. Solo con ``kind="taller"``.
+    #: S6 (§12.4): pasos de un taller, en orden. Solo con ``kind="taller"``.
     steps: list[BundleStep] | None = Field(default=None, max_length=MAX_WORKSHOP_STEPS)
 
     @model_serializer(mode="wrap")
@@ -267,7 +267,7 @@ class ModuleBundle(_Strict):
     (``409 CHECKSUM_MISMATCH``).
     """
 
-    #: 1 = sin talleres (todas las versiones); 2 = con talleres (S6, §12.5).
+    #: 1 = sin talleres (todas las versiones); 2 = con talleres (S6, §12.4).
     bundle_format: Literal[1, 2]
     checksum: str = Field(pattern=CHECKSUM_PATTERN)
     module: BundleModule

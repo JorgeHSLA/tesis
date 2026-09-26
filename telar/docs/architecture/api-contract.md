@@ -2264,7 +2264,7 @@ contenido se sirve desde SQLite igual que en Fase 4.
 Layout: `modulos/<module_id>/v<version>.json` (bundle, **inmutable**) +
 `modulos/index.json` (índice, **mutable** por CAS).
 
-> **S6 (§12.5):** un bundle con talleres lleva `lessons[].kind`/`steps` y se
+> **S6 (§12.4):** un bundle con talleres lleva `lessons[].kind`/`steps` y se
 > publica como `bundle_format: 2`; sin talleres sigue siendo `1`, byte a byte
 > igual. El checksum (§11.8.2) y el índice no cambian.
 
@@ -3152,7 +3152,7 @@ acepta `viewed`).
 
   Validación: `title` 1..160; `body_markdown` 1..20 000 y en el subset (§10.6);
   `example_id` con `ID_PATTERN`, existente y de una lección del **mismo módulo**
-  que el taller (lo que publicar exige, §12.5); como mucho 50 pasos; la lección
+  que el taller (lo que publicar exige, §12.4); como mucho 50 pasos; la lección
   tiene que ser un taller. Errores: `404 LESSON_NOT_FOUND`, `404
   STEP_NOT_FOUND`, `422 CONTENT_VALIDATION_ERROR` (`field`: `kind`,
   `body_markdown`, `example_id`, `steps`, `order`), `422 VALIDATION_ERROR`.
@@ -3160,7 +3160,7 @@ acepta `viewed`).
 - `DELETE /admin/lessons/{id}` purga también `workshop_step_progress` (BL-01): un
   id reutilizado no resucita casillas de un taller anterior.
 
-### 12.5 Catálogo (§11.10): `bundle_format: 2`
+### 12.4 Catálogo (§11.10): `bundle_format: 2`
 
 - Un bundle que lleva al menos un taller se publica con `bundle_format: 2`; uno
   sin talleres sigue siendo `1` y se serializa **exactamente** como antes (los
@@ -3210,7 +3210,7 @@ acepta `viewed`).
   huérfanas se descartan: sus pasos se fueron con la lección y no hay con qué
   emparejarlas; el `completed` del taller se recupera con `lesson_progress`.
 
-### 12.4 DTOs
+### 12.5 DTOs
 
 - pydantic: `schemas/catalog.py` (`BundleStep`, `BundleLesson.kind/steps`,
   `ModuleBundle.bundle_format: Literal[1, 2]`, `BUNDLE_FORMAT_TALLERES`),
