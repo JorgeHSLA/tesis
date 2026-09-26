@@ -24,11 +24,12 @@ import { AddExamplePanel } from './AddExamplePanel'
 import { blankDraft, EXAMPLE_FIELDS, type ExampleDraft } from './exampleDraft'
 import { ExampleDraftFields } from './ExampleDraftFields'
 import { MarkdownEditor } from './MarkdownEditor'
-import { LessonMetaFields, completionRuleIssue, type LessonMeta } from './LessonMetaFields'
+import { LessonMetaFields, completionRuleIssue, kindIssue, type LessonMeta } from './LessonMetaFields'
+import { WorkshopStepsEditor } from './WorkshopStepsEditor'
 
 const LESSON_FIELDS = [
   'id', 'module_id', 'order', 'title', 'estimated_minutes', 'content_markdown', 'recommended',
-  'video_url', 'enabled', 'completion_rule',
+  'video_url', 'enabled', 'completion_rule', 'kind',
 ]
 
 interface LessonForm {
@@ -59,7 +60,7 @@ function blankForm(moduleId: string): LessonForm {
   return {
     meta: {
       id: '', module_id: moduleId, order: '', title: '', estimated_minutes: '',
-      video_url: '', enabled: true, completion_rule: 'quiz', recommended: [],
+      video_url: '', enabled: true, completion_rule: 'quiz', recommended: [], kind: 'leccion',
     },
     content_markdown: '',
     withExample: false,
@@ -79,6 +80,7 @@ function fromDetail(dto: AdminLessonDetailDto): LessonForm {
       enabled: dto.enabled,
       completion_rule: dto.completion_rule,
       recommended: dto.recommended,
+      kind: dto.kind ?? 'leccion',
     },
     content_markdown: dto.content_markdown,
     withExample: false,
@@ -118,6 +120,8 @@ export default function AdminLessonEditor() {
   )
   const [fieldErrors, setFieldErrors] = useState<Readonly<Record<string, string>>>({})
   const [exampleDraftDirty, setExampleDraftDirty] = useState(false)
+  // S6: borrador de paso de taller abierto sin guardar (mismo bloqueo).
+  const [stepDraftDirty, setStepDraftDirty] = useState(false)
 
   const loadAll = useCallback(() => {
     setLoadError(null)
@@ -156,7 +160,7 @@ export default function AdminLessonEditor() {
     [form, initial],
   )
 
-  const guard = useUnsavedChangesGuard(dirty || exampleDraftDirty)
+  const guard = useUnsavedChangesGuard(dirty || exampleDraftDirty || stepDraftDirty)
 
   const hasExample = isEdit ? detail?.example != null : (form?.withExample ?? false)
   const hasQuiz = isEdit ? (detail?.has_quiz ?? false) : false
@@ -254,7 +258,13 @@ export default function AdminLessonEditor() {
     }
     const orderNum = Number(form.meta.order.trim())
     const minNum = Number(form.meta.estimated_minutes.trim())
-    const ruleIssue = completionRuleIssue(form.meta.completion_rule, { hasExample, hasQuiz })
+    const isTaller = form.meta.kind === 'taller'
+    if (kindIssue(form.meta.kind, { hasQuiz })) {
+      setBanner('Corrige el tipo de lección antes de guardar.')
+      return
+    }
+    // En un taller la regla no se elige: el backend la guarda como 'viewed'.
+    const ruleIssue = isTaller ? null : completionRuleIssue(form.meta.completion_rule, { hasExample, hasQuiz })
     if (ruleIssue?.level === 'error') {
       // El porqué ya está junto al selector y se va al corregirlo.
       setBanner('Corrige la regla de completitud antes de guardar.')
@@ -266,10 +276,12 @@ export default function AdminLessonEditor() {
       title: form.meta.title.trim(),
       estimated_minutes: minNum,
       content_markdown: form.content_markdown,
-      video_url: form.meta.video_url.trim() || null,
+      // S6: un taller no lleva video y su regla se guarda como 'viewed'.
+      video_url: isTaller ? null : form.meta.video_url.trim() || null,
       enabled: form.meta.enabled,
-      completion_rule: form.meta.completion_rule,
+      completion_rule: isTaller ? 'viewed' : form.meta.completion_rule,
       recommended: form.meta.recommended.filter((r) => r.lesson_id.trim() !== ''),
+      kind: form.meta.kind,
     }
 
     setSaving(true)
@@ -365,6 +377,21 @@ export default function AdminLessonEditor() {
             errors={fieldErrors}
             onChange={patchMeta}
           />
+
+          {isEdit && detail?.kind === 'taller' && (
+            <WorkshopStepsEditor
+              key={detail.id}
+              lessonId={detail.id}
+              steps={detail.steps ?? []}
+              onStepsChange={(steps) => setDetail((prev) => (prev ? { ...prev, steps } : prev))}
+              onDraftDirtyChange={setStepDraftDirty}
+            />
+          )}
+          {form.meta.kind === 'taller' && detail?.kind !== 'taller' && (
+            <p className="mono-small muted" role="note" style={{ margin: 0 }}>
+              Guarda la lección como taller para añadir sus pasos.
+            </p>
+          )}
 
           {isEdit && detail != null && (
             <AddExamplePanel
