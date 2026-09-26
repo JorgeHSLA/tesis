@@ -5,6 +5,7 @@
 // el resultado de la primera llegaba tarde sobre un diálogo ya cerrado. El
 // botón «Cancelar» ya se deshabilitaba; el fondo y Escape no.
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 vi.mock('@/api/admin', () => ({
@@ -123,9 +124,11 @@ describe('ModuleFormDialog en vuelo', () => {
   it('ni un clic fuera ni Escape lo cierran mientras guarda', async () => {
     ;(createModule as Mock).mockReturnValue(pendiente<unknown>().promesa)
     const onClose = vi.fn()
-    render(
-      <ModuleFormDialog mode="create" existingIds={[]} defaultOrder={1} onClose={onClose} onSaved={vi.fn()} />,
+    // Su guarda de cambios sin guardar usa useBlocker: necesita un data router.
+    const dialogo = (
+      <ModuleFormDialog mode="create" existingIds={[]} defaultOrder={1} onClose={onClose} onSaved={vi.fn()} />
     )
+    render(<RouterProvider router={createMemoryRouter([{ path: '/', element: dialogo }])} />)
     fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Nuevo módulo' } })
     fireEvent.change(screen.getByLabelText('Nivel'), { target: { value: 'Intro' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear módulo' }))

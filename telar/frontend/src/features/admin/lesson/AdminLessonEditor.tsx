@@ -3,10 +3,10 @@
 // En /nueva se crea la lección con o sin ejemplo (CU-17.1) vía createLesson; en
 // edición updateLesson (solo la faceta lección) y, si no tiene ejemplo, «Agregar
 // ejemplo» (CU-18.2). Cambiar módulo u orden recoloca las demás lecciones con
-// un PUT /admin/lessons/reorder (CU-19.1). AdminSaveBar sticky + bloqueo de
-// navegación con cambios sin guardar.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useBlocker, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+// un PUT /admin/lessons/reorder (CU-19.1). AdminSaveBar sticky + guarda de
+// cambios sin guardar para toda navegación y la recarga (useUnsavedChangesGuard).
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
 import { createLesson, getAdminLesson, getAdminModules, reorderLessons, updateLesson } from '../../../api/admin'
 import { getSystem } from '../../../api/system'
@@ -16,7 +16,7 @@ import { Chip } from '../../../components/ui/Chip'
 import { ErrorState } from '../../../components/ui/ErrorState'
 import { Skeleton } from '../../../components/ui/Skeleton'
 import { AdminSaveBar } from '../../../components/admin/AdminSaveBar'
-import { ConfirmDialog } from '../../../components/admin/ConfirmDialog'
+import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard'
 import { isPositionTaken, planLessonMove } from '../../../lib/lessonMove'
 import { parseContentErrors } from '../field-errors'
 import { AddExamplePanel } from './AddExamplePanel'
@@ -125,7 +125,6 @@ export default function AdminLessonEditor() {
   )
   const [fieldErrors, setFieldErrors] = useState<Readonly<Record<string, string>>>({})
   const [exampleDraftDirty, setExampleDraftDirty] = useState(false)
-  const bypassBlock = useRef(false)
 
   const loadAll = useCallback(() => {
     setLoadError(null)
@@ -164,10 +163,7 @@ export default function AdminLessonEditor() {
     [form, initial],
   )
 
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      (dirty || exampleDraftDirty) && !bypassBlock.current && currentLocation.pathname !== nextLocation.pathname,
-  )
+  const guard = useUnsavedChangesGuard(dirty || exampleDraftDirty)
 
   const hasExample = isEdit ? detail?.example != null : (form?.withExample ?? false)
   const hasQuiz = isEdit ? (detail?.has_quiz ?? false) : false
@@ -232,7 +228,7 @@ export default function AdminLessonEditor() {
       example: f.withExample ? f.draft.example : null,
       source_code: f.withExample ? f.draft.source_code : null,
     })
-    bypassBlock.current = true
+    guard.allowNavigation()
     setInitial(f)
     if (!taken) {
       navigate('/admin')
@@ -421,16 +417,7 @@ export default function AdminLessonEditor() {
         saveLabel={isEdit ? 'Guardar lección' : 'Crear lección'}
       />
 
-      <ConfirmDialog
-        open={blocker.state === 'blocked'}
-        tone="danger"
-        title="Cambios sin guardar"
-        body="Si sales ahora perderás los cambios que no has guardado. ¿Quieres salir de todos modos?"
-        confirmLabel="Salir sin guardar"
-        cancelLabel="Seguir editando"
-        onConfirm={() => blocker.proceed?.()}
-        onCancel={() => blocker.reset?.()}
-      />
+      {guard.dialog}
     </section>
   )
 }

@@ -4,8 +4,10 @@
 // muestra como preview de solo lectura. El «Orden» viene prellenado con
 // maxOrden+1. En EDICIÓN el `id` es de solo lectura (es PK). Mapea los errores
 // del backend (409 DUPLICATE_ID/ORDER_CONFLICT, 422) a un banner del diálogo.
-// fase4-autoria-design §9.F(2).
+// Con cambios, Escape / clic fuera / Cancelar preguntan antes de descartarlos
+// (useUnsavedChangesGuard); con un guardado en vuelo no se cierra. §9.F(2).
 import { useEffect, useState, type FormEvent } from 'react'
+import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard'
 import { ApiError } from '../../../api/client'
 import { createModule, updateModule } from '../../../api/admin'
 import type { ModuleDto } from '../../../api/types'
@@ -44,14 +46,26 @@ export function ModuleFormDialog({
   onClose,
   onSaved,
 }: ModuleFormDialogProps) {
-  const [order, setOrder] = useState(
-    String(mode === 'create' ? (defaultOrder ?? 1) : (initial?.order ?? '')),
-  )
-  const [title, setTitle] = useState(initial?.title ?? '')
-  const [description, setDescription] = useState(initial?.description ?? '')
-  const [level, setLevel] = useState(initial?.level ?? '')
+  const [start] = useState(() => ({
+    order: String(mode === 'create' ? (defaultOrder ?? 1) : (initial?.order ?? '')),
+    title: initial?.title ?? '',
+    description: initial?.description ?? '',
+    level: initial?.level ?? '',
+  }))
+  const [order, setOrder] = useState(start.order)
+  const [title, setTitle] = useState(start.title)
+  const [description, setDescription] = useState(start.description)
+  const [level, setLevel] = useState(start.level)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  const dirty =
+    order !== start.order || title !== start.title || description !== start.description || level !== start.level
+  const guard = useUnsavedChangesGuard(dirty)
+  // Con un guardado en vuelo no se cierra; con cambios, se pregunta antes.
+  const requestClose = () => {
+    if (!saving) guard.confirm(onClose)
+  }
 
   // Identificador: en edición es la PK inmutable; en creación se DERIVA del
   // título en cada render (barato) y se deduplica contra los existentes.
@@ -64,11 +78,12 @@ export function ModuleFormDialog({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !saving) onClose()
+      // Con la pregunta abierta, Escape es suyo (la cierra ella).
+      if (e.key === 'Escape' && !guard.asking) requestClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose, saving])
+  })
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -110,29 +125,42 @@ export function ModuleFormDialog({
   }
 
   return (
-    <div className="admin-modal-backdrop" onMouseDown={saving ? undefined : onClose}>
-      <form
-        className="admin-modal admin-modal-form card"
-        aria-labelledby="module-form-title"
-        onMouseDown={(e) => e.stopPropagation()}
-        onSubmit={submit}
-        noValidate
-      >
-        <h3 id="module-form-title" className="display-md">
-          {mode === 'create' ? 'Nuevo módulo' : 'Editar módulo'}
-        </h3>
+    <>
+      <div className="admin-modal-backdrop" onMouseDown={requestClose}>
+        <form
+          className="admin-modal admin-modal-form card"
+          aria-labelledby="module-form-title"
+          onMouseDown={(e) => e.stopPropagation()}
+          onSubmit={submit}
+          noValidate
+        >
+          <h3 id="module-form-title" className="display-md">
+            {mode === 'create' ? 'Nuevo módulo' : 'Editar módulo'}
+          </h3>
 
-        {error != null && (
-          <div className="field-hint error" role="alert" style={{ marginTop: 10 }}>
-            {error}
-          </div>
-        )}
+          {error != null && (
+            <div className="field-hint error" role="alert" style={{ marginTop: 10 }}>
+              {error}
+            </div>
+          )}
 
-        {mode === 'edit' ? (
-          <div className="admin-form-grid">
-            <Field label="Identificador" htmlFor="module-id" hint="No editable">
-              <input id="module-id" className="input" value={shownId} readOnly spellCheck={false} />
-            </Field>
+          {mode === 'edit' ? (
+            <div className="admin-form-grid">
+              <Field label="Identificador" htmlFor="module-id" hint="No editable">
+                <input id="module-id" className="input" value={shownId} readOnly spellCheck={false} />
+              </Field>
+              <Field label="Orden" htmlFor="module-order">
+                <input
+                  id="module-order"
+                  className="input"
+                  type="number"
+                  min={1}
+                  value={order}
+                  onChange={(e) => setOrder(e.currentTarget.value)}
+                />
+              </Field>
+            </div>
+          ) : (
             <Field label="Orden" htmlFor="module-order">
               <input
                 id="module-order"
@@ -143,59 +171,50 @@ export function ModuleFormDialog({
                 onChange={(e) => setOrder(e.currentTarget.value)}
               />
             </Field>
-          </div>
-        ) : (
-          <Field label="Orden" htmlFor="module-order">
-            <input
-              id="module-order"
-              className="input"
-              type="number"
-              min={1}
-              value={order}
-              onChange={(e) => setOrder(e.currentTarget.value)}
+          )}
+
+          <Field label="Título" htmlFor="module-title">
+            <input id="module-title" className="input" value={title} onChange={(e) => setTitle(e.currentTarget.value)} />
+          </Field>
+
+          {mode === 'create' && (
+            <p className="admin-slug-preview" aria-live="polite">
+              {generatedId !== '' ? (
+                <>
+                  Se creará como: <code className="mono-small">{generatedId}</code>
+                </>
+              ) : (
+                <span className="muted">El identificador se generará a partir del título.</span>
+              )}
+            </p>
+          )}
+
+          <Field label="Nivel" htmlFor="module-level" hint="Ej.: Introductorio, Intermedio, Avanzado">
+            <input id="module-level" className="input" value={level} onChange={(e) => setLevel(e.currentTarget.value)} />
+          </Field>
+
+          <Field label="Descripción" htmlFor="module-description">
+            <textarea
+              id="module-description"
+              className="textarea"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.currentTarget.value)}
             />
           </Field>
-        )}
 
-        <Field label="Título" htmlFor="module-title">
-          <input id="module-title" className="input" value={title} onChange={(e) => setTitle(e.currentTarget.value)} />
-        </Field>
-
-        {mode === 'create' && (
-          <p className="admin-slug-preview" aria-live="polite">
-            {generatedId !== '' ? (
-              <>
-                Se creará como: <code className="mono-small">{generatedId}</code>
-              </>
-            ) : (
-              <span className="muted">El identificador se generará a partir del título.</span>
-            )}
-          </p>
-        )}
-
-        <Field label="Nivel" htmlFor="module-level" hint="Ej.: Introductorio, Intermedio, Avanzado">
-          <input id="module-level" className="input" value={level} onChange={(e) => setLevel(e.currentTarget.value)} />
-        </Field>
-
-        <Field label="Descripción" htmlFor="module-description">
-          <textarea
-            id="module-description"
-            className="textarea"
-            rows={3}
-            value={description}
-            onChange={(e) => setDescription(e.currentTarget.value)}
-          />
-        </Field>
-
-        <div className="admin-modal-actions">
-          <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>
-            Cancelar
-          </Button>
-          <Button type="submit" variant="primary" size="sm" disabled={saving}>
-            {saving ? 'Guardando…' : mode === 'create' ? 'Crear módulo' : 'Guardar cambios'}
-          </Button>
-        </div>
-      </form>
-    </div>
+          <div className="admin-modal-actions">
+            <Button variant="ghost" size="sm" onClick={requestClose} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button type="submit" variant="primary" size="sm" disabled={saving}>
+              {saving ? 'Guardando…' : mode === 'create' ? 'Crear módulo' : 'Guardar cambios'}
+            </Button>
+          </div>
+        </form>
+      </div>
+      {/* Fuera del fondo: un clic en el de la pregunta no debe llegar al del formulario. */}
+      {guard.dialog}
+    </>
   )
 }

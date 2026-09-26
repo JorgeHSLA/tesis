@@ -18,6 +18,7 @@ import { IconHelp, IconPlus } from '../../../components/icons/icons'
 import { AdminSaveBar } from '../../../components/admin/AdminSaveBar'
 import { ConfirmDialog } from '../../../components/admin/ConfirmDialog'
 import { useAdminResource } from '../../../hooks/useAdminResource'
+import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard'
 import { parseContentErrors } from '../field-errors'
 import { QuestionEditorCard } from './QuestionEditorCard'
 
@@ -112,6 +113,7 @@ export default function AdminQuizEditor() {
     [rows, threshold],
   )
   const dirty = rows != null && current !== initial
+  const guard = useUnsavedChangesGuard(dirty)
 
   const patchQuestion = useCallback((index: number, patch: Partial<AdminQuizQuestionDto>) => {
     setRows((prev) => (prev ? prev.map((r, i) => (i === index ? { ...r, ...patch } : r)) : prev))
@@ -301,6 +303,8 @@ export default function AdminQuizEditor() {
         onConfirm={removeQuiz}
         onCancel={() => !deleting && setConfirmingDelete(false)}
       />
+
+      {guard.dialog}
     </section>
   )
 }

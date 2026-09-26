@@ -11,6 +11,7 @@ import { getSystem } from '../../../api/system'
 import type { AdminExampleBaseDto, AdminExampleDto } from '../../../api/admin-types'
 import type { PickedFile } from '../../../lib/pyfile'
 import { useAdminResource } from '../../../hooks/useAdminResource'
+import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard'
 import { Button } from '../../../components/ui/Button'
 import { ErrorState } from '../../../components/ui/ErrorState'
 import { Skeleton } from '../../../components/ui/Skeleton'
@@ -79,6 +80,7 @@ export default function AdminExampleEditor() {
   )
   const codeChanged = form != null && initial != null && form.source_code !== initial.source_code
   const dirty = metaChanged || codeChanged
+  const guard = useUnsavedChangesGuard(dirty)
 
   const patchMeta = useCallback((patch: Partial<AdminExampleBaseDto>) => {
     setForm((prev) => (prev ? { ...prev, meta: { ...prev.meta, ...patch } } : prev))
@@ -202,6 +204,8 @@ export default function AdminExampleEditor() {
         onDiscard={discard}
         saveLabel="Guardar ejemplo"
       />
+
+      {guard.dialog}
     </section>
   )
 }

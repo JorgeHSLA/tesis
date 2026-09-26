@@ -129,3 +129,22 @@ describe('AdminExampleEditor · probar en simulador', () => {
     expect(await screen.findByText('SIMULADOR?ejemplo=ex-1&prueba=admin')).toBeInTheDocument()
   })
 })
+
+describe('AdminExampleEditor · cambios sin guardar (CU-21.2)', () => {
+  it('salir con cambios pide confirmación', async () => {
+    renderEditor()
+    await screen.findByText('Código del ejemplo')
+    fireEvent.change(screen.getByLabelText('Editor de código Python del ejemplo'), { target: { value: 'print(2)' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al panel' }))
+    expect(await screen.findByRole('dialog', { name: 'Cambios sin guardar' })).toBeInTheDocument()
+    expect(screen.queryByText('PANEL')).toBeNull()
+  })
+
+  it('sin cambios sale directamente', async () => {
+    renderEditor()
+    await screen.findByText('Código del ejemplo')
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al panel' }))
+    expect(await screen.findByText('PANEL')).toBeInTheDocument()
+  })
+})
+

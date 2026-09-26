@@ -6,6 +6,7 @@ import path from 'node:path'
 import { registerDockerIpc, runDockerAction } from './ipc-docker'
 import { attachLoadFailureHandling } from './load-failure'
 import { hardenSession, attachNavigationGuards } from './security'
+import { attachUnsavedChangesPrompt } from './unsaved-changes'
 import {
   DEV_SERVER_URL,
   PACKAGED_FRONTEND_SUBDIR,
@@ -43,6 +44,7 @@ function createWindow(): BrowserWindow {
   attachNavigationGuards(win) // §7.2
   const load = () => loadInterface(win)
   attachLoadFailureHandling(win, load) // CU-27.5: página de error local + «Reintentar»
+  attachUnsavedChangesPrompt(win) // cerrar/recargar con cambios de Autoría sin guardar
   load()
   // DevTools solo si se pide con TELAR_DEVTOOLS=1; por defecto, ventana limpia.
   if (!app.isPackaged && DEV_SERVER_URL && process.env.TELAR_DEVTOOLS === '1') {

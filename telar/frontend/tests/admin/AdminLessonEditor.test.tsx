@@ -412,4 +412,17 @@ describe('AdminLessonEditor · fallos parciales y borradores (revisión)', () =>
     expect(await screen.findByText('Cambios sin guardar', { selector: 'h3' })).toBeInTheDocument()
     expect(screen.queryByText('PANEL')).not.toBeInTheDocument()
   })
+
+  it('con cambios, recargar o cerrar la ventana pide confirmación (beforeunload)', async () => {
+    renderAt('/admin/lecciones/lesson-1')
+    await screen.findByDisplayValue('Lección Uno')
+    const disparar = () => {
+      const evento = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(evento)
+      return evento.defaultPrevented
+    }
+    expect(disparar()).toBe(false)
+    fireEvent.change(screen.getAllByLabelText('Título')[0], { target: { value: 'Otra' } })
+    expect(disparar()).toBe(true)
+  })
 })
