@@ -3198,8 +3198,16 @@ acepta `viewed`).
   paso se publica con el id **publicado** del ejemplo (`EXAMPLE_ID_RENAMED`).
   `content_hash` (§11.8.3) incluye `kind` y los pasos.
 - **Instalar / actualizar / importar** escriben `lessons.kind` y reescriben los
-  pasos de cada lección del bundle; las casillas del estudiante no se tocan. El
-  fork (§11.7) prefija también el `example_id` de los pasos.
+  pasos de cada lección del bundle. El fork (§11.7) prefija también el
+  `example_id` de los pasos.
+- **Casillas al actualizar** (CU-38): cada casilla sigue al paso de contenido
+  **idéntico** (`title`, `body_markdown`, `example_id`; los duplicados se
+  emparejan en orden); la de un paso cambiado o retirado se descarta y un paso
+  nuevo nace sin marcar. `lesson_progress.completed` no retrocede. El informe
+  (también la vista previa) lo anuncia con el aviso `WORKSHOP_MARKS_RESET` por
+  taller. **Al instalar** (p. ej. reinstalar tras desinstalar) las casillas
+  huérfanas se descartan: sus pasos se fueron con la lección y no hay con qué
+  emparejarlas; el `completed` del taller se recupera con `lesson_progress`.
 
 ### 12.4 DTOs
 

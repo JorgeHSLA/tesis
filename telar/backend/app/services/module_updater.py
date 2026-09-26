@@ -50,7 +50,7 @@ import asyncio
 
 import json
 import logging
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -139,6 +139,12 @@ ESTADO_HTTP: Mapping[str, int] = {
 #: estudiante puede verlo, y se deja pasar. Inventar un código fuera de §11.3
 #: rompería el espejo TS; callarlo sería peor.
 AVISO_MODIFICADO_EN_LOCAL = "MODULE_LOCALLY_MODIFIED"
+
+#: Aviso NO bloqueante: la versión nueva cambia o quita pasos de un taller que
+#: el estudiante ya había marcado, y esas casillas se reinician (las de los
+#: pasos que siguen idénticos viajan con su paso). ``lesson_progress.completed``
+#: no retrocede: un taller completado sigue completado.
+AVISO_CASILLAS_REINICIADAS = "WORKSHOP_MARKS_RESET"
 
 #: ``modules.origin`` de todo lo que entra por aquí: viene del bucket.
 ORIGEN_REMOTO = "remote"
@@ -585,8 +591,8 @@ def build_report(
     # encima los locales, que cubren las que se archivan porque ya no vienen.
     titulos: dict[str, str] = {}
     if bundle is not None:
-        titulos.update({l.id: l.title for l in bundle.lessons})
-    titulos.update({lid: l.title for lid, l in local.lessons.items() if l.title})
+        titulos.update({lec.id: lec.title for lec in bundle.lessons})
+    titulos.update({lid: lec.title for lid, lec in local.lessons.items() if lec.title})
 
     return UpdateReport(
         module_id=plan.module_id,
@@ -950,7 +956,76 @@ async def _upsert_lecciones(
                 "kind": leccion.kind or "leccion",  # S6: ausente = lección
             },
         )
+    viejos = {
+        lesson_id: [
+            (p.title, p.body_markdown, p.example_id)
+            for p in await workshop_repo.select_steps(db, lesson_id)
+        ]
+        for lesson_id in entrantes
+    }
     await escribir_pasos(db, list(entrantes.values()))
+    # CU-38: las casillas «Lo hice» van por `idx`. Sin esto, una v2 que
+    # reordena, añade o quita pasos dejaría cada marca en el paso que ocupe su
+    # posición — uno que el estudiante nunca hizo.
+    for lesson_id, leccion in entrantes.items():
+        await workshop_repo.remap_marks_no_commit(
+            db,
+            lesson_id,
+            destino_de_marcas(viejos[lesson_id], pasos_del_bundle(leccion)),
+        )
+
+
+def pasos_del_bundle(leccion: BundleLesson) -> list[tuple[str, str, str | None]]:
+    """Los pasos que ``escribir_pasos`` deja escritos para esta lección."""
+    pasos = leccion.steps if leccion.es_taller and leccion.steps else []
+    return [(p.title, p.body_markdown, p.example_id) for p in pasos]
+
+
+def destino_de_marcas(
+    viejos: Sequence[tuple[str, str, str | None]],
+    nuevos: Sequence[tuple[str, str, str | None]],
+) -> dict[int, int | None]:
+    """``idx`` viejo → ``idx`` nuevo del paso de CONTENIDO idéntico, o ``None``.
+
+    Un paso sigue siendo «el mismo» solo si título, texto y ejemplo coinciden;
+    con duplicados se emparejan en orden. Lo que cambió o desapareció no se
+    adivina: su marca se descarta (el ``completed`` del taller no retrocede).
+    """
+    libres: dict[tuple[str, str, str | None], list[int]] = {}
+    for idx, paso in enumerate(nuevos):
+        libres.setdefault(paso, []).append(idx)
+    return {
+        idx: (libres[paso].pop(0) if libres.get(paso) else None)
+        for idx, paso in enumerate(viejos)
+    }
+
+
+async def avisos_de_casillas(
+    db: "aiosqlite.Connection", local: LocalModuleState, bundle: ModuleBundle
+) -> list[MergeWarning]:
+    """Un aviso por taller en el que la actualización reinicia casillas marcadas."""
+    avisos: list[MergeWarning] = []
+    for leccion in bundle.lessons:
+        marcas = await workshop_repo.select_marks(db, leccion.id)
+        if not marcas:
+            continue
+        previa = local.lessons.get(leccion.id)
+        destino = destino_de_marcas(
+            [] if previa is None else list(previa.steps), pasos_del_bundle(leccion)
+        )
+        perdidas = sum(1 for idx in marcas if destino.get(idx) is None)
+        if perdidas:
+            avisos.append(
+                MergeWarning(
+                    code=AVISO_CASILLAS_REINICIADAS,
+                    message=(
+                        f"«{leccion.title}»: {perdidas} casilla(s) marcada(s) se "
+                        "reinician porque su paso cambió o ya no está."
+                    ),
+                    lesson_id=leccion.id,
+                )
+            )
+    return avisos
 
 
 async def _reemplazar_ejemplos(
@@ -1197,6 +1272,7 @@ async def update_module(
                 details=[conflicto.model_dump() for conflicto in plan.conflicts],
             )
         plan.warnings[:0] = avisos
+        plan.warnings.extend(await avisos_de_casillas(db, local, bundle))
 
         if preview:
             # §11.6.2: ni una sentencia. El plan ya está construido sobre el

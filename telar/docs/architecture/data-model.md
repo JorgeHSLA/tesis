@@ -1069,8 +1069,10 @@ CREATE TABLE workshop_step_progress (  -- estado del estudiante (nunca sale)
   a un archivado. `content_admin.delete_lesson` las purga al borrar (BL-01); el
   actualizador solo las purga con `on_removed_lessons="purge"`. Una casilla
   queda anclada al `idx`: si una versión nueva del módulo reescribe los pasos,
-  las marcas se quedan en su posición (el taller ya completado sigue
-  completado); en autoría local, reordenar o borrar pasos las mueve con su paso.
+  cada marca sigue al paso de contenido idéntico y la de un paso cambiado o
+  retirado se descarta (el taller ya completado sigue completado); reinstalar
+  tras desinstalar descarta las huérfanas; en autoría local, reordenar o borrar
+  pasos las mueve con su paso.
 - **Contenido vs. estado (§8.5)**: `kind` y `workshop_steps` son contenido y
   viajan en el bundle (formato 2, §11.10); `workshop_step_progress` es estado y
   jamás sale de la máquina.
