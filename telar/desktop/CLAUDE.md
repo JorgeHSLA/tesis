@@ -9,10 +9,12 @@ Ventana Electron que carga el MISMO build del frontend (`../frontend/dist`) y ap
 ```bash
 export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"   # Node 22
 npm run typecheck && npm run build   # esbuild → dist-electron/{main.cjs, preload.cjs}
+npm test                             # tests unitarios (esbuild + node --test)
 npm run check:contract               # verifica types/telar-api.d.ts == ../frontend/src/types/telar.d.ts
 npm run dev                          # vite dev + esbuild watch + electron (necesita display)
 npm run dist:linux                   # AppImage + deb
 npm run dist:win                     # NSIS + portable (necesita Wine o host Windows)
+node scripts/check-youtube-embed.mjs # humo REAL del video de YouTube (red + pantalla; no es test automático)
 ```
 
 ## Archivos
@@ -22,7 +24,7 @@ npm run dist:win                     # NSIS + portable (necesita Wine o host Win
 - `src/ipc-docker.ts` — whitelist CERRADA de acciones `compose:ps/up/stop` → arrays de args fijos, `execFile('docker', ...)` **sin shell**, timeout, `assertTrustedSender` (valida senderFrame).
 - `src/load-failure.ts` — `did-fail-load`/`render-process-gone` → página de error local (`userData/error-carga.html`) con «Reintentar» (CU-27.5, electron-spec §8).
 - `src/unsaved-changes.ts` — `will-prevent-unload` → diálogo «Salir sin guardar / Seguir editando» cuando la Autoría tiene cambios sin guardar (su `beforeunload` cancela la descarga y Electron no muestra nada por sí solo).
-- `src/security.ts` — CSP vía `onHeadersReceived` (connect-src al backend local), `will-navigate` whitelist, `setWindowOpenHandler` deny + `shell.openExternal` solo https.
+- `src/security.ts` — CSP vía `onHeadersReceived` SOLO en documentos de la app (connect-src al backend local), Referer para el iframe de YouTube (`onBeforeSendHeaders`), `will-navigate` whitelist, `setWindowOpenHandler` deny + `shell.openExternal` solo https.
 - `resources/compose/compose.yaml` — compose empaquetado (solo `image:`, sin `build:`). `electron-builder.yml` — targets.
 - `resources/installer.nsh` / `resources/before-remove.sh` — al desinstalar (no al actualizar), paran y borran el contenedor + imágenes Docker; los volúmenes con datos de usuario no se tocan (electron-spec §6.2).
 

@@ -1,5 +1,6 @@
-// security.ts — CSP vía onHeadersReceived, permission handler deny,
-// will-navigate whitelist y windowOpenHandler deny (electron-spec.md §7).
+// security.ts — CSP vía onHeadersReceived (solo documentos de la app), Referer
+// para el reproductor de YouTube, permission handler deny, will-navigate
+// whitelist y windowOpenHandler deny (electron-spec.md §7).
 import { session, shell, type BrowserWindow } from 'electron'
 import { API_ORIGIN, WS_ORIGIN, DEV_SERVER_ORIGIN, DEV_SERVER_URL } from './constants'
 
@@ -31,11 +32,90 @@ const CSP = [
   "form-action 'none'",
 ].join('; ')
 
-/** CSP + denegación de todos los permisos del navegador (§7.1). */
+/** Origen del dev-server si la app corre en dev (null en la app instalada). */
+const APP_DEV_ORIGIN = DEV_SERVER_URL ? new URL(DEV_SERVER_URL).origin : null
+
+/**
+ * ¿Lleva esta respuesta la CSP de Telar? Solo los documentos PROPIOS de la app:
+ * file:// (app instalada), el origen del dev-server (dev) y cualquier mainFrame.
+ * NUNCA un subFrame ni respuestas de otros orígenes: `onHeadersReceived` ve
+ * TODO el tráfico de la sesión, y pegarle la CSP de Telar (script-src 'self'…)
+ * al iframe de youtube-nocookie le bloqueaba al reproductor sus propios
+ * scripts, fuentes y video («An error occurred»). Lo que se puede incrustar
+ * lo sigue acotando `frame-src` de la CSP del documento de la app.
+ */
+export function debeAplicarCsp(
+  details: { url: string; resourceType: string },
+  devOrigin: string | null = APP_DEV_ORIGIN,
+): boolean {
+  if (details.resourceType === 'subFrame') return false
+  if (details.resourceType === 'mainFrame') return true
+  let u: URL
+  try {
+    u = new URL(details.url)
+  } catch {
+    return false
+  }
+  return u.protocol === 'file:' || (devOrigin !== null && u.origin === devOrigin)
+}
+
+/**
+ * Referer que se presenta a YouTube: la página pública del proyecto (GitHub
+ * Pages, site/README.md). Solo el origen, como haría un navegador con
+ * `strict-origin-when-cross-origin`.
+ */
+export const REFERER_YOUTUBE = 'https://telar-javeriana.github.io/'
+
+/**
+ * Dominios (y sus subdominios) del reproductor embebido de YouTube, medidos con
+ * scripts/check-youtube-embed.mjs --hosts: el embed (youtube-nocookie), miniaturas
+ * (ytimg, ggpht), el video (googlevideo) y youtube.com por si el embed redirige.
+ * El resto de hosts que toca el iframe (gstatic, google.com, googleapis) salen
+ * desde la página https de YouTube, que ya manda su propio Referer.
+ */
+const YOUTUBE_DOMAINS = ['youtube-nocookie.com', 'youtube.com', 'ytimg.com', 'googlevideo.com', 'ggpht.com']
+
+/** Filtro de `onBeforeSendHeaders`: la lista de arriba en patrones de URL. */
+const YOUTUBE_URL_PATTERNS = YOUTUBE_DOMAINS.map((d) => `https://*.${d}/*`)
+
+function esHostYouTube(url: string): boolean {
+  try {
+    const u = new URL(url)
+    return (
+      u.protocol === 'https:' &&
+      YOUTUBE_DOMAINS.some((d) => u.hostname === d || u.hostname.endsWith(`.${d}`))
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Cabeceras para una petición saliente. En la app instalada la página es
+ * file:// y Chromium NO manda Referer al iframe; YouTube rechaza los embeds sin
+ * Referer (error 153). Si la petición va a YouTube y no trae Referer, se añade
+ * `REFERER_YOUTUBE`; cualquier otra petición (backend local incluido) se
+ * devuelve intacta. No muta la entrada.
+ */
+export function cabecerasYouTube(
+  url: string,
+  headers: Record<string, string>,
+): Record<string, string> {
+  if (!esHostYouTube(url)) return headers
+  if (Object.keys(headers).some((k) => k.toLowerCase() === 'referer')) return headers
+  return { ...headers, Referer: REFERER_YOUTUBE }
+}
+
+/** CSP + Referer de YouTube + denegación de todos los permisos (§7.1). */
 export function hardenSession(): void {
   session.defaultSession.webRequest.onHeadersReceived((details, cb) => {
+    if (!debeAplicarCsp(details)) return cb({})
     cb({ responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [CSP] } })
   })
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: YOUTUBE_URL_PATTERNS },
+    (details, cb) => cb({ requestHeaders: cabecerasYouTube(details.url, details.requestHeaders) }),
+  )
   // Denegar TODOS los permisos del navegador (cámara, geoloc, notificaciones…):
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false))
 }
