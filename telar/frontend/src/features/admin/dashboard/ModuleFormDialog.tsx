@@ -8,7 +8,7 @@
 // DUPLICATE_ID y el resto van al banner (CU-13.3, 14.3).
 // Con cambios, Escape / clic fuera / Cancelar preguntan antes de descartarlos
 // (useUnsavedChangesGuard); con un guardado en vuelo no se cierra. §9.F(2).
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard'
 import { ApiError } from '../../../api/client'
 import { createModule, updateModule } from '../../../api/admin'
@@ -91,14 +91,19 @@ export function ModuleFormDialog({
       : ''
   const shownId = mode === 'edit' ? (initial?.id ?? '') : generatedId
 
+  // Escape lee el estado más reciente por ref: el listener se registra una vez.
+  const onEscapeRef = useRef<() => void>(() => {})
+  onEscapeRef.current = () => {
+    // Con la pregunta abierta, Escape es suyo (la cierra ella).
+    if (!guard.asking) requestClose()
+  }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Con la pregunta abierta, Escape es suyo (la cierra ella).
-      if (e.key === 'Escape' && !guard.asking) requestClose()
+      if (e.key === 'Escape') onEscapeRef.current()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  })
+  }, [])
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()

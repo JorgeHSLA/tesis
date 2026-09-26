@@ -56,13 +56,15 @@ export function useUnsavedChangesGuard(dirty: boolean): UnsavedChangesGuard {
   }, [])
 
   const blocked = blocker.state === 'blocked'
+  // Puede haber a la vez un cierre de modal pendiente y una navegación
+  // bloqueada (p. ej. «atrás» con la pregunta abierta): una sola respuesta
+  // resuelve las dos, igual que onCancel.
   const onConfirm = () => {
     if (pending != null) {
       setPending(null)
       pending()
-    } else if (blocked) {
-      blocker.proceed()
     }
+    if (blocked) blocker.proceed()
   }
   const onCancel = () => {
     setPending(null)

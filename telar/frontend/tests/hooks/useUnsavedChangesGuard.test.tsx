@@ -147,3 +147,20 @@ describe('useUnsavedChangesGuard · confirm() para modales', () => {
     await waitFor(() => expect(dialogo()).toBeNull())
   })
 })
+
+describe('useUnsavedChangesGuard · cierre de modal y navegación a la vez', () => {
+  it('«Salir sin guardar» resuelve las dos de una vez', async () => {
+    const accion = vi.fn()
+    const router = renderEditor(accion)
+    fireEvent.click(screen.getByText('ensuciar'))
+    fireEvent.click(screen.getByText('cerrar modal'))
+    await screen.findByRole('dialog')
+    await act(async () => {
+      void router.navigate('/otra')
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Salir sin guardar' }))
+    expect(accion).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('OTRA')).toBeInTheDocument()
+  })
+})
+

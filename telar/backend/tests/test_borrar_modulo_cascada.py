@@ -196,3 +196,25 @@ def test_cascade_sobre_un_modulo_inexistente_da_404(cliente):
     r = cliente.delete("/api/v1/admin/modules/noExiste?cascade=true")
     assert r.status_code == 404
     assert r.json()["error"]["code"] == "MODULE_NOT_FOUND"
+
+
+def test_cascade_con_vivas_y_archivadas_purga_todas(cliente):
+    _crear_modulo(cliente)
+    _crear_leccion(cliente, "lViva", 1)
+    _crear_leccion(cliente, "lVieja", 2, con_ejemplo=False)
+    assert cliente.put("/api/v1/progress/lessons/lVieja", json={"viewed": True}).status_code == 200
+    _archivar(cliente, "lVieja")
+
+    r = cliente.delete(f"/api/v1/admin/modules/{MODULO}?cascade=true")
+
+    assert r.status_code == 200, r.text
+    assert _cuenta(cliente, "lessons", "module_id", MODULO) == 0
+    assert _cuenta(cliente, "lesson_progress", "lesson_id", "lVieja") == 0
+
+
+def test_un_cascade_invalido_da_422_y_no_borra(cliente):
+    _crear_modulo(cliente)
+    r = cliente.delete(f"/api/v1/admin/modules/{MODULO}?cascade=quizas")
+    assert r.status_code == 422
+    assert r.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert MODULO in _ids_modulos(cliente)
