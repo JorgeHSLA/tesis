@@ -24,6 +24,7 @@ import {
   updateLesson,
 } from '@/api/admin'
 import { getSystem } from '@/api/system'
+import { ApiError } from '@/api/client'
 import AdminLessonEditor from '@/features/admin/lesson/AdminLessonEditor'
 
 const getAdminModulesMock = getAdminModules as Mock
@@ -67,6 +68,19 @@ function renderAt(path: string) {
   return render(<RouterProvider router={router} />)
 }
 
+/** Contenido mínimo que exige el schema (content_markdown min_length=1). */
+function escribirContenido() {
+  fireEvent.change(screen.getByLabelText('Contenido de la lección (Markdown)'), { target: { value: '# Hola' } })
+}
+
+/** Rellena los obligatorios del ejemplo (título, qué enseña, un aprendizaje). */
+function rellenarEjemplo(indiceTitulo = 1) {
+  fireEvent.change(screen.getAllByLabelText('Título')[indiceTitulo], { target: { value: 'Mi ejemplo' } })
+  fireEvent.change(screen.getByLabelText('Qué enseña'), { target: { value: 'algo' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Añadir aprendizaje' }))
+  fireEvent.change(screen.getByLabelText('Lo que vas a aprender 1'), { target: { value: 'una idea' } })
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   getAdminModulesMock.mockResolvedValue(MODULES)
@@ -108,7 +122,9 @@ describe('AdminLessonEditor · /nueva', () => {
     fireEvent.change(screen.getByLabelText('Módulo'), { target: { value: 'm1' } })
     fireEvent.change(screen.getByLabelText('Orden'), { target: { value: '1' } })
     fireEvent.change(screen.getByLabelText('Minutos estimados'), { target: { value: '10' } })
+    escribirContenido()
     fireEvent.click(screen.getByLabelText('Esta lección tiene ejemplo ejecutable'))
+    rellenarEjemplo()
 
     fireEvent.click(screen.getByRole('button', { name: 'Crear lección' }))
 
@@ -172,6 +188,7 @@ async function rellenarNueva(order = '1') {
   fireEvent.change(screen.getByLabelText('Módulo'), { target: { value: 'm1' } })
   fireEvent.change(screen.getByLabelText('Orden'), { target: { value: order } })
   fireEvent.change(screen.getByLabelText('Minutos estimados'), { target: { value: '10' } })
+  escribirContenido()
 }
 
 describe('AdminLessonEditor · CU-17.1 lección sin ejemplo', () => {
@@ -227,6 +244,7 @@ describe('AdminLessonEditor · CU-17.2 regla, video y habilitada', () => {
 
     fireEvent.click(screen.getByLabelText('Esta lección tiene ejemplo ejecutable'))
     expect(screen.queryByText(/exige que la lección tenga ejemplo ejecutable/)).not.toBeInTheDocument()
+    rellenarEjemplo()
     fireEvent.click(screen.getByRole('button', { name: 'Crear lección' }))
     await waitFor(() => expect(createLessonMock).toHaveBeenCalledTimes(1))
     expect(createLessonMock.mock.calls[0][0].completion_rule).toBe('run')
@@ -252,7 +270,7 @@ describe('AdminLessonEditor · CU-19.3 posición entera', () => {
   it.each(['2.5', '0', '-1', 'abc'])('rechaza la posición %s', async (orden) => {
     await rellenarNueva(orden)
     fireEvent.click(screen.getByRole('button', { name: 'Crear lección' }))
-    expect(await screen.findByText(/entero mayor o igual que 1/)).toBeInTheDocument()
+    expect(await screen.findByText(/número entero entre 1 y 10000/)).toBeInTheDocument()
     expect(createLessonMock).not.toHaveBeenCalled()
   })
 })
@@ -345,7 +363,7 @@ describe('AdminLessonEditor · CU-18.2 agregar ejemplo', () => {
     renderAt('/admin/lecciones/lesson-1')
     fireEvent.click(await screen.findByRole('button', { name: 'Agregar ejemplo' }))
 
-    fireEvent.change(screen.getAllByLabelText('Título')[1], { target: { value: 'Mi ejemplo' } })
+    rellenarEjemplo()
     fireEvent.click(screen.getByRole('button', { name: 'Guardar ejemplo' }))
 
     await waitFor(() => expect(addLessonExampleMock).toHaveBeenCalledTimes(1))
@@ -426,3 +444,46 @@ describe('AdminLessonEditor · fallos parciales y borradores (revisión)', () =>
     expect(disparar()).toBe(true)
   })
 })
+
+describe('AdminLessonEditor · errores por campo (CU-17.4, 18.5)', () => {
+  it('0 minutos ya no vale: se marca el campo y no se envía', async () => {
+    await rellenarNueva()
+    fireEvent.change(screen.getByLabelText('Minutos estimados'), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lección' }))
+    expect(await screen.findByText('Los minutos deben ser un número entero entre 1 y 600.')).toBeInTheDocument()
+    expect(screen.getByText('Revisa los campos marcados.')).toBeInTheDocument()
+    expect(createLessonMock).not.toHaveBeenCalled()
+  })
+
+  it('sin contenido no se envía', async () => {
+    await rellenarNueva()
+    fireEvent.change(screen.getByLabelText('Contenido de la lección (Markdown)'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lección' }))
+    expect(await screen.findByText('El contenido de la lección no puede quedar vacío.')).toBeInTheDocument()
+    expect(createLessonMock).not.toHaveBeenCalled()
+  })
+
+  it('un ejemplo con un nombre inválido se marca en su campo', async () => {
+    await rellenarNueva()
+    fireEvent.click(screen.getByLabelText('Esta lección tiene ejemplo ejecutable'))
+    rellenarEjemplo()
+    fireEvent.change(screen.getByLabelText('Nombre de archivo'), { target: { value: 'mi ejemplo.py' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lección' }))
+    expect(await screen.findByText(/^El nombre debe terminar en \.py/)).toBeInTheDocument()
+    expect(createLessonMock).not.toHaveBeenCalled()
+  })
+
+  it('un 422 de pydantic se muestra junto a su campo, en español', async () => {
+    updateLessonMock.mockRejectedValue(
+      new ApiError('VALIDATION_ERROR', 'El cuerpo o los parámetros de la petición no son válidos.', 422, [
+        { type: 'string_too_long', loc: ['body', 'title'], msg: 'String should have at most 160 characters' },
+      ]),
+    )
+    renderAt('/admin/lecciones/lesson-1')
+    fireEvent.change(await screen.findByDisplayValue('Lección Uno'), { target: { value: 'Otro' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar lección' }))
+    expect(await screen.findByText('El texto es demasiado largo.')).toBeInTheDocument()
+    expect(screen.queryByText(/no son válidos/)).toBeNull()
+  })
+})
+

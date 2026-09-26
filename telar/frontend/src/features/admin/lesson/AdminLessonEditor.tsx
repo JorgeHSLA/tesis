@@ -18,7 +18,8 @@ import { Skeleton } from '../../../components/ui/Skeleton'
 import { AdminSaveBar } from '../../../components/admin/AdminSaveBar'
 import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard'
 import { isPositionTaken, planLessonMove } from '../../../lib/lessonMove'
-import { parseContentErrors } from '../field-errors'
+import { parseContentErrors, saveErrorBanner } from '../field-errors'
+import { exampleIssues, lessonIssues, withPrefix } from '../validation'
 import { AddExamplePanel } from './AddExamplePanel'
 import { blankDraft, EXAMPLE_FIELDS, type ExampleDraft } from './exampleDraft'
 import { ExampleDraftFields } from './ExampleDraftFields'
@@ -83,14 +84,6 @@ function fromDetail(dto: AdminLessonDetailDto): LessonForm {
     withExample: false,
     draft: blankDraft(),
   }
-}
-
-/** Entero ≥ `min` escrito tal cual: «2.5», «1e2» o «» no valen (CU-19.3). */
-function parseIntAtLeast(raw: string, min: number): number | null {
-  const text = raw.trim()
-  if (!/^\d+$/.test(text)) return null
-  const n = Number(text)
-  return n >= min ? n : null
 }
 
 /** Siguiente posición libre al final del módulo (ignora huecos intermedios). */
@@ -248,16 +241,19 @@ export default function AdminLessonEditor() {
 
   const save = useCallback(async () => {
     if (form == null || saving || !dirty) return
-    const orderNum = parseIntAtLeast(form.meta.order, 1)
-    const minNum = parseIntAtLeast(form.meta.estimated_minutes, 0)
-    if (orderNum == null) {
-      setBanner('La posición debe ser un número entero mayor o igual que 1.')
+    // Mismas reglas que el schema (CU-17.4/18.5/19.3): cada error va a su campo.
+    const issues = lessonIssues(form.meta, form.content_markdown)
+    if (!isEdit && form.withExample) {
+      const { source_code: codeIssue, ...exampleOnly } = exampleIssues(form.draft.example, form.draft.source_code)
+      Object.assign(issues, withPrefix(exampleOnly, 'example.'), codeIssue ? { source_code: codeIssue } : null)
+    }
+    if (Object.keys(issues).length > 0) {
+      setFieldErrors(issues)
+      setBanner('Revisa los campos marcados.')
       return
     }
-    if (minNum == null) {
-      setBanner('Los minutos estimados deben ser un número entero mayor o igual que 0.')
-      return
-    }
+    const orderNum = Number(form.meta.order.trim())
+    const minNum = Number(form.meta.estimated_minutes.trim())
     const ruleIssue = completionRuleIssue(form.meta.completion_rule, { hasExample, hasQuiz })
     if (ruleIssue?.level === 'error') {
       // El porqué ya está junto al selector y se va al corregirlo.
@@ -289,7 +285,7 @@ export default function AdminLessonEditor() {
         ? [...LESSON_FIELDS, ...EXAMPLE_FIELDS.map((f) => `example.${f}`), 'source_code']
         : LESSON_FIELDS
       const parsed = parseContentErrors(err, known)
-      const detalle = parsed.banner ?? (err instanceof ApiError ? err.message : 'No se pudo guardar la lección.')
+      const detalle = saveErrorBanner(parsed, err, 'No se pudo guardar la lección.')
       setFieldErrors(parsed.byField)
       setBanner(
         partial

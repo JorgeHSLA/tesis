@@ -1,7 +1,9 @@
 // AdminExampleEditor — uploader/editor de un ejemplo (#/admin/ejemplos/:exampleId).
 // Grid 2col: izq CodeDropzone (.py, lib/pyfile), der ExampleMetaFields. Guardar
 // discrimina: metadatos → updateExample; código → uploadExampleCode (los dos si
-// ambos cambiaron). "Probar en simulador" (si habilitado y sin cambios) navega a
+// ambos cambiaron). Antes de enviar nada valida metadatos Y código con las
+// reglas del schema (CU-21.1): así un código inválido no deja los metadatos
+// guardados a medias. "Probar en simulador" (si habilitado y sin cambios) navega a
 // #/simulador?ejemplo={id} y reusa el pipeline existente. fase4-autoria §9.F.5.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -16,7 +18,8 @@ import { Button } from '../../../components/ui/Button'
 import { ErrorState } from '../../../components/ui/ErrorState'
 import { Skeleton } from '../../../components/ui/Skeleton'
 import { AdminSaveBar } from '../../../components/admin/AdminSaveBar'
-import { parseContentErrors } from '../field-errors'
+import { parseContentErrors, saveErrorBanner } from '../field-errors'
+import { exampleIssues } from '../validation'
 import { CodeDropzone } from './CodeDropzone'
 import { ExampleMetaFields } from './ExampleMetaFields'
 
@@ -102,11 +105,21 @@ export default function AdminExampleEditor() {
 
   const save = useCallback(async () => {
     if (form == null || saving || !dirty) return
+    const issues = exampleIssues(form.meta, form.source_code)
+    if (Object.keys(issues).length > 0) {
+      setFieldErrors(issues)
+      setBanner('Revisa los campos marcados.')
+      return
+    }
     setSaving(true)
     setBanner(null)
     setFieldErrors({})
     try {
-      if (metaChanged) await updateExample(exampleId, form.meta)
+      if (metaChanged) {
+        await updateExample(exampleId, form.meta)
+        // Ya guardados: si el código falla, solo él queda pendiente.
+        setInitial((prev) => (prev ? { ...prev, meta: form.meta } : prev))
+      }
       if (codeChanged) {
         await uploadExampleCode(exampleId, { filename: form.meta.filename, source_code: form.source_code })
       }
@@ -115,7 +128,7 @@ export default function AdminExampleEditor() {
     } catch (err) {
       const parsed = parseContentErrors(err, KNOWN_FIELDS)
       setFieldErrors(parsed.byField)
-      setBanner(parsed.banner ?? (err instanceof ApiError ? err.message : 'No se pudo guardar el ejemplo.'))
+      setBanner(saveErrorBanner(parsed, err, 'No se pudo guardar el ejemplo.'))
     } finally {
       setSaving(false)
     }
