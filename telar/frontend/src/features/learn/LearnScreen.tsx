@@ -29,6 +29,7 @@ import { LessonMedia } from './LessonMedia'
 import { LessonInfo } from './LessonInfo'
 import { LessonSidebar } from './LessonSidebar'
 import { MarkReadCard } from './MarkReadCard'
+import { completionRequirement } from '../../lib/completionRequirement'
 import { QuizRunner } from './QuizRunner'
 import { TracksCard } from './TracksCard'
 
@@ -188,6 +189,8 @@ export default function LearnScreen() {
   const gpuLocked =
     example != null && example.requires_gpu && !(system.data?.gpu_examples_enabled ?? false)
   const runDisabled = gpuLocked || (example != null && !example.enabled)
+  // CU-12.3: qué falta para completarla, según su regla (null si no cuenta).
+  const requirement = completionRequirement(lesson, cachedProgress.completed)
 
   return (
     <section className="screen learn">
@@ -213,6 +216,11 @@ export default function LearnScreen() {
               </span>
             )}
           </div>
+          {requirement != null && (
+            <p className="mono-small muted" data-testid="requisito-completar" style={{ margin: '8px 0 0' }}>
+              {requirement}
+            </p>
+          )}
           {/* C4: `teaches` es el resumen de una línea de qué enseña la lección;
               tampoco se mostraba en ningún sitio. Vive en el EJEMPLO, así que
               una lección conceptual no lo tiene (E1). */}

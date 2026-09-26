@@ -47,3 +47,25 @@ describe('LessonAdminRow · ejemplo', () => {
     expect(destino).not.toHaveTextContent('null')
   })
 })
+
+// CU-20.1: la advertencia nombra solo lo que la lección tiene de verdad.
+describe('LessonAdminRow · advertencia al borrar', () => {
+  it.each([
+    ['hola-ej', true, 'junto con su ejemplo y su quiz'],
+    ['hola-ej', false, 'junto con su ejemplo y el progreso'],
+    [null, true, 'junto con su quiz y el progreso'],
+  ] as const)('ejemplo=%s quiz=%s → «%s»', async (example_id, has_quiz, texto) => {
+    renderRow({ ...LESSON, example_id, has_quiz } as never)
+    fireEvent.click(screen.getByRole('button', { name: /^Borrar/ }))
+    expect(await screen.findByRole('dialog')).toHaveTextContent(texto)
+  })
+
+  it('una lección sin ejemplo ni quiz no promete borrar ninguno', async () => {
+    renderRow({ ...LESSON, example_id: null, has_quiz: false } as never)
+    fireEvent.click(screen.getByRole('button', { name: /^Borrar/ }))
+    const dialogo = await screen.findByRole('dialog')
+    expect(dialogo).not.toHaveTextContent('ejemplo')
+    expect(dialogo).not.toHaveTextContent('quiz')
+    expect(dialogo).toHaveTextContent('Se eliminará "Hola hilos" y el progreso de los estudiantes en ella.')
+  })
+})
