@@ -192,6 +192,7 @@ def _module_payload(
                 enabled=lesson.enabled,
                 completion_rule=lesson.completion_rule,
                 progress=merge_progress(records.get(lesson_id), quiz_total),
+                kind=lesson.kind,
             )
         )
     lessons.sort(key=lambda lesson: lesson.order)

@@ -46,6 +46,8 @@ DEFAULT_STATUS: dict[str, int] = {
     "ORDER_CONFLICT": 409,
     "MODULE_NOT_EMPTY": 409,
     "CONTENT_VALIDATION_ERROR": 422,
+    # ── Talleres — S6, api-contract §12 ──
+    "STEP_NOT_FOUND": 404,
     # ── Catálogo remoto de módulos — Fase 5, api-contract §11.3 ──
     # Las 12 filas de §11.3 (§11.12.A las manda añadir a §1.1). Sin ellas
     # ``ApiException`` degradaría a 500 códigos que SON 4xx: un

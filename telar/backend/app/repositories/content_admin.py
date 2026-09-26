@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
+from app.repositories import workshop as workshop_repo
 from app.schemas import (
     AdminExample,
     AdminExampleBase,
@@ -41,6 +42,7 @@ from app.schemas import (
     AdminQuizQuestion,
     AdminQuizUpsert,
     AdminRecommended,
+    AdminWorkshopStep,
 )
 
 if TYPE_CHECKING:
@@ -345,15 +347,15 @@ _INSERT_LESSON = """
 INSERT INTO lessons
     (id, module_id, "order", title, estimated_minutes,
      content_markdown, pass_threshold, recommended_json,
-     video_url, enabled, completion_rule)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     video_url, enabled, completion_rule, kind)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 _UPDATE_LESSON = """
 UPDATE lessons SET
     module_id = ?, "order" = ?, title = ?, estimated_minutes = ?,
     content_markdown = ?, recommended_json = ?,
-    video_url = ?, enabled = ?, completion_rule = ?
+    video_url = ?, enabled = ?, completion_rule = ?, kind = ?
 WHERE id = ?
 """
 
@@ -441,6 +443,7 @@ async def insert_lesson_with_example(
             body.video_url,
             int(body.enabled),
             body.completion_rule,
+            body.kind,
         ),
     )
     if body.example is not None and body.source_code is not None:
@@ -469,6 +472,11 @@ async def delete_example_of_lesson(
     await db.execute("DELETE FROM examples WHERE lesson_id = ?", (lesson_id,))
 
 
+async def lesson_kind(db: "aiosqlite.Connection", lesson_id: str) -> str | None:
+    """S6: ``leccion`` | ``taller``, o ``None`` si la lección no existe."""
+    return await _scalar(db, "SELECT kind FROM lessons WHERE id = ?", (lesson_id,))
+
+
 async def lesson_has_example(db: "aiosqlite.Connection", lesson_id: str) -> bool:
     return (
         await _scalar(
@@ -493,6 +501,7 @@ async def update_lesson(
             body.video_url,
             int(body.enabled),
             body.completion_rule,
+            body.kind,
             lesson_id,
         ),
     )
@@ -513,6 +522,9 @@ async def delete_lesson(db: "aiosqlite.Connection", lesson_id: str) -> None:
     await db.execute(
         "DELETE FROM quiz_attempts WHERE lesson_id = ?", (lesson_id,)
     )
+    # S6: las casillas del taller tampoco tienen FK (sobreviven a un archivado);
+    # los pasos sí caen solos con la lección (CASCADE).
+    await workshop_repo.purge_marks_no_commit(db, lesson_id)
     await db.execute("DELETE FROM lessons WHERE id = ?", (lesson_id,))
 
 
@@ -776,7 +788,7 @@ async def select_admin_lesson_detail(
     cur = await db.execute(
         "SELECT id, module_id, \"order\", title, estimated_minutes, "
         "content_markdown, recommended_json, video_url, enabled, "
-        "completion_rule, archived_at FROM lessons WHERE id = ?",
+        "completion_rule, archived_at, kind FROM lessons WHERE id = ?",
         (lesson_id,),
     )
     row = await cur.fetchone()
@@ -817,7 +829,26 @@ async def select_admin_lesson_detail(
         prev_lesson_id=prev_id,
         next_lesson_id=next_id,
         example=example,
+        kind=row["kind"],
+        steps=(
+            await select_admin_steps(db, lesson_id) if row["kind"] == "taller" else []
+        ),
     )
+
+
+async def select_admin_steps(
+    db: "aiosqlite.Connection", lesson_id: str
+) -> list[AdminWorkshopStep]:
+    """S6 (§12): los pasos del taller tal como están en la DB."""
+    return [
+        AdminWorkshopStep(
+            idx=paso.idx,
+            title=paso.title,
+            body_markdown=paso.body_markdown,
+            example_id=paso.example_id,
+        )
+        for paso in await workshop_repo.select_steps(db, lesson_id)
+    ]
 
 
 async def select_admin_quiz(

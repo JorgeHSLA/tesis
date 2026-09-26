@@ -4,7 +4,7 @@
 // Los tipos de LECTURA (ModuleDto, LessonDetailDto, ExampleDetailDto, QuizDto…) siguen
 // viviendo en types.ts y NO se duplican aquí; esto es solo la superficie admin.
 import type { ContentWarningDto } from './catalog-types'
-import type { ParserId, QuizOptionKey } from './types'
+import type { LessonKind, ParserId, QuizOptionKey } from './types'
 
 // El modo autoría ya NO usa login/token (2026-07-26): se gatea por build
 // (VITE_ADMIN) + config del backend (TELAR_ADMIN_MODE). Los DTOs de auth
@@ -128,6 +128,8 @@ export interface AdminLessonBaseDto {
   /** Fase 5 (E4): qué cuenta como completarla. */
   completion_rule: CompletionRule
   recommended: AdminRecommendedDto[]
+  /** S6 (§12): opcional, `'leccion'` si falta. En un taller la regla se guarda `'viewed'`. */
+  kind?: LessonKind
 }
 
 export interface AdminLessonCreateDto extends AdminLessonBaseDto {
@@ -153,6 +155,32 @@ export interface AdminLessonDetailDto extends AdminLessonBaseDto {
   prev_lesson_id: string | null
   next_lesson_id: string | null
   example: AdminExampleDto | null
+  /** S6 (§12): pasos del taller en orden de `idx`; vacío si no es taller. */
+  steps?: AdminWorkshopStepDto[]
+}
+
+// ── §12.3 Pasos de un taller (S6) ────────────────────────────────────────────
+
+/** `POST`/`PUT /admin/lessons/{id}/steps[/{idx}]`. */
+export interface AdminWorkshopStepInputDto {
+  title: string
+  body_markdown: string
+  example_id: string | null
+}
+
+export interface AdminWorkshopStepDto extends AdminWorkshopStepInputDto {
+  idx: number
+}
+
+/** `PUT /admin/lessons/{id}/steps/reorder` — `order[i]` = idx actual del paso que pasa a `i`. */
+export interface AdminWorkshopStepsReorderDto {
+  order: number[]
+}
+
+/** Respuesta de toda operación sobre pasos: la lista resultante. */
+export interface AdminWorkshopStepsDto {
+  lesson_id: string
+  steps: AdminWorkshopStepDto[]
 }
 
 // ── §10.6 Quiz (correct_key/explanation SOLO en el GET admin) ────────────────

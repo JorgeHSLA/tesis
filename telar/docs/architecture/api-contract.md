@@ -76,6 +76,7 @@ usan el envelope:
 | 403 | `CATALOG_CREDENTIALS_INVALID` | **(Fase 5, §11)** Publicar sin credencial de escritura utilizable: `TELAR_GCS_CREDENTIALS` vacío, archivo inexistente o ilegible, permisos más laxos que `0600`, JSON que no es clave de cuenta de servicio, o la cuenta sin permiso sobre el bucket |
 | 503 | `CATALOG_DISABLED` | **(Fase 5, §11)** `TELAR_CATALOG_BUCKET` vacío: este despliegue no tiene catálogo remoto |
 | 503 | `CATALOG_UNAVAILABLE` | **(Fase 5, §11)** El bucket no responde: DNS/TLS/timeout, 5xx, 429, bucket privado o inexistente, o corrupción de transporte |
+| 404 | `STEP_NOT_FOUND` | **(S6, §12)** La lección no es un taller, o no tiene el paso `idx` pedido |
 
 ---
 
@@ -1089,6 +1090,11 @@ C:      GET /api/v1/jobs/01a2…   → parsed_timings (curva de speedup)
 | POST | `/api/v1/admin/modules/{id}/publish` | Publicar el módulo en el bucket (§11.8) | 201/200 | 401, 403, 404, 409, 413, 422, 503 |
 | GET | `/api/v1/admin/modules/{id}/publish/status` | ¿Hay cambios sin publicar? (§11.8.3, S5) | 200 | 401, 404, 422 |
 | DELETE | `/api/v1/admin/modules/{id}/publish` | Retirar el módulo del catálogo (§11.8.4, S7d) | 200 | 401, 403, 404, 409, 422, 503 |
+| PUT | `/api/v1/progress/lessons/{id}/steps/{idx}` | Marcar/desmarcar «Lo hice» en un paso de un taller (§12.2, S6) | 200 | 404, 422 |
+| POST | `/api/v1/admin/lessons/{id}/steps` | Añadir un paso al taller (§12.3, S6) | 201 | 401, 404, 422 |
+| PUT | `/api/v1/admin/lessons/{id}/steps/reorder` | Reordenar los pasos (§12.3, S6) | 200 | 401, 404, 422 |
+| PUT | `/api/v1/admin/lessons/{id}/steps/{idx}` | Editar un paso (§12.3, S6) | 200 | 401, 404, 422 |
+| DELETE | `/api/v1/admin/lessons/{id}/steps/{idx}` | Borrar un paso (§12.3, S6) | 200 | 401, 404 |
 
 ---
 
@@ -3045,3 +3051,114 @@ Y la unión **cerrada** `ApiErrorCode` de `api/types.ts` gana:
 | POST | `/api/v1/admin/modules/{id}/publish` | Publicar el módulo en el bucket (§11.8) | 201/200 | 401, 403, 404, 409, 413, 422, 503 |
 | GET | `/api/v1/admin/modules/{id}/publish/status` | ¿Hay cambios sin publicar? (§11.8.3, S5) | 200 | 401, 404, 422 |
 | DELETE | `/api/v1/admin/modules/{id}/publish` | Retirar el módulo del catálogo (§11.8.4, S7d) | 200 | 401, 403, 404, 409, 422, 503 |
+
+---
+
+## 12. Talleres guiados (S6 · CU-28) — enmienda ADITIVA
+
+Un **taller** es otro *tipo de lección* (`kind = "taller"`), no un componente que
+se suma a una lección: una guía de pasos ordenados, estilo Unity Learn. Cada paso
+tiene título, instrucciones en Markdown (mismo subset que la lección, §10.6) y,
+opcionalmente, un ejemplo con «Abrir en el simulador». Cada paso tiene su casilla
+«Lo hice»; al marcar todos, el taller queda completado. **No lleva quiz ni
+video.** Diseño: informe de mejoras 2026-09-22 §3.2. DDL: data-model §9.
+
+Todo es aditivo: los campos nuevos tienen valor por defecto y un cliente que no
+los conoce sigue funcionando (ve un taller como una lección `viewed` sin quiz).
+
+### 12.1 Lectura (§4)
+
+- `ModuleLesson.kind` y `LessonDetail.kind`: `"leccion" | "taller"`,
+  **opcional**, por defecto `"leccion"`.
+- `LessonDetail.steps`: lista (vacía si no es taller) en orden de `idx`
+  (`0..n-1`, contiguo):
+
+```jsonc
+"steps": [
+  { "idx": 0, "title": "Lee el código", "body_markdown": "Abre el ejemplo…",
+    "example_id": "primerEjemplo", "done": true },
+  { "idx": 1, "title": "Piensa", "body_markdown": "¿Cuántos hilos ves?",
+    "example_id": null, "done": false }
+]
+```
+
+`example_id` con valor ⇒ el paso ofrece «Abrir en el simulador» (taller **con**
+código); `null` ⇒ solo lectura y acción (taller **sin** código). Un
+`example_id` cuyo ejemplo ya no existe llega como `null` (se poda en el snapshot,
+como `recommended`).
+
+**`completion_rule` en un taller se ignora**: el servidor guarda `"viewed"` (el
+único valor que no exige quiz ni ejemplo) y la respuesta lo refleja, pero lo
+único que completa un taller son sus pasos. En particular, `PUT
+/progress/lessons/{id}` (§6.2) **ignora** `completed:true` en un taller (sí
+acepta `viewed`).
+
+### 12.2 `PUT /api/v1/progress/lessons/{lesson_id}/steps/{idx}` — la casilla
+
+```jsonc
+// request
+{ "done": true }            // booleano estricto: "sí"/1 ⇒ 422 VALIDATION_ERROR
+// 200 → data
+{ "lesson_id": "tallerHilos", "idx": 1, "done": true,
+  "steps_done": 2, "steps_total": 3, "completed": false }
+```
+
+- **Idempotente**: marcar lo marcado o desmarcar lo desmarcado no cambia nada
+  (el `done_at` de la primera marca se conserva).
+- **Completar**: cuando todos los pasos quedan marcados
+  (`taller_completo`, función pura), se escribe `lesson_progress.completed = 1`
+  con `completed_via = "manual"`. El taller cuenta en el progreso del módulo como
+  cualquier lección; los agregados (§4.1, §6.1) no cambian de fórmula.
+- **Monótono**: desmarcar un paso quita la casilla pero **no descompleta** el
+  taller (`completed` sigue `true`), igual que un aprobado de quiz no se revoca.
+- **Disponibilidad** (la misma regla única de §6.2): un taller deshabilitado o
+  archivado **guarda** la casilla —es lo que hizo el estudiante— pero **no se
+  completa**. Se evalúa contra la DB dentro del lock de escritura.
+- **Marcar = tocar**: toda casilla deja `viewed = true`. Así, si una versión
+  nueva del módulo retira el taller, se archiva con sus casillas en vez de
+  borrarse (§11.6.2).
+- Errores: `404 LESSON_NOT_FOUND`; `404 STEP_NOT_FOUND` si la lección no es un
+  taller o no tiene ese `idx`; `422 VALIDATION_ERROR` si el body no es válido.
+
+### 12.3 Autoría (§10)
+
+- `AdminLessonBase.kind`: `"leccion" | "taller"`, por defecto `"leccion"` (en
+  `POST`/`PUT /admin/lessons` y en el `GET`). Con `kind="taller"`:
+  `completion_rule` se guarda como `"viewed"` pida lo que pida el cliente; un
+  `video_url` no nulo ⇒ `422 CONTENT_VALIDATION_ERROR` (`field: "video_url"`); y
+  convertir en taller una lección **con quiz** ⇒ 422 (`field: "kind"`: borra el
+  quiz antes). `PUT /admin/lessons/{id}/quiz` sobre un taller ⇒ 422
+  (`field: "kind"`). Volver a `"leccion"` conserva los pasos en la DB (ocultos)
+  por si el autor se arrepiente.
+- `AdminLessonDetail.steps`: `[{ idx, title, body_markdown, example_id }]`
+  (vacío si no es taller).
+- Pasos (todas las respuestas: `AdminWorkshopSteps = { lesson_id, steps }`, la
+  lista resultante con `idx` recompactados `0..n-1`):
+
+| Método | Path | Body | OK |
+|---|---|---|---|
+| POST | `/admin/lessons/{id}/steps` | `{ title, body_markdown, example_id? }` | 201 (añade al final) |
+| PUT | `/admin/lessons/{id}/steps/{idx}` | `{ title, body_markdown, example_id? }` | 200 |
+| PUT | `/admin/lessons/{id}/steps/reorder` | `{ order: [idx…] }`, permutación exacta de los idx actuales; `order[i]` = idx actual del paso que pasa a la posición `i` | 200 |
+| DELETE | `/admin/lessons/{id}/steps/{idx}` | — | 200 |
+
+  Validación: `title` 1..160; `body_markdown` 1..20 000 y en el subset (§10.6);
+  `example_id` con `ID_PATTERN` y existente; como mucho 50 pasos; la lección
+  tiene que ser un taller. Errores: `404 LESSON_NOT_FOUND`, `404
+  STEP_NOT_FOUND`, `422 CONTENT_VALIDATION_ERROR` (`field`: `kind`,
+  `body_markdown`, `example_id`, `steps`, `order`), `422 VALIDATION_ERROR`.
+  Reordenar y borrar **mueven las casillas con su paso** en esta máquina.
+- `DELETE /admin/lessons/{id}` purga también `workshop_step_progress` (BL-01): un
+  id reutilizado no resucita casillas de un taller anterior.
+
+### 12.4 DTOs
+
+- pydantic: `schemas/content.py` (`LessonKind`, `WorkshopStepView`,
+  `ModuleLesson.kind`, `LessonDetail.kind/steps`), `schemas/progress.py`
+  (`WorkshopStepUpdateRequest`, `WorkshopStepUpdateResult`), `schemas/admin.py`
+  (`AdminLessonBase.kind`, `AdminLessonDetail.steps`, `AdminWorkshopStepInput`,
+  `AdminWorkshopStep`, `AdminWorkshopStepsReorder`, `AdminWorkshopSteps`).
+- TypeScript: `frontend/src/api/types.ts` (`LessonKind`, `WorkshopStepDto`,
+  `WorkshopStepUpdateRequestDto`, `WorkshopStepUpdateResultDto`, `kind?`/`steps?`
+  opcionales) y `frontend/src/api/admin-types.ts` (`kind?`, `steps?`,
+  `AdminWorkshopStep*`).

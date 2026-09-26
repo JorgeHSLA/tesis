@@ -170,6 +170,37 @@ def _completion_rule_issues(rule: str, *, tiene_ejemplo: bool) -> list[dict]:
     return []
 
 
+#: S6 (§12): la ``completion_rule`` que se guarda en un taller. Se ignora —lo
+#: completan sus pasos—, y ``viewed`` es la única que no exige quiz ni ejemplo.
+REGLA_DE_TALLER = "viewed"
+
+
+def _como_taller(body):
+    """En un taller la regla se ignora: se guarda ``viewed`` pida lo que pida."""
+    if body.kind == "taller" and body.completion_rule != REGLA_DE_TALLER:
+        return body.model_copy(update={"completion_rule": REGLA_DE_TALLER})
+    return body
+
+
+def _taller_issues(kind: str, *, video_url: str | None, tiene_quiz: bool) -> list[dict]:
+    """S6 (§12): un taller es una guía de pasos; no lleva quiz ni video."""
+    if kind != "taller":
+        return []
+    issues: list[dict] = []
+    if video_url:
+        issues.append(
+            {"field": "video_url", "reason": "un taller no lleva video; quítalo antes."}
+        )
+    if tiene_quiz:
+        issues.append(
+            {
+                "field": "kind",
+                "reason": "un taller no lleva quiz; borra el quiz de la lección antes.",
+            }
+        )
+    return issues
+
+
 async def _recommended_issues(
     db, recommended: list[AdminRecommended], *, self_id: str
 ) -> list[dict]:
@@ -377,6 +408,7 @@ async def create_lesson(
     app: "FastAPI", body: AdminLessonCreate
 ) -> AdminLessonDetail:
     db = app.state.db
+    body = _como_taller(body)
     # E1: sin ejemplo no hay código que medir.
     if body.source_code is not None:
         _check_code_size(app, body.source_code)
@@ -409,6 +441,7 @@ async def create_lesson(
             body.completion_rule, tiene_ejemplo=body.example is not None
         )
         issues += _example_pairing_issues(body.example, body.source_code)
+        issues += _taller_issues(body.kind, video_url=body.video_url, tiene_quiz=False)
         issues += await _recommended_issues(
             db, body.recommended, self_id=body.id
         )
@@ -431,6 +464,7 @@ async def update_lesson(
     app: "FastAPI", lesson_id: str, body: AdminLessonUpdate
 ) -> AdminLessonDetail:
     db = app.state.db
+    body = _como_taller(body)
     async with app.state.write_lock:
         if not await content_admin.lesson_exists(db, lesson_id):
             raise ApiException(
@@ -455,6 +489,11 @@ async def update_lesson(
         issues += _completion_rule_issues(
             body.completion_rule,
             tiene_ejemplo=await content_admin.lesson_has_example(db, lesson_id),
+        )
+        issues += _taller_issues(
+            body.kind,
+            video_url=body.video_url,
+            tiene_quiz=await content_admin.quiz_question_count(db, lesson_id) > 0,
         )
         issues += await _recommended_issues(
             db, body.recommended, self_id=lesson_id
@@ -739,6 +778,10 @@ async def replace_quiz(
             )
         body = _assign_question_ids(lesson_id, body)  # BL-18: id opcional
         issues = _quiz_issues(body)
+        if await content_admin.lesson_kind(db, lesson_id) == "taller":
+            issues.append(
+                {"field": "kind", "reason": "un taller no lleva quiz: lo completan sus pasos."}
+            )
         # CW-02: quiz_questions.id es PK GLOBAL; un id ya usado por OTRA lección
         # daría IntegrityError (500). Se detecta aquí como 422 limpio.
         foreign = await content_admin.question_ids_in_other_lessons(

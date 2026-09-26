@@ -4,7 +4,7 @@ TRANSCRIPCIÓN LITERAL de ``docs/architecture/api-contract.md`` (CONGELADO).
 No añadir, quitar ni renombrar campos sin actualizar el contrato primero.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictBool
 
 # ────────────────────────────── §6 Progreso ─────────────────────────────────
 
@@ -46,7 +46,29 @@ class ProgressUpdateRequest(BaseModel):
     completed: bool | None = None
 
 
+class WorkshopStepUpdateRequest(BaseModel):
+    """S6 §12 ``PUT /api/v1/progress/lessons/{id}/steps/{idx}`` — la casilla."""
+
+    done: StrictBool
+
+
+class WorkshopStepUpdateResult(BaseModel):
+    """S6 §12 — estado resultante del taller tras marcar/desmarcar un paso.
+
+    ``completed`` es monótono: desmarcar un paso no descompleta el taller.
+    """
+
+    lesson_id: str
+    idx: int
+    done: bool
+    steps_done: int
+    steps_total: int
+    completed: bool
+
+
 __all__ = [
+    "WorkshopStepUpdateRequest",
+    "WorkshopStepUpdateResult",
     "ProgressEntry",
     "ProgressSummary",
     "ProgressResponse",

@@ -37,6 +37,8 @@ ApiErrorCode = Literal[
     "ORDER_CONFLICT",           # 409 order de módulo o de lección colisiona
     "MODULE_NOT_EMPTY",         # 409 borrar un módulo con lecciones
     "CONTENT_VALIDATION_ERROR", # 422 reglas de negocio (refs, markdown, correct_key, threads/GPU…)
+    # ── Talleres — S6, api-contract §12 ──
+    "STEP_NOT_FOUND",           # 404 la lección no es un taller o no tiene ese paso
 ]
 
 T = TypeVar("T")

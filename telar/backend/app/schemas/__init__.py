@@ -52,6 +52,7 @@ from .content import (
     ModulesResponse,
     ModulesSummary,
     RecommendedLesson,
+    WorkshopStepView,
 )
 
 # §5 Quizzes (provee QuizOptionKey).
@@ -73,6 +74,8 @@ from .progress import (
     ProgressResponse,
     ProgressSummary,
     ProgressUpdateRequest,
+    WorkshopStepUpdateRequest,
+    WorkshopStepUpdateResult,
 )
 
 # §7 Jobs (reutiliza ParserId; provee FILENAME_PATTERN y JobStatus).
@@ -136,6 +139,12 @@ from .admin import (
     AdminRecommended,
     AdminReorderItem,
     AdminReorderRequest,
+    AdminWorkshopStep,
+    AdminWorkshopStepInput,
+    AdminWorkshopSteps,
+    AdminWorkshopStepsReorder,
+    MAX_STEP_MARKDOWN,
+    MAX_WORKSHOP_STEPS,
 )
 
 # §11 Catálogo remoto de módulos publicables, Fase 5 (reutiliza ID_PATTERN,
@@ -228,6 +237,7 @@ __all__ = [
     "ModulesSummary",
     "ModulesResponse",
     "RecommendedLesson",
+    "WorkshopStepView",
     "LessonDetail",
     # §5 Quizzes
     "QuizOptionKey",
@@ -244,6 +254,8 @@ __all__ = [
     "ProgressSummary",
     "ProgressResponse",
     "ProgressUpdateRequest",
+    "WorkshopStepUpdateRequest",
+    "WorkshopStepUpdateResult",
     # §7 Jobs
     "JobStatus",
     "JobTerminalStatus",
@@ -283,6 +295,12 @@ __all__ = [
     "AdminModulesResponse",
     "AdminReorderItem",
     "AdminReorderRequest",
+    "AdminWorkshopStep",
+    "AdminWorkshopStepInput",
+    "AdminWorkshopSteps",
+    "AdminWorkshopStepsReorder",
+    "MAX_STEP_MARKDOWN",
+    "MAX_WORKSHOP_STEPS",
     "AdminExampleBase",
     "AdminExampleUpdate",
     "AdminExample",

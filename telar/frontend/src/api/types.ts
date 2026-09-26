@@ -49,6 +49,8 @@ export type ApiErrorCode =
   | 'ORDER_CONFLICT'
   | 'MODULE_NOT_EMPTY'
   | 'CONTENT_VALIDATION_ERROR'
+  // §12 Talleres — S6
+  | 'STEP_NOT_FOUND'
   // §11 Catálogo remoto — Fase 5
   | 'REMOTE_MODULE_NOT_FOUND'
   | 'MODULE_NOT_INSTALLED'
@@ -191,10 +193,28 @@ export interface ModuleLessonDto {
   /** Fase 5 (E4): qué cuenta como completar esta lección. */
   completion_rule: CompletionRule
   progress: LessonProgressDto
+  /** S6 (§12): opcional, `'leccion'` si falta. */
+  kind?: LessonKind
 }
 
 /** Fase 5 (E4) — qué cuenta como completar una lección. */
 export type CompletionRule = 'quiz' | 'viewed' | 'run'
+
+/**
+ * S6 (§12) — tipo de lección. Un `'taller'` es una guía de pasos que se completa
+ * marcándolos todos; su `completion_rule` se ignora.
+ */
+export type LessonKind = 'leccion' | 'taller'
+
+/** S6 (§12) — un paso de un taller con el estado de su casilla «Lo hice». */
+export interface WorkshopStepDto {
+  idx: number
+  title: string
+  body_markdown: string
+  /** Con valor, «Abrir en el simulador»; `null` = paso sin código. */
+  example_id: string | null
+  done: boolean
+}
 
 export interface ModuleDto {
   id: string
@@ -260,6 +280,10 @@ export interface LessonDetailDto {
   next_lesson_id: string | null
   recommended: RecommendedLessonDto[]
   progress: LessonProgressDto
+  /** S6 (§12): opcional, `'leccion'` si falta. */
+  kind?: LessonKind
+  /** S6 (§12): pasos del taller en orden de `idx`; vacío (o ausente) si no lo es. */
+  steps?: WorkshopStepDto[]
 }
 
 // ────────────────────────────── §5 Quizzes ─────────────────────────────────
@@ -355,6 +379,24 @@ export interface ProgressResponseDto {
 export interface ProgressUpdateRequestDto {
   viewed?: boolean
   completed?: boolean
+}
+
+/** §12.2 PUT /api/v1/progress/lessons/{lesson_id}/steps/{idx} — la casilla. */
+export interface WorkshopStepUpdateRequestDto {
+  done: boolean
+}
+
+/**
+ * §12.2 — estado del taller tras marcar/desmarcar. `completed` es monótono:
+ * desmarcar no descompleta.
+ */
+export interface WorkshopStepUpdateResultDto {
+  lesson_id: string
+  idx: number
+  done: boolean
+  steps_done: number
+  steps_total: number
+  completed: boolean
 }
 
 // ─────────────────────────────── §7 Jobs ───────────────────────────────────

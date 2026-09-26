@@ -4,7 +4,12 @@ TRANSCRIPCIÓN LITERAL de ``docs/architecture/api-contract.md`` (CONGELADO).
 No añadir, quitar ni renombrar campos sin actualizar el contrato primero.
 """
 
+from typing import Literal
+
 from pydantic import BaseModel
+
+#: S6 · CU-28 (api-contract §12): los dos tipos de lección.
+LessonKind = Literal["leccion", "taller"]
 
 # ───────────────────── §4 Cursos: módulos y lecciones ───────────────────────
 
@@ -36,6 +41,8 @@ class ModuleLesson(BaseModel):
     #: Fase 5 (E4): qué cuenta como completar esta lección.
     completion_rule: str
     progress: LessonProgress
+    #: S6 (§12): ``"taller"`` = guía de pasos que se completa marcándolos todos.
+    kind: LessonKind = "leccion"
 
 
 class Module(BaseModel):
@@ -78,6 +85,17 @@ class RecommendedLesson(BaseModel):
     tag: str
 
 
+class WorkshopStepView(BaseModel):
+    """S6 (§12) — un paso de un taller con el estado de su casilla «Lo hice»."""
+
+    idx: int
+    title: str
+    body_markdown: str
+    #: Con valor, el paso ofrece «Abrir en el simulador»; ``None`` = sin código.
+    example_id: str | None
+    done: bool
+
+
 class LessonDetail(BaseModel):
     """§4.2 ``GET /api/v1/lessons/{lesson_id}`` — bloque ``data``."""
 
@@ -104,6 +122,10 @@ class LessonDetail(BaseModel):
     next_lesson_id: str | None
     recommended: list[RecommendedLesson]
     progress: LessonProgress
+    #: S6 (§12): tipo de lección. En un taller ``completion_rule`` se ignora.
+    kind: LessonKind = "leccion"
+    #: S6 (§12): pasos del taller en orden de ``idx``; vacío en una lección.
+    steps: list[WorkshopStepView] = []
 
 
 __all__ = [
@@ -114,4 +136,6 @@ __all__ = [
     "ModulesResponse",
     "RecommendedLesson",
     "LessonDetail",
+    "LessonKind",
+    "WorkshopStepView",
 ]
