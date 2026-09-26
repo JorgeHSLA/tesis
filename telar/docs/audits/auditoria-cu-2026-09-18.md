@@ -5,12 +5,28 @@
 > lo que **ya funciona y debe conservarse**, y una lista numerada de faltantes con
 > "Cómo está ahora" / "Cómo debería estar".
 >
-> **Nota de numeración:** esta auditoría usa 41 CU y **no coincide** con la
-> numeración de `telar/docs/casos-de-uso.md` (34 CU, numeración anterior; por
-> ejemplo allí CU-23 es "quiz" y CU-27 es "sandbox"). Ante cualquier duda manda
-> este documento. `casos-de-uso.md` debe alinearse a esta numeración.
+> **Nota de numeración:** `telar/docs/casos-de-uso.md` usa desde 2026-09-26
+> esta misma numeración de 41 CU (antes tenía 34 CU con la numeración anterior).
+> Los faltantes se citan como `CU-NN.M` y son identificadores estables.
+>
+> **Cierre (2026-09-26, sesión S8).** Cada CU lleva su estado actual y cada
+> faltante su resolución, tomada de los ✅ de la tabla §4 del
+> [informe de evaluación](informe-evaluacion-mejoras-2026-09-22.md). El texto
+> «Cómo está ahora» describe el estado del 18-09 y se conserva como registro.
+> Un faltante sin ✅ sigue pendiente; los NO HACER y los parciales (◐) son
+> limitaciones conocidas.
 
 ## Resumen
+
+**Estado a 2026-09-26:**
+
+| Estado | CU |
+|---|---|
+| 🟢 Implementado | CU-01 a CU-38 y CU-41 (39 CU) |
+| 🟡 Parcial | — |
+| 🔴? Pendiente de decisión | CU-39, CU-40: dependen de que el director acepte «curso = módulo publicable» |
+
+**Estado original (2026-09-18):**
 
 | Estado | CU |
 |---|---|
@@ -22,7 +38,7 @@
 
 ### CU-01 — Explorar el catálogo de módulos y lecciones
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -30,7 +46,7 @@ El flujo principal sí funciona: el estudiante puede entrar al catálogo, consul
 
 **Qué falta:**
 
-**1. Búsqueda y filtros**
+**1. Búsqueda y filtros** — ✅ Cerrado (f92d9fa)
 
 **Cómo está ahora:**
 
@@ -40,7 +56,7 @@ La búsqueda y los filtros funcionan sobre las lecciones, pero siguen apareciend
 
 Al buscar o aplicar un filtro, deberían mostrarse únicamente los módulos y/o lecciones que tengan coincidencias. Los resultados deberían quedar visibles o ser fáciles de identificar.
 
-**2. Estado cuando no existen resultados**
+**2. Estado cuando no existen resultados** — ✅ Cerrado (f92d9fa)
 
 **Cómo está ahora:**
 
@@ -50,7 +66,7 @@ Existe un mensaje de "sin resultados", pero solo aparece dentro de un módulo ab
 
 Cuando no exista ninguna coincidencia en todo el catálogo, debería mostrarse un mensaje general como **"No se encontraron resultados"**, independientemente de qué módulos estén abiertos.
 
-**3. Opción "Continuar/Empezar"**
+**3. Opción "Continuar/Empezar"** — ✅ Cerrado (f92d9fa)
 
 **Cómo está ahora:**
 
@@ -64,7 +80,7 @@ La aplicación puede intentar continuar con la última lección visitada o utili
 
 ### CU-02 — Realizar una lección
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -72,7 +88,7 @@ El estudiante puede abrir una lección y consultar correctamente su contenido es
 
 **Qué falta:**
 
-**1. Talleres asociados a una lección**
+**1. Talleres asociados a una lección** — ✅ Reclasificado y cerrado (a26fee9 (el taller es un tipo de lección, CU-28))
 
 **Cómo está ahora:**
 
@@ -82,7 +98,7 @@ Las lecciones pueden contener contenido escrito, video, quiz y ejemplos, pero to
 
 Cuando una lección tenga un taller configurado, el estudiante debería poder verlo y acceder a él directamente desde la lección.
 
-**2. Componentes obligatorios y opcionales**
+**2. Componentes obligatorios y opcionales** — ⚪ Limitación conocida (NO HACER)
 
 **Cómo está ahora:**
 
@@ -92,7 +108,7 @@ El sistema maneja diferentes componentes de una lección, pero todavía no exist
 
 Cada lección debería tener definidos sus **componentes requeridos**. Por ejemplo, una lección podría exigir ver el video y aprobar el quiz, mientras que leer el contenido escrito podría ser opcional (como en coursera).
 
-**3. Completitud de la lección**
+**3. Completitud de la lección** — ✅ Cerrado (b638029, 5f79a02)
 
 **Cómo está ahora:**
 
@@ -102,7 +118,7 @@ Algunas actividades pueden modificar directamente el estado de completitud. Por 
 
 Cada actividad debería marcar únicamente **su propio requisito como cumplido**. Después, Telar debería revisar todos los requisitos definidos para la lección y marcarla como completada solo cuando ninguno quede pendiente.
 
-**4. Lecciones que se completan por visualización**
+**4. Lecciones que se completan por visualización** — ✅ Cerrado (f92d9fa)
 
 **Cómo está ahora:**
 
@@ -112,7 +128,7 @@ Abrir una lección la registra como vista, pero todavía no existe un flujo comp
 
 Cuando una lección tenga como único requisito de completitud la consulta de su contenido, Telar debería registrar ese requisito como cumplido según la regla definida para la lección y actualizar su progreso. Si existen otros componentes requeridos, la lección debe permanecer incompleta hasta cumplirlos también.
 
-**5. Lecciones que requieren ejecutar un ejemplo**
+**5. Lecciones que requieren ejecutar un ejemplo** — ✅ Cerrado (b638029, 5f79a02)
 
 **Cómo está ahora:**
 
@@ -126,7 +142,7 @@ Cuando una lección tenga como requisito ejecutar un ejemplo, una ejecución vá
 
 ### CU-03 — Responder el quiz de una lección
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -134,7 +150,7 @@ El estudiante puede iniciar el quiz, responder todas las preguntas, enviar el in
 
 **Qué falta:**
 
-**1. Relación entre aprobar el quiz y completar la lección**
+**1. Relación entre aprobar el quiz y completar la lección** — ✅ Cerrado (b638029, 5f79a02)
 
 **Cómo está ahora:**
 
@@ -148,7 +164,7 @@ Aprobar el quiz debería marcar únicamente **el requisito del quiz como cumplid
 
 ### CU-04 — Ejecutar un ejemplo de una lección en el simulador
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -156,7 +172,7 @@ El flujo principal está prácticamente completo: el estudiante puede abrir un e
 
 **Qué falta:**
 
-**1. Conservar la relación con el ejemplo y la lección al volver a ejecutar**
+**1. Conservar la relación con el ejemplo y la lección al volver a ejecutar** — ✅ Cerrado (1d17085)
 
 **Cómo está ahora:**
 
@@ -177,7 +193,7 @@ De esta forma, aunque el estudiante haga varias modificaciones y ejecuciones suc
 
 ### CU-05 — Ejecutar código propio desde el editor
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -187,7 +203,7 @@ Sin embargo, todavía existen dos situaciones que pueden impedir que el editor d
 
 **Qué falta:**
 
-**1. Permitir usar código propio aunque falle la carga del catálogo**
+**1. Permitir usar código propio aunque falle la carga del catálogo** — ✅ Cerrado (25a3339, 29cbe1f)
 
 **Cómo está ahora:**
 
@@ -201,7 +217,7 @@ El estudiante debería poder utilizar el editor de código propio siempre que el
 
 Un problema al cargar módulos, lecciones o ejemplos no debería impedir escribir y ejecutar código propio, porque este flujo no depende del contenido educativo.
 
-**2. Evitar que un ejemplo que estaba cargándose reemplace el código propio**
+**2. Evitar que un ejemplo que estaba cargándose reemplace el código propio** — ✅ Cerrado (1d17085, b8afa99)
 
 **Cómo está ahora:**
 
@@ -221,7 +237,7 @@ A partir de ese momento, el contenido escrito por el estudiante no debería reem
 
 ### CU-06 — Subir un archivo `.py` para ejecutar
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -231,7 +247,7 @@ Sin embargo, todavía hay tres situaciones que pueden interrumpir o confundir es
 
 **Qué falta:**
 
-**1. Evitar que una carga anterior reemplace el archivo actual**
+**1. Evitar que una carga anterior reemplace el archivo actual** — ✅ Cerrado (b8afa99)
 
 **Cómo está ahora:**
 
@@ -245,7 +261,7 @@ Telar debería conservar siempre **la última selección realizada por el estudi
 
 Cuando el usuario cargue un nuevo archivo o empiece a trabajar con otro contenido, cualquier carga anterior que todavía esté pendiente debería cancelarse o ignorarse para que no pueda reemplazar el trabajo actual.
 
-**2. Permitir trabajar con archivos aunque falle el catálogo educativo**
+**2. Permitir trabajar con archivos aunque falle el catálogo educativo** — ✅ Cerrado (25a3339, 29cbe1f)
 
 **Cómo está ahora:**
 
@@ -259,7 +275,7 @@ La carga y ejecución de archivos propios debería funcionar siempre que el simu
 
 Un problema al consultar módulos, lecciones o ejemplos no debería impedir que el estudiante trabaje con un archivo `.py` de su computador.
 
-**3. Validar el nombre del archivo antes de aceptarlo**
+**3. Validar el nombre del archivo antes de aceptarlo** — ✅ Cerrado (2eece9d)
 
 **Cómo está ahora:**
 
@@ -277,7 +293,7 @@ Si un nombre de archivo no puede utilizarse para ejecutar, Telar debería avisar
 
 ### CU-07 — Observar una ejecución en vivo
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -287,7 +303,7 @@ Sin embargo, todavía existen algunos casos en los que la información mostrada 
 
 **Qué falta:**
 
-**1. Mostrar correctamente si la ejecución está compilando o ejecutándose**
+**1. Mostrar correctamente si la ejecución está compilando o ejecutándose** — ✅ Cerrado (6d65d04, 82c10fa)
 
 **Cómo está ahora:**
 
@@ -301,7 +317,7 @@ El estado mostrado debería depender de la fase real de la ejecución y no de si
 
 Si el código ya terminó de compilar y comenzó a ejecutarse, Telar debería mostrar **"Ejecutando"**, aunque todavía no exista salida en la terminal.
 
-**2. Mostrar la salida tan pronto como el programa la produzca**
+**2. Mostrar la salida tan pronto como el programa la produzca** — ⚪ Limitación conocida (NO HACER)
 
 **Cómo está ahora:**
 
@@ -313,7 +329,7 @@ Por ejemplo, si un programa imprime parte de un mensaje sin `\n`, el estudiante 
 
 La terminal debería mostrar la salida disponible durante la ejecución tan pronto como sea posible, incluso cuando todavía no forme una línea completa.
 
-**3. Recuperar correctamente la salida después de una desconexión**
+**3. Recuperar correctamente la salida después de una desconexión** — ✅ Cerrado (7e32ef1)
 
 **Cómo está ahora:**
 
@@ -330,7 +346,7 @@ Cuando el estudiante se reconecte o vuelva a una ejecución activa, Telar deber�
 
 La interfaz no debería mostrar una terminal aparentemente completa cuando en realidad faltan fragmentos.
 
-**4. Mantener correctamente el tiempo transcurrido al volver a una ejecución**
+**4. Mantener correctamente el tiempo transcurrido al volver a una ejecución** — ✅ Cerrado (6d65d04, 82c10fa)
 
 **Cómo está ahora:**
 
@@ -342,7 +358,7 @@ Por ejemplo, una ejecución que lleva 40 segundos podría volver a mostrar un ti
 
 El tiempo debería calcularse usando el **inicio real de la ejecución**, de manera que al regresar se continúe mostrando cuánto tiempo lleva realmente ejecutándose.
 
-**5. Aclarar qué información por hilo es real y cuál es ilustrativa**
+**5. Aclarar qué información por hilo es real y cuál es ilustrativa** — ✅ Cerrado (7e32ef1)
 
 **Cómo está ahora:**
 
@@ -358,7 +374,7 @@ Puede mantener la visualización, pero debería dejar claro que es **una represe
 
 ### CU-08 — Cancelar una ejecución
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -368,7 +384,7 @@ Sin embargo, todavía existen situaciones excepcionales donde Telar puede interp
 
 **Qué falta:**
 
-**1. No marcar como cancelada una ejecución que ya había terminado**
+**1. No marcar como cancelada una ejecución que ya había terminado** — ✅ Cerrado (0519c98)
 
 **Cómo está ahora:**
 
@@ -382,7 +398,7 @@ Antes de registrar una ejecución como cancelada, Telar debería comprobar si la
 
 Si la ejecución terminó primero, debería conservarse su resultado real —por ejemplo, **completada** o **fallida**— y no cambiarlo posteriormente a "Cancelada".
 
-**2. Informar cuando la solicitud de cancelación no pudo enviarse**
+**2. Informar cuando la solicitud de cancelación no pudo enviarse** — ✅ Cerrado (7e32ef1, 29cbe1f)
 
 **Cómo está ahora:**
 
@@ -400,7 +416,7 @@ Por ejemplo:
 
 Además, debería permitir volver a intentarlo cuando la conexión esté disponible.
 
-**3. Comprobar que la ejecución realmente se detuvo**
+**3. Comprobar que la ejecución realmente se detuvo** — ✅ Cerrado (0519c98, 4223d75)
 
 **Cómo está ahora:**
 
@@ -420,7 +436,7 @@ Solo debería marcarla como cancelada cuando exista evidencia de que la cancelac
 
 Si no pudo detenerse, debería informar el problema y permitir volver a intentar la operación cuando corresponda.
 
-**4. Mantener coherencia entre lo que muestra la interfaz y lo que quedó guardado**
+**4. Mantener coherencia entre lo que muestra la interfaz y lo que quedó guardado** — ⚪ Limitación conocida (NO HACER)
 
 **Cómo está ahora:**
 
@@ -434,7 +450,7 @@ Telar debería mostrar como definitivo únicamente un estado que haya podido con
 
 Si ocurre un problema al guardar el resultado de la cancelación, debería informar que hubo un error y evitar presentar una cancelación como exitosa cuando el registro persistido no lo confirma.
 
-**5. Manejar correctamente el botón de cancelar cuando se pierde la conexión**
+**5. Manejar correctamente el botón de cancelar cuando se pierde la conexión** — ✅ Cerrado (7e32ef1)
 
 **Cómo está ahora:**
 
@@ -448,7 +464,7 @@ Si la conexión está perdida, Telar debería dejar claro que temporalmente **no
 
 ### CU-09 — Consultar resultados y métricas de una ejecución
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -458,7 +474,7 @@ Sin embargo, todavía falta mostrar parte de la configuración con la que se rea
 
 **Qué falta:**
 
-**1. Mostrar la configuración completa utilizada en la ejecución**
+**1. Mostrar la configuración completa utilizada en la ejecución** — ✅ Cerrado (af72fc8)
 
 **Cómo está ahora:**
 
@@ -477,7 +493,7 @@ Por ejemplo, debería poder consultarse:
 - nombre del archivo;
 - origen del código, cuando corresponda.
 
-**2. Permitir consultar completamente los errores de la ejecución**
+**2. Permitir consultar completamente los errores de la ejecución** — ✅ Cerrado (af72fc8)
 
 **Cómo está ahora:**
 
@@ -493,7 +509,7 @@ Si una ejecución tiene información de error disponible, el estudiante debería
 
 Telar debería mostrar el `stderr` disponible y, cuando exista una causa registrada del fallo, presentarla de forma comprensible independientemente de si terminó por error, cancelación o timeout.
 
-**3. No mostrar como `0` una métrica que realmente no fue medida**
+**3. No mostrar como `0` una métrica que realmente no fue medida** — ✅ Cerrado (0519c98)
 
 **Cómo está ahora:**
 
@@ -510,7 +526,7 @@ Telar debería diferenciar claramente entre:
 
 Si la métrica no existe, debería mostrarse como **"No disponible"**, `—` u omitirse, pero no convertirse en una medición de cero.
 
-**4. Corregir la interpretación del dato mostrado como "Hilos (PIDs)"**
+**4. Corregir la interpretación del dato mostrado como "Hilos (PIDs)"** — ✅ Cerrado (d370739)
 
 **Cómo está ahora:**
 
@@ -530,7 +546,7 @@ Si se desea mostrar el número de hilos OpenMP del programa, debería utilizarse
 
 ### CU-10 — Descargar la salida de una ejecución
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -540,7 +556,7 @@ El faltante está en el manejo de errores durante la descarga: si Telar no logra
 
 **Qué falta:**
 
-**1. Informar cuando la descarga no pudo realizarse**
+**1. Informar cuando la descarga no pudo realizarse** — ✅ Cerrado (71eee1a, 82c10fa)
 
 **Cómo está ahora:**
 
@@ -564,7 +580,7 @@ Los resultados de la ejecución deberían permanecer disponibles y el estudiante
 
 ### CU-11 — Consultar ejecuciones recientes
 
-**Estado:** 🟢 **Implementado**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟢 **Implementado**)*
 
 **Por qué:**
 
@@ -584,7 +600,7 @@ Nada. No se identificaron faltantes funcionales propios de CU-11.
 
 ### CU-12 — Consultar el progreso de un curso
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -598,7 +614,7 @@ También existe una inconsistencia entre el progreso general y el progreso mostr
 
 **Qué falta:**
 
-**1. Completar correctamente las lecciones cuya regla es lectura o ejecución**
+**1. Completar correctamente las lecciones cuya regla es lectura o ejecución** — ✅ Cerrado (b638029, f92d9fa, 5f79a02, 66ab557 (viewed respeta la disponibilidad))
 
 **Cómo está ahora:**
 
@@ -621,7 +637,7 @@ Cuando tenga como regla `run`, una ejecución válida asociada a esa lección de
 
 El progreso del curso y del módulo debe actualizarse en consecuencia.
 
-**2. Respetar la regla de completitud de la lección al aprobar un quiz**
+**2. Respetar la regla de completitud de la lección al aprobar un quiz** — ✅ Cerrado (b638029, f92d9fa, 5f79a02, 53de886)
 
 **Cómo está ahora:**
 
@@ -637,7 +653,7 @@ Aprobar un quiz debe registrar el cumplimiento del quiz, pero solo debe completa
 
 La finalización de la lección debe respetar su `completion_rule`.
 
-**3. Mostrar qué requisito falta para completar una lección**
+**3. Mostrar qué requisito falta para completar una lección** — ✅ Cerrado (9ca5041)
 
 **Cómo está ahora:**
 
@@ -651,7 +667,7 @@ El estudiante debería poder reconocer qué acción requiere la lección para co
 
 Por ejemplo, debería poder comprender que una lección está pendiente porque todavía necesita ser leída o porque todavía falta realizar correctamente la ejecución requerida.
 
-**4. Mantener coherencia entre el progreso general y el progreso de los módulos**
+**4. Mantener coherencia entre el progreso general y el progreso de los módulos** — ✅ Cerrado (b638029, f92d9fa)
 
 **Cómo está ahora:**
 
@@ -669,7 +685,7 @@ El progreso general y el progreso por módulo deben utilizar un criterio coheren
 
 ### CU-13 — Crear un módulo de curso
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -679,7 +695,7 @@ Sin embargo, todavía faltan tres comportamientos definidos por el caso de uso: 
 
 **Qué falta:**
 
-**1. Advertir antes de descartar cambios sin guardar**
+**1. Advertir antes de descartar cambios sin guardar** — ✅ Cerrado (3e9ee26)
 
 **Cómo está ahora:**
 
@@ -691,7 +707,7 @@ Telar cierra directamente el formulario y pierde los cambios introducidos sin ad
 
 Si existen cambios sin guardar, Telar debe advertirlo antes de abandonar el formulario y permitir al Administrador elegir si desea permanecer o descartar los cambios.
 
-**2. Separar la creación del módulo de su publicación para estudiantes**
+**2. Separar la creación del módulo de su publicación para estudiantes** — ✅ Reclasificado y cerrado (8df6234 60d6351)
 
 **Cómo está ahora:**
 
@@ -707,7 +723,7 @@ Guardar el módulo debe incorporarlo al curso en edición, pero no hacerlo dispo
 
 Solo una publicación posterior del curso debe hacer que el nuevo contenido forme parte de la versión educativa publicada.
 
-**3. Informar de forma comprensible qué dato es inválido**
+**3. Informar de forma comprensible qué dato es inválido** — ✅ Cerrado (2eece9d)
 
 **Cómo está ahora:**
 
@@ -725,7 +741,7 @@ Cuando la información sea inválida, Telar debe indicar de manera comprensible 
 
 ### CU-14 — Editar un módulo de curso
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -737,7 +753,7 @@ Sin embargo, todavía faltan tres comportamientos del caso de uso: Telar no advi
 
 **Qué falta:**
 
-**1. Advertir antes de descartar cambios sin guardar**
+**1. Advertir antes de descartar cambios sin guardar** — ✅ Cerrado (3e9ee26)
 
 **Cómo está ahora:**
 
@@ -749,7 +765,7 @@ Telar descarta directamente las modificaciones realizadas sin comprobar si exist
 
 Cuando existan cambios sin guardar, Telar debe advertirlo antes de abandonar la edición y permitir decidir entre permanecer en el formulario o descartar las modificaciones.
 
-**2. Separar la edición del módulo de su publicación para estudiantes**
+**2. Separar la edición del módulo de su publicación para estudiantes** — ✅ Reclasificado y cerrado (8df6234 60d6351)
 
 **Cómo está ahora:**
 
@@ -763,7 +779,7 @@ Los cambios guardados deben permanecer en la versión del curso que se está edi
 
 Los estudiantes deben continuar viendo la versión publicada anteriormente hasta que el Administrador realice posteriormente la publicación correspondiente.
 
-**3. Informar de forma comprensible qué dato de la edición es inválido**
+**3. Informar de forma comprensible qué dato de la edición es inválido** — ✅ Cerrado (2eece9d)
 
 **Cómo está ahora:**
 
@@ -779,7 +795,7 @@ Telar debe indicar de forma comprensible qué campo o restricción presenta el p
 
 ### CU-15 — Reordenar módulos de un curso
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -791,7 +807,7 @@ Sin embargo, todavía existen dos faltantes funcionales: pueden realizarse vario
 
 **Qué falta:**
 
-**1. Coordinar movimientos realizados mientras existen guardados pendientes**
+**1. Coordinar movimientos realizados mientras existen guardados pendientes** — ✅ Cerrado (b8afa99)
 
 **Cómo está ahora:**
 
@@ -811,7 +827,7 @@ Telar debe garantizar que los movimientos se apliquen en el mismo orden en que l
 
 La solución técnica puede consistir en bloquear temporalmente nuevos movimientos, serializar las operaciones o utilizar algún mecanismo equivalente.
 
-**2. Separar el orden en edición del orden publicado para estudiantes**
+**2. Separar el orden en edición del orden publicado para estudiantes** — ✅ Reclasificado y cerrado (8df6234 60d6351)
 
 **Cómo está ahora:**
 
@@ -829,7 +845,7 @@ Los estudiantes deben continuar viendo el orden publicado anteriormente hasta qu
 
 ### CU-16 — Eliminar un módulo de curso
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -841,7 +857,7 @@ Además, la advertencia actual no informa sobre la eliminación del contenido as
 
 **Qué falta:**
 
-**1. Permitir eliminar un módulo junto con sus lecciones y contenido asociado**
+**1. Permitir eliminar un módulo junto con sus lecciones y contenido asociado** — ✅ Cerrado (d89f1f7)
 
 **Cómo está ahora:**
 
@@ -857,7 +873,7 @@ La operación debe retirar conjuntamente el módulo, sus lecciones y los recurso
 
 Los jobs históricos independientes pueden conservarse.
 
-**2. Advertir que también se eliminará el contenido asociado**
+**2. Advertir que también se eliminará el contenido asociado** — ✅ Cerrado (d89f1f7)
 
 **Cómo está ahora:**
 
@@ -871,7 +887,7 @@ Cuando el módulo contenga contenido, antes de confirmar Telar debe informar cla
 
 No es necesario enumerar internamente cada tabla o registro afectado.
 
-**3. Separar la eliminación en Autoría de su publicación para estudiantes**
+**3. Separar la eliminación en Autoría de su publicación para estudiantes** — ✅ Reclasificado y cerrado (8df6234 60d6351)
 
 **Cómo está ahora:**
 
@@ -889,7 +905,7 @@ Los estudiantes deben continuar viendo la versión publicada anteriormente hasta
 
 ### CU-17 — Crear una lección
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -899,7 +915,7 @@ Sin embargo, el flujo obliga actualmente a crear un ejemplo ejecutable para toda
 
 **Qué falta:**
 
-**1. Permitir crear una lección sin ejemplo ejecutable**
+**1. Permitir crear una lección sin ejemplo ejecutable** — ✅ Cerrado (d16a36e)
 
 **Cómo está ahora:**
 
@@ -913,7 +929,7 @@ El Administrador debe poder crear una lección únicamente con su información p
 
 El ejemplo ejecutable debe incorporarse solo cuando corresponda al propósito de esa lección.
 
-**2. Permitir configurar los recursos y la regla de completitud que correspondan**
+**2. Permitir configurar los recursos y la regla de completitud que correspondan** — ✅ Cerrado (d16a36e)
 
 **Cómo está ahora:**
 
@@ -931,7 +947,7 @@ Por ejemplo, una lección conceptual debería poder utilizar una regla de lectur
 
 Los recursos opcionales no deben convertirse en requisitos universales.
 
-**3. Proteger todos los caminos relevantes frente a pérdida de cambios sin guardar**
+**3. Proteger todos los caminos relevantes frente a pérdida de cambios sin guardar** — ✅ Cerrado (3e9ee26)
 
 **Cómo está ahora:**
 
@@ -943,7 +959,7 @@ Sin embargo, la protección no cubre todos los escenarios: cerrar o recargar la 
 
 Cuando existan modificaciones pendientes, Telar debe advertir antes de cualquier acción del flujo que pueda hacer perder esos cambios.
 
-**4. Mostrar de forma comprensible qué dato es inválido**
+**4. Mostrar de forma comprensible qué dato es inválido** — ✅ Cerrado (2eece9d)
 
 **Cómo está ahora:**
 
@@ -955,7 +971,7 @@ Sin embargo, algunos errores de validación llegan a la interfaz como mensajes g
 
 Telar debe comunicar qué campo o restricción presenta el problema, conservar la información introducida y permitir corregirla y volver a guardar.
 
-**5. Separar la creación de la publicación para estudiantes**
+**5. Separar la creación de la publicación para estudiantes** — ✅ Reclasificado y cerrado (8df6234 60d6351)
 
 **Cómo está ahora:**
 
@@ -973,7 +989,7 @@ Los estudiantes deben continuar viendo la versión anteriormente publicada hasta
 
 ### CU-18 — Editar una lección
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -989,7 +1005,7 @@ Además, todavía no puede agregarse un ejemplo desde la interfaz a una lección
 
 **Qué falta:**
 
-**1. Evitar que al editar una cosa se cambien otros datos de la lección**
+**1. Evitar que al editar una cosa se cambien otros datos de la lección** — ✅ Cerrado (1dc3950)
 
 **Cómo está ahora:**
 
@@ -1019,7 +1035,7 @@ Cuando el Administrador edite una lección, Telar debe conservar todos los datos
 
 Además, debe existir una forma de consultar y modificar el video y la regla de completitud cuando sea necesario.
 
-**2. Permitir agregar un ejemplo a una lección que no lo tiene**
+**2. Permitir agregar un ejemplo a una lección que no lo tiene** — ✅ Cerrado (d16a36e)
 
 **Cómo está ahora:**
 
@@ -1037,7 +1053,7 @@ Si una lección no tiene ejemplo, Telar debería ofrecer una opción como:
 
 Esta debe permitir crear el ejemplo y asociarlo a esa misma lección.
 
-**3. Permitir eliminar el quiz de una lección**
+**3. Permitir eliminar el quiz de una lección** — ✅ Cerrado (d9dc146)
 
 **Cómo está ahora:**
 
@@ -1056,7 +1072,7 @@ Debe existir una opción para eliminar el quiz asociado a la lección.
 
 Después de eliminarlo, la lección debe poder seguir existiendo normalmente cuando su configuración no requiera un quiz.
 
-**4. Proteger completamente los cambios sin guardar**
+**4. Proteger completamente los cambios sin guardar** — ✅ Cerrado (3e9ee26)
 
 **Cómo está ahora:**
 
@@ -1072,7 +1088,7 @@ Sin embargo, existen otros caminos donde todavía pueden perderse los cambios si
 
 Si existen cambios sin guardar, Telar debe advertir antes de cualquier acción que pueda hacer que esos cambios se pierdan.
 
-**5. Mostrar claramente qué dato es inválido**
+**5. Mostrar claramente qué dato es inválido** — ✅ Cerrado (2eece9d)
 
 **Cómo está ahora:**
 
@@ -1094,7 +1110,7 @@ o:
 
 El Administrador debe poder corregir el dato y volver a guardar.
 
-**6. Separar la edición de la publicación para estudiantes**
+**6. Separar la edición de la publicación para estudiantes** — ✅ Reclasificado y cerrado (8df6234 60d6351)
 
 **Cómo está ahora:**
 
@@ -1112,7 +1128,7 @@ Los estudiantes deben seguir viendo la última versión publicada hasta que el A
 
 ### CU-19 — Reordenar lecciones
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -1124,7 +1140,7 @@ Además, cambiar únicamente el módulo o la posición puede modificar otros dat
 
 **Qué falta:**
 
-**1. Reorganizar automáticamente las demás lecciones al mover una**
+**1. Reorganizar automáticamente las demás lecciones al mover una** — ✅ Cerrado (d16a36e)
 
 **Cómo está ahora:**
 
@@ -1166,7 +1182,7 @@ Mover C a la posición 2 debería producir:
 
 Esto debe funcionar tanto dentro del mismo módulo como al mover una lección hacia otro módulo.
 
-**2. No modificar otros datos de la lección al cambiar su posición o módulo**
+**2. No modificar otros datos de la lección al cambiar su posición o módulo** — ✅ Cerrado (1dc3950)
 
 **Cómo está ahora:**
 
@@ -1182,7 +1198,7 @@ Cambiar el módulo o posición de una lección debe modificar únicamente su ubi
 
 Su contenido, video, regla de completitud, ejemplo, quiz y demás información deben permanecer sin cambios.
 
-**3. Validar correctamente la posición introducida**
+**3. Validar correctamente la posición introducida** — ✅ Cerrado (d16a36e)
 
 **Cómo está ahora:**
 
@@ -1196,7 +1212,7 @@ Además, algunos errores de posición se muestran mediante mensajes demasiado ge
 
 Telar debe aceptar únicamente posiciones válidas y, cuando exista un problema, indicar claramente qué debe corregirse.
 
-**4. Separar el reordenamiento de la publicación para estudiantes**
+**4. Separar el reordenamiento de la publicación para estudiantes** — ✅ Reclasificado y cerrado (8df6234 60d6351)
 
 **Cómo está ahora:**
 
@@ -1212,7 +1228,7 @@ Los estudiantes deben continuar viendo la organización anteriormente publicada 
 
 ### CU-20 — Eliminar una lección
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -1226,7 +1242,7 @@ Sin embargo, la advertencia actual afirma siempre que se eliminarán un ejemplo 
 
 **Qué falta:**
 
-**1. Mostrar una advertencia correcta según los recursos de la lección**
+**1. Mostrar una advertencia correcta según los recursos de la lección** — ✅ Cerrado (9ca5041)
 
 **Cómo está ahora:**
 
@@ -1248,7 +1264,7 @@ Puede adaptarse a los recursos que realmente tenga la lección o utilizar un men
 
 > "Se eliminará la lección y todos los recursos asociados. Esta acción no se puede deshacer."
 
-**2. Separar la eliminación de la publicación para estudiantes**
+**2. Separar la eliminación de la publicación para estudiantes** — ✅ Reclasificado y cerrado (8df6234 60d6351)
 
 **Cómo está ahora:**
 
@@ -1266,7 +1282,7 @@ Los estudiantes deben continuar viendo la versión anteriormente publicada hasta
 
 ### CU-21 — Editar un ejemplo
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -1280,7 +1296,7 @@ Además, Telar no advierte al abandonar cambios sin guardar, algunos errores de 
 
 **Qué falta:**
 
-**1. Evitar que un mismo guardado deje el ejemplo actualizado solo a medias**
+**1. Evitar que un mismo guardado deje el ejemplo actualizado solo a medias** — ✅ Cerrado (2eece9d)
 
 **Cómo está ahora:**
 
@@ -1309,7 +1325,7 @@ Si el Administrador guarda información, configuración y código conjuntamente,
 
 O se guardan todos los cambios correctamente o, si alguna parte falla, debe conservarse completa la versión anterior.
 
-**2. Advertir antes de abandonar cambios sin guardar**
+**2. Advertir antes de abandonar cambios sin guardar** — ✅ Cerrado (3e9ee26, 00267b7)
 
 **Cómo está ahora:**
 
@@ -1329,7 +1345,7 @@ sin recibir una advertencia.
 
 Si existen cambios sin guardar, Telar debe advertir antes de abandonar la edición y permitir decidir entre permanecer o descartar las modificaciones.
 
-**3. Mostrar claramente qué dato es inválido**
+**3. Mostrar claramente qué dato es inválido** — ✅ Cerrado (2eece9d)
 
 **Cómo está ahora:**
 
@@ -1341,7 +1357,7 @@ Sin embargo, algunos errores se muestran mediante mensajes demasiado genéricos 
 
 Cuando una información, configuración o código sea rechazado, Telar debe indicar de forma comprensible qué debe corregirse y permitir volver a guardar.
 
-**4. Separar la edición de la publicación para estudiantes**
+**4. Separar la edición de la publicación para estudiantes** — ✅ Reclasificado y cerrado (8df6234 60d6351)
 
 **Cómo está ahora:**
 
@@ -1359,7 +1375,7 @@ Los estudiantes deben continuar utilizando la última versión publicada hasta q
 
 ### CU-22 — Probar un ejemplo en el simulador
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -1371,7 +1387,7 @@ Sin embargo, actualmente no es posible mantener completamente separada la versi�
 
 **Qué falta:**
 
-**1. Permitir probar un ejemplo antes de ponerlo a disposición de los estudiantes**
+**1. Permitir probar un ejemplo antes de ponerlo a disposición de los estudiantes** — ✅ Reclasificado y cerrado (8df6234 60d6351)
 
 **Cómo está ahora:**
 
@@ -1391,7 +1407,7 @@ El Administrador debe poder guardar y probar una versión que todavía está en 
 
 Solo la publicación posterior debe actualizar la versión educativa.
 
-**2. Evitar que una prueba administrativa modifique el progreso de aprendizaje**
+**2. Evitar que una prueba administrativa modifique el progreso de aprendizaje** — ✅ Cerrado (b638029, f92d9fa)
 
 **Cómo está ahora:**
 
@@ -1403,7 +1419,7 @@ No llega a marcar la lección como completada, pero igualmente modifica informac
 
 Una prueba realizada por el Administrador debe generar normalmente su job, resultados y métricas, pero no debe modificar el progreso de aprendizaje de la lección.
 
-**3. Mantener seleccionado el último ejemplo elegido en el simulador**
+**3. Mantener seleccionado el último ejemplo elegido en el simulador** — ✅ Cerrado (1d17085, b8afa99)
 
 **Cómo está ahora:**
 
@@ -1428,7 +1444,7 @@ El simulador debe mantener siempre el último ejemplo seleccionado y evitar que 
 
 ### CU-23 — Gestionar el contenido base
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -1440,7 +1456,7 @@ Sin embargo, existen tres problemas: la operación de verificación puede modifi
 
 **Qué falta:**
 
-**1. Hacer que la verificación sea realmente solo de consulta**
+**1. Hacer que la verificación sea realmente solo de consulta** — ✅ Cerrado (0b7b607, f0d9980)
 
 **Cómo está ahora:**
 
@@ -1466,7 +1482,7 @@ Debe únicamente consultar el estado actual y reportar:
 - qué contenido adicional existe;
 - o qué problema impide realizar la comparación.
 
-**2. Permitir actualizar o restablecer correctamente el orden del contenido**
+**2. Permitir actualizar o restablecer correctamente el orden del contenido** — ✅ Cerrado (0b7b607)
 
 **Cómo está ahora:**
 
@@ -1498,7 +1514,7 @@ Si se está actualizando normalmente, debe conservar el contenido adicional.
 
 Si se solicitó un restablecimiento completo, debe poder retirar el contenido adicional y dejar finalmente el orden definido por el contenido base.
 
-**3. Hacer que "Restablecer" realmente devuelva todo al estado base**
+**3. Hacer que "Restablecer" realmente devuelva todo al estado base** — ✅ Cerrado (0b7b607)
 
 **Cómo está ahora:**
 
@@ -1524,7 +1540,7 @@ La herramienta solo debe informar éxito cuando el contenido haya quedado realme
 
 ### CU-24 — Gestionar una ejecución aislada
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -1534,7 +1550,7 @@ Sin embargo, existen varios escenarios de error en los que Telar puede registrar
 
 **Qué falta:**
 
-**1. Evitar que un error analizando los resultados cambie el resultado real de la ejecución**
+**1. Evitar que un error analizando los resultados cambie el resultado real de la ejecución** — ✅ Cerrado (6b29f57)
 
 **Cómo está ahora:**
 
@@ -1554,7 +1570,7 @@ El resultado real del programa debe conservarse.
 
 Si únicamente falla el análisis posterior, Telar puede indicar que no pudo obtener las métricas interpretadas, pero no debe convertir una ejecución exitosa en una ejecución fallida.
 
-**2. Detectar si falla el proceso encargado de capturar logs y métricas**
+**2. Detectar si falla el proceso encargado de capturar logs y métricas** — ⚪ Limitación conocida (NO HACER)
 
 **Cómo está ahora:**
 
@@ -1570,7 +1586,7 @@ Telar debe detectar si el proceso de supervisión falla o queda bloqueado.
 
 Debe recuperar esa supervisión o finalizar la ejecución de forma controlada, conservando la información disponible y limpiando los recursos.
 
-**3. Limpiar recursos creados parcialmente cuando falla la preparación**
+**3. Limpiar recursos creados parcialmente cuando falla la preparación** — ✅ Cerrado (0519c98)
 
 **Cómo está ahora:**
 
@@ -1587,7 +1603,7 @@ En estos casos algunos recursos pueden quedar sin limpiar.
 
 Cualquier recurso creado durante la preparación debe eliminarse también cuando la preparación falla a mitad del proceso.
 
-**4. Mantener control de los recursos hasta comprobar que realmente fueron eliminados**
+**4. Mantener control de los recursos hasta comprobar que realmente fueron eliminados** — ⚪ Limitación conocida (NO HACER)
 
 **Cómo está ahora:**
 
@@ -1603,7 +1619,7 @@ Si un contenedor o recurso temporal no pudo eliminarse, Telar debe mantenerlo id
 
 Un contenedor que todavía pueda permanecer activo no debe dejar de contar como recurso ocupado.
 
-**5. Recuperar el resultado si falla temporalmente el guardado en SQLite**
+**5. Recuperar el resultado si falla temporalmente el guardado en SQLite** — ⚪ Limitación conocida (NO HACER)
 
 **Cómo está ahora:**
 
@@ -1619,7 +1635,7 @@ Telar debe conservar el resultado real pendiente de guardar y volver a reconcili
 
 Un problema temporal de SQLite no debe convertir una ejecución exitosa en una ejecución fallida ni dejarla registrada indefinidamente como activa.
 
-**6. Diferenciar un timeout de un fallo de comunicación con Docker**
+**6. Diferenciar un timeout de un fallo de comunicación con Docker** — ✅ Cerrado (0519c98)
 
 **Cómo está ahora:**
 
@@ -1640,7 +1656,7 @@ Cada caso debe quedar registrado con una causa coherente.
 
 ### CU-25 — Recuperar ejecuciones inconsistentes al iniciar
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -1652,7 +1668,7 @@ Sin embargo, si la limpieza de esos recursos falla, Telar puede continuar inicia
 
 **Qué falta:**
 
-**1. Limpiar los archivos temporales aunque Docker no esté disponible**
+**1. Limpiar los archivos temporales aunque Docker no esté disponible** — ✅ Cerrado (0519c98)
 
 **Cómo está ahora:**
 
@@ -1666,7 +1682,7 @@ La limpieza de archivos temporales debe poder realizarse independientemente de D
 
 Aunque Docker esté caído, Telar debe retirar los directorios de ejecuciones anteriores que pueda identificar y eliminar de forma segura.
 
-**2. Detectar cuando un directorio temporal realmente no pudo eliminarse**
+**2. Detectar cuando un directorio temporal realmente no pudo eliminarse** — ✅ Cerrado (0519c98)
 
 **Cómo está ahora:**
 
@@ -1680,7 +1696,7 @@ Telar debe comprobar si la eliminación realmente fue exitosa.
 
 Si un directorio no pudo eliminarse, debe registrarlo como recurso pendiente y dejar información suficiente para poder volver a intentarlo o diagnosticar el problema.
 
-**3. Mantener bajo control los contenedores que no pudieron eliminarse**
+**3. Mantener bajo control los contenedores que no pudieron eliminarse** — ⚪ Limitación conocida (NO HACER)
 
 **Cómo está ahora:**
 
@@ -1700,7 +1716,7 @@ Debe volver a intentar su eliminación o reflejar que la recuperación todavía 
 
 ### CU-26 — Reportar salud del sistema
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -1712,7 +1728,7 @@ Sin embargo, existen situaciones donde Telar no puede distinguir correctamente l
 
 **Qué falta:**
 
-**1. Diferenciar cuando la imagen del runner no existe de cuando no pudo comprobarse**
+**1. Diferenciar cuando la imagen del runner no existe de cuando no pudo comprobarse** — ✅ Cerrado (7f079e2)
 
 **Cómo está ahora:**
 
@@ -1731,7 +1747,7 @@ Por tanto, no puede distinguir entre:
 
 El reporte debe permitir distinguir una ausencia confirmada de una comprobación que no pudo realizarse.
 
-**2. Evitar que las comprobaciones de Docker bloqueen demasiado el reporte de salud**
+**2. Evitar que las comprobaciones de Docker bloqueen demasiado el reporte de salud** — ✅ Cerrado (7f079e2, f0d9980)
 
 **Cómo está ahora:**
 
@@ -1747,7 +1763,7 @@ Las comprobaciones deben tener un tiempo de espera razonable y no bloquear el ba
 
 Si Docker no responde a tiempo, Telar debe devolver el resto del reporte e indicar que ese componente no pudo comprobarse.
 
-**3. Volver a comprobar Docker si no estaba disponible durante el arranque**
+**3. Volver a comprobar Docker si no estaba disponible durante el arranque** — ✅ Reclasificado y cerrado (7f079e2, f0d9980, 5935292 (también desde POST /jobs))
 
 **Cómo está ahora:**
 
@@ -1759,7 +1775,7 @@ Aunque Docker vuelva a funcionar después, las consultas posteriores pueden cont
 
 Telar debe poder volver a intentar la conexión con Docker y actualizar el estado reportado cuando el servicio vuelva a estar disponible.
 
-**4. Informar cuando quedaron recursos pendientes de una recuperación**
+**4. Informar cuando quedaron recursos pendientes de una recuperación** — ⚪ Limitación conocida (NO HACER)
 
 **Cómo está ahora:**
 
@@ -1777,7 +1793,7 @@ Si un recurso pendiente afecta la capacidad segura para ejecutar nuevos jobs, Te
 
 ### CU-27 — Iniciar la aplicación de escritorio
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -1789,7 +1805,7 @@ Sin embargo, existen escenarios donde Telar considera que el entorno ya está pr
 
 **Qué falta:**
 
-**1. Comprobar que todo lo necesario esté realmente preparado antes de dar por terminado el inicio**
+**1. Comprobar que todo lo necesario esté realmente preparado antes de dar por terminado el inicio** — ✅ Cerrado (a7a0b42, 2a219a9)
 
 **Cómo está ahora:**
 
@@ -1811,7 +1827,7 @@ Si algo falta y puede prepararlo automáticamente, debe hacerlo.
 
 Si no puede prepararlo, debe informar claramente qué funcionalidad está limitada.
 
-**2. Continuar automáticamente la preparación cuando Docker vuelva a estar disponible**
+**2. Continuar automáticamente la preparación cuando Docker vuelva a estar disponible** — ✅ Cerrado (a7a0b42)
 
 **Cómo está ahora:**
 
@@ -1827,7 +1843,7 @@ Si la preparación automática quedó pendiente porque Docker no estaba disponib
 
 Esto debe diferenciarse de un caso donde el usuario haya detenido explícitamente los servicios.
 
-**3. Comprobar que la imagen necesaria para ejecutar código realmente quedó preparada**
+**3. Comprobar que la imagen necesaria para ejecutar código realmente quedó preparada** — ✅ Cerrado (a7a0b42)
 
 **Cómo está ahora:**
 
@@ -1850,7 +1866,7 @@ Si falta:
 - debe intentar prepararla cuando corresponda;
 - o debe informar claramente que la ejecución de código todavía no está disponible y ofrecer una forma de reintentar.
 
-**4. Mostrar la causa real cuando la preparación inicial no puede comenzar**
+**4. Mostrar la causa real cuando la preparación inicial no puede comenzar** — ✅ Cerrado (a7a0b42)
 
 **Cómo está ahora:**
 
@@ -1868,7 +1884,7 @@ El usuario puede terminar viendo simplemente que los servicios están detenidos 
 
 Telar debe conservar el motivo del fallo y mostrar un mensaje comprensible que permita saber qué está impidiendo continuar y cómo volver a intentarlo.
 
-**5. Manejar el fallo de carga de la propia interfaz**
+**5. Manejar el fallo de carga de la propia interfaz** — ✅ Cerrado (d7631e6, 2a219a9)
 
 **Cómo está ahora:**
 
@@ -1884,7 +1900,7 @@ La aplicación de escritorio debe detectar el fallo de carga de la interfaz y mo
 
 ### CU-28 — Realizar un taller guiado
 
-**Estado:** 🔴 **No implementado**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🔴 **No implementado**)*
 
 **Por qué:**
 
@@ -1902,7 +1918,7 @@ pero esas funcionalidades no están conectadas como un **taller guiado**.
 
 **Qué falta:**
 
-**1. Implementar el taller como una actividad identificable dentro de una lección**
+**1. Implementar el taller como una actividad identificable dentro de una lección** — ✅ Cerrado (14308ce, 0f7475f, fba410e, ff4c99e)
 
 **Cómo está ahora:**
 
@@ -1929,7 +1945,7 @@ El estudiante debe poder identificarlo y acceder a una actividad que tenga, como
 
 No es obligatorio crear una pantalla o tabla llamada literalmente `Taller`, pero sí debe existir funcionalmente esa actividad.
 
-**2. Permitir talleres con código y talleres sin código**
+**2. Permitir talleres con código y talleres sin código** — ✅ Cerrado (0f7475f, 0fdfb66, ff4c99e)
 
 **Cómo está ahora:**
 
@@ -1954,7 +1970,7 @@ Si requiere código, debe poder:
 
 Todo esto debe mantenerse dentro del contexto del taller que está realizando.
 
-**3. Guardar el estado del taller y permitir retomarlo**
+**3. Guardar el estado del taller y permitir retomarlo** — ✅ Cerrado (0f7475f, 0fdfb66)
 
 **Cómo está ahora:**
 
@@ -1972,7 +1988,7 @@ Telar debe conservar el estado necesario de la actividad.
 
 Si el estudiante abandona un taller antes de terminarlo, debe poder volver posteriormente y continuar con ese taller todavía pendiente.
 
-**4. Definir cuándo un taller está realizado**
+**4. Definir cuándo un taller está realizado** — ✅ Cerrado (0f7475f, 24b15a0)
 
 **Cómo está ahora:**
 
@@ -1994,7 +2010,7 @@ Esta condición debe aplicarse al taller correcto.
 
 Por ejemplo, una ejecución independiente en el simulador no debe completar accidentalmente un taller simplemente porque pertenece a la misma lección.
 
-**5. Integrar la realización del taller con el progreso de la lección**
+**5. Integrar la realización del taller con el progreso de la lección** — ✅ Cerrado (0f7475f, ebc03a9)
 
 **Cómo está ahora:**
 
@@ -2008,7 +2024,7 @@ Cuando una lección defina que su taller es un requisito, completar ese taller d
 
 Si el taller es opcional, completarlo no debe alterar incorrectamente la condición de la lección.
 
-**6. Manejar errores dentro del recorrido del taller**
+**6. Manejar errores dentro del recorrido del taller** — ✅ Cerrado (0fdfb66, 29c5087)
 
 **Cómo está ahora:**
 
@@ -2024,7 +2040,7 @@ Si ocurre un problema durante el taller —por ejemplo, falla una ejecución o n
 
 ### CU-29 — Seguir la progresión recomendada del curso
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -2036,7 +2052,7 @@ Sin embargo, existen problemas cuando cambia la disponibilidad del contenido. Al
 
 **Qué falta:**
 
-**1. Aplicar de forma coherente qué contenido está disponible para el estudiante**
+**1. Aplicar de forma coherente qué contenido está disponible para el estudiante** — ✅ Cerrado (b638029, 6a400bd, f92d9fa)
 
 **Cómo está ahora:**
 
@@ -2055,7 +2071,7 @@ El catálogo, la selección directa y la navegación **Anterior/Siguiente** debe
 
 Si una lección fue retirada de la progresión, no debe continuar apareciendo como si fuera una lección vigente del curso.
 
-**2. Hacer que "Continuar/Empezar" siempre seleccione una lección válida**
+**2. Hacer que "Continuar/Empezar" siempre seleccione una lección válida** — ✅ Cerrado (f92d9fa)
 
 **Cómo está ahora:**
 
@@ -2085,7 +2101,7 @@ No debe depender de un ID fijo que puede no existir.
 
 ### CU-30 — Comparar ejecuciones
 
-**Estado:** 🔴 **No implementado**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🔴 **No implementado**)*
 
 **Por qué:**
 
@@ -2097,7 +2113,7 @@ No existe selección múltiple, no hay reglas para determinar si los jobs escogi
 
 **Qué falta:**
 
-**1. Permitir seleccionar varias ejecuciones históricas**
+**1. Permitir seleccionar varias ejecuciones históricas** — ✅ Cerrado (3975c62)
 
 **Cómo está ahora:**
 
@@ -2109,7 +2125,7 @@ No existe una forma de seleccionar dos o más jobs para analizarlos juntos.
 
 El Estudiante debe poder seleccionar al menos dos ejecuciones históricas, agregar o retirar jobs de la selección e iniciar una comparación con los jobs escogidos.
 
-**2. Definir y validar cuándo las ejecuciones pueden compararse**
+**2. Definir y validar cuándo las ejecuciones pueden compararse** — ✅ Cerrado (3975c62)
 
 **Cómo está ahora:**
 
@@ -2125,7 +2141,7 @@ Antes de mostrar una comparación debe comprobar esos criterios.
 
 Si las ejecuciones seleccionadas no pueden compararse, debe explicar el problema y permitir modificar la selección.
 
-**3. Mostrar conjuntamente configuraciones, resultados y métricas**
+**3. Mostrar conjuntamente configuraciones, resultados y métricas** — ✅ Cerrado (3975c62)
 
 **Cómo está ahora:**
 
@@ -2151,7 +2167,7 @@ Si una ejecución no posee algún dato, debe mostrarse como información ausente
 
 Cuando existan datos adecuados, pueden mostrarse visualizaciones comparativas.
 
-**4. Completar el flujo de navegación y manejo de errores de la comparación**
+**4. Completar el flujo de navegación y manejo de errores de la comparación** — ✅ Cerrado (3975c62)
 
 **Cómo está ahora:**
 
@@ -2172,7 +2188,7 @@ Si una selección tiene problemas o un job no puede recuperarse, Telar debe info
 
 ### CU-31 — Exportar resultados y métricas de ejecuciones
 
-**Estado:** 🔴 **No implementado**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🔴 **No implementado**)*
 
 **Por qué:**
 
@@ -2184,7 +2200,7 @@ Sin embargo, actualmente no existe una funcionalidad que permita al Estudiante e
 
 **Qué falta:**
 
-**1. Implementar una exportación completa de una ejecución**
+**1. Implementar una exportación completa de una ejecución** — ✅ Cerrado (c0419d2)
 
 **Cómo está ahora:**
 
@@ -2217,7 +2233,7 @@ El Estudiante debe disponer de una opción para exportar una ejecución con la i
 
 No se exige un formato específico. Puede utilizarse JSON, CSV u otro formato que pueda conservarse y analizarse fuera de Telar.
 
-**2. Manejar correctamente la información que no esté disponible**
+**2. Manejar correctamente la información que no esté disponible** — ✅ Cerrado (c0419d2)
 
 **Cómo está ahora:**
 
@@ -2239,7 +2255,7 @@ Cuando un dato no esté disponible, debe mantenerse como ausente y no reemplazar
 
 La falta de una métrica opcional tampoco debe impedir exportar el resto de la ejecución.
 
-**3. Manejar errores y permitir volver a intentar la exportación**
+**3. Manejar errores y permitir volver a intentar la exportación** — ✅ Cerrado (c0419d2)
 
 **Cómo está ahora:**
 
@@ -2255,7 +2271,7 @@ El fallo no debe modificar la ejecución histórica ni mostrar una exportación 
 
 ### CU-32 — Guardar y reutilizar una configuración de ejecución
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -2265,7 +2281,7 @@ Sin embargo, no existe una funcionalidad para guardar configuraciones independie
 
 **Qué falta:**
 
-**1. Permitir guardar configuraciones independientemente de las ejecuciones históricas**
+**1. Permitir guardar configuraciones independientemente de las ejecuciones históricas** — ✅ Cerrado (9c07e16, 32f83ad)
 
 **Cómo está ahora:**
 
@@ -2288,7 +2304,7 @@ Esa configuración debe permanecer disponible para usos posteriores de Telar y p
 
 Modificarla para preparar una nueva ejecución no debe modificar automáticamente la configuración guardada original.
 
-**2. Recuperar correctamente la configuración histórica al utilizar "Re-ejecutar"**
+**2. Recuperar correctamente la configuración histórica al utilizar "Re-ejecutar"** — ✅ Cerrado (1d17085)
 
 **Cómo está ahora:**
 
@@ -2319,7 +2335,7 @@ Si alguna opción ya no puede utilizarse porque los límites o capacidades actua
 
 Si se utiliza la versión actual del ejemplo en lugar de la versión histórica, también debe quedar claro que el contenido cambió.
 
-**3. Evitar modificar silenciosamente una opción antes de crear el nuevo job**
+**3. Evitar modificar silenciosamente una opción antes de crear el nuevo job** — ✅ Cerrado (1d17085, 32f83ad)
 
 **Cómo está ahora:**
 
@@ -2345,7 +2361,9 @@ El Estudiante debe poder corregirlo o aceptar explícitamente el ajuste, y la co
 
 ### CU-33 — Instalar Telar
 
-**Estado:** 🟢 **Implementado**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟢 **Implementado**)*
+
+> **Cierre:** el informe añadió el faltante 33.1 (QA versionada de la instalación): ◐ **parcial**, limitación conocida. La página pública ya ofrece la v1.0.5 con sus checksums (2ff51c1); falta la evidencia de QA de instalación por versión.
 
 **Por qué:**
 
@@ -2375,7 +2393,7 @@ Esto debe considerarse una validación/QA pendiente, pero no cambia el estado de
 
 ### CU-34 — Explorar catálogo de cursos disponibles
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -2387,7 +2405,7 @@ Sin embargo, actualmente el Usuario no puede abrir el detalle de una publicació
 
 **Qué falta:**
 
-**1. Permitir consultar el detalle de una publicación antes de incorporarla**
+**1. Permitir consultar el detalle de una publicación antes de incorporarla** — ✅ Cerrado (1cddb1a)
 
 **Cómo está ahora:**
 
@@ -2409,7 +2427,7 @@ El Estudiante y el Administrador deben poder seleccionar una publicación y cons
 
 Desde ese detalle deben poder regresar al catálogo o continuar posteriormente con la acción correspondiente.
 
-**2. Manejar correctamente una publicación que deja de estar disponible al consultar su detalle**
+**2. Manejar correctamente una publicación que deja de estar disponible al consultar su detalle** — ✅ Cerrado (8df6234)
 
 **Cómo está ahora:**
 
@@ -2423,7 +2441,7 @@ Al intentar consultar una publicación que ya no se encuentra disponible, Telar 
 
 La existencia física del bundle no debe confundirse con que la publicación continúe vigente en el catálogo.
 
-**3. No ocultar publicaciones simplemente porque coinciden con contenido local**
+**3. No ocultar publicaciones simplemente porque coinciden con contenido local** — ✅ Cerrado (cbbb670)
 
 **Cómo está ahora:**
 
@@ -2447,7 +2465,9 @@ Si existe algún conflicto con el contenido local, esa situación puede afectar 
 
 ### CU-35 — Descargar e incorporar un curso a Telar
 
-**Estado:** 🟢 **Implementado**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟢 **Implementado**)*
+
+> **Cierre:** la nota 35.1 (progreso heredado por `lesson_id`) es una limitación conocida (NO HACER): exige migrar `lesson_progress` y choca con la promesa de ids estables del contrato (§11.0.7).
 
 **Por qué:**
 
@@ -2492,7 +2512,7 @@ Esto debe corregirse para evitar atribuir progreso de contenido diferente, pero 
 
 ### CU-36 — Descargar un curso para edición
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -2506,7 +2526,7 @@ También existen problemas para garantizar que se importe exactamente la versió
 
 **Qué falta:**
 
-**1. Separar la versión en edición del contenido utilizado para aprendizaje**
+**1. Separar la versión en edición del contenido utilizado para aprendizaje** — ✅ Reclasificado y cerrado (8df6234 60d6351)
 
 **Cómo está ahora:**
 
@@ -2532,7 +2552,7 @@ Mientras el Administrador no ejecute CU-37 — Publicar un curso:
 
 Guardar no debe hacer visibles automáticamente los cambios.
 
-**2. Importar exactamente la versión seleccionada por el Administrador**
+**2. Importar exactamente la versión seleccionada por el Administrador** — ✅ Cerrado (cbbb670)
 
 **Cómo está ahora:**
 
@@ -2560,7 +2580,7 @@ Si esa publicación ya cambió, Telar debe:
 
 No debe sustituirla silenciosamente.
 
-**3. Detectar cuando ya existe una versión de trabajo de la misma publicación**
+**3. Detectar cuando ya existe una versión de trabajo de la misma publicación** — ⚪ Limitación conocida (NO HACER)
 
 **Cómo está ahora:**
 
@@ -2592,7 +2612,7 @@ Crear una bifurcación independiente puede continuar existiendo como funcionalid
 
 ### CU-37 — Publicar un curso
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -2606,7 +2626,7 @@ Sin embargo, todavía existen escenarios donde puede publicarse contenido invál
 
 **Qué falta:**
 
-**1. Validar la publicación con las mismas reglas necesarias para poder incorporarla**
+**1. Validar la publicación con las mismas reglas necesarias para poder incorporarla** — ✅ Cerrado (8df6234 99585b7)
 
 **Cómo está ahora:**
 
@@ -2622,7 +2642,7 @@ Antes de permitir la confirmación final, Telar debe validar el artefacto genera
 
 Si existe un problema, debe identificar qué elemento o condición debe corregir el Administrador y no publicar el bundle.
 
-**2. Vincular la confirmación con el contenido que el Administrador revisó**
+**2. Vincular la confirmación con el contenido que el Administrador revisó** — ⚪ Limitación conocida (NO HACER)
 
 **Cómo está ahora:**
 
@@ -2648,7 +2668,7 @@ La confirmación debe corresponder exactamente al contenido revisado.
 
 Si el contenido cambia después del ensayo, Telar debe invalidar esa confirmación y solicitar una nueva revisión antes de publicar.
 
-**3. Permitir recuperar una publicación cuando el bundle se subió pero el índice no pudo actualizarse**
+**3. Permitir recuperar una publicación cuando el bundle se subió pero el índice no pudo actualizarse** — ✅ Cerrado (8df6234 4f969ae)
 
 **Cómo está ahora:**
 
@@ -2670,7 +2690,7 @@ Telar debe reconocer que el bundle correspondiente ya fue subido correctamente y
 
 También puede aplicar otra estrategia de recuperación equivalente, pero un fallo intermedio no debe obligar a realizar correcciones técnicas manuales fuera de Telar.
 
-**4. Reconciliar la publicación remota con el estado local**
+**4. Reconciliar la publicación remota con el estado local** — ✅ Cerrado (8df6234 99585b7)
 
 **Cómo está ahora:**
 
@@ -2704,7 +2724,7 @@ Guardar no modifica GCS y CU-37 sigue siendo la acción explícita que modifica 
 
 ### CU-38 — Actualizar un curso incorporado
 
-**Estado:** 🟡 **Parcial**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🟡 **Parcial**)*
 
 **Por qué:**
 
@@ -2718,7 +2738,7 @@ Sin embargo, existen problemas en cómo se presenta el contenido retirado, cómo
 
 **Qué falta:**
 
-**1. Excluir del curso actual las lecciones retiradas por una actualización**
+**1. Excluir del curso actual las lecciones retiradas por una actualización** — ✅ Cerrado (b638029, f92d9fa)
 
 **Cómo está ahora:**
 
@@ -2745,7 +2765,7 @@ Las lecciones archivadas pueden conservarse para mantener historial, pero deben 
 - los totales actuales del módulo;
 - el cálculo visible del progreso de la versión nueva.
 
-**2. Evitar que una lección nueva herede progreso de contenido diferente**
+**2. Evitar que una lección nueva herede progreso de contenido diferente** — ⚪ Limitación conocida (NO HACER)
 
 **Cómo está ahora:**
 
@@ -2764,7 +2784,7 @@ Solo el primer caso debe poder recuperar legítimamente su progreso previo.
 
 Una lección realmente nueva debe comenzar con el estado de progreso correspondiente a contenido nuevo.
 
-**3. Hacer que el preview refleje correctamente las recalificaciones que ocurrirán**
+**3. Hacer que el preview refleje correctamente las recalificaciones que ocurrirán** — ✅ Cerrado (440204b, cbbb670)
 
 **Cómo está ahora:**
 
@@ -2784,7 +2804,9 @@ Si una modificación del quiz provoca recalcular un puntaje, debe indicarse como
 
 ### CU-39 — Crear un curso
 
-**Estado:** 🔴 **No implementado**
+**Estado:** 🔴? **Pendiente de decisión** *(2026-09-26; el 18-09 era 🔴 **No implementado**)*
+
+> **Cierre:** 39.3 y 39.4 están cerrados. 39.1 y 39.2 siguen pendientes de que el director acepte «curso = módulo publicable» (informe §3.10). Con esa decisión, CU-39 ≡ CU-13 + CU-37 y pasa a 🟢 sin más código.
 
 **Por qué:**
 
@@ -2801,7 +2823,7 @@ Por tanto, las funcionalidades existentes de creación de módulos no implementa
 
 **Qué falta:**
 
-**1. Implementar una entidad y flujo real de creación de cursos**
+**1. Implementar una entidad y flujo real de creación de cursos** — ⏸ Pendiente de la decisión «curso = módulo publicable»
 
 **Cómo está ahora:**
 
@@ -2821,7 +2843,7 @@ El Administrador debe poder crear un curso desde cero, definir y guardar su info
 
 El curso puede comenzar sin módulos y permanecer como contenido en edición.
 
-**2. Asociar los módulos al curso correspondiente**
+**2. Asociar los módulos al curso correspondiente** — ⏸ Pendiente de la decisión «curso = módulo publicable»
 
 **Cómo está ahora:**
 
@@ -2843,7 +2865,7 @@ Cada módulo debe quedar asociado inequívocamente al curso en el que fue creado
 
 El Administrador debe poder trabajar con varios cursos simultáneamente sin que sus módulos se mezclen.
 
-**3. Mantener el curso en edición separado del contenido estudiantil**
+**3. Mantener el curso en edición separado del contenido estudiantil** — ✅ Reclasificado y cerrado (8df6234 60d6351)
 
 **Cómo está ahora:**
 
@@ -2863,7 +2885,7 @@ Hasta que el Administrador lo publique:
 - puede añadir módulos y lecciones;
 - los estudiantes no deben consumir esos cambios como contenido publicado.
 
-**4. Advertir antes de descartar información inicial sin guardar**
+**4. Advertir antes de descartar información inicial sin guardar** — ✅ Cerrado (3e9ee26)
 
 **Cómo está ahora:**
 
@@ -2879,7 +2901,9 @@ Durante la creación del curso, si existen cambios sin guardar y el Administrado
 
 ### CU-40 — Editar información de un curso
 
-**Estado:** 🔴 **No implementado**
+**Estado:** 🔴? **Pendiente de decisión** *(2026-09-26; el 18-09 era 🔴 **No implementado**)*
+
+> **Cierre:** 40.2 y 40.3 están cerrados. 40.1 sigue pendiente de la misma decisión que CU-39. Con ella, CU-40 ≡ CU-14.
 
 **Por qué:**
 
@@ -2891,7 +2915,7 @@ Por tanto, la funcionalidad **Editar módulo** corresponde a CU-14 y no implemen
 
 **Qué falta:**
 
-**1. Implementar información general editable a nivel de curso**
+**1. Implementar información general editable a nivel de curso** — ⏸ Pendiente de la decisión «curso = módulo publicable»
 
 **Cómo está ahora:**
 
@@ -2913,7 +2937,7 @@ Debe poder modificar datos suficientes para identificar y describir el curso, gu
 
 La operación debe modificar únicamente el curso seleccionado y conservar sus módulos, lecciones y demás contenido.
 
-**2. Proteger los cambios de información general sin guardar**
+**2. Proteger los cambios de información general sin guardar** — ✅ Cerrado (3e9ee26)
 
 **Cómo está ahora:**
 
@@ -2929,7 +2953,7 @@ Si el Administrador intenta abandonar la edición sin guardarlos, Telar debe adv
 
 Después de guardar correctamente, esos cambios deben dejar de considerarse pendientes.
 
-**3. Mantener la información editada separada de la versión visible al estudiante**
+**3. Mantener la información editada separada de la versión visible al estudiante** — ✅ Reclasificado y cerrado (8df6234 60d6351)
 
 **Cómo está ahora:**
 
@@ -2952,7 +2976,9 @@ Guardar la información no debe equivaler a hacerla visible para estudiantes.
 
 ### CU-41 — Eliminar un curso
 
-**Estado:** 🔴 **No implementado**
+**Estado:** 🟢 **Implementado** *(2026-09-26; el 18-09 era 🔴 **No implementado**)*
+
+> **Cierre:** CU-41 se implementó sobre la unidad publicable actual, el módulo (api-contract §11.8.4): «Retirar del catálogo» quita la entrada del índice sin borrar bundles ni copias incorporadas.
 
 **Por qué:**
 
@@ -2970,7 +2996,7 @@ La conservación de las copias y del progreso de los estudiantes cuando una publ
 
 **Qué falta:**
 
-**1. Implementar la eliminación administrativa y retirada del catálogo**
+**1. Implementar la eliminación administrativa y retirada del catálogo** — ✅ Cerrado (785aaa0, bfa870c)
 
 **Cómo está ahora:**
 
@@ -2998,7 +3024,7 @@ Si el contenido estaba publicado, la operación debe:
 - impedir nuevas actualizaciones;
 - conservar las copias que otros estudiantes ya tengan instaladas.
 
-**2. Impedir nuevas descargas y actualizaciones después de retirar una publicación**
+**2. Impedir nuevas descargas y actualizaciones después de retirar una publicación** — ✅ Cerrado (8df6234)
 
 **Cómo está ahora:**
 
@@ -3022,7 +3048,7 @@ Una publicación retirada no debe poder incorporarse ni actualizarse mediante Te
 
 No es necesario eliminar esos bundles históricos; simplemente deben dejar de considerarse publicaciones disponibles.
 
-**3. Manejar coherentemente los fallos entre eliminación local y retirada remota**
+**3. Manejar coherentemente los fallos entre eliminación local y retirada remota** — ⚪ Limitación conocida (NO HACER)
 
 **Cómo está ahora:**
 
