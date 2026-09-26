@@ -3151,7 +3151,8 @@ acepta `viewed`).
 | DELETE | `/admin/lessons/{id}/steps/{idx}` | — | 200 |
 
   Validación: `title` 1..160; `body_markdown` 1..20 000 y en el subset (§10.6);
-  `example_id` con `ID_PATTERN` y existente; como mucho 50 pasos; la lección
+  `example_id` con `ID_PATTERN`, existente y de una lección del **mismo módulo**
+  que el taller (lo que publicar exige, §12.5); como mucho 50 pasos; la lección
   tiene que ser un taller. Errores: `404 LESSON_NOT_FOUND`, `404
   STEP_NOT_FOUND`, `422 CONTENT_VALIDATION_ERROR` (`field`: `kind`,
   `body_markdown`, `example_id`, `steps`, `order`), `422 VALIDATION_ERROR`.

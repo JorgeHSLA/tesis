@@ -195,9 +195,9 @@ def test_el_taller_expone_kind_y_sus_pasos_con_su_estado(cliente):
 def test_modules_lista_el_kind_de_cada_leccion(cliente):
     crear_taller(cliente)
     lecciones = {
-        l["id"]: l
+        lec["id"]: lec
         for m in _ok(cliente.get("/api/v1/modules"))["modules"]
-        for l in m["lessons"]
+        for lec in m["lessons"]
     }
     assert lecciones[TALLER]["kind"] == "taller"
     assert lecciones[OTRA]["kind"] == "leccion"
@@ -412,6 +412,46 @@ def test_el_ejemplo_de_un_paso_tiene_que_existir(cliente):
         "CONTENT_VALIDATION_ERROR",
     )
     assert error["details"][0]["field"] == "example_id"
+
+
+def _ejemplo_de_otro_modulo(cliente) -> str:
+    return next(
+        e["id"]
+        for e in _ok(cliente.get("/api/v1/examples"))["examples"]
+        if e["module_id"] != "m1"
+    )
+
+
+def test_el_ejemplo_de_un_paso_tiene_que_ser_del_modulo_del_taller(cliente):
+    """Publicar exige que el ejemplo viaje en el bundle del módulo (§12.5); la
+    autoría lo rechaza al guardar, no al publicar."""
+    crear_taller(cliente, pasos=1)
+    otro = _ejemplo_de_otro_modulo(cliente)
+    for respuesta in (
+        cliente.post(
+            f"/api/v1/admin/lessons/{TALLER}/steps",
+            json={"title": "X", "body_markdown": "x", "example_id": otro},
+        ),
+        cliente.put(
+            f"/api/v1/admin/lessons/{TALLER}/steps/0",
+            json={"title": "X", "body_markdown": "x", "example_id": otro},
+        ),
+    ):
+        error = _error(respuesta, 422, "CONTENT_VALIDATION_ERROR")
+        assert error["details"][0]["field"] == "example_id"
+        assert "módulo" in error["details"][0]["reason"]
+
+
+def test_un_ejemplo_del_mismo_modulo_se_acepta_en_el_paso(cliente):
+    crear_taller(cliente, pasos=0)
+    pasos = _ok(
+        cliente.post(
+            f"/api/v1/admin/lessons/{TALLER}/steps",
+            json={"title": "X", "body_markdown": "x", "example_id": EJEMPLO},
+        ),
+        201,
+    )["steps"]
+    assert pasos[0]["example_id"] == EJEMPLO
 
 
 def test_el_markdown_del_paso_se_valida_como_el_de_la_leccion(cliente):

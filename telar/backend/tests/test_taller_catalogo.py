@@ -548,24 +548,30 @@ def test_publicar_con_un_taller_es_formato_2_con_los_ids_publicados(
 def test_publicar_un_taller_con_un_ejemplo_de_otro_modulo_falla_antes_de_subir(
     tmp_path, fake_docker, real_content
 ):
+    """La autoría ya no deja GUARDAR un paso con un ejemplo de otro módulo, pero
+    mover el taller de módulo sí puede dejarlo así: publicar lo sigue parando."""
     cliente, raiz = _cliente_publicador(tmp_path, fake_docker, real_content)
     with cliente:
-        from test_taller import crear_taller
+        from test_taller import TALLER, crear_taller
 
-        crear_taller(cliente, pasos=0)
-        otro = next(
-            e["id"]
-            for e in cliente.get("/api/v1/examples").json()["data"]["examples"]
-            if e["module_id"] != "m1"
+        detalle = crear_taller(cliente, pasos=1)  # el paso 0 usa `primerEjemplo`, de m1
+        cuerpo = {
+            k: detalle[k]
+            for k in (
+                "title", "estimated_minutes", "content_markdown", "video_url",
+                "completion_rule", "kind", "recommended", "enabled",
+            )
+            if k in detalle
+        }
+        movida = cliente.put(
+            f"/api/v1/admin/lessons/{TALLER}",
+            json={**cuerpo, "module_id": "m2", "order": 50},
         )
-        r = cliente.post(
-            "/api/v1/admin/lessons/tallerHilos/steps",
-            json={"title": "P", "body_markdown": "x", "example_id": otro},
-        )
-        assert r.status_code == 201, r.text
-        respuesta = _publicar(cliente)
+        assert movida.status_code == 200, movida.text
+        respuesta = _publicar(cliente, "m2")
         assert respuesta.status_code == 422, respuesta.text
-    assert not (raiz / "modulos" / "m1").exists()
+        assert "steps" in respuesta.text and "example_id" in respuesta.text
+    assert not (raiz / "modulos" / "m2").exists()
 
 
 def test_el_fork_traduce_el_ejemplo_de_los_pasos():

@@ -96,6 +96,20 @@ async def example_exists(db: "aiosqlite.Connection", example_id: str) -> bool:
     ) is not None
 
 
+async def example_module_id(db: "aiosqlite.Connection", example_id: str) -> str | None:
+    """Módulo de la lección dueña del ejemplo (``None`` si no existe o va suelto)."""
+    return await _scalar(
+        db,
+        "SELECT l.module_id FROM examples e JOIN lessons l ON l.id = e.lesson_id "
+        "WHERE e.id = ?",
+        (example_id,),
+    )
+
+
+async def lesson_module_id(db: "aiosqlite.Connection", lesson_id: str) -> str | None:
+    return await _scalar(db, "SELECT module_id FROM lessons WHERE id = ?", (lesson_id,))
+
+
 async def module_order_taken(
     db: "aiosqlite.Connection", order: int, *, exclude_id: str | None = None
 ) -> bool:
