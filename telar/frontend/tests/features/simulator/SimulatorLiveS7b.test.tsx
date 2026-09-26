@@ -59,6 +59,27 @@ describe('Detener', () => {
     expect(screen.getByRole('button', { name: /Detener/ })).toBeDisabled()
   })
 
+  it('perder la conexión descarta la confirmación: al reconectar no reaparece sola', async () => {
+    const ws = await openRunning()
+    fireEvent.click(screen.getByRole('button', { name: /Detener/ }))
+    expect(screen.getByText('¿Detener el job?')).toBeInTheDocument()
+
+    act(() => ws.serverClose(1006))
+    expect(await screen.findByText(/Conexión perdida con el backend/)).toBeInTheDocument()
+    expect(screen.queryByText('¿Detener el job?')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /Reintentar conexión/ }))
+    const ws2 = FakeWebSocket.last!
+    expect(ws2).not.toBe(ws)
+    act(() => {
+      ws2.open()
+      ws2.emit(statusMsg('running'))
+    })
+    await waitFor(() => expect(screen.queryByText(/Conexión perdida con el backend/)).toBeNull())
+    expect(screen.queryByText('¿Detener el job?')).toBeNull()
+    expect(screen.getByRole('button', { name: /Detener/ })).toBeEnabled()
+  })
+
   it('al confirmar muestra «Cancelando…» deshabilitado', async () => {
     const ws = await openRunning()
     fireEvent.click(screen.getByRole('button', { name: /Detener/ }))

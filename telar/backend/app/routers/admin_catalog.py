@@ -33,9 +33,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Path, Query, Request
 from fastapi.responses import JSONResponse
 
 from app.config import Settings, get_settings
@@ -52,6 +52,7 @@ from app.schemas.admin_catalog import (
     AdminPublishStatus,
     AdminUnpublishResult,
 )
+from app.schemas.admin import ID_PATTERN
 from app.schemas.catalog import CatalogIndexEntry, ModuleBundle
 from app.services import (
     catalog_import,
@@ -76,6 +77,11 @@ if TYPE_CHECKING:  # pragma: no cover - solo tipos
 #: Fecha de relleno para construir el bundle SOLO para hashearlo: ``content_hash``
 #: ignora ``published_at``, ``version`` y ``notes``.
 _FECHA_NEUTRA = "1970-01-01T00:00:00.000Z"
+
+#: El ``{module_id}`` de la ruta se valida con el mismo patrón que los ids del
+#: cuerpo (``AdminImportRequest``): uno mal formado es ``422 VALIDATION_ERROR``
+#: antes de llegar al repositorio o a las rutas de objeto del bucket.
+ModuleIdPath = Annotated[str, Path(pattern=ID_PATTERN)]
 
 logger = logging.getLogger("telar.admin_catalog")
 
@@ -330,7 +336,9 @@ def _razon_desconocida(exc: ApiException) -> str:
 
 
 @router.get("/modules/{module_id}/publish/status")
-async def admin_publish_status(request: Request, module_id: str) -> JSONResponse:
+async def admin_publish_status(
+    request: Request, module_id: ModuleIdPath
+) -> JSONResponse:
     """S5 (D+) — ¿el contenido local es el de la versión publicada?
 
     No sale a la red más que para leer: el índice sin caché y, si hace falta, el
@@ -380,7 +388,7 @@ async def admin_publish_status(request: Request, module_id: str) -> JSONResponse
 
 @router.post("/modules/{module_id}/publish", status_code=201)
 async def admin_publish_module(
-    request: Request, module_id: str, body: AdminPublishRequest
+    request: Request, module_id: ModuleIdPath, body: AdminPublishRequest
 ) -> JSONResponse:
     """§11.8.2 — publica un módulo local en el bucket.
 
@@ -484,7 +492,9 @@ async def admin_publish_module(
 
 
 @router.delete("/modules/{module_id}/publish")
-async def admin_unpublish_module(request: Request, module_id: str) -> JSONResponse:
+async def admin_unpublish_module(
+    request: Request, module_id: ModuleIdPath
+) -> JSONResponse:
     """§11.8.4 — retira el módulo del catálogo: quita su entrada del índice.
 
     Misma puerta que publicar (credencial de escritura utilizable) y el módulo
