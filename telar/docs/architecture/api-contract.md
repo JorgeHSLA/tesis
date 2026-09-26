@@ -1218,7 +1218,15 @@ ellos.
 | POST | `/admin/modules` | `AdminModuleCreate` | `AdminModule` | 401, 409 `DUPLICATE_ID`/`ORDER_CONFLICT`, 422 `CONTENT_VALIDATION_ERROR` |
 | PUT | `/admin/modules/reorder` | `AdminReorderRequest` | `{ "modules": [AdminModule…] }` | 401, 404 `MODULE_NOT_FOUND`, 409 `ORDER_CONFLICT`, 422 |
 | PUT | `/admin/modules/{id}` | `AdminModuleUpdate` | `AdminModule` | 401, 404 `MODULE_NOT_FOUND`, 409 `ORDER_CONFLICT`, 422 |
-| DELETE | `/admin/modules/{id}` | — | `{ "deleted": true, "id": "…" }` | 401, 404, 409 `MODULE_NOT_EMPTY` |
+| DELETE | `/admin/modules/{id}[?cascade=true]` | — | `{ "deleted": true, "id": "…" }` | 401, 404, 409 `MODULE_NOT_EMPTY` (sin `cascade`), 422 |
+
+**(Enmienda aditiva 2026-09-26, CU-16.1)** `DELETE /admin/modules/{id}?cascade=true`
+borra el módulo **junto con todas sus lecciones** (ejemplo, quiz, progreso e
+intentos de cada una, como `DELETE /admin/lessons/{id}`) en una sola
+transacción: o se borra todo o nada. Sin el parámetro (o con `cascade=false`)
+el comportamiento no cambia: un módulo con lecciones → `409 MODULE_NOT_EMPTY`.
+Las lecciones **archivadas** no cuentan como contenido para ese 409; al borrar
+el módulo se purgan igual.
 
 `AdminModule` = `{ id, order, title, description, level, lessons: [AdminLessonRef…] }`,
 `AdminLessonRef` = `{ id, order, title, enabled, has_quiz, quiz_question_count }`.
@@ -1342,7 +1350,7 @@ salvo donde se indica otro código:
 
 - **Referencial**: `lesson.module_id` existe (`404 MODULE_NOT_FOUND`);
   `recommended[].lesson_id` existe y ≠ la propia lección; borrar módulo con
-  lecciones → `409 MODULE_NOT_EMPTY`.
+  lecciones vivas sin `?cascade=true` → `409 MODULE_NOT_EMPTY`.
 - **Unicidad**: `id` nuevo ya usado (namespace compartido lección/ejemplo, o
   módulo) → `409 DUPLICATE_ID`; ids de pregunta duplicados o keys de opción
   duplicadas → `422`.

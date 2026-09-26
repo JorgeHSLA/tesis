@@ -132,10 +132,24 @@ async def lesson_order_taken(
 async def count_lessons_in_module(
     db: "aiosqlite.Connection", module_id: str
 ) -> int:
+    """Lecciones VIVAS del módulo: las archivadas no cuentan como contenido
+    (no bloquean borrarlo; ``delete_module`` purga su rastro igual)."""
     value = await _scalar(
-        db, "SELECT COUNT(*) FROM lessons WHERE module_id = ?", (module_id,)
+        db,
+        "SELECT COUNT(*) FROM lessons WHERE module_id = ? AND archived_at IS NULL",
+        (module_id,),
     )
     return int(value or 0)
+
+
+async def lesson_ids_in_module(
+    db: "aiosqlite.Connection", module_id: str
+) -> list[str]:
+    """Todas las lecciones del módulo, archivadas incluidas."""
+    cur = await db.execute(
+        "SELECT id FROM lessons WHERE module_id = ? ORDER BY id", (module_id,)
+    )
+    return [row[0] for row in await cur.fetchall()]
 
 
 async def quiz_question_count(db: "aiosqlite.Connection", lesson_id: str) -> int:

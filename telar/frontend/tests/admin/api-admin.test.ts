@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   addLessonExample,
   createModule,
+  deleteModule,
   getAdminModules,
   reorderLessons,
   reorderModules,
@@ -39,6 +40,15 @@ afterEach(() => {
 })
 
 describe('api/admin (sin login/Bearer)', () => {
+  it('DELETE /admin/modules/{id} sin cascade no añade parámetros; con cascade añade ?cascade=true', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(ok({ deleted: true, id: 'm1' })))
+    await deleteModule('m1')
+    await deleteModule('m1', { cascade: true })
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/admin\/modules\/m1$/)
+    expect(String(fetchMock.mock.calls[1][0])).toMatch(/\/admin\/modules\/m1\?cascade=true$/)
+    expect(initOf(1).method).toBe('DELETE')
+  })
+
   it('GET /admin/modules va SIN cabecera Authorization', async () => {
     fetchMock.mockImplementation(() => Promise.resolve(ok({ modules: [] })))
     await getAdminModules()

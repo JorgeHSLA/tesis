@@ -344,17 +344,30 @@ async def update_module(
     return result
 
 
-async def delete_module(app: "FastAPI", module_id: str) -> None:
+async def delete_module(app: "FastAPI", module_id: str, *, cascade: bool = False) -> None:
+    """Borra el módulo. Con lecciones vivas exige ``cascade`` (CU-16.1).
+
+    Cada lección —archivadas incluidas— pasa por ``delete_lesson`` para purgar
+    progreso, intentos y ``recommended`` colgantes (el ``ON DELETE CASCADE`` de
+    la FK no llega a esas tablas). Todo en UNA transacción: si algo falla,
+    ``_persist`` hace rollback y el módulo queda intacto.
+    """
     db = app.state.db
     async with app.state.write_lock:
         if not await content_admin.module_exists(db, module_id):
             raise ApiException("MODULE_NOT_FOUND", f"No existe el módulo {module_id}.")
-        if await content_admin.count_lessons_in_module(db, module_id) > 0:
+        if not cascade and await content_admin.count_lessons_in_module(db, module_id) > 0:
             raise ApiException(
                 "MODULE_NOT_EMPTY",
                 "El módulo tiene lecciones; vacíalo antes de borrarlo.",
             )
-        await _persist(app, lambda: content_admin.delete_module(db, module_id))
+
+        async def _write() -> None:
+            for lesson_id in await content_admin.lesson_ids_in_module(db, module_id):
+                await content_admin.delete_lesson(db, lesson_id)
+            await content_admin.delete_module(db, module_id)
+
+        await _persist(app, _write)
 
 
 # ─────────────────────────────── lecciones ──────────────────────────────────

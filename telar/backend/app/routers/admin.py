@@ -118,9 +118,12 @@ async def update_module(
 
 
 @router.delete("/modules/{module_id}")
-async def delete_module(request: Request, module_id: str) -> JSONResponse:
-    """§10.2 ``DELETE /admin/modules/{id}`` — solo si está vacío."""
-    await content_writer.delete_module(request.app, module_id)
+async def delete_module(
+    request: Request, module_id: str, cascade: bool = False
+) -> JSONResponse:
+    """§10.2 ``DELETE /admin/modules/{id}`` — vacío, o con ``?cascade=true``
+    junto con sus lecciones (CU-16.1, enmienda aditiva S7a)."""
+    await content_writer.delete_module(request.app, module_id, cascade=cascade)
     return envelope_ok(AdminDeleteResult(deleted=True, id=module_id))
 
 
