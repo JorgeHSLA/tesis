@@ -3,6 +3,8 @@
 // dropzone del simulador como el uploader de ejemplos del modo autoría (admin).
 // Reglas idénticas: extensión .py, ≤ 256 KB (262144 bytes), decodable UTF-8.
 // Los mensajes de error son en español y no deben cambiar (tests Fase 3).
+// CU-06.3: el nombre se NORMALIZA al patrón del backend al leerlo, para que un
+// «Mi programa.PY» no se acepte aquí y falle después al ejecutar o guardar.
 
 /** Tope de tamaño del código fuente subido (bytes). Espeja TELAR_MAX_CODE_BYTES. */
 export const MAX_CODE_BYTES = 262144
@@ -10,6 +12,29 @@ export const MAX_CODE_BYTES = 262144
 export interface PickedFile {
   filename: string
   code: string
+}
+
+/** Patrón de nombre del backend (FILENAME_PATTERN de schemas/jobs.py). */
+const PY_FILENAME = /^[A-Za-z0-9._-]{1,80}\.py$/
+const MAX_STEM = 80
+
+export function isValidPyFilename(name: string): boolean {
+  return PY_FILENAME.test(name)
+}
+
+/**
+ * Lleva un nombre `.py` cualquiera al patrón del backend: quita tildes, cambia
+ * cada tramo de caracteres no permitidos por `_`, recorta a 80 y deja la
+ * extensión en minúsculas. Sin nombre utilizable queda `main.py`.
+ */
+export function normalizePyFilename(name: string): string {
+  const stem = name.replace(/\.py$/i, '')
+  const clean = stem
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '_')
+    .slice(0, MAX_STEM)
+  return `${clean || 'main'}.py`
 }
 
 /** Resultado discriminado: éxito con el archivo leído, o fallo con el motivo. */
@@ -26,7 +51,7 @@ export async function validatePyFile(file: File): Promise<PyFileResult> {
   try {
     const buffer = await file.arrayBuffer()
     const text = new TextDecoder('utf-8', { fatal: true }).decode(buffer)
-    return { ok: true, value: { filename: file.name, code: text } }
+    return { ok: true, value: { filename: normalizePyFilename(file.name), code: text } }
   } catch {
     return { ok: false, error: 'El archivo no es texto UTF-8' }
   }

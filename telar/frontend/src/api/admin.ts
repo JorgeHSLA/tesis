@@ -49,8 +49,13 @@ export function updateModule(id: string, body: AdminModuleUpdateDto): Promise<Ad
   return fetchJson<AdminModuleDto>(`${P}/modules/${enc(id)}`, { method: 'PUT', body: JSON.stringify(body) })
 }
 
-export function deleteModule(id: string): Promise<AdminDeleteResultDto> {
-  return fetchJson<AdminDeleteResultDto>(`${P}/modules/${enc(id)}`, { method: 'DELETE' })
+/**
+ * §10.2 DELETE /admin/modules/{id}. Sin `cascade`, un módulo con lecciones da
+ * 409 MODULE_NOT_EMPTY; con `cascade` se borran también sus lecciones (CU-16.1).
+ */
+export function deleteModule(id: string, opts?: { cascade?: boolean }): Promise<AdminDeleteResultDto> {
+  const query = opts?.cascade ? '?cascade=true' : ''
+  return fetchJson<AdminDeleteResultDto>(`${P}/modules/${enc(id)}${query}`, { method: 'DELETE' })
 }
 
 /**

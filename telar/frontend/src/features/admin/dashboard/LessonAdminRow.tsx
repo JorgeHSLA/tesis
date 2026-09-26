@@ -3,7 +3,8 @@
 // [Ejemplo | Agregar ejemplo] [borrar]. Sin ejemplo, «Agregar ejemplo» abre el
 // editor de la lección con el formulario abierto (CU-18.2). Las archivadas no
 // llegan aquí: GET /modules las excluye; su estado se ve en el editor.
-// El borrado pide confirmación y refresca el dashboard.
+// El borrado pide confirmación —nombrando solo el ejemplo y el quiz que la
+// lección tiene de verdad (CU-20.1)— y refresca el dashboard.
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
@@ -17,6 +18,13 @@ export interface LessonAdminRowProps {
   lesson: ModuleLessonDto
   onReload: () => void
   onToast: (message: string, tone?: 'default' | 'error') => void
+}
+
+/** Qué se lleva por delante borrar la lección (el backend purga también el progreso). */
+function deleteWarning(lesson: ModuleLessonDto): string {
+  const partes = [lesson.example_id != null && 'su ejemplo', lesson.has_quiz && 'su quiz'].filter(Boolean)
+  const junto = partes.length > 0 ? ` junto con ${partes.join(' y ')}` : ''
+  return `Se eliminará "${lesson.title}"${junto} y el progreso de los estudiantes en ella. Esta acción no se puede deshacer.`
 }
 
 export function LessonAdminRow({ lesson, onReload, onToast }: LessonAdminRowProps) {
@@ -94,7 +102,7 @@ export function LessonAdminRow({ lesson, onReload, onToast }: LessonAdminRowProp
         open={confirming}
         tone="danger"
         title="Borrar lección"
-        body={`Se eliminará "${lesson.title}" junto con su ejemplo y su quiz. Esta acción no se puede deshacer.`}
+        body={deleteWarning(lesson)}
         confirmLabel="Borrar lección"
         busy={deleting}
         onConfirm={remove}

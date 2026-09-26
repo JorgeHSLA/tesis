@@ -155,7 +155,8 @@ export function LessonMetaFields({
             id={`${uid}-min`}
             className="input"
             type="number"
-            min={0}
+            min={1}
+            max={600}
             value={value.estimated_minutes}
             onChange={(e) => onChange({ estimated_minutes: e.currentTarget.value })}
           />

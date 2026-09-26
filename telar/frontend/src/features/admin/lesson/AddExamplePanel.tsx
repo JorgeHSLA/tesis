@@ -4,11 +4,11 @@
 // propio (otro endpoint), independiente de la barra «Guardar lección».
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ApiError } from '../../../api/client'
 import { addLessonExample } from '../../../api/admin'
 import type { AdminExampleDto } from '../../../api/admin-types'
 import { Button } from '../../../components/ui/Button'
-import { parseContentErrors } from '../field-errors'
+import { parseContentErrors, saveErrorBanner } from '../field-errors'
+import { exampleIssues, withPrefix } from '../validation'
 import { blankDraft, EXAMPLE_FIELDS, type ExampleDraft } from './exampleDraft'
 import { ExampleDraftFields } from './ExampleDraftFields'
 
@@ -59,6 +59,13 @@ export function AddExamplePanel({
 
   const save = async () => {
     if (saving) return
+    const { source_code: codeIssue, ...exampleOnly } = exampleIssues(draft.example, draft.source_code)
+    const issues = { ...withPrefix(exampleOnly, 'example.'), ...(codeIssue ? { source_code: codeIssue } : null) }
+    if (Object.keys(issues).length > 0) {
+      setFieldErrors(issues)
+      setBanner('Revisa los campos marcados.')
+      return
+    }
     setSaving(true)
     setBanner(null)
     setFieldErrors({})
@@ -69,7 +76,7 @@ export function AddExamplePanel({
     } catch (err) {
       const parsed = parseContentErrors(err, KNOWN_FIELDS)
       setFieldErrors(parsed.byField)
-      setBanner(parsed.banner ?? (err instanceof ApiError ? err.message : 'No se pudo agregar el ejemplo.'))
+      setBanner(saveErrorBanner(parsed, err, 'No se pudo agregar el ejemplo.'))
     } finally {
       setSaving(false)
     }

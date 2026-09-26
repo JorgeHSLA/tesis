@@ -238,7 +238,7 @@ export function ExampleMetaFields({
             id={`${uid}-est`}
             className="input"
             type="number"
-            min={0}
+            min={1}
             value={String(value.est_run_seconds)}
             onChange={(e) => onChange({ est_run_seconds: toInt(e.currentTarget.value, value.est_run_seconds) })}
           />
@@ -263,6 +263,11 @@ export function ExampleMetaFields({
         addLabel="Añadir aprendizaje"
         hint="3–4 bullets se muestran en la card del simulador."
       />
+      {err('takeaways') != null && (
+        <div className="field-hint error" role="alert" style={{ marginTop: -8 }}>
+          {err('takeaways')}
+        </div>
+      )}
 
       <div className="col" style={{ gap: 4 }}>
         <label

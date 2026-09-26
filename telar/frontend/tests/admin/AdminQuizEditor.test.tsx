@@ -38,10 +38,13 @@ const QUIZ = {
 }
 
 function renderEditor() {
-  const router = createMemoryRouter([{ path: '/admin/quiz/:lessonId', element: <AdminQuizEditor /> }], {
+  const router = createMemoryRouter([
+    { path: '/admin/quiz/:lessonId', element: <AdminQuizEditor /> },
+    { path: '/admin', element: <div>PANEL</div> },
+  ], {
     initialEntries: ['/admin/quiz/lesson-1'],
   })
-  return render(<RouterProvider router={router} />)
+  return { ...render(<RouterProvider router={router} />), router }
 }
 
 beforeEach(() => {
@@ -225,3 +228,15 @@ describe('AdminQuizEditor · CU-18.3 eliminar quiz', () => {
     expect(screen.queryByRole('button', { name: 'Eliminar quiz' })).not.toBeInTheDocument()
   })
 })
+
+describe('AdminQuizEditor · cambios sin guardar', () => {
+  it('navegar con cambios pide confirmación', async () => {
+    const { router } = renderEditor()
+    await screen.findByText('Preguntas del quiz')
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir pregunta' }))
+    void router.navigate('/admin')
+    expect(await screen.findByRole('dialog', { name: 'Cambios sin guardar' })).toBeInTheDocument()
+    expect(screen.queryByText('PANEL')).toBeNull()
+  })
+})
+

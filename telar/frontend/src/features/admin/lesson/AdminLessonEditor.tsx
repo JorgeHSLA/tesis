@@ -3,10 +3,10 @@
 // En /nueva se crea la lección con o sin ejemplo (CU-17.1) vía createLesson; en
 // edición updateLesson (solo la faceta lección) y, si no tiene ejemplo, «Agregar
 // ejemplo» (CU-18.2). Cambiar módulo u orden recoloca las demás lecciones con
-// un PUT /admin/lessons/reorder (CU-19.1). AdminSaveBar sticky + bloqueo de
-// navegación con cambios sin guardar.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useBlocker, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+// un PUT /admin/lessons/reorder (CU-19.1). AdminSaveBar sticky + guarda de
+// cambios sin guardar para toda navegación y la recarga (useUnsavedChangesGuard).
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
 import { createLesson, getAdminLesson, getAdminModules, reorderLessons, updateLesson } from '../../../api/admin'
 import { getSystem } from '../../../api/system'
@@ -16,9 +16,10 @@ import { Chip } from '../../../components/ui/Chip'
 import { ErrorState } from '../../../components/ui/ErrorState'
 import { Skeleton } from '../../../components/ui/Skeleton'
 import { AdminSaveBar } from '../../../components/admin/AdminSaveBar'
-import { ConfirmDialog } from '../../../components/admin/ConfirmDialog'
+import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard'
 import { isPositionTaken, planLessonMove } from '../../../lib/lessonMove'
-import { parseContentErrors } from '../field-errors'
+import { parseContentErrors, saveErrorBanner } from '../field-errors'
+import { exampleIssues, lessonIssues, withPrefix } from '../validation'
 import { AddExamplePanel } from './AddExamplePanel'
 import { blankDraft, EXAMPLE_FIELDS, type ExampleDraft } from './exampleDraft'
 import { ExampleDraftFields } from './ExampleDraftFields'
@@ -85,14 +86,6 @@ function fromDetail(dto: AdminLessonDetailDto): LessonForm {
   }
 }
 
-/** Entero ≥ `min` escrito tal cual: «2.5», «1e2» o «» no valen (CU-19.3). */
-function parseIntAtLeast(raw: string, min: number): number | null {
-  const text = raw.trim()
-  if (!/^\d+$/.test(text)) return null
-  const n = Number(text)
-  return n >= min ? n : null
-}
-
 /** Siguiente posición libre al final del módulo (ignora huecos intermedios). */
 function endOf(modules: readonly AdminModuleDto[], moduleId: string): number {
   const lessons = modules.find((m) => m.id === moduleId)?.lessons ?? []
@@ -125,7 +118,6 @@ export default function AdminLessonEditor() {
   )
   const [fieldErrors, setFieldErrors] = useState<Readonly<Record<string, string>>>({})
   const [exampleDraftDirty, setExampleDraftDirty] = useState(false)
-  const bypassBlock = useRef(false)
 
   const loadAll = useCallback(() => {
     setLoadError(null)
@@ -164,10 +156,7 @@ export default function AdminLessonEditor() {
     [form, initial],
   )
 
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      (dirty || exampleDraftDirty) && !bypassBlock.current && currentLocation.pathname !== nextLocation.pathname,
-  )
+  const guard = useUnsavedChangesGuard(dirty || exampleDraftDirty)
 
   const hasExample = isEdit ? detail?.example != null : (form?.withExample ?? false)
   const hasQuiz = isEdit ? (detail?.has_quiz ?? false) : false
@@ -232,7 +221,7 @@ export default function AdminLessonEditor() {
       example: f.withExample ? f.draft.example : null,
       source_code: f.withExample ? f.draft.source_code : null,
     })
-    bypassBlock.current = true
+    guard.allowNavigation()
     setInitial(f)
     if (!taken) {
       navigate('/admin')
@@ -252,16 +241,19 @@ export default function AdminLessonEditor() {
 
   const save = useCallback(async () => {
     if (form == null || saving || !dirty) return
-    const orderNum = parseIntAtLeast(form.meta.order, 1)
-    const minNum = parseIntAtLeast(form.meta.estimated_minutes, 0)
-    if (orderNum == null) {
-      setBanner('La posición debe ser un número entero mayor o igual que 1.')
+    // Mismas reglas que el schema (CU-17.4/18.5/19.3): cada error va a su campo.
+    const issues = lessonIssues(form.meta, form.content_markdown)
+    if (!isEdit && form.withExample) {
+      const { source_code: codeIssue, ...exampleOnly } = exampleIssues(form.draft.example, form.draft.source_code)
+      Object.assign(issues, withPrefix(exampleOnly, 'example.'), codeIssue ? { source_code: codeIssue } : null)
+    }
+    if (Object.keys(issues).length > 0) {
+      setFieldErrors(issues)
+      setBanner('Revisa los campos marcados.')
       return
     }
-    if (minNum == null) {
-      setBanner('Los minutos estimados deben ser un número entero mayor o igual que 0.')
-      return
-    }
+    const orderNum = Number(form.meta.order.trim())
+    const minNum = Number(form.meta.estimated_minutes.trim())
     const ruleIssue = completionRuleIssue(form.meta.completion_rule, { hasExample, hasQuiz })
     if (ruleIssue?.level === 'error') {
       // El porqué ya está junto al selector y se va al corregirlo.
@@ -293,7 +285,7 @@ export default function AdminLessonEditor() {
         ? [...LESSON_FIELDS, ...EXAMPLE_FIELDS.map((f) => `example.${f}`), 'source_code']
         : LESSON_FIELDS
       const parsed = parseContentErrors(err, known)
-      const detalle = parsed.banner ?? (err instanceof ApiError ? err.message : 'No se pudo guardar la lección.')
+      const detalle = saveErrorBanner(parsed, err, 'No se pudo guardar la lección.')
       setFieldErrors(parsed.byField)
       setBanner(
         partial
@@ -421,16 +413,7 @@ export default function AdminLessonEditor() {
         saveLabel={isEdit ? 'Guardar lección' : 'Crear lección'}
       />
 
-      <ConfirmDialog
-        open={blocker.state === 'blocked'}
-        tone="danger"
-        title="Cambios sin guardar"
-        body="Si sales ahora perderás los cambios que no has guardado. ¿Quieres salir de todos modos?"
-        confirmLabel="Salir sin guardar"
-        cancelLabel="Seguir editando"
-        onConfirm={() => blocker.proceed?.()}
-        onCancel={() => blocker.reset?.()}
-      />
+      {guard.dialog}
     </section>
   )
 }

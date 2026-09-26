@@ -2,7 +2,9 @@
 // módulos (lectura pública GET /modules reutilizada) en grupos colapsables con
 // CRUD; "+ Nuevo módulo" abre el formulario. Los módulos se reordenan por
 // drag-and-drop NATIVO (asa de arrastre) o con botones «Subir»/«Bajar»
-// accesibles: reorden OPTIMISTA que revierte ante error. Un toast efímero
+// accesibles: reorden OPTIMISTA que revierte ante error. Un reorden a la vez
+// (CU-15.1): con el PUT en vuelo se deshabilitan «Subir»/«Bajar» y el asa, y el
+// orden final sale de la respuesta del PUT, sin GET extra. Un toast efímero
 // comunica el resultado de las operaciones (incl. 409 MODULE_NOT_EMPTY). §9.F(2).
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getModules } from '../../api/content'
@@ -43,6 +45,7 @@ export default function AdminDashboard() {
   const [items, setItems] = useState<ModuleDto[]>([])
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [overIndex, setOverIndex] = useState<number | null>(null)
+  const [reordering, setReordering] = useState(false)
 
   useEffect(() => {
     setItems(data ? [...data.modules].sort((a, b) => a.order - b.order) : [])
@@ -75,27 +78,38 @@ export default function AdminDashboard() {
   const commitReorder = useCallback(
     async (next: ModuleDto[], prev: ModuleDto[]) => {
       setItems(next)
+      setReordering(true)
       try {
-        await reorderModules(toReorderItems(next))
-        reload()
+        const res = await reorderModules(toReorderItems(next))
+        // El PUT devuelve el listado admin ya reordenado: de él solo hace falta
+        // el `order` final de cada módulo (el resto no cambió).
+        const orderById = new Map(res.modules.map((m) => [m.id, m.order]))
+        setItems(
+          next
+            .map((m) => ({ ...m, order: orderById.get(m.id) ?? m.order }))
+            .sort((a, b) => a.order - b.order),
+        )
       } catch (err) {
         setItems(prev)
         showToast(
           err instanceof ApiError ? err.message : 'No se pudieron reordenar los módulos.',
           'error',
         )
+      } finally {
+        setReordering(false)
       }
     },
-    [reload, showToast],
+    [showToast],
   )
 
   const moveModule = useCallback(
     (from: number, to: number) => {
+      if (reordering) return
       if (from < 0 || from >= items.length || to < 0 || to >= items.length || from === to) return
       const next = resequence(moveItem(items, from, to))
       void commitReorder(next, items)
     },
-    [items, commitReorder],
+    [items, reordering, commitReorder],
   )
 
   const onReorderDrop = useCallback(
@@ -186,6 +200,7 @@ export default function AdminDashboard() {
               module={module}
               index={index}
               count={items.length}
+              reorderDisabled={reordering}
               isDragging={dragIndex === index}
               isDropTarget={overIndex === index && dragIndex !== null && dragIndex !== index}
               open={openId === module.id}

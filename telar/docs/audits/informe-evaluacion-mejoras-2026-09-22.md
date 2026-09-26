@@ -537,10 +537,10 @@ Leyenda:
 | CU-03.1 | Aprobar el quiz marca toda la lección | 💡 | ✅ | HACER YA ✅ b638029, 5f79a02 | S | Bajo | Requisitos de completitud |
 | CU-04.1 | Re-ejecutar pierde ejemplo, lección y parser | 🚨 | ✅ | HACER YA ✅ 1d17085 | S | Bajo | Simulador: re-ejecución y editor |
 | CU-05.1 | El editor se bloquea si falla `/modules` | 💡 | ✅ | SI HAY TIEMPO ✅ 25a3339, 29cbe1f | S | Bajo | Simulador: re-ejecución y editor |
-| CU-05.2 | Un ejemplo que llega tarde pisa «Código propio» | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
-| CU-06.1 | Una carga anterior pisa el archivo actual | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
+| CU-05.2 | Un ejemplo que llega tarde pisa «Código propio» | 💡 | ✅ | SI HAY TIEMPO ✅ 1d17085, b8afa99 | S | Bajo | Respuestas tardías |
+| CU-06.1 | Una carga anterior pisa el archivo actual | 💡 | ✅ | SI HAY TIEMPO ✅ b8afa99 | S | Bajo | Respuestas tardías |
 | CU-06.2 | Subir archivo bloqueado si falla el catálogo | 💡 | ✅ | SI HAY TIEMPO ✅ 25a3339, 29cbe1f | S | Bajo | Simulador: re-ejecución y editor |
-| CU-06.3 | Nombre de archivo validado distinto en front y back | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
+| CU-06.3 | Nombre de archivo validado distinto en front y back | 💡 | ✅ | SI HAY TIEMPO ✅ 2eece9d | S | Bajo | Errores por campo |
 | CU-07.1 | «Compilando» vs. «Ejecutando» (coincide con el contrato) | 🚨 | ◐ | HACER YA ✅ 6d65d04, 82c10fa | S | Bajo | En vivo y resultados |
 | CU-07.2 | Salida sin `\n` retenida | 💡 | ✅ | NO HACER | M | Medio | En vivo y resultados |
 | CU-07.3 | Huecos de salida tras reconectar, sin aviso | 💡 | ✅ | SI HAY TIEMPO ✅ 7e32ef1 | S | Bajo | En vivo y resultados |
@@ -558,43 +558,43 @@ Leyenda:
 | CU-10.1 | Error de descarga no manejado (y posible fallo en Electron) | 💡 | ✅ | HACER YA ✅ 71eee1a, 82c10fa | S | Bajo | En vivo y resultados |
 | CU-12.1 | Lecciones `viewed`/`run` nunca se completan | 🚨 | ✅ | HACER YA ✅ b638029, f92d9fa, 5f79a02, 66ab557 (viewed respeta la disponibilidad) | S | Bajo | Requisitos de completitud |
 | CU-12.2 | El quiz ignora `completion_rule` | 💡 | ✅ | HACER YA ✅ b638029, f92d9fa, 5f79a02, 53de886 | S | Bajo | Requisitos de completitud |
-| CU-12.3 | Mostrar qué requisito falta | 💡 | ✅ | SI HAY TIEMPO | S-M | Bajo | Requisitos de completitud |
+| CU-12.3 | Mostrar qué requisito falta | 💡 | ✅ | SI HAY TIEMPO ✅ 9ca5041 | S-M | Bajo | Requisitos de completitud |
 | CU-12.4 | Progreso general vs. por módulo incoherente | 💡 | ✅ | HACER YA ✅ b638029, f92d9fa | S | Bajo | Disponibilidad de lecciones |
-| CU-13.1 | Aviso de cambios sin guardar (modal de módulo) | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
+| CU-13.1 | Aviso de cambios sin guardar (modal de módulo) | 💡 | ✅ | SI HAY TIEMPO ✅ 3e9ee26 | S | Bajo | Cambios sin guardar |
 | CU-13.2 | Separar creación de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
-| CU-13.3 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
-| CU-14.1 | Aviso de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
+| CU-13.3 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO ✅ 2eece9d | S | Bajo | Errores por campo |
+| CU-14.1 | Aviso de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO ✅ 3e9ee26 | S | Bajo | Cambios sin guardar |
 | CU-14.2 | Separar edición de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
-| CU-14.3 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
-| CU-15.1 | Reorden concurrente sin serializar | 💡 | ◐ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
+| CU-14.3 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO ✅ 2eece9d | S | Bajo | Errores por campo |
+| CU-15.1 | Reorden concurrente sin serializar | 💡 | ◐ | SI HAY TIEMPO ✅ b8afa99 | S | Bajo | Respuestas tardías |
 | CU-15.2 | Separar el orden en edición del publicado | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
-| CU-16.1 | Eliminar módulo con sus lecciones | 🚨 | ✅ | SI HAY TIEMPO | M | Medio | Huecos de UI en Autoría |
-| CU-16.2 | Advertir del contenido asociado | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Huecos de UI en Autoría |
+| CU-16.1 | Eliminar módulo con sus lecciones | 🚨 | ✅ | SI HAY TIEMPO ✅ d89f1f7 | M | Medio | Huecos de UI en Autoría |
+| CU-16.2 | Advertir del contenido asociado | 💡 | ✅ | SI HAY TIEMPO ✅ d89f1f7 | S | Bajo | Huecos de UI en Autoría |
 | CU-16.3 | Separar eliminación de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-17.1 | Crear lección sin ejemplo | 🚨 | ✅ | HACER YA ✅ d16a36e | S | Bajo | Huecos de UI en Autoría |
 | CU-17.2 | Configurar regla de completitud y video | 🚨 | ✅ | HACER YA ✅ d16a36e | S-M | Bajo | Huecos de UI en Autoría |
-| CU-17.3 | Aviso completo de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
-| CU-17.4 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
+| CU-17.3 | Aviso completo de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO ✅ 3e9ee26 | S | Bajo | Cambios sin guardar |
+| CU-17.4 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO ✅ 2eece9d | S | Bajo | Errores por campo |
 | CU-17.5 | Separar creación de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-18.1 | Guardar pisa video, regla y `enabled` | 🚨 | ✅ | HACER YA ✅ 1dc3950 | S | Bajo | PUT que reemplaza la lección |
 | CU-18.2 | Agregar ejemplo a lección sin ejemplo | 🚨 | ✅ | HACER YA ✅ d16a36e | M | Bajo | Huecos de UI en Autoría |
 | CU-18.3 | Eliminar el quiz (backend listo, sin botón) | 🚨 | ✅ | HACER YA ✅ d9dc146 | S | Bajo | Huecos de UI en Autoría |
-| CU-18.4 | Aviso completo de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
-| CU-18.5 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
+| CU-18.4 | Aviso completo de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO ✅ 3e9ee26 | S | Bajo | Cambios sin guardar |
+| CU-18.5 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO ✅ 2eece9d | S | Bajo | Errores por campo |
 | CU-18.6 | Separar edición de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-19.1 | Recolocar las demás lecciones al mover una | 🚨 | ✅ | HACER YA ✅ d16a36e | M | Bajo | Huecos de UI en Autoría |
 | CU-19.2 | Mover no debe tocar otros datos | 🚨 | ✅ | HACER YA ✅ 1dc3950 | S | Bajo | PUT que reemplaza la lección |
 | CU-19.3 | Posición decimal aceptada (2.5 → 2) | 💡 | ✅ | SI HAY TIEMPO ✅ d16a36e | S | Bajo | Errores por campo |
 | CU-19.4 | Separar reorden de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
-| CU-20.1 | Advertencia fija «ejemplo y quiz» | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Huecos de UI en Autoría |
+| CU-20.1 | Advertencia fija «ejemplo y quiz» | 💡 | ✅ | SI HAY TIEMPO ✅ 9ca5041 | S | Bajo | Huecos de UI en Autoría |
 | CU-20.2 | Separar eliminación de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
-| CU-21.1 | Guardado del ejemplo en dos pasos no atómico | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Huecos de UI en Autoría |
-| CU-21.2 | Aviso de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
-| CU-21.3 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Errores por campo |
+| CU-21.1 | Guardado del ejemplo en dos pasos no atómico | 💡 | ✅ | SI HAY TIEMPO ✅ 2eece9d | S | Bajo | Huecos de UI en Autoría |
+| CU-21.2 | Aviso de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO ✅ 3e9ee26, 00267b7 | S | Bajo | Cambios sin guardar |
+| CU-21.3 | Error de validación comprensible | 💡 | ✅ | SI HAY TIEMPO ✅ 2eece9d | S | Bajo | Errores por campo |
 | CU-21.4 | Separar edición de publicación | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-22.1 | Probar un borrador sin publicarlo | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-22.2 | La prueba del admin toca `last_job_id` | 💡 | ✅ | HACER YA ✅ b638029, f92d9fa | S | Bajo | Requisitos de completitud |
-| CU-22.3 | Carrera en el selector de ejemplos | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Respuestas tardías |
+| CU-22.3 | Carrera en el selector de ejemplos | 💡 | ✅ | SI HAY TIEMPO ✅ 1d17085, b8afa99 | S | Bajo | Respuestas tardías |
 | CU-23.1 | `--check` escribe en la base | 💡 | ✅ | SI HAY TIEMPO ✅ 0b7b607, f0d9980 | S | Bajo | CLI del contenido base |
 | CU-23.2 | Conflictos de `order` al actualizar/restablecer | 🚨 | ✅ | SI HAY TIEMPO ✅ 0b7b607 | M | Medio | CLI del contenido base |
 | CU-23.3 | El reset no deja el estado base | 🚨 | ✅ | SI HAY TIEMPO ✅ 0b7b607 | S-M | Medio | CLI del contenido base |
@@ -652,9 +652,9 @@ Leyenda:
 | CU-39.1 | Entidad curso | 🚨 | ✅ | RECLASIFICAR | L | Alto | Entidad curso |
 | CU-39.2 | Asociar módulos a un curso | 🚨 | ✅ | RECLASIFICAR | L | Alto | Entidad curso |
 | CU-39.3 | Curso en edición separado | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
-| CU-39.4 | Aviso de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
+| CU-39.4 | Aviso de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO ✅ 3e9ee26 | S | Bajo | Cambios sin guardar |
 | CU-40.1 | Información general editable del curso | 🚨 | ✅ | RECLASIFICAR | M | Medio | Entidad curso |
-| CU-40.2 | Aviso de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO | S | Bajo | Cambios sin guardar |
+| CU-40.2 | Aviso de cambios sin guardar | 💡 | ✅ | SI HAY TIEMPO ✅ 3e9ee26 | S | Bajo | Cambios sin guardar |
 | CU-40.3 | Información editada separada de la publicada | 💡 | ✅ | RECLASIFICAR ✅ 8df6234 60d6351 | S | Bajo | Borrador vs. publicado |
 | CU-41.1 | Retirar una publicación del catálogo | 🚨 | ✅ | SI HAY TIEMPO ✅ 785aaa0, bfa870c | M | Medio | Catálogo y publicación |
 | CU-41.2 | Actualizar no revalida el índice | 🚨 | ◐ | HACER YA ✅ 8df6234 | S | Bajo | Catálogo y publicación |

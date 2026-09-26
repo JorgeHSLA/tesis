@@ -80,3 +80,23 @@ describe('LearnScreen · S2', () => {
     expect(screen.queryByRole('button', { name: 'Marcar como leída' })).not.toBeInTheDocument()
   })
 })
+
+// CU-12.3: la lección dice qué hace falta para completarla según su regla.
+describe('LearnScreen · requisito para completar', () => {
+  it.each([
+    ['viewed', /márcala como leída/],
+    ['quiz', /aprueba su quiz/],
+  ] as const)('regla %s', async (completion_rule, texto) => {
+    ;(getLesson as Mock).mockResolvedValue(leccion({ completion_rule, has_quiz: completion_rule === 'quiz' }))
+    montar()
+    expect(await screen.findByTestId('requisito-completar')).toHaveTextContent(texto)
+  })
+
+  it('lección archivada: no muestra requisito', async () => {
+    ;(getLesson as Mock).mockResolvedValue(leccion({ archived: true }))
+    montar()
+    await screen.findByText(/fue retirada de su módulo/)
+    expect(screen.queryByTestId('requisito-completar')).toBeNull()
+  })
+})
+

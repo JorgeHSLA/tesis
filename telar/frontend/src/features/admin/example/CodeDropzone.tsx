@@ -9,7 +9,8 @@ import { Button } from '../../../components/ui/Button'
 import { Card, CardHead } from '../../../components/ui/Card'
 import { Chip } from '../../../components/ui/Chip'
 import { IconCode, IconUpload } from '../../../components/icons/icons'
-import { validatePyFile, type PickedFile } from '../../../lib/pyfile'
+import type { PickedFile } from '../../../lib/pyfile'
+import { usePyFilePicker } from '../../../hooks/usePyFilePicker'
 
 export interface CodeDropzoneProps {
   filename: string
@@ -34,18 +35,7 @@ export function CodeDropzone({
 }: CodeDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
-  const [fileError, setFileError] = useState<string | null>(null)
-
-  const handleFile = async (file: File | undefined) => {
-    if (file == null) return
-    const result = await validatePyFile(file)
-    if (result.ok) {
-      setFileError(null)
-      onFile(result.value)
-    } else {
-      setFileError(result.error)
-    }
-  }
+  const { fileError, pick: handleFile } = usePyFilePicker(onFile)
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault()

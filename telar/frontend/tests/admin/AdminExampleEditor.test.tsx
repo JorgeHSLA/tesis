@@ -129,3 +129,63 @@ describe('AdminExampleEditor · probar en simulador', () => {
     expect(await screen.findByText('SIMULADOR?ejemplo=ex-1&prueba=admin')).toBeInTheDocument()
   })
 })
+
+describe('AdminExampleEditor · cambios sin guardar (CU-21.2)', () => {
+  it('salir con cambios pide confirmación', async () => {
+    renderEditor()
+    await screen.findByText('Código del ejemplo')
+    fireEvent.change(screen.getByLabelText('Editor de código Python del ejemplo'), { target: { value: 'print(2)' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al panel' }))
+    expect(await screen.findByRole('dialog', { name: 'Cambios sin guardar' })).toBeInTheDocument()
+    expect(screen.queryByText('PANEL')).toBeNull()
+  })
+
+  it('sin cambios sale directamente', async () => {
+    renderEditor()
+    await screen.findByText('Código del ejemplo')
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al panel' }))
+    expect(await screen.findByText('PANEL')).toBeInTheDocument()
+  })
+})
+
+describe('AdminExampleEditor · validar antes de guardar (CU-21.1, 21.3)', () => {
+  it('un nombre inválido se marca y NO se guarda nada (ni los metadatos)', async () => {
+    renderEditor()
+    await screen.findByText('Código del ejemplo')
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Otro título' } })
+    fireEvent.change(screen.getByLabelText('Nombre de archivo'), { target: { value: 'mal nombre.py' } })
+    fireEvent.change(screen.getByLabelText('Editor de código Python del ejemplo'), { target: { value: 'print(2)' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar ejemplo' }))
+    expect(await screen.findByText(/^El nombre debe terminar en \.py/)).toBeInTheDocument()
+    expect(updateExampleMock).not.toHaveBeenCalled()
+    expect(uploadExampleCodeMock).not.toHaveBeenCalled()
+  })
+
+  it('código vacío se marca y no se guardan los metadatos', async () => {
+    renderEditor()
+    await screen.findByText('Código del ejemplo')
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Otro título' } })
+    fireEvent.change(screen.getByLabelText('Editor de código Python del ejemplo'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar ejemplo' }))
+    expect(await screen.findByText('El código no puede quedar vacío.')).toBeInTheDocument()
+    expect(updateExampleMock).not.toHaveBeenCalled()
+  })
+
+  it('si los metadatos se guardan y el código falla, solo el código queda pendiente', async () => {
+    uploadExampleCodeMock.mockRejectedValue(new Error('red caída'))
+    renderEditor()
+    await screen.findByText('Código del ejemplo')
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Otro título' } })
+    fireEvent.change(screen.getByLabelText('Editor de código Python del ejemplo'), { target: { value: 'print(2)' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar ejemplo' }))
+    await waitFor(() => expect(uploadExampleCodeMock).toHaveBeenCalledTimes(1))
+    expect(updateExampleMock).toHaveBeenCalledTimes(1)
+
+    uploadExampleCodeMock.mockResolvedValue({ example_id: 'ex-1', filename: 'hola.py', bytes: 8 })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar ejemplo' }))
+    await waitFor(() => expect(uploadExampleCodeMock).toHaveBeenCalledTimes(2))
+    // Los metadatos ya estaban guardados: no se reenvían.
+    expect(updateExampleMock).toHaveBeenCalledTimes(1)
+  })
+})
+

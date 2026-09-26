@@ -2,12 +2,18 @@
 // nombre de carpeta) ya NO se escribe a mano: se DERIVA del título con
 // `slugify` + `uniqueSlug` (deduplicado contra los módulos existentes) y se
 // muestra como preview de solo lectura. El «Orden» viene prellenado con
-// maxOrden+1. En EDICIÓN el `id` es de solo lectura (es PK). Mapea los errores
-// del backend (409 DUPLICATE_ID/ORDER_CONFLICT, 422) a un banner del diálogo.
-// fase4-autoria-design §9.F(2).
-import { useEffect, useState, type FormEvent } from 'react'
+// maxOrden+1. En EDICIÓN el `id` es de solo lectura (es PK). Valida en el
+// cliente con las reglas del schema y muestra cada error junto a su campo,
+// también los del backend (422 de pydantic o de negocio, 409 ORDER_CONFLICT);
+// DUPLICATE_ID y el resto van al banner (CU-13.3, 14.3).
+// Con cambios, Escape / clic fuera / Cancelar preguntan antes de descartarlos
+// (useUnsavedChangesGuard); con un guardado en vuelo no se cierra. §9.F(2).
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard'
 import { ApiError } from '../../../api/client'
 import { createModule, updateModule } from '../../../api/admin'
+import { parseContentErrors } from '../field-errors'
+import { moduleIssues, type FieldIssues } from '../validation'
 import type { ModuleDto } from '../../../api/types'
 import { slugify, uniqueSlug } from '../../../lib/slug'
 import { Button } from '../../../components/ui/Button'
@@ -26,14 +32,18 @@ export interface ModuleFormDialogProps {
   onSaved: (message: string) => void
 }
 
-function messageFor(err: unknown): string {
-  if (err instanceof ApiError) {
-    if (err.code === 'DUPLICATE_ID')
-      return 'Ya existe un módulo con ese identificador. Cambia el título para generar otro.'
-    if (err.code === 'ORDER_CONFLICT') return 'Ese número de orden ya está en uso por otro módulo.'
-    return err.message
-  }
-  return 'No se pudo guardar el módulo.'
+const MODULE_FIELDS = ['order', 'title', 'description', 'level'] as const
+type ModuleField = (typeof MODULE_FIELDS)[number]
+
+/** Traduce el error del backend a {errores por campo, banner}. */
+function errorsFor(err: unknown): { byField: FieldIssues; banner: string | null } {
+  if (err instanceof ApiError && err.code === 'DUPLICATE_ID')
+    return { byField: {}, banner: 'Ya existe un módulo con ese identificador. Cambia el título para generar otro.' }
+  if (err instanceof ApiError && err.code === 'ORDER_CONFLICT')
+    return { byField: { order: 'Ese número de orden ya está en uso por otro módulo.' }, banner: null }
+  if (!(err instanceof ApiError)) return { byField: {}, banner: 'No se pudo guardar el módulo.' }
+  const parsed = parseContentErrors(err, MODULE_FIELDS)
+  return { byField: { ...parsed.byField }, banner: parsed.banner }
 }
 
 export function ModuleFormDialog({
@@ -44,14 +54,33 @@ export function ModuleFormDialog({
   onClose,
   onSaved,
 }: ModuleFormDialogProps) {
-  const [order, setOrder] = useState(
-    String(mode === 'create' ? (defaultOrder ?? 1) : (initial?.order ?? '')),
-  )
-  const [title, setTitle] = useState(initial?.title ?? '')
-  const [description, setDescription] = useState(initial?.description ?? '')
-  const [level, setLevel] = useState(initial?.level ?? '')
+  const [start] = useState(() => ({
+    order: String(mode === 'create' ? (defaultOrder ?? 1) : (initial?.order ?? '')),
+    title: initial?.title ?? '',
+    description: initial?.description ?? '',
+    level: initial?.level ?? '',
+  }))
+  const [order, setOrder] = useState(start.order)
+  const [title, setTitle] = useState(start.title)
+  const [description, setDescription] = useState(start.description)
+  const [level, setLevel] = useState(start.level)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<FieldIssues>({})
   const [saving, setSaving] = useState(false)
+
+  /** Cambia un campo y retira su error: ya no describe lo que hay escrito. */
+  const edit = (field: ModuleField, set: (value: string) => void) => (value: string) => {
+    set(value)
+    setFieldErrors(({ [field]: _quitado, ...rest }) => rest)
+  }
+
+  const dirty =
+    order !== start.order || title !== start.title || description !== start.description || level !== start.level
+  const guard = useUnsavedChangesGuard(dirty)
+  // Con un guardado en vuelo no se cierra; con cambios, se pregunta antes.
+  const requestClose = () => {
+    if (!saving) guard.confirm(onClose)
+  }
 
   // Identificador: en edición es la PK inmutable; en creación se DERIVA del
   // título en cada render (barato) y se deduplica contra los existentes.
@@ -62,28 +91,36 @@ export function ModuleFormDialog({
       : ''
   const shownId = mode === 'edit' ? (initial?.id ?? '') : generatedId
 
+  // Escape lee el estado más reciente por ref: el listener se registra una vez.
+  const onEscapeRef = useRef<() => void>(() => {})
+  onEscapeRef.current = () => {
+    // Con la pregunta abierta, Escape es suyo (la cierra ella).
+    if (!guard.asking) requestClose()
+  }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !saving) onClose()
+      if (e.key === 'Escape') onEscapeRef.current()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose, saving])
+  }, [])
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (saving) return
-    const orderNum = Number(order)
-    if (!Number.isInteger(orderNum) || orderNum < 1) {
-      setError('El orden debe ser un entero mayor o igual que 1.')
+    const issues = moduleIssues({ order, title, level, description })
+    if (mode === 'create' && trimmedTitle !== '' && generatedId === '') {
+      issues.title = 'Usa letras o números en el título para generar el identificador.'
+    }
+    if (Object.keys(issues).length > 0) {
+      setFieldErrors(issues)
+      setError(null)
       return
     }
-    if (mode === 'create' && generatedId === '') {
-      setError('Escribe un título para generar el identificador.')
-      return
-    }
+    const orderNum = Number(order.trim()) // ya validado por moduleIssues
     setSaving(true)
     setError(null)
+    setFieldErrors({})
     try {
       if (mode === 'create') {
         await createModule({
@@ -104,98 +141,109 @@ export function ModuleFormDialog({
         onSaved(`Módulo "${trimmedTitle}" actualizado.`)
       }
     } catch (err) {
-      setError(messageFor(err))
+      const { byField, banner } = errorsFor(err)
+      setFieldErrors(byField)
+      setError(banner)
       setSaving(false)
     }
   }
 
   return (
-    <div className="admin-modal-backdrop" onMouseDown={saving ? undefined : onClose}>
-      <form
-        className="admin-modal admin-modal-form card"
-        aria-labelledby="module-form-title"
-        onMouseDown={(e) => e.stopPropagation()}
-        onSubmit={submit}
-        noValidate
-      >
-        <h3 id="module-form-title" className="display-md">
-          {mode === 'create' ? 'Nuevo módulo' : 'Editar módulo'}
-        </h3>
+    <>
+      <div className="admin-modal-backdrop" onMouseDown={requestClose}>
+        <form
+          className="admin-modal admin-modal-form card"
+          aria-labelledby="module-form-title"
+          onMouseDown={(e) => e.stopPropagation()}
+          onSubmit={submit}
+          noValidate
+        >
+          <h3 id="module-form-title" className="display-md">
+            {mode === 'create' ? 'Nuevo módulo' : 'Editar módulo'}
+          </h3>
 
-        {error != null && (
-          <div className="field-hint error" role="alert" style={{ marginTop: 10 }}>
-            {error}
-          </div>
-        )}
+          {error != null && (
+            <div className="field-hint error" role="alert" style={{ marginTop: 10 }}>
+              {error}
+            </div>
+          )}
 
-        {mode === 'edit' ? (
-          <div className="admin-form-grid">
-            <Field label="Identificador" htmlFor="module-id" hint="No editable">
-              <input id="module-id" className="input" value={shownId} readOnly spellCheck={false} />
-            </Field>
-            <Field label="Orden" htmlFor="module-order">
+          {mode === 'edit' ? (
+            <div className="admin-form-grid">
+              <Field label="Identificador" htmlFor="module-id" hint="No editable">
+                <input id="module-id" className="input" value={shownId} readOnly spellCheck={false} />
+              </Field>
+              <Field label="Orden" htmlFor="module-order" error={fieldErrors.order}>
+                <input
+                  id="module-order"
+                  className="input"
+                  type="number"
+                  min={1}
+                  value={order}
+                  onChange={(e) => edit('order', setOrder)(e.currentTarget.value)}
+                />
+              </Field>
+            </div>
+          ) : (
+            <Field label="Orden" htmlFor="module-order" error={fieldErrors.order}>
               <input
                 id="module-order"
                 className="input"
                 type="number"
                 min={1}
                 value={order}
-                onChange={(e) => setOrder(e.currentTarget.value)}
+                onChange={(e) => edit('order', setOrder)(e.currentTarget.value)}
               />
             </Field>
-          </div>
-        ) : (
-          <Field label="Orden" htmlFor="module-order">
-            <input
-              id="module-order"
-              className="input"
-              type="number"
-              min={1}
-              value={order}
-              onChange={(e) => setOrder(e.currentTarget.value)}
+          )}
+
+          <Field label="Título" htmlFor="module-title" error={fieldErrors.title}>
+            <input id="module-title" className="input" value={title} onChange={(e) => edit('title', setTitle)(e.currentTarget.value)} />
+          </Field>
+
+          {mode === 'create' && (
+            <p className="admin-slug-preview" aria-live="polite">
+              {generatedId !== '' ? (
+                <>
+                  Se creará como: <code className="mono-small">{generatedId}</code>
+                </>
+              ) : (
+                <span className="muted">El identificador se generará a partir del título.</span>
+              )}
+            </p>
+          )}
+
+          <Field
+            label="Nivel"
+            htmlFor="module-level"
+            hint="Ej.: Introductorio, Intermedio, Avanzado"
+            error={fieldErrors.level}
+          >
+            <input id="module-level" className="input" value={level} onChange={(e) => edit('level', setLevel)(e.currentTarget.value)} />
+          </Field>
+
+          <Field label="Descripción" htmlFor="module-description" error={fieldErrors.description}>
+            <textarea
+              id="module-description"
+              className="textarea"
+              rows={3}
+              value={description}
+              onChange={(e) => edit('description', setDescription)(e.currentTarget.value)}
             />
           </Field>
-        )}
 
-        <Field label="Título" htmlFor="module-title">
-          <input id="module-title" className="input" value={title} onChange={(e) => setTitle(e.currentTarget.value)} />
-        </Field>
-
-        {mode === 'create' && (
-          <p className="admin-slug-preview" aria-live="polite">
-            {generatedId !== '' ? (
-              <>
-                Se creará como: <code className="mono-small">{generatedId}</code>
-              </>
-            ) : (
-              <span className="muted">El identificador se generará a partir del título.</span>
-            )}
-          </p>
-        )}
-
-        <Field label="Nivel" htmlFor="module-level" hint="Ej.: Introductorio, Intermedio, Avanzado">
-          <input id="module-level" className="input" value={level} onChange={(e) => setLevel(e.currentTarget.value)} />
-        </Field>
-
-        <Field label="Descripción" htmlFor="module-description">
-          <textarea
-            id="module-description"
-            className="textarea"
-            rows={3}
-            value={description}
-            onChange={(e) => setDescription(e.currentTarget.value)}
-          />
-        </Field>
-
-        <div className="admin-modal-actions">
-          <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>
-            Cancelar
-          </Button>
-          <Button type="submit" variant="primary" size="sm" disabled={saving}>
-            {saving ? 'Guardando…' : mode === 'create' ? 'Crear módulo' : 'Guardar cambios'}
-          </Button>
-        </div>
-      </form>
-    </div>
+          <div className="admin-modal-actions">
+            <Button variant="ghost" size="sm" onClick={requestClose} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button type="submit" variant="primary" size="sm" disabled={saving}>
+              {saving ? 'Guardando…' : mode === 'create' ? 'Crear módulo' : 'Guardar cambios'}
+            </Button>
+          </div>
+        </form>
+      </div>
+      {/* Fuera del fondo: un clic en el de la pregunta no debe llegar al del formulario. */}
+      {guard.dialog}
+    </>
   )
 }

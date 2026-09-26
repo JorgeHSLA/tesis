@@ -3,7 +3,9 @@
 // Lección"); cuerpo con las filas de lección. El módulo se reordena
 // arrastrándolo por el asa (DnD nativo del navegador) o con los botones
 // «Subir»/«Bajar» (fallback accesible por teclado). Borrar un módulo con
-// lecciones → 409 MODULE_NOT_EMPTY → toast. fase4-autoria-design §9.F(2).
+// lecciones avisa de que también se borran y va con ?cascade=true (CU-16); si
+// el listado estaba vacío pero ya no, el 409 MODULE_NOT_EMPTY llega por toast.
+// fase4-autoria-design §9.F(2).
 // S5 (D+): la cabecera lleva el distintivo «cambios sin publicar» cuando el
 // contenido local difiere de la versión vigente del catálogo (§11.8.3).
 // S7d (CU-41.1): si el índice anuncia el módulo, «Retirar del catálogo» quita
@@ -27,6 +29,8 @@ export interface ModuleGroupProps {
   index: number
   /** Total de módulos (para deshabilitar «Subir»/«Bajar» en los bordes). */
   count: number
+  /** Hay un reorden guardándose: no se admite otro hasta que termine (CU-15.1). */
+  reorderDisabled?: boolean
   /** Este módulo se está arrastrando ahora mismo. */
   isDragging: boolean
   /** Otro módulo se suelta sobre este (destino del drop). */
@@ -48,6 +52,7 @@ export function ModuleGroup({
   module,
   index,
   count,
+  reorderDisabled = false,
   isDragging,
   isDropTarget,
   open,
@@ -122,17 +127,28 @@ export function ModuleGroup({
     onReorderDrop(index)
   }
 
+  const lessonCount = module.lessons.length
+  const lessonsText = lessonCount === 1 ? 'su lección' : `sus ${lessonCount} lecciones`
+
   const remove = async () => {
     setDeleting(true)
     try {
-      await deleteModule(module.id)
-      onToast(`Módulo "${module.title}" eliminado.`)
+      if (lessonCount > 0) {
+        await deleteModule(module.id, { cascade: true })
+        onToast(`Módulo "${module.title}" eliminado con ${lessonsText}.`)
+      } else {
+        await deleteModule(module.id)
+        onToast(`Módulo "${module.title}" eliminado.`)
+      }
       setConfirming(false)
       onReload()
     } catch (err) {
       if (err instanceof ApiError && err.code === 'MODULE_NOT_EMPTY') {
-        onToast('Vacía el módulo antes de borrarlo.', 'error')
+        // El listado estaba desactualizado: ahora tiene lecciones. Recargar
+        // hace que el siguiente intento avise de ellas.
+        onToast('El módulo ya tiene lecciones. Revisa el aviso y vuelve a intentarlo.', 'error')
         setConfirming(false)
+        onReload()
       } else {
         onToast(err instanceof ApiError ? err.message : 'No se pudo borrar el módulo.', 'error')
       }
@@ -176,7 +192,7 @@ export function ModuleGroup({
             className="admin-module-grip"
             aria-hidden="true"
             title="Arrastra para reordenar"
-            draggable
+            draggable={!reorderDisabled}
             onDragStart={handleGripDragStart}
             onDragEnd={onReorderEnd}
           >
@@ -188,7 +204,7 @@ export function ModuleGroup({
               size="sm"
               className="admin-module-move"
               aria-label={`Subir el módulo ${module.title}`}
-              disabled={index === 0}
+              disabled={reorderDisabled || index === 0}
               onClick={() => onMove(index, index - 1)}
             >
               <IconChevronUp size={15} />
@@ -198,7 +214,7 @@ export function ModuleGroup({
               size="sm"
               className="admin-module-move"
               aria-label={`Bajar el módulo ${module.title}`}
-              disabled={index === count - 1}
+              disabled={reorderDisabled || index === count - 1}
               onClick={() => onMove(index, index + 1)}
             >
               <IconChevronDown size={15} />
@@ -265,8 +281,13 @@ export function ModuleGroup({
         open={confirming}
         tone="danger"
         title="Borrar módulo"
-        body={`Se eliminará el módulo "${module.title}". Debe estar vacío (sin lecciones) para poder borrarlo.`}
-        confirmLabel="Borrar módulo"
+        body={
+          lessonCount > 0
+            ? `Se eliminará el módulo "${module.title}" y también ${lessonsText}, con sus ejemplos, ` +
+              'quizzes y el progreso de los estudiantes en ellas. Esta acción no se puede deshacer.'
+            : `Se eliminará el módulo "${module.title}". Esta acción no se puede deshacer.`
+        }
+        confirmLabel={lessonCount > 0 ? 'Borrar módulo y lecciones' : 'Borrar módulo'}
         busy={deleting}
         onConfirm={remove}
         // Con el borrado en vuelo no se cierra (Escape/fondo): el resultado llega por toast.
