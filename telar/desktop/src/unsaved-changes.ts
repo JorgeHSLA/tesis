@@ -8,21 +8,29 @@
 // deja que la ventana se cierre (o recargue).
 import { dialog, type BrowserWindow } from 'electron'
 
-const SALIR = 0
-const SEGUIR = 1
+export const SALIR = 0
+export const SEGUIR = 1
+
+/** El diálogo: Enter, Escape y cerrarlo sin elegir equivalen a «Seguir editando». */
+export const OPCIONES_DIALOGO = {
+  type: 'warning' as const,
+  buttons: ['Salir sin guardar', 'Seguir editando'],
+  defaultId: SEGUIR,
+  cancelId: SEGUIR,
+  noLink: true,
+  title: 'Cambios sin guardar',
+  message: 'Tienes cambios sin guardar.',
+  detail: 'Si sales ahora perderás los cambios que no has guardado.',
+}
+
+/** Solo el botón «Salir sin guardar» deja cerrar/recargar la ventana. */
+export function debePermitirSalir(choice: number): boolean {
+  return choice === SALIR
+}
 
 export function attachUnsavedChangesPrompt(win: BrowserWindow): void {
   win.webContents.on('will-prevent-unload', (event) => {
-    const choice = dialog.showMessageBoxSync(win, {
-      type: 'warning',
-      buttons: ['Salir sin guardar', 'Seguir editando'],
-      defaultId: SEGUIR,
-      cancelId: SEGUIR,
-      noLink: true,
-      title: 'Cambios sin guardar',
-      message: 'Tienes cambios sin guardar.',
-      detail: 'Si sales ahora perderás los cambios que no has guardado.',
-    })
-    if (choice === SALIR) event.preventDefault()
+    const choice = dialog.showMessageBoxSync(win, OPCIONES_DIALOGO)
+    if (debePermitirSalir(choice)) event.preventDefault()
   })
 }
