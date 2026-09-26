@@ -622,7 +622,7 @@ Leyenda:
 | CU-27.5 | Fallo de carga de la interfaz (did-fail-load) | 💡 | ✅ | SI HAY TIEMPO ✅ d7631e6, 2a219a9 | S | Bajo | Escritorio y salud |
 | CU-28.1 | Taller como actividad identificable | 🚨 | ✅ | HACER YA ✅ 14308ce, 0f7475f, fba410e, ff4c99e | M | Medio | Requisitos de completitud |
 | CU-28.2 | Talleres con y sin código | 🚨 | ✅ | HACER YA ✅ 0f7475f, 0fdfb66, ff4c99e | S | Bajo | Requisitos de completitud |
-| CU-28.3 | Guardar estado y retomar | 🚨 | ✅ | HACER YA ✅ 0f7475f, 0fdfb66 | S | Bajo | Requisitos de completitud |
+| CU-28.3 | Guardar estado y retomar | 🚨 | ✅ | HACER YA ✅ 0f7475f, 0fdfb66, 77c25fe (casillas tras actualizar el curso) | S | Bajo | Requisitos de completitud |
 | CU-28.4 | Condición de realización propia | 🚨 | ✅ | HACER YA ✅ 0f7475f, 24b15a0 | S | Bajo | Requisitos de completitud |
 | CU-28.5 | Integrar con el progreso de la lección | 🚨 | ✅ | HACER YA ✅ 0f7475f, ebc03a9 | S | Bajo | Requisitos de completitud |
 | CU-28.6 | Errores dentro del taller | 🚨 | ✅ | HACER YA ✅ 0fdfb66, 29c5087 | S | Bajo | Requisitos de completitud |
