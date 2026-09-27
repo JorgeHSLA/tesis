@@ -43,7 +43,7 @@ export function kindIssue(kind: LessonKind, { hasQuiz }: { hasQuiz: boolean }): 
 
 const RULE_OPTIONS: { id: CompletionRule; label: string }[] = [
   { id: 'quiz', label: 'Aprobar el quiz' },
-  { id: 'viewed', label: 'Ver la lección' },
+  { id: 'viewed', label: 'Marcarla como completada (p. ej. solo video o lectura)' },
   { id: 'run', label: 'Ejecutar el ejemplo' },
 ]
 
