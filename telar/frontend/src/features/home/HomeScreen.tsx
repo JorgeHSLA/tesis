@@ -23,7 +23,8 @@ export default function HomeScreen() {
   const hydrate = useProgressStore((s) => s.hydrate)
 
   useEffect(() => {
-    void hydrate()
+    // force: la caché puede venir de antes de una escritura de Autoría.
+    void hydrate(true)
   }, [hydrate])
 
   return (

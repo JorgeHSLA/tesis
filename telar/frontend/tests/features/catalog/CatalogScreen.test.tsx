@@ -368,3 +368,13 @@ describe('CatalogScreen · Continuar/Empezar (S2 · CU-01.3)', () => {
     expect(screen.getAllByText('Reducción a medida').length).toBeGreaterThan(0)
   })
 })
+
+describe('CatalogScreen · lo escrito en Autoría se ve sin recargar la ventana', () => {
+  it('con la caché ya cargada, entrar en /aprender vuelve a pedir GET /modules', async () => {
+    // La caché se llenó antes (una sola lección en m2) y luego Autoría creó m9.
+    useProgressStore.setState({ modules: [M2], summary: MODULES.summary })
+    montar()
+    expect(await screen.findByText('Reducciones avanzadas')).toBeInTheDocument()
+    expect(llamadas.filter((l) => l.endsWith('/api/v1/modules'))).toHaveLength(1)
+  })
+})

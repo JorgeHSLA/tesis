@@ -65,7 +65,9 @@ export default function CatalogScreen() {
   const closedWhileFiltering = closedState.key === filterKey ? closedState.ids : NO_IDS
 
   useEffect(() => {
-    void hydrate()
+    // force: la caché puede venir de antes de una escritura de Autoría (en local,
+    // Aprender es la vista previa del borrador): se vuelve a pedir al entrar.
+    void hydrate(true)
   }, [hydrate])
 
   // Aviso de actualizaciones — EFECTO NO BLOQUEANTE (§11.4.2). Dos pasos:
