@@ -225,6 +225,16 @@ describe('AdminLessonEditor · CU-17.2 regla, video y habilitada', () => {
     expect(body.enabled).toBe(false)
   })
 
+  it('una lección nueva sin tocar la regla se completa al marcarla (viewed)', async () => {
+    // Una lección solo con video no tiene quiz: con «quiz» por defecto nadie
+    // podría completarla y además no se podría publicar.
+    await rellenarNueva()
+    expect(screen.getByLabelText('Regla de completitud')).toHaveValue('viewed')
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lección' }))
+    await waitFor(() => expect(createLessonMock).toHaveBeenCalledTimes(1))
+    expect(createLessonMock.mock.calls[0][0].completion_rule).toBe('viewed')
+  })
+
   it('un video vacío viaja como null', async () => {
     await rellenarNueva()
     fireEvent.change(screen.getByLabelText('Regla de completitud'), { target: { value: 'viewed' } })

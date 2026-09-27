@@ -67,7 +67,7 @@ function blankForm(moduleId: string): LessonForm {
   return {
     meta: {
       id: '', module_id: moduleId, order: '', title: '', estimated_minutes: '',
-      video_url: '', enabled: true, completion_rule: 'quiz', recommended: [], kind: 'leccion',
+      video_url: '', enabled: true, completion_rule: 'viewed', recommended: [], kind: 'leccion',
     },
     content_markdown: '',
     withExample: false,

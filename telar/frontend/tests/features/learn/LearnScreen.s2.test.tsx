@@ -1,4 +1,4 @@
-// S2 · LearnScreen: aviso de lección archivada (CU-38.1) y «Marcar como leída»
+// S2 · LearnScreen: aviso de lección archivada (CU-38.1) y «Marcar como completada»
 // solo en lecciones con regla `viewed` (CU-02.4).
 import { render, screen } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
@@ -60,31 +60,31 @@ beforeEach(() => {
 })
 
 describe('LearnScreen · S2', () => {
-  it('lección viewed: muestra «Marcar como leída»', async () => {
+  it('lección viewed: muestra «Marcar como completada»', async () => {
     ;(getLesson as Mock).mockResolvedValue(leccion())
     montar()
-    expect(await screen.findByRole('button', { name: 'Marcar como leída' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Marcar como completada' })).toBeInTheDocument()
   })
 
   it('lección quiz: no hay botón de leída', async () => {
     ;(getLesson as Mock).mockResolvedValue(leccion({ completion_rule: 'quiz' }))
     montar()
     await screen.findByRole('heading', { name: '¿Qué es un hilo?' })
-    expect(screen.queryByRole('button', { name: 'Marcar como leída' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Marcar como completada' })).not.toBeInTheDocument()
   })
 
   it('lección archivada abierta por URL: aviso y sin botón de leída', async () => {
     ;(getLesson as Mock).mockResolvedValue(leccion({ archived: true }))
     montar()
     expect(await screen.findByText(/fue retirada de su módulo/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Marcar como leída' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Marcar como completada' })).not.toBeInTheDocument()
   })
 })
 
 // CU-12.3: la lección dice qué hace falta para completarla según su regla.
 describe('LearnScreen · requisito para completar', () => {
   it.each([
-    ['viewed', /márcala como leída/],
+    ['viewed', /márcala como completada/],
     ['quiz', /aprueba su quiz/],
   ] as const)('regla %s', async (completion_rule, texto) => {
     ;(getLesson as Mock).mockResolvedValue(leccion({ completion_rule, has_quiz: completion_rule === 'quiz' }))
