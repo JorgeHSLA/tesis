@@ -29,7 +29,7 @@ export interface ProgressState {
   hydrate: (force?: boolean) => Promise<void>
   /** PUT /api/v1/progress/lessons/{id} {viewed:true} → refresca la caché. */
   markViewed: (lessonId: string) => Promise<void>
-  /** S2: «Marcar como leída» (solo lecciones `viewed`): PUT
+  /** S2: «Marcar como completada» (solo lecciones `viewed`): PUT
    * {viewed:true, completed:true} → refresca. Propaga el error del PUT. */
   markRead: (lessonId: string) => Promise<void>
   /** Actualiza la caché con la 201 de POST /quiz/attempts (sin re-GET). */

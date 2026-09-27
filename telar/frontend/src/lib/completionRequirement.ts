@@ -18,7 +18,7 @@ interface LessonForRequirement {
 
 const REQUIREMENT_BY_RULE: Record<CompletionRule, (lesson: LessonForRequirement) => string> = {
   quiz: (l) => (l.has_quiz ? 'aprueba su quiz.' : 'aprueba su quiz (todavía no tiene preguntas).'),
-  viewed: () => 'márcala como leída al terminar.',
+  viewed: () => 'márcala como completada al terminar.',
   run: () => 'ejecuta su ejemplo en el simulador y que termine sin errores.',
 }
 

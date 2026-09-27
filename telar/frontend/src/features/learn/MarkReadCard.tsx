@@ -1,4 +1,4 @@
-// MarkReadCard — «Marcar como leída» (S2 · CU-02.4). Solo se monta en lecciones
+// MarkReadCard — «Marcar como completada» (S2 · CU-02.4). Solo se monta en lecciones
 // con completion_rule 'viewed' que cuentan para el progreso: es la única vía
 // que las completa. PUT {viewed:true, completed:true} → hydrate (progressStore).
 import { useState } from 'react'
@@ -41,7 +41,7 @@ export function MarkReadCard({ lessonId, completed }: MarkReadCardProps) {
             </span>
           ) : (
             <Button variant="primary" size="sm" disabled={saving} onClick={onClick}>
-              {saving ? 'Guardando…' : 'Marcar como leída'}
+              {saving ? 'Guardando…' : 'Marcar como completada'}
             </Button>
           )}
         </div>

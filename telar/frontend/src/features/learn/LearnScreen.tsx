@@ -193,7 +193,7 @@ export default function LearnScreen() {
   // CU-12.3: qué falta para completarla, según su regla (null si no cuenta).
   const requirement = completionRequirement(lesson, cachedProgress.completed)
   // S6 (CU-28): un taller es una guía de pasos; no lleva video, quiz ni «Marcar
-  // como leída» (su regla guardada es 'viewed', pero lo completan sus pasos).
+  // como completada» (su regla guardada es 'viewed', pero lo completan sus pasos).
   const isTaller = lesson.kind === 'taller'
 
   return (

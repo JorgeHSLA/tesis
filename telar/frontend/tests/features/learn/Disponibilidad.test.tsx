@@ -1,7 +1,7 @@
 // S2 · disponibilidad y completitud en la vista de lección:
 // - LessonSidebar: una lección deshabilitada no se abre; denominador = habilitadas.
 // - TracksCard: mismo denominador.
-// - MarkReadCard: «Marcar como leída» → PUT {viewed, completed}.
+// - MarkReadCard: «Marcar como completada» → PUT {viewed, completed}.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
@@ -51,9 +51,9 @@ describe('TracksCard', () => {
 })
 
 describe('MarkReadCard', () => {
-  it('«Marcar como leída» envía {viewed:true, completed:true} y refresca', async () => {
+  it('«Marcar como completada» envía {viewed:true, completed:true} y refresca', async () => {
     render(<MarkReadCard lessonId="queEsUnHilo" completed={false} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Marcar como leída' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Marcar como completada' }))
     await waitFor(() =>
       expect(putLessonProgress).toHaveBeenCalledWith('queEsUnHilo', { viewed: true, completed: true }),
     )
@@ -63,14 +63,14 @@ describe('MarkReadCard', () => {
   it('si el PUT falla muestra el error y deja reintentar', async () => {
     ;(putLessonProgress as Mock).mockRejectedValueOnce(new Error('red caída'))
     render(<MarkReadCard lessonId="queEsUnHilo" completed={false} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Marcar como leída' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Marcar como completada' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo guardar')
-    expect(screen.getByRole('button', { name: 'Marcar como leída' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Marcar como completada' })).toBeEnabled()
   })
 
   it('completada: sin botón', () => {
     render(<MarkReadCard lessonId="queEsUnHilo" completed />)
-    expect(screen.queryByRole('button', { name: 'Marcar como leída' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Marcar como completada' })).not.toBeInTheDocument()
     expect(screen.getByText('Lección completada.')).toBeInTheDocument()
   })
 })

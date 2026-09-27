@@ -7,7 +7,7 @@ const base = { completion_rule: 'quiz' as const, enabled: true, archived: false,
 describe('completionRequirement', () => {
   it.each([
     ['quiz', 'Para completarla: aprueba su quiz.'],
-    ['viewed', 'Para completarla: márcala como leída al terminar.'],
+    ['viewed', 'Para completarla: márcala como completada al terminar.'],
     ['run', 'Para completarla: ejecuta su ejemplo en el simulador y que termine sin errores.'],
   ] as const)('regla %s', (completion_rule, texto) => {
     expect(completionRequirement({ ...base, completion_rule }, false)).toBe(texto)
