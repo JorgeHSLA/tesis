@@ -382,6 +382,7 @@ export default function AdminLessonEditor() {
             <WorkshopStepsEditor
               key={detail.id}
               lessonId={detail.id}
+              moduleId={form.meta.module_id}
               steps={detail.steps ?? []}
               onStepsChange={(steps) => setDetail((prev) => (prev ? { ...prev, steps } : prev))}
               onDraftDirtyChange={setStepDraftDirty}

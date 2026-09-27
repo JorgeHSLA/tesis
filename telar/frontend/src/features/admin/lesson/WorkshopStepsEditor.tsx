@@ -43,6 +43,8 @@ const BLANK: AdminWorkshopStepInputDto = { title: '', body_markdown: '', example
 
 export interface WorkshopStepsEditorProps {
   lessonId: string
+  /** Módulo de la lección (el del formulario): el selector solo ofrece sus ejemplos. */
+  moduleId: string
   steps: readonly AdminWorkshopStepDto[]
   /** La lista ya guardada tras cada operación (para mantener el detalle al día). */
   onStepsChange?: (steps: AdminWorkshopStepDto[]) => void
@@ -50,7 +52,7 @@ export interface WorkshopStepsEditorProps {
   onDraftDirtyChange?: (dirty: boolean) => void
 }
 
-export function WorkshopStepsEditor({ lessonId, steps: initial, onStepsChange, onDraftDirtyChange }: WorkshopStepsEditorProps) {
+export function WorkshopStepsEditor({ lessonId, moduleId, steps: initial, onStepsChange, onDraftDirtyChange }: WorkshopStepsEditorProps) {
   const [steps, setSteps] = useState<AdminWorkshopStepDto[]>(() => [...initial])
   const [editing, setEditing] = useState<Editing | null>(null)
   const [busy, setBusy] = useState(false)
@@ -127,7 +129,8 @@ export function WorkshopStepsEditor({ lessonId, steps: initial, onStepsChange, o
     )
   }
 
-  const exampleOptions = examples ?? []
+  // El backend solo acepta ejemplos del módulo del taller (se publican juntos).
+  const exampleOptions = (examples ?? []).filter((e) => e.module_id === moduleId)
   const currentExample = editing?.draft.example_id ?? null
   const missingCurrent = currentExample != null && !exampleOptions.some((e) => e.id === currentExample)
 

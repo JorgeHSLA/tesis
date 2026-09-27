@@ -30,7 +30,13 @@ function montar(steps: AdminWorkshopStepDto[] = [paso(0), paso(1)]) {
   const onDirty = vi.fn()
   const onSteps = vi.fn()
   render(
-    <WorkshopStepsEditor lessonId="tallerHilos" steps={steps} onDraftDirtyChange={onDirty} onStepsChange={onSteps} />,
+    <WorkshopStepsEditor
+      lessonId="tallerHilos"
+      moduleId="m1"
+      steps={steps}
+      onDraftDirtyChange={onDirty}
+      onStepsChange={onSteps}
+    />,
   )
   return { onDirty, onSteps }
 }
@@ -38,7 +44,10 @@ function montar(steps: AdminWorkshopStepDto[] = [paso(0), paso(1)]) {
 beforeEach(() => {
   vi.clearAllMocks()
   ;(getExamples as Mock).mockResolvedValue({
-    examples: [{ id: 'primerEjemplo', title: 'Hola mundo paralelo' }],
+    examples: [
+      { id: 'primerEjemplo', title: 'Hola mundo paralelo', module_id: 'm1' },
+      { id: 'otroModulo', title: 'De otro módulo', module_id: 'm2' },
+    ],
   })
 })
 
@@ -50,6 +59,13 @@ describe('moveOrder', () => {
 })
 
 describe('WorkshopStepsEditor', () => {
+  it('el selector de ejemplo solo ofrece los del módulo de la lección', async () => {
+    montar()
+    fireEvent.click(screen.getByRole('button', { name: /Añadir paso/ }))
+    await screen.findByRole('option', { name: 'Hola mundo paralelo (primerEjemplo)' })
+    expect(screen.queryByRole('option', { name: 'De otro módulo (otroModulo)' })).not.toBeInTheDocument()
+  })
+
   it('sin pasos muestra un estado vacío', () => {
     montar([])
     expect(screen.getByText('Este taller aún no tiene pasos.')).toBeInTheDocument()
