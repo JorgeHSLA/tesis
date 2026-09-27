@@ -1,7 +1,7 @@
 // CatalogScreen — catálogo de contenidos (frontend-spec §6.5): ContinueCard,
 // stats del `summary`, toolbar búsqueda/fpills y un ModuleAccordion por módulo con el
 // progreso REAL del servidor (progress fusionado de GET /modules, caché en
-// progressStore). Carga → skeleton de 8 cards; error → ErrorState con retry.
+// progressStore). Carga → skeleton de las cards; error → ErrorState con retry.
 //
 // FASE 5 — aviso de actualizaciones (§11.0.8). Esta pantalla consulta el
 // catálogo, pero NO DEPENDE de él: el único `ErrorState` que puede pintar

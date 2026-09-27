@@ -46,6 +46,26 @@ beforeEach(() => {
 })
 
 describe('hydrate()', () => {
+  it('una respuesta vieja no pisa a una recarga forzada más reciente', async () => {
+    // CatalogScreen y HomeScreen fuerzan la recarga al montarse: si dos se
+    // cruzan, la que llegue tarde no puede dejar datos viejos en la caché.
+    let resolverVieja!: (v: unknown) => void
+    const vieja = new Promise((r) => {
+      resolverVieja = r
+    })
+    const nueva = structuredClone(MODULES)
+    nueva.modules[0].title = 'Título nuevo'
+    getModulesMock.mockReturnValueOnce(vieja).mockResolvedValueOnce(nueva)
+
+    const primera = useProgressStore.getState().hydrate(true)
+    await useProgressStore.getState().hydrate(true)
+    resolverVieja(structuredClone(MODULES))
+    await primera
+
+    expect(useProgressStore.getState().modules?.[0].title).toBe('Título nuevo')
+    expect(useProgressStore.getState().loading).toBe(false)
+  })
+
   it('puebla modules y summary desde GET /modules', async () => {
     await useProgressStore.getState().hydrate()
     const st = useProgressStore.getState()
