@@ -18,7 +18,14 @@ import { Skeleton } from '../../../components/ui/Skeleton'
 import { AdminSaveBar } from '../../../components/admin/AdminSaveBar'
 import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard'
 import { isPositionTaken, planLessonMove } from '../../../lib/lessonMove'
-import { parseContentErrors, saveErrorBanner } from '../field-errors'
+import {
+  changedFields,
+  clearFieldErrors,
+  parseContentErrors,
+  REVIEW_FIELDS_BANNER,
+  saveErrorBanner,
+  visibleBanner,
+} from '../field-errors'
 import { exampleIssues, lessonIssues, withPrefix } from '../validation'
 import { AddExamplePanel } from './AddExamplePanel'
 import { blankDraft, EXAMPLE_FIELDS, type ExampleDraft } from './exampleDraft'
@@ -122,6 +129,8 @@ export default function AdminLessonEditor() {
   const [exampleDraftDirty, setExampleDraftDirty] = useState(false)
   // S6: borrador de paso de taller abierto sin guardar (mismo bloqueo).
   const [stepDraftDirty, setStepDraftDirty] = useState(false)
+  // Sube al crear un ejemplo aquí: el selector de pasos del taller recarga su lista.
+  const [examplesVersion, setExamplesVersion] = useState(0)
 
   const loadAll = useCallback(() => {
     setLoadError(null)
@@ -165,15 +174,28 @@ export default function AdminLessonEditor() {
   const hasExample = isEdit ? detail?.example != null : (form?.withExample ?? false)
   const hasQuiz = isEdit ? (detail?.has_quiz ?? false) : false
 
+  // Editar un campo retira su error (y el resumen, si ya no queda ninguno).
   const patchMeta = useCallback((patch: Partial<LessonMeta>) => {
     setForm((prev) => (prev ? { ...prev, meta: { ...prev.meta, ...patch } } : prev))
+    setFieldErrors((prev) => clearFieldErrors(prev, Object.keys(patch)))
   }, [])
   const setMarkdown = useCallback((content_markdown: string) => {
     setForm((prev) => (prev ? { ...prev, content_markdown } : prev))
+    setFieldErrors((prev) => clearFieldErrors(prev, ['content_markdown']))
   }, [])
-  const setDraft = useCallback((draft: ExampleDraft) => {
-    setForm((prev) => (prev ? { ...prev, draft } : prev))
-  }, [])
+  const prevDraft = form?.draft
+  const setDraft = useCallback(
+    (draft: ExampleDraft) => {
+      setForm((prev) => (prev ? { ...prev, draft } : prev))
+      if (prevDraft == null) return
+      const touched = [
+        ...changedFields(prevDraft.example, draft.example, 'example.'),
+        ...(prevDraft.source_code !== draft.source_code ? ['source_code'] : []),
+      ]
+      setFieldErrors((prev) => clearFieldErrors(prev, touched))
+    },
+    [prevDraft],
+  )
 
   const discard = useCallback(() => {
     if (initial) setForm(initial)
@@ -253,7 +275,7 @@ export default function AdminLessonEditor() {
     }
     if (Object.keys(issues).length > 0) {
       setFieldErrors(issues)
-      setBanner('Revisa los campos marcados.')
+      setBanner(REVIEW_FIELDS_BANNER)
       return
     }
     const orderNum = Number(form.meta.order.trim())
@@ -382,6 +404,8 @@ export default function AdminLessonEditor() {
             <WorkshopStepsEditor
               key={detail.id}
               lessonId={detail.id}
+              moduleId={form.meta.module_id}
+              examplesVersion={examplesVersion}
               steps={detail.steps ?? []}
               onStepsChange={(steps) => setDetail((prev) => (prev ? { ...prev, steps } : prev))}
               onDraftDirtyChange={setStepDraftDirty}
@@ -400,7 +424,10 @@ export default function AdminLessonEditor() {
               maxTimeoutS={maxTimeoutS}
               startOpen={abrirEjemplo}
               key={detail.id}
-              onAdded={(example) => setDetail((prev) => (prev ? { ...prev, example } : prev))}
+              onAdded={(example) => {
+                setDetail((prev) => (prev ? { ...prev, example } : prev))
+                setExamplesVersion((v) => v + 1)
+              }}
               onDraftDirtyChange={setExampleDraftDirty}
             />
           )}
@@ -434,7 +461,7 @@ export default function AdminLessonEditor() {
       <AdminSaveBar
         dirty={dirty}
         saving={saving}
-        error={banner ?? undefined}
+        error={visibleBanner(banner, fieldErrors) ?? undefined}
         onSave={save}
         onDiscard={discard}
         saveLabel={isEdit ? 'Guardar lección' : 'Crear lección'}

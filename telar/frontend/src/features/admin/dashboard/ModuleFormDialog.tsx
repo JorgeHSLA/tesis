@@ -12,7 +12,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard'
 import { ApiError } from '../../../api/client'
 import { createModule, updateModule } from '../../../api/admin'
-import { parseContentErrors } from '../field-errors'
+import { clearFieldErrors, parseContentErrors } from '../field-errors'
 import { moduleIssues, type FieldIssues } from '../validation'
 import type { ModuleDto } from '../../../api/types'
 import { slugify, uniqueSlug } from '../../../lib/slug'
@@ -65,13 +65,13 @@ export function ModuleFormDialog({
   const [description, setDescription] = useState(start.description)
   const [level, setLevel] = useState(start.level)
   const [error, setError] = useState<string | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<FieldIssues>({})
+  const [fieldErrors, setFieldErrors] = useState<Readonly<FieldIssues>>({})
   const [saving, setSaving] = useState(false)
 
   /** Cambia un campo y retira su error: ya no describe lo que hay escrito. */
   const edit = (field: ModuleField, set: (value: string) => void) => (value: string) => {
     set(value)
-    setFieldErrors(({ [field]: _quitado, ...rest }) => rest)
+    setFieldErrors((prev) => clearFieldErrors(prev, [field]))
   }
 
   const dirty =

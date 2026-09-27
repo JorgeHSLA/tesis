@@ -39,6 +39,9 @@ export interface ProgressState {
 }
 
 let inflight: Promise<void> | null = null
+// Número de la última recarga lanzada: CatalogScreen y HomeScreen fuerzan una
+// al montarse, y si dos se cruzan solo la más reciente puede escribir la caché.
+let hydrateReq = 0
 
 export const useProgressStore = create<ProgressState>()(
   persist(
@@ -53,17 +56,21 @@ export const useProgressStore = create<ProgressState>()(
         if (inflight && !force) return inflight
         if (!force && get().modules !== null) return Promise.resolve()
         set({ loading: true, error: null })
-        inflight = getModules()
+        const req = ++hydrateReq
+        const peticion = getModules()
           .then(({ modules, summary }) => {
+            if (req !== hydrateReq) return // respuesta vieja: la pisaría
             set({ modules, summary, loading: false, error: null })
           })
           .catch((err: unknown) => {
+            if (req !== hydrateReq) return
             set({ loading: false, error: err instanceof Error ? err.message : String(err) })
           })
           .finally(() => {
-            inflight = null
+            if (inflight === peticion) inflight = null
           })
-        return inflight
+        inflight = peticion
+        return peticion
       },
 
       markViewed: async (lessonId: string) => {

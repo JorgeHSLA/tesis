@@ -26,6 +26,9 @@ import { ExamplePicker } from './ExamplePicker'
 import { SavedConfigs } from './SavedConfigs'
 import { effectiveCpus, shouldSendThreads, ThreadsField } from './ThreadsField'
 
+/** Nombre de archivo del simulador en blanco (y al pasar a «Código propio»). */
+const DEFAULT_FILENAME = 'main.py'
+
 /** navigate-state de Re-ejecutar (lib/simConfig RerunState). Se lee con
  *  valores por defecto: basta `code` (+ `filename`) para precargar código propio. */
 function readPreload(state: unknown): SimConfig | null {
@@ -35,7 +38,7 @@ function readPreload(state: unknown): SimConfig | null {
   return {
     example_id: typeof s.example_id === 'string' ? s.example_id : null,
     code: s.code,
-    filename: typeof s.filename === 'string' ? s.filename : 'main.py',
+    filename: typeof s.filename === 'string' ? s.filename : DEFAULT_FILENAME,
     threads: typeof s.threads === 'number' ? s.threads : 4,
     timeout_s: typeof s.timeout_s === 'number' ? s.timeout_s : 60,
     edited: s.edited === true,
@@ -67,7 +70,7 @@ export function SimulatorIdle() {
   const [modulesError, setModulesError] = useState<Error | null>(null)
   const [example, setExample] = useState<ExampleDetailDto | null>(null)
   const [code, setCode] = useState(preload?.code ?? '')
-  const [filename, setFilename] = useState(preload?.filename ?? 'main.py')
+  const [filename, setFilename] = useState(preload?.filename ?? DEFAULT_FILENAME)
   const [threads, setThreads] = useState(4)
   const [timeoutS, setTimeoutS] = useState(60)
   const [launchError, setLaunchError] = useState<ApiError | null>(null)
@@ -100,6 +103,8 @@ export function SimulatorIdle() {
     setNotices([])
     if (exampleId === '') {
       setExample(null)
+      // El nombre era el del ejemplo; el código escrito se conserva.
+      setFilename(DEFAULT_FILENAME)
       return
     }
     getExample(exampleId)

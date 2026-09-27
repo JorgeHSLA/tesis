@@ -7,7 +7,14 @@ import { useNavigate } from 'react-router-dom'
 import { addLessonExample } from '../../../api/admin'
 import type { AdminExampleDto } from '../../../api/admin-types'
 import { Button } from '../../../components/ui/Button'
-import { parseContentErrors, saveErrorBanner } from '../field-errors'
+import {
+  changedFields,
+  clearFieldErrors,
+  parseContentErrors,
+  REVIEW_FIELDS_BANNER,
+  saveErrorBanner,
+  visibleBanner,
+} from '../field-errors'
 import { exampleIssues, withPrefix } from '../validation'
 import { blankDraft, EXAMPLE_FIELDS, type ExampleDraft } from './exampleDraft'
 import { ExampleDraftFields } from './ExampleDraftFields'
@@ -48,6 +55,12 @@ export function AddExamplePanel({
   }, [draftDirty, onDraftDirtyChange])
 
   const edit = (next: ExampleDraft) => {
+    // Editar un campo retira su error (y el resumen, si ya no queda ninguno).
+    const changed = [
+      ...changedFields(draft.example, next.example, 'example.'),
+      ...(draft.source_code !== next.source_code ? ['source_code'] : []),
+    ]
+    setFieldErrors((prev) => clearFieldErrors(prev, changed))
     setDraft(next)
     setTouched(true)
   }
@@ -63,7 +76,7 @@ export function AddExamplePanel({
     const issues = { ...withPrefix(exampleOnly, 'example.'), ...(codeIssue ? { source_code: codeIssue } : null) }
     if (Object.keys(issues).length > 0) {
       setFieldErrors(issues)
-      setBanner('Revisa los campos marcados.')
+      setBanner(REVIEW_FIELDS_BANNER)
       return
     }
     setSaving(true)
@@ -81,6 +94,8 @@ export function AddExamplePanel({
       setSaving(false)
     }
   }
+
+  const shownBanner = visibleBanner(banner, fieldErrors)
 
   return (
     <div className="col" style={{ gap: 14 }}>
@@ -106,9 +121,9 @@ export function AddExamplePanel({
       ) : (
         <>
           <ExampleDraftFields value={draft} onChange={edit} maxTimeoutS={maxTimeoutS} errors={fieldErrors} />
-          {banner != null && (
+          {shownBanner != null && (
             <p className="field-hint error" role="alert" style={{ margin: 0 }}>
-              {banner}
+              {shownBanner}
             </p>
           )}
           <div style={{ display: 'flex', gap: 8 }}>

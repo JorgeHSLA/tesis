@@ -3,7 +3,13 @@
 // negocio y {type, loc, msg} de pydantic (con el mensaje en español).
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '@/api/client'
-import { parseContentErrors } from '@/features/admin/field-errors'
+import {
+  changedFields,
+  clearFieldErrors,
+  parseContentErrors,
+  REVIEW_FIELDS_BANNER,
+  visibleBanner,
+} from '@/features/admin/field-errors'
 
 const err422 = (details: unknown) =>
   new ApiError('VALIDATION_ERROR', 'El cuerpo o los parámetros de la petición no son válidos.', 422, details)
@@ -57,5 +63,24 @@ describe('parseContentErrors · pydantic {type, loc, msg}', () => {
       ['completion_rule'],
     )
     expect(r.byField).toEqual({ completion_rule: 'Necesita quiz.' })
+  })
+})
+
+describe('errores que se van al editar', () => {
+  it('clearFieldErrors quita solo los campos editados y conserva el objeto si no había nada', () => {
+    const errs = { title: 'a', order: 'b' }
+    expect(clearFieldErrors(errs, ['title'])).toEqual({ order: 'b' })
+    expect(clearFieldErrors(errs, ['level'])).toBe(errs)
+    expect(errs).toEqual({ title: 'a', order: 'b' })
+  })
+
+  it('changedFields compara superficialmente y antepone el prefijo', () => {
+    expect(changedFields({ a: 1, b: 2 }, { a: 1, b: 3 }, 'example.')).toEqual(['example.b'])
+  })
+
+  it('visibleBanner oculta solo el resumen de campos marcados cuando no queda ninguno', () => {
+    expect(visibleBanner(REVIEW_FIELDS_BANNER, {})).toBeNull()
+    expect(visibleBanner(REVIEW_FIELDS_BANNER, { title: 'x' })).toBe(REVIEW_FIELDS_BANNER)
+    expect(visibleBanner('Otro fallo', {})).toBe('Otro fallo')
   })
 })

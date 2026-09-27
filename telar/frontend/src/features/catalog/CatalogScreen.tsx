@@ -1,7 +1,7 @@
 // CatalogScreen — catálogo de contenidos (frontend-spec §6.5): ContinueCard,
-// stats del `summary`, toolbar búsqueda/fpills y 8 ModuleAccordion con el
+// stats del `summary`, toolbar búsqueda/fpills y un ModuleAccordion por módulo con el
 // progreso REAL del servidor (progress fusionado de GET /modules, caché en
-// progressStore). Carga → skeleton de 8 cards; error → ErrorState con retry.
+// progressStore). Carga → skeleton de las cards; error → ErrorState con retry.
 //
 // FASE 5 — aviso de actualizaciones (§11.0.8). Esta pantalla consulta el
 // catálogo, pero NO DEPENDE de él: el único `ErrorState` que puede pintar
@@ -65,7 +65,9 @@ export default function CatalogScreen() {
   const closedWhileFiltering = closedState.key === filterKey ? closedState.ids : NO_IDS
 
   useEffect(() => {
-    void hydrate()
+    // force: la caché puede venir de antes de una escritura de Autoría (en local,
+    // Aprender es la vista previa del borrador): se vuelve a pedir al entrar.
+    void hydrate(true)
   }, [hydrate])
 
   // Aviso de actualizaciones — EFECTO NO BLOQUEANTE (§11.4.2). Dos pasos:
@@ -223,7 +225,8 @@ export default function CatalogScreen() {
           <div className="eyebrow">Aprendizaje</div>
           <h2 className="display-lg">Catálogo de contenidos</h2>
           <p className="muted" style={{ margin: '6px 0 0', maxWidth: 620 }}>
-            Las lecciones y quizzes del curso de OpenMP con PyOMP, organizados en 8 módulos. Cada lección se
+            Las lecciones y quizzes del curso de OpenMP con PyOMP, organizados en {sorted.length}{' '}
+            {sorted.length === 1 ? 'módulo' : 'módulos'}. Cada lección se
             ejecuta de verdad en el simulador.
           </p>
         </div>

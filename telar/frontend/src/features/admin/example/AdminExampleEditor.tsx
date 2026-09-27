@@ -18,7 +18,13 @@ import { Button } from '../../../components/ui/Button'
 import { ErrorState } from '../../../components/ui/ErrorState'
 import { Skeleton } from '../../../components/ui/Skeleton'
 import { AdminSaveBar } from '../../../components/admin/AdminSaveBar'
-import { parseContentErrors, saveErrorBanner } from '../field-errors'
+import {
+  clearFieldErrors,
+  parseContentErrors,
+  REVIEW_FIELDS_BANNER,
+  saveErrorBanner,
+  visibleBanner,
+} from '../field-errors'
 import { exampleIssues } from '../validation'
 import { CodeDropzone } from './CodeDropzone'
 import { ExampleMetaFields } from './ExampleMetaFields'
@@ -85,16 +91,20 @@ export default function AdminExampleEditor() {
   const dirty = metaChanged || codeChanged
   const guard = useUnsavedChangesGuard(dirty)
 
+  // Editar un campo retira su error (y el resumen, si ya no queda ninguno).
   const patchMeta = useCallback((patch: Partial<AdminExampleBaseDto>) => {
     setForm((prev) => (prev ? { ...prev, meta: { ...prev.meta, ...patch } } : prev))
+    setFieldErrors((prev) => clearFieldErrors(prev, Object.keys(patch)))
   }, [])
   const onCodeChange = useCallback((source_code: string) => {
     setForm((prev) => (prev ? { ...prev, source_code } : prev))
+    setFieldErrors((prev) => clearFieldErrors(prev, ['source_code']))
   }, [])
   const onFile = useCallback((file: PickedFile) => {
     setForm((prev) =>
       prev ? { ...prev, source_code: file.code, meta: { ...prev.meta, filename: file.filename } } : prev,
     )
+    setFieldErrors((prev) => clearFieldErrors(prev, ['source_code', 'filename']))
   }, [])
 
   const discard = useCallback(() => {
@@ -108,7 +118,7 @@ export default function AdminExampleEditor() {
     const issues = exampleIssues(form.meta, form.source_code)
     if (Object.keys(issues).length > 0) {
       setFieldErrors(issues)
-      setBanner('Revisa los campos marcados.')
+      setBanner(REVIEW_FIELDS_BANNER)
       return
     }
     setSaving(true)
@@ -212,7 +222,7 @@ export default function AdminExampleEditor() {
       <AdminSaveBar
         dirty={dirty}
         saving={saving}
-        error={banner ?? undefined}
+        error={visibleBanner(banner, fieldErrors) ?? undefined}
         onSave={save}
         onDiscard={discard}
         saveLabel="Guardar ejemplo"

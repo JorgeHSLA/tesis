@@ -20,7 +20,7 @@ import { Button } from '../../../components/ui/Button'
 import { EmptyState } from '../../../components/ui/EmptyState'
 import { Field } from '../../../components/ui/Field'
 import { IconPlus } from '../../../components/icons/icons'
-import { parseContentErrors } from '../field-errors'
+import { clearFieldErrors, parseContentErrors } from '../field-errors'
 
 const STEP_FIELDS = ['title', 'body_markdown', 'example_id']
 
@@ -43,6 +43,13 @@ const BLANK: AdminWorkshopStepInputDto = { title: '', body_markdown: '', example
 
 export interface WorkshopStepsEditorProps {
   lessonId: string
+  /** Módulo de la lección (el del formulario): el selector solo ofrece sus ejemplos. */
+  moduleId: string
+  /**
+   * Cambia cuando se crea o quita un ejemplo en el mismo editor: vuelve a pedir
+   * la lista del selector (sin salir y volver a abrir la lección).
+   */
+  examplesVersion?: number
   steps: readonly AdminWorkshopStepDto[]
   /** La lista ya guardada tras cada operación (para mantener el detalle al día). */
   onStepsChange?: (steps: AdminWorkshopStepDto[]) => void
@@ -50,7 +57,14 @@ export interface WorkshopStepsEditorProps {
   onDraftDirtyChange?: (dirty: boolean) => void
 }
 
-export function WorkshopStepsEditor({ lessonId, steps: initial, onStepsChange, onDraftDirtyChange }: WorkshopStepsEditorProps) {
+export function WorkshopStepsEditor({
+  lessonId,
+  moduleId,
+  examplesVersion = 0,
+  steps: initial,
+  onStepsChange,
+  onDraftDirtyChange,
+}: WorkshopStepsEditorProps) {
   const [steps, setSteps] = useState<AdminWorkshopStepDto[]>(() => [...initial])
   const [editing, setEditing] = useState<Editing | null>(null)
   const [busy, setBusy] = useState(false)
@@ -72,7 +86,7 @@ export function WorkshopStepsEditor({ lessonId, steps: initial, onStepsChange, o
     return () => {
       alive = false
     }
-  }, [])
+  }, [examplesVersion])
 
   /** Ejecuta una operación de pasos con la guarda de «en vuelo» y el manejo de 422. */
   const run = async (op: () => Promise<AdminWorkshopStepsDto>, onOk?: () => void): Promise<boolean> => {
@@ -96,8 +110,10 @@ export function WorkshopStepsEditor({ lessonId, steps: initial, onStepsChange, o
     }
   }
 
-  const edit = (patch: Partial<AdminWorkshopStepInputDto>) =>
+  const edit = (patch: Partial<AdminWorkshopStepInputDto>) => {
     setEditing((prev) => (prev ? { ...prev, draft: { ...prev.draft, ...patch }, touched: true } : prev))
+    setFieldErrors((prev) => clearFieldErrors(prev, Object.keys(patch)))
+  }
 
   const saveDraft = () => {
     if (editing == null) return
@@ -127,7 +143,8 @@ export function WorkshopStepsEditor({ lessonId, steps: initial, onStepsChange, o
     )
   }
 
-  const exampleOptions = examples ?? []
+  // El backend solo acepta ejemplos del módulo del taller (se publican juntos).
+  const exampleOptions = (examples ?? []).filter((e) => e.module_id === moduleId)
   const currentExample = editing?.draft.example_id ?? null
   const missingCurrent = currentExample != null && !exampleOptions.some((e) => e.id === currentExample)
 
