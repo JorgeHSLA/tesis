@@ -45,6 +45,11 @@ export interface WorkshopStepsEditorProps {
   lessonId: string
   /** Módulo de la lección (el del formulario): el selector solo ofrece sus ejemplos. */
   moduleId: string
+  /**
+   * Cambia cuando se crea o quita un ejemplo en el mismo editor: vuelve a pedir
+   * la lista del selector (sin salir y volver a abrir la lección).
+   */
+  examplesVersion?: number
   steps: readonly AdminWorkshopStepDto[]
   /** La lista ya guardada tras cada operación (para mantener el detalle al día). */
   onStepsChange?: (steps: AdminWorkshopStepDto[]) => void
@@ -52,7 +57,14 @@ export interface WorkshopStepsEditorProps {
   onDraftDirtyChange?: (dirty: boolean) => void
 }
 
-export function WorkshopStepsEditor({ lessonId, moduleId, steps: initial, onStepsChange, onDraftDirtyChange }: WorkshopStepsEditorProps) {
+export function WorkshopStepsEditor({
+  lessonId,
+  moduleId,
+  examplesVersion = 0,
+  steps: initial,
+  onStepsChange,
+  onDraftDirtyChange,
+}: WorkshopStepsEditorProps) {
   const [steps, setSteps] = useState<AdminWorkshopStepDto[]>(() => [...initial])
   const [editing, setEditing] = useState<Editing | null>(null)
   const [busy, setBusy] = useState(false)
@@ -74,7 +86,7 @@ export function WorkshopStepsEditor({ lessonId, moduleId, steps: initial, onStep
     return () => {
       alive = false
     }
-  }, [])
+  }, [examplesVersion])
 
   /** Ejecuta una operación de pasos con la guarda de «en vuelo» y el manejo de 422. */
   const run = async (op: () => Promise<AdminWorkshopStepsDto>, onOk?: () => void): Promise<boolean> => {

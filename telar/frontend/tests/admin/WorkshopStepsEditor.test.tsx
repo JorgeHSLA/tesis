@@ -66,6 +66,18 @@ describe('WorkshopStepsEditor', () => {
     expect(screen.queryByRole('option', { name: 'De otro módulo (otroModulo)' })).not.toBeInTheDocument()
   })
 
+  it('vuelve a pedir la lista de ejemplos cuando cambia examplesVersion', async () => {
+    const { rerender } = render(<WorkshopStepsEditor lessonId="tallerHilos" moduleId="m1" steps={[]} examplesVersion={0} />)
+    await waitFor(() => expect(getExamples).toHaveBeenCalledTimes(1))
+    ;(getExamples as Mock).mockResolvedValue({
+      examples: [{ id: 'nuevo', title: 'Recién creado', module_id: 'm1' }],
+    })
+    rerender(<WorkshopStepsEditor lessonId="tallerHilos" moduleId="m1" steps={[]} examplesVersion={1} />)
+    await waitFor(() => expect(getExamples).toHaveBeenCalledTimes(2))
+    fireEvent.click(screen.getByRole('button', { name: /Añadir paso/ }))
+    expect(await screen.findByRole('option', { name: 'Recién creado (nuevo)' })).toBeInTheDocument()
+  })
+
   it('sin pasos muestra un estado vacío', () => {
     montar([])
     expect(screen.getByText('Este taller aún no tiene pasos.')).toBeInTheDocument()

@@ -122,6 +122,8 @@ export default function AdminLessonEditor() {
   const [exampleDraftDirty, setExampleDraftDirty] = useState(false)
   // S6: borrador de paso de taller abierto sin guardar (mismo bloqueo).
   const [stepDraftDirty, setStepDraftDirty] = useState(false)
+  // Sube al crear un ejemplo aquí: el selector de pasos del taller recarga su lista.
+  const [examplesVersion, setExamplesVersion] = useState(0)
 
   const loadAll = useCallback(() => {
     setLoadError(null)
@@ -383,6 +385,7 @@ export default function AdminLessonEditor() {
               key={detail.id}
               lessonId={detail.id}
               moduleId={form.meta.module_id}
+              examplesVersion={examplesVersion}
               steps={detail.steps ?? []}
               onStepsChange={(steps) => setDetail((prev) => (prev ? { ...prev, steps } : prev))}
               onDraftDirtyChange={setStepDraftDirty}
@@ -401,7 +404,10 @@ export default function AdminLessonEditor() {
               maxTimeoutS={maxTimeoutS}
               startOpen={abrirEjemplo}
               key={detail.id}
-              onAdded={(example) => setDetail((prev) => (prev ? { ...prev, example } : prev))}
+              onAdded={(example) => {
+                setDetail((prev) => (prev ? { ...prev, example } : prev))
+                setExamplesVersion((v) => v + 1)
+              }}
               onDraftDirtyChange={setExampleDraftDirty}
             />
           )}

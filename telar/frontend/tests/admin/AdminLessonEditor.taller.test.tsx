@@ -20,7 +20,7 @@ vi.mock('@/api/admin', () => ({
 vi.mock('@/api/system', () => ({ getSystem: vi.fn() }))
 vi.mock('@/api/content', () => ({ getExamples: vi.fn() }))
 
-import { getAdminLesson, getAdminModules, updateLesson } from '@/api/admin'
+import { addLessonExample, getAdminLesson, getAdminModules, updateLesson } from '@/api/admin'
 import { getExamples } from '@/api/content'
 import { getSystem } from '@/api/system'
 import AdminLessonEditor from '@/features/admin/lesson/AdminLessonEditor'
@@ -97,5 +97,39 @@ describe('AdminLessonEditor · taller', () => {
     renderAt('/admin/lecciones/lesson-1')
     expect(await screen.findByText('Lee el código')).toBeInTheDocument()
     expect(screen.getByLabelText('Tipo de lección')).toHaveValue('taller')
+  })
+
+  it('el selector de pasos filtra por el módulo y ve el ejemplo recién agregado sin reabrir', async () => {
+    ;(getAdminLesson as Mock).mockResolvedValue({ ...LECCION, kind: 'taller', completion_rule: 'viewed', video_url: null })
+    ;(getExamples as Mock).mockResolvedValue({
+      examples: [{ id: 'ajeno', title: 'De otro módulo', module_id: 'm2' }],
+    })
+    const creado = {
+      id: 'mi-ejemplo', module_id: 'm1', order: 1, source_code: 'print(1)', title: 'Mi ejemplo',
+      filename: 'mi.py', difficulty: 1, teaches: 'algo', directives: [], threads_configurable: true,
+      fixed_threads: null, fixed_threads_note: null, sweeps_threads: false, self_measures: false,
+      parser_id: 'none', default_timeout_s: 60, est_run_seconds: 5, enabled: true, requires_gpu: false,
+      lesson_id: 'lesson-1', expected_output_note: '', takeaways: ['una idea'],
+    }
+    ;(addLessonExample as Mock).mockResolvedValue(creado)
+    renderAt('/admin/lecciones/lesson-1')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar ejemplo' }))
+    fireEvent.change(screen.getAllByLabelText('Título')[1], { target: { value: 'Mi ejemplo' } })
+    fireEvent.change(screen.getByLabelText('Qué enseña'), { target: { value: 'algo' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir aprendizaje' }))
+    fireEvent.change(screen.getByLabelText('Lo que vas a aprender 1'), { target: { value: 'una idea' } })
+    ;(getExamples as Mock).mockResolvedValue({
+      examples: [
+        { id: 'ajeno', title: 'De otro módulo', module_id: 'm2' },
+        { id: 'mi-ejemplo', title: 'Mi ejemplo', module_id: 'm1' },
+      ],
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar ejemplo' }))
+    await screen.findByRole('button', { name: 'Editar ejemplo' })
+
+    fireEvent.click(screen.getByRole('button', { name: /Añadir paso/ }))
+    expect(await screen.findByRole('option', { name: 'Mi ejemplo (mi-ejemplo)' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'De otro módulo (ajeno)' })).not.toBeInTheDocument()
   })
 })
