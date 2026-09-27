@@ -189,3 +189,16 @@ describe('AdminExampleEditor · validar antes de guardar (CU-21.1, 21.3)', () =>
   })
 })
 
+describe('AdminExampleEditor · el error se va al corregir el campo', () => {
+  it('corregir el nombre quita su error y el resumen', async () => {
+    renderEditor()
+    await screen.findByText('Código del ejemplo')
+    fireEvent.change(screen.getByLabelText('Nombre de archivo'), { target: { value: 'mal nombre.py' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar ejemplo' }))
+    await screen.findByText(/^El nombre debe terminar en \.py/)
+    expect(screen.getByText('Revisa los campos marcados.')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Nombre de archivo'), { target: { value: 'bien.py' } })
+    expect(screen.queryByText(/^El nombre debe terminar en \.py/)).toBeNull()
+    expect(screen.queryByText('Revisa los campos marcados.')).toBeNull()
+  })
+})

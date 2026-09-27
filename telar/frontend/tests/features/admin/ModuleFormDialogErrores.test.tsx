@@ -55,6 +55,19 @@ describe('ModuleFormDialog · validación del cliente', () => {
   })
 })
 
+describe('ModuleFormDialog · corregir un campo no toca los demás', () => {
+  it('escribir el título quita su error y deja el del nivel', async () => {
+    renderDialog('create')
+    fireEvent.click(screen.getByRole('button', { name: 'Crear módulo' }))
+    await screen.findByText('Escribe un título.')
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Nuevo' } })
+    expect(screen.queryByText('Escribe un título.')).toBeNull()
+    expect(screen.getByText('Escribe el nivel.')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Nivel'), { target: { value: 'Intro' } })
+    expect(screen.queryByText('Escribe el nivel.')).toBeNull()
+  })
+})
+
 describe('ModuleFormDialog · errores del backend', () => {
   it('lee details de un 422 de pydantic y lo pone junto al campo', async () => {
     ;(updateModule as Mock).mockRejectedValue(

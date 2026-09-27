@@ -20,7 +20,7 @@ import { Button } from '../../../components/ui/Button'
 import { EmptyState } from '../../../components/ui/EmptyState'
 import { Field } from '../../../components/ui/Field'
 import { IconPlus } from '../../../components/icons/icons'
-import { parseContentErrors } from '../field-errors'
+import { clearFieldErrors, parseContentErrors } from '../field-errors'
 
 const STEP_FIELDS = ['title', 'body_markdown', 'example_id']
 
@@ -110,8 +110,10 @@ export function WorkshopStepsEditor({
     }
   }
 
-  const edit = (patch: Partial<AdminWorkshopStepInputDto>) =>
+  const edit = (patch: Partial<AdminWorkshopStepInputDto>) => {
     setEditing((prev) => (prev ? { ...prev, draft: { ...prev.draft, ...patch }, touched: true } : prev))
+    setFieldErrors((prev) => clearFieldErrors(prev, Object.keys(patch)))
+  }
 
   const saveDraft = () => {
     if (editing == null) return

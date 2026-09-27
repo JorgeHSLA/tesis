@@ -23,6 +23,39 @@ export interface ParsedContentErrors {
 
 const EMPTY: ParsedContentErrors = { byField: {}, banner: null }
 
+/** Resumen de «hay campos marcados»: sobra en cuanto ya no queda ninguno. */
+export const REVIEW_FIELDS_BANNER = 'Revisa los campos marcados.'
+
+/**
+ * Quita el error de los campos editados: ya no describe lo que hay escrito.
+ * Devuelve el mismo objeto si ninguno tenía error (sin re-render de más).
+ */
+export function clearFieldErrors(
+  errors: Readonly<Record<string, string>>,
+  fields: readonly string[],
+): Readonly<Record<string, string>> {
+  if (!fields.some((f) => f in errors)) return errors
+  const drop = new Set(fields)
+  return Object.fromEntries(Object.entries(errors).filter(([k]) => !drop.has(k)))
+}
+
+/** Claves (con `prefix`) cuyo valor cambió de `prev` a `next` (comparación superficial). */
+export function changedFields(prev: object, next: object, prefix = ''): string[] {
+  const a = prev as Record<string, unknown>
+  const b = next as Record<string, unknown>
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+  return [...keys].filter((k) => a[k] !== b[k]).map((k) => `${prefix}${k}`)
+}
+
+/** El banner a pintar: el resumen de campos marcados se oculta si ya no queda ninguno. */
+export function visibleBanner(
+  banner: string | null,
+  errors: Readonly<Record<string, string>>,
+): string | null {
+  if (banner === REVIEW_FIELDS_BANNER && Object.keys(errors).length === 0) return null
+  return banner
+}
+
 /** Texto en español por `type` de pydantic (el `ctx` con los límites no viaja: BL-22). */
 const PYDANTIC_MESSAGES: Readonly<Record<string, string>> = {
   missing: 'Este campo es obligatorio.',
@@ -111,7 +144,7 @@ export function parseContentErrors(
  */
 export function saveErrorBanner(parsed: ParsedContentErrors, err: unknown, fallback: string): string {
   if (parsed.banner != null) return parsed.banner
-  if (Object.keys(parsed.byField).length > 0) return 'Revisa los campos marcados.'
+  if (Object.keys(parsed.byField).length > 0) return REVIEW_FIELDS_BANNER
   return err instanceof ApiError ? err.message : fallback
 }
 

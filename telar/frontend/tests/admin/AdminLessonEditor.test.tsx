@@ -487,3 +487,37 @@ describe('AdminLessonEditor · errores por campo (CU-17.4, 18.5)', () => {
   })
 })
 
+describe('AdminLessonEditor · el error se va al corregir el campo', () => {
+  it('escribir en el campo quita su error y, sin más errores, el resumen', async () => {
+    renderAt('/admin/lecciones/lesson-1')
+    const titulo = await screen.findByLabelText('Título')
+    fireEvent.change(titulo, { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Minutos estimados'), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar lección' }))
+    expect(await screen.findByText('Escribe un título.')).toBeInTheDocument()
+    expect(screen.getByText('Revisa los campos marcados.')).toBeInTheDocument()
+
+    // Queda otro campo con error: el resumen sigue.
+    fireEvent.change(titulo, { target: { value: 'L' } })
+    expect(screen.queryByText('Escribe un título.')).toBeNull()
+    expect(screen.getByText('Los minutos deben ser un número entero entre 1 y 600.')).toBeInTheDocument()
+    expect(screen.getByText('Revisa los campos marcados.')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Minutos estimados'), { target: { value: '10' } })
+    expect(screen.queryByText('Los minutos deben ser un número entero entre 1 y 600.')).toBeNull()
+    expect(screen.queryByText('Revisa los campos marcados.')).toBeNull()
+    expect(updateLessonMock).not.toHaveBeenCalled()
+  })
+
+  it('en /nueva, corregir un campo del ejemplo quita su error', async () => {
+    await rellenarNueva()
+    fireEvent.click(screen.getByLabelText('Esta lección tiene ejemplo ejecutable'))
+    rellenarEjemplo()
+    fireEvent.change(screen.getByLabelText('Nombre de archivo'), { target: { value: 'mi ejemplo.py' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lección' }))
+    await screen.findByText(/^El nombre debe terminar en \.py/)
+    fireEvent.change(screen.getByLabelText('Nombre de archivo'), { target: { value: 'mi_ejemplo.py' } })
+    expect(screen.queryByText(/^El nombre debe terminar en \.py/)).toBeNull()
+    expect(screen.queryByText('Revisa los campos marcados.')).toBeNull()
+  })
+})
