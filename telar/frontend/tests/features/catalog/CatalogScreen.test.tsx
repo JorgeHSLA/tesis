@@ -378,3 +378,17 @@ describe('CatalogScreen · lo escrito en Autoría se ve sin recargar la ventana'
     expect(llamadas.filter((l) => l.endsWith('/api/v1/modules'))).toHaveLength(1)
   })
 })
+
+describe('CatalogScreen · encabezado', () => {
+  it('el número de módulos del texto es el mismo que el del contador', async () => {
+    montar()
+    expect(await screen.findByText(/organizados en 2 módulos\./)).toBeInTheDocument()
+    expect(screen.queryByText(/organizados en 8 módulos/)).toBeNull()
+  })
+
+  it('con un solo módulo lo dice en singular', async () => {
+    preparar({ modules: MODULES })
+    montar()
+    expect(await screen.findByText(/organizados en 1 módulo\./)).toBeInTheDocument()
+  })
+})

@@ -1,5 +1,5 @@
 // CatalogScreen — catálogo de contenidos (frontend-spec §6.5): ContinueCard,
-// stats del `summary`, toolbar búsqueda/fpills y 8 ModuleAccordion con el
+// stats del `summary`, toolbar búsqueda/fpills y un ModuleAccordion por módulo con el
 // progreso REAL del servidor (progress fusionado de GET /modules, caché en
 // progressStore). Carga → skeleton de 8 cards; error → ErrorState con retry.
 //
@@ -225,7 +225,8 @@ export default function CatalogScreen() {
           <div className="eyebrow">Aprendizaje</div>
           <h2 className="display-lg">Catálogo de contenidos</h2>
           <p className="muted" style={{ margin: '6px 0 0', maxWidth: 620 }}>
-            Las lecciones y quizzes del curso de OpenMP con PyOMP, organizados en 8 módulos. Cada lección se
+            Las lecciones y quizzes del curso de OpenMP con PyOMP, organizados en {sorted.length}{' '}
+            {sorted.length === 1 ? 'módulo' : 'módulos'}. Cada lección se
             ejecuta de verdad en el simulador.
           </p>
         </div>
