@@ -130,6 +130,8 @@ export function WorkshopSteps({ lessonId, steps: initialSteps, completed: initia
         {completed && (
           <p className="workshop-done" role="status">
             <IconCheck size={14} /> Taller completado.
+            {/* Completar no se pierde al desmarcar (monótono); se dice cómo está ahora. */}
+            {doneCount < steps.length && ` Ahora tienes ${doneCount}/${steps.length} pasos marcados.`}
           </p>
         )}
         {!completed && !countsForProgress && (

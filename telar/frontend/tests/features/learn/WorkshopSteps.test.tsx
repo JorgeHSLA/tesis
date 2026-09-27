@@ -128,6 +128,8 @@ describe('WorkshopSteps', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Lo hice' }))
     await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Lo hice' })).not.toBeChecked())
     expect(screen.getByRole('status')).toHaveTextContent('Taller completado.')
+    // Completar no se pierde, pero se dice cuántos pasos quedan marcados ahora.
+    expect(screen.getByRole('status')).toHaveTextContent('Ahora tienes 1/2 pasos marcados.')
   })
 
   it('un paso con ejemplo ofrece «Abrir en el simulador»', async () => {
@@ -197,7 +199,7 @@ describe('LearnScreen · taller', () => {
     montar()
     expect(await screen.findByRole('heading', { name: 'Paso 1 de 2' })).toBeInTheDocument()
     expect(screen.getByText('Taller')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Marcar como leída' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Marcar como completada' })).not.toBeInTheDocument()
   })
 
   it('una lección normal no muestra pasos', async () => {
