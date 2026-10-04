@@ -34,10 +34,10 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 if TYPE_CHECKING:
     import aiosqlite
 
-#: Invariantes §4.4 — 14 ejemplos = 14 lecciones = 14 quizzes.
-EXPECTED_LESSON_COUNT = 14
-#: Invariantes §4.4 — 60 preguntas habilitadas (65 − 5 de GPU).
-EXPECTED_ENABLED_QUESTIONS = 60
+#: Invariantes §4.4 — 17 ejemplos = 17 lecciones = 17 quizzes.
+EXPECTED_LESSON_COUNT = 17
+#: Invariantes §4.4 — 75 preguntas habilitadas (80 − 5 de GPU).
+EXPECTED_ENABLED_QUESTIONS = 75
 
 ParserId = Literal[
     "none",

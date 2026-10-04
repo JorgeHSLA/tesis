@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import sys
 from dataclasses import dataclass
@@ -52,6 +53,15 @@ CONTENT_DIR = Path(__file__).resolve().parents[1] / "content"
 #: presente ⇒ el contenido ya se sembró alguna vez y un catálogo vacío es una
 #: decisión del admin, no un primer arranque.
 SEED_MARKER_KEY = "content_seeded_at"
+
+#: Huella de los fixtures con los que se sembró por última vez. Si al arrancar
+#: no coincide con la de los fixtures de la imagen, el baseline cambió (nueva
+#: versión de la app) y se vuelve a sembrar sin podar: así una instalación ya
+#: existente recibe lecciones nuevas, títulos y orden sin perder el progreso.
+CONTENT_FINGERPRINT_KEY = "content_fingerprint"
+
+#: Lo que forma el contenido base; el README u otros archivos no cuentan.
+_FINGERPRINT_PARTS = ("catalog.json", "lessons", "quizzes", "examples")
 
 
 @dataclass(frozen=True)
@@ -165,12 +175,51 @@ async def get_seed_marker(db: aiosqlite.Connection) -> str | None:
     return None if row is None else str(row[0])
 
 
+def content_fingerprint(content_dir: Path = CONTENT_DIR) -> str:
+    """SHA-256 de los archivos del contenido base, en orden estable.
+
+    Los saltos de línea se normalizan: un checkout con CRLF no debe parecer
+    contenido distinto y provocar una resiembra inútil."""
+    digest = hashlib.sha256()
+    for part in _FINGERPRINT_PARTS:
+        root = content_dir / part
+        files = [root] if root.is_file() else sorted(p for p in root.rglob("*") if p.is_file())
+        for path in files:
+            digest.update(path.relative_to(content_dir).as_posix().encode())
+            digest.update(b"\0")
+            digest.update(path.read_bytes().replace(b"\r\n", b"\n"))
+            digest.update(b"\0")
+    return digest.hexdigest()
+
+
+async def _set_content_fingerprint(db: aiosqlite.Connection, fingerprint: str) -> None:
+    """UPSERT de la huella, SIN lock ni commit (pieza de una unidad mayor)."""
+    await db.execute(
+        "INSERT INTO app_meta (key, value) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (CONTENT_FINGERPRINT_KEY, fingerprint),
+    )
+
+
+async def get_content_fingerprint(db: aiosqlite.Connection) -> str | None:
+    """Huella de la última siembra, o ``None`` si nunca se guardó."""
+    cursor = await db.execute(
+        "SELECT value FROM app_meta WHERE key = ?", (CONTENT_FINGERPRINT_KEY,)
+    )
+    row = await cursor.fetchone()
+    return None if row is None else str(row[0])
+
+
 async def backfill_seed_marker(db: aiosqlite.Connection) -> None:
     """Marca como sembrada una DB poblada ANTES de la migración 3, sin tocar
-    su contenido (no pisa ediciones del admin). Unidad de escritura propia."""
+    su contenido (no pisa ediciones del admin). Unidad de escritura propia.
+
+    Guarda también la huella actual: esa DB se da por al día y solo se
+    resembrará cuando cambien los fixtures."""
     async with db_module.write_lock:
         try:
             await _set_seed_marker(db)
+            await _set_content_fingerprint(db, content_fingerprint())
             await db.commit()
         except Exception:
             await db.rollback()
@@ -194,6 +243,7 @@ async def seed_content_into(
     en el orden ``modules → lessons → examples → quiz_questions``.
     """
     repo = ContentRepository.from_fixtures(content_dir)
+    fingerprint = content_fingerprint(content_dir)
     await apply_schema(db)
 
     modules = repo.modules()
@@ -205,6 +255,7 @@ async def seed_content_into(
             question_count = await _apply_seed_statements(
                 db, repo, modules, lessons, examples, prune_extra
             )
+            await _set_content_fingerprint(db, fingerprint)
             await db.commit()
         except Exception:
             await db.rollback()

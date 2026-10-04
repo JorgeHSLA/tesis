@@ -1,0 +1,71 @@
+{
+  "lesson_id": "scheduleChunk",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "scheduleChunk-q1",
+      "order": 1,
+      "text": "Con schedule(static), 12 iteraciones y 4 hilos, ¿qué iteraciones hace el hilo 0?",
+      "options": [
+        {"key": "a", "text": "0, 1 y 2"},
+        {"key": "b", "text": "0, 4 y 8"},
+        {"key": "c", "text": "Las que alcance a tomar primero"},
+        {"key": "d", "text": "Todas"}
+      ],
+      "correct_key": "a",
+      "explanation": "Sin chunk, cada hilo recibe un bloque contiguo: el hilo 0 el primer cuarto."
+    },
+    {
+      "id": "scheduleChunk-q2",
+      "order": 2,
+      "text": "Con schedule(static, 1), 12 iteraciones y 4 hilos, ¿qué iteraciones hace el hilo 0?",
+      "options": [
+        {"key": "a", "text": "0, 1 y 2"},
+        {"key": "b", "text": "0, 4 y 8"},
+        {"key": "c", "text": "Solo la 0"},
+        {"key": "d", "text": "Las pares"}
+      ],
+      "correct_key": "b",
+      "explanation": "Trozos de una iteración repartidos por turnos: reparto cíclico."
+    },
+    {
+      "id": "scheduleChunk-q3",
+      "order": 3,
+      "text": "Si la iteración i cuesta i unidades, ¿qué pasa con schedule(static)?",
+      "options": [
+        {"key": "a", "text": "Todos los hilos hacen el mismo trabajo"},
+        {"key": "b", "text": "El último hilo recibe las iteraciones más caras y los demás lo esperan"},
+        {"key": "c", "text": "El hilo 0 hace todo el trabajo"},
+        {"key": "d", "text": "El resultado es incorrecto"}
+      ],
+      "correct_key": "b",
+      "explanation": "En el ejemplo el hilo 3 hizo 7 veces más trabajo que el hilo 0; el programa tarda lo que tarda el más cargado."
+    },
+    {
+      "id": "scheduleChunk-q4",
+      "order": 4,
+      "text": "¿Por qué schedule(static, 1) equilibra mejor ese caso?",
+      "options": [
+        {"key": "a", "text": "Porque usa más hilos"},
+        {"key": "b", "text": "Porque cada hilo recibe iteraciones baratas y caras mezcladas"},
+        {"key": "c", "text": "Porque hace menos iteraciones"},
+        {"key": "d", "text": "Porque reparte el trabajo a medida que los hilos terminan"}
+      ],
+      "correct_key": "b",
+      "explanation": "Al turnarse iteración por iteración, el costo se reparte casi igual entre hilos."
+    },
+    {
+      "id": "scheduleChunk-q5",
+      "order": 5,
+      "text": "¿Qué schedules permite PyOMP 0.5.1?",
+      "options": [
+        {"key": "a", "text": "static, dynamic y guided"},
+        {"key": "b", "text": "Solo static, con un chunk constante"},
+        {"key": "c", "text": "Solo dynamic"},
+        {"key": "d", "text": "static con un chunk calculado en una variable"}
+      ],
+      "correct_key": "b",
+      "explanation": "dynamic y guided no están implementados, y el chunk debe estar escrito en la directiva."
+    }
+  ]
+}

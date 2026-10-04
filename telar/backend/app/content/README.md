@@ -39,10 +39,10 @@ content/
 
 ## Invariantes (validados fail-fast en el lifespan, data-model.md §4.4)
 
-- 14 ejemplos = 14 lecciones = 14 quizzes.
+- 17 ejemplos = 17 lecciones = 17 quizzes.
 - Cada `lesson.example_id` y `module.lessons[*]` existen.
 - `parser_id` ∈ {none, sweep_pi, sweep_transporte, pair_openmp_numpy,
   pair_openmp_blas, pair_parallel_serial}.
 - `main.py` y `lessons/*.md` existen y son UTF-8.
-- Total de preguntas habilitadas == 60 (65 − 5 de GPU).
+- Total de preguntas habilitadas == 75 (80 − 5 de GPU).
 - `correct_key` ∈ opciones de su pregunta.

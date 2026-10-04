@@ -26,11 +26,11 @@ from conftest import CONTENT_DIR
 # ─────────────────────── invariantes de los fixtures REALES ──────────────────
 
 
-def test_invariantes_14_14_14(real_content):
+def test_invariantes_17_17_17(real_content):
     lessons = real_content.lessons()
     examples = real_content.examples()
-    assert len(lessons) == EXPECTED_LESSON_COUNT == 14
-    assert len(examples) == 14
+    assert len(lessons) == EXPECTED_LESSON_COUNT == 17
+    assert len(examples) == 17
     assert len(real_content.modules()) == 8
     assert {l.id for l in lessons} == {e.id for e in examples}
     for lesson in lessons:
@@ -39,17 +39,17 @@ def test_invariantes_14_14_14(real_content):
         assert real_content.quiz(lesson.id) is not None
 
 
-def test_60_preguntas_habilitadas(real_content):
+def test_75_preguntas_habilitadas(real_content):
     enabled = sum(
         len(real_content.quiz(l.id).questions)
         for l in real_content.lessons()
         if l.enabled
     )
-    assert enabled == EXPECTED_ENABLED_QUESTIONS == 60
+    assert enabled == EXPECTED_ENABLED_QUESTIONS == 75
     total = sum(
         len(real_content.quiz(l.id).questions) for l in real_content.lessons()
     )
-    assert total == 65  # 60 habilitadas + 5 de la lección GPU
+    assert total == 80  # 75 habilitadas + 5 de la lección GPU
 
 
 def test_parser_ids_y_flags_coherentes(real_content):
@@ -191,7 +191,7 @@ def test_examples_y_lessons_desalineados(broken):
         ContentRepository.from_fixtures(broken)
 
 
-def test_menos_de_14_lecciones(broken):
+def test_menos_de_17_lecciones(broken):
     catalog = load_catalog(broken)
     del catalog["examples"]["spmd"]
     del catalog["lessons"]["spmd"]
@@ -200,7 +200,7 @@ def test_menos_de_14_lecciones(broken):
         for m in catalog["modules"]
     ]
     dump_catalog(broken, catalog)
-    with pytest.raises(ContentError, match="14"):
+    with pytest.raises(ContentError, match="17"):
         ContentRepository.from_fixtures(broken)
 
 
@@ -255,7 +255,7 @@ def test_quiz_correct_key_fuera_de_opciones(broken):
 def test_total_de_preguntas_habilitadas_roto(broken):
     quiz_path = broken / "quizzes" / "spmd.json"
     quiz = json.loads(quiz_path.read_text(encoding="utf-8"))
-    quiz["questions"] = quiz["questions"][:-1]  # 60 → 59
+    quiz["questions"] = quiz["questions"][:-1]  # 75 → 74
     quiz_path.write_text(json.dumps(quiz), encoding="utf-8")
     with pytest.raises(ContentError, match="preguntas habilitadas"):
         ContentRepository.from_fixtures(broken)

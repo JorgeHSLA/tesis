@@ -1,0 +1,71 @@
+{
+  "lesson_id": "collapseBucles",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "collapseBucles-q1",
+      "order": 1,
+      "text": "Sin collapse, ¿qué bucle reparte parallel for en dos bucles anidados?",
+      "options": [
+        {"key": "a", "text": "Solo el de afuera"},
+        {"key": "b", "text": "Solo el de adentro"},
+        {"key": "c", "text": "Los dos por igual"},
+        {"key": "d", "text": "Ninguno"}
+      ],
+      "correct_key": "a",
+      "explanation": "Cada hilo recibe iteraciones del bucle de afuera y recorre el de adentro él solo."
+    },
+    {
+      "id": "collapseBucles-q2",
+      "order": 2,
+      "text": "Con 3 filas, 1000 columnas y 4 hilos, sin collapse, ¿qué pasa?",
+      "options": [
+        {"key": "a", "text": "Cada hilo hace 750 iteraciones"},
+        {"key": "b", "text": "Un hilo se queda sin trabajo"},
+        {"key": "c", "text": "El programa falla"},
+        {"key": "d", "text": "Cada hilo hace las 3000 iteraciones"}
+      ],
+      "correct_key": "b",
+      "explanation": "Solo hay 3 filas para repartir, así que uno de los 4 hilos no recibe ninguna."
+    },
+    {
+      "id": "collapseBucles-q3",
+      "order": 3,
+      "text": "¿Qué hace collapse(2)?",
+      "options": [
+        {"key": "a", "text": "Paraleliza solo el bucle de adentro"},
+        {"key": "b", "text": "Junta los dos bucles en uno y reparte todas sus iteraciones"},
+        {"key": "c", "text": "Usa el doble de hilos"},
+        {"key": "d", "text": "Elimina el bucle de adentro"}
+      ],
+      "correct_key": "b",
+      "explanation": "Con 3 filas y 1000 columnas se reparten 3000 iteraciones, 750 por hilo."
+    },
+    {
+      "id": "collapseBucles-q4",
+      "order": 4,
+      "text": "¿Qué condición deben cumplir los bucles para usar collapse?",
+      "options": [
+        {"key": "a", "text": "Tener el mismo número de iteraciones"},
+        {"key": "b", "text": "Estar perfectamente anidados, sin código entre uno y otro"},
+        {"key": "c", "text": "Recorrer arreglos de NumPy"},
+        {"key": "d", "text": "Usar reduction"}
+      ],
+      "correct_key": "b",
+      "explanation": "collapse solo puede juntar bucles que estén uno directamente dentro del otro."
+    },
+    {
+      "id": "collapseBucles-q5",
+      "order": 5,
+      "text": "¿Cuándo casi no cambia nada usar collapse?",
+      "options": [
+        {"key": "a", "text": "Cuando el bucle de afuera tiene muchas más iteraciones que hilos"},
+        {"key": "b", "text": "Cuando hay menos filas que hilos"},
+        {"key": "c", "text": "Cuando el bucle de adentro es corto"},
+        {"key": "d", "text": "Nunca: siempre mejora mucho"}
+      ],
+      "correct_key": "a",
+      "explanation": "Si ya hay trabajo de sobra para repartir afuera, todos los hilos estaban ocupados."
+    }
+  ]
+}
