@@ -142,8 +142,13 @@ export function PublishModuleDialog({
   // Publicar es irreversible: si el diálogo se desmonta con la petición en
   // vuelo, su resultado ya no tiene a quién avisar.
   const montado = useRef(true)
-  useEffect(() => () => {
-    montado.current = false
+  // Se vuelve a poner en true al montar: StrictMode (dev) desmonta y remonta,
+  // y sin esto la respuesta del ensayo se ignoraba («Comprobando…» eterno).
+  useEffect(() => {
+    montado.current = true
+    return () => {
+      montado.current = false
+    }
   }, [])
   const [error, setError] = useState<string | null>(null)
   const [problemas, setProblemas] = useState<Problema[]>([])
