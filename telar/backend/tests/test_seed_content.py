@@ -43,9 +43,9 @@ async def test_seed_report_conteos(db):
     report = await seed_content_into(db, content_dir=CONTENT_DIR)
     assert isinstance(report, SeedReport)
     assert report.modules == 8
-    assert report.lessons == 14
-    assert report.examples == 14
-    assert report.questions == 65  # 60 habilitadas + 5 de la lección GPU
+    assert report.lessons == 17
+    assert report.examples == 17
+    assert report.questions == 80  # 75 habilitadas + 5 de la lección GPU
 
 
 @pytest.mark.asyncio
@@ -62,14 +62,14 @@ async def test_seed_no_data_loss(seeded, fixtures_repo):
 @pytest.mark.asyncio
 async def test_seed_conteos_snapshot(seeded):
     assert len(seeded.modules()) == 8
-    assert len(seeded.lessons()) == 14
-    assert len(seeded.examples()) == 14
+    assert len(seeded.lessons()) == 17
+    assert len(seeded.examples()) == 17
     enabled_questions = sum(
         len(seeded.quiz(lesson.id).questions)
         for lesson in seeded.lessons()
         if lesson.enabled
     )
-    assert enabled_questions == 60
+    assert enabled_questions == 75
 
 
 @pytest.mark.asyncio
@@ -96,9 +96,9 @@ async def test_seed_idempotente(db, fixtures_repo):
     # Sin filas nuevas: los conteos de tabla no cambian.
     for table, expected in (
         ("modules", 8),
-        ("lessons", 14),
-        ("examples", 14),
-        ("quiz_questions", 65),
+        ("lessons", 17),
+        ("examples", 17),
+        ("quiz_questions", 80),
     ):
         cur = await db.execute(f"SELECT COUNT(*) FROM {table}")
         assert (await cur.fetchone())[0] == expected
@@ -122,9 +122,9 @@ def test_get_modules_shape_identico(client, real_content):
     data = _ok(client.get("/api/v1/modules"))
     got_ids = [m["id"] for m in data["modules"]]
     assert got_ids == [m.id for m in real_content.modules()]
-    assert data["summary"]["lessons_total"] == 14
-    assert data["summary"]["lessons_enabled"] == 13
-    assert data["summary"]["questions_enabled_total"] == 60
+    assert data["summary"]["lessons_total"] == 17
+    assert data["summary"]["lessons_enabled"] == 16
+    assert data["summary"]["questions_enabled_total"] == 75
     # lecciones del primer módulo en orden global
     first = data["modules"][0]
     assert [lesson["id"] for lesson in first["lessons"]] == list(
@@ -186,4 +186,4 @@ async def test_seed_fallido_hace_rollback_completo(db, monkeypatch):
 
     monkeypatch.undo()
     report = await sc.seed_content_into(db)  # la conexión no quedó envenenada
-    assert report.lessons == 14
+    assert report.lessons == 17

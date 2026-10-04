@@ -227,7 +227,7 @@ def test_bl21_primer_arranque_siembra_y_deja_marcador(settings, fake_docker):
     application = create_app(settings=settings, docker_service=fake_docker)
     with TestClient(application):
         pass
-    assert _lessons_count(settings) == 14
+    assert _lessons_count(settings) == 17
     assert _seed_marker(settings) is not None
 
 
@@ -268,3 +268,101 @@ def test_bl21_backfill_db_poblada_sin_marcador(settings, fake_docker):
         _db_path(settings), "SELECT title FROM lessons WHERE id = 'spmd'"
     ))
     assert rows[0][0] == "Editada por el admin"  # el contenido NO se pisó
+
+    # El backfill también guarda la huella: otro arranque sin cambios en los
+    # fixtures sigue sin tocar la edición.
+    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
+        pass
+    rows = asyncio.run(_run_sql(
+        _db_path(settings), "SELECT title FROM lessons WHERE id = 'spmd'"
+    ))
+    assert rows[0][0] == "Editada por el admin"
+
+
+# ───── actualización del contenido base en una instalación existente ─────
+
+
+def _fingerprint(settings) -> str | None:
+    rows = asyncio.run(_run_sql(
+        _db_path(settings),
+        "SELECT value FROM app_meta WHERE key = 'content_fingerprint'",
+    ))
+    return rows[0][0] if rows else None
+
+
+def _simular_instalacion_vieja(settings, fake_docker, huella: str | None) -> None:
+    """Primer arranque, y luego la DB queda como la de una versión anterior:
+    un título distinto, progreso del estudiante y otra huella (o ninguna)."""
+    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
+        pass
+    sql = [
+        ("UPDATE lessons SET title = 'Título de la versión anterior' WHERE id = 'spmd'", ()),
+        ("INSERT INTO lesson_progress (lesson_id, viewed, completed) VALUES ('spmd', 1, 1)", ()),
+        ("DELETE FROM app_meta WHERE key = 'content_fingerprint'", ()),
+    ]
+    if huella is not None:
+        sql.append(("INSERT INTO app_meta (key, value) VALUES ('content_fingerprint', ?)", (huella,)))
+    for statement, params in sql:
+        asyncio.run(_run_sql(_db_path(settings), statement, params))
+
+
+@pytest.mark.parametrize("huella_vieja", ["huella-de-otra-version", None])
+def test_contenido_base_nuevo_se_resiembra_conservando_progreso(settings, fake_docker, huella_vieja):
+    """Una instalación que ya existía (marcador presente) recibe el contenido
+    base de la nueva versión al arrancar, sin perder el progreso. Sin huella
+    = instalación anterior a este mecanismo: también se actualiza."""
+    _simular_instalacion_vieja(settings, fake_docker, huella_vieja)
+
+    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
+        pass
+
+    from app.tools.seed_content import content_fingerprint
+
+    rows = asyncio.run(_run_sql(
+        _db_path(settings), "SELECT title FROM lessons WHERE id = 'spmd'"
+    ))
+    assert rows[0][0] != "Título de la versión anterior"  # llegó el baseline
+    progreso = asyncio.run(_run_sql(
+        _db_path(settings),
+        "SELECT viewed, completed FROM lesson_progress WHERE lesson_id = 'spmd'",
+    ))
+    assert [tuple(r) for r in progreso] == [(1, 1)]
+    assert _fingerprint(settings) == content_fingerprint()
+
+
+def test_misma_huella_no_resiembra(settings, fake_docker):
+    """Con los mismos fixtures, reiniciar no vuelve a sembrar: una edición
+    local a un módulo base sobrevive al reinicio."""
+    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
+        pass
+    asyncio.run(_run_sql(
+        _db_path(settings), "UPDATE lessons SET title = 'Editada' WHERE id = 'spmd'"
+    ))
+    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
+        pass
+    rows = asyncio.run(_run_sql(
+        _db_path(settings), "SELECT title FROM lessons WHERE id = 'spmd'"
+    ))
+    assert rows[0][0] == "Editada"
+
+
+def test_resiembra_conserva_modulos_que_no_son_base(settings, fake_docker):
+    """Un módulo incorporado de la nube (o creado en autoría) sigue ahí tras
+    la actualización del baseline: la resiembra no poda."""
+    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
+        pass
+    asyncio.run(_run_sql(
+        _db_path(settings),
+        "INSERT INTO modules (id, \"order\", title, description, level) "
+        "VALUES ('mNube', 9000, 'Módulo de la nube', 'd', 'Básico')",
+    ))
+    asyncio.run(_run_sql(
+        _db_path(settings),
+        "UPDATE app_meta SET value = 'huella-vieja' WHERE key = 'content_fingerprint'",
+    ))
+    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
+        pass
+    rows = asyncio.run(_run_sql(
+        _db_path(settings), "SELECT title FROM modules WHERE id = 'mNube'"
+    ))
+    assert [tuple(r) for r in rows] == [("Módulo de la nube",)]

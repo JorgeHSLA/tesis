@@ -21,11 +21,11 @@ def correct_answers(real_content, lesson_id: str) -> dict[str, str]:
 # ─────────────────────────── examples §3 ─────────────────────────────────────
 
 
-def test_examples_listado_14_sin_codigo(client):
+def test_examples_listado_17_sin_codigo(client):
     data = assert_ok_envelope(client.get("/api/v1/examples"))["data"]
     examples = data["examples"]
-    assert len(examples) == 14
-    assert [e["order"] for e in examples] == list(range(1, 15))
+    assert len(examples) == 17
+    assert [e["order"] for e in examples] == list(range(1, 18))
     for example in examples:
         assert "source_code" not in example  # §3.1: listado SIN código
         assert example["parser_id"] in {
@@ -62,15 +62,15 @@ def test_modules_catalogo_completo(client):
     data = assert_ok_envelope(client.get("/api/v1/modules"))["data"]
     modules = data["modules"]
     assert len(modules) == 8
-    assert [m["order"] for m in modules] == list(range(1, 9))
+    assert [m["order"] for m in modules] == [400, 410, 420, 430, 440, 460, 470, 480]
     all_lessons = [lesson for m in modules for lesson in m["lessons"]]
-    assert len(all_lessons) == 14
+    assert len(all_lessons) == 17
     assert data["summary"] == {
-        "lessons_total": 14,
-        "lessons_enabled": 13,
+        "lessons_total": 17,
+        "lessons_enabled": 16,
         "lessons_completed": 0,
-        "quizzes_total": 14,
-        "questions_enabled_total": 60,
+        "quizzes_total": 17,
+        "questions_enabled_total": 75,
         # Fase 5: los 8 módulos del baseline están «instalados» y ninguno viene
         # del catálogo remoto, así que ninguno puede tener actualización.
         "modules_installed": 8,
@@ -289,7 +289,7 @@ def test_progress_vacio(client):
     data = assert_ok_envelope(client.get("/api/v1/progress"))["data"]
     assert data["lessons"] == {}  # solo lecciones con registro
     assert data["summary"] == {
-        "lessons_completed": 0, "lessons_enabled": 13,
+        "lessons_completed": 0, "lessons_enabled": 16,
         "modules_completed": 0, "modules_total": 8,
     }
 

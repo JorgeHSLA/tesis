@@ -770,13 +770,13 @@ def test_install_incorpora_el_modulo_y_devuelve_201(cliente, fake_catalog):
 
 
 def test_install_reasigna_el_order_cuando_el_hint_esta_tomado(cliente, fake_catalog):
-    """``modules."order"`` es UNIQUE GLOBAL y el baseline ya usa el 1."""
-    publicar_todo(fake_catalog, bundle("mx", order_hint=1))
+    """``modules."order"`` es UNIQUE GLOBAL y el baseline ya usa el 400 (m1)."""
+    publicar_todo(fake_catalog, bundle("mx", order_hint=400))
     resultado = ok(
         cliente.post("/api/v1/catalog/install", json={"module_id": "mx"}), 201
     )
     assert resultado["order_reassigned"] is True
-    assert resultado["local_order"] != 1
+    assert resultado["local_order"] != 400
 
 
 def test_install_de_un_modulo_ya_instalado_es_409(cliente, fake_catalog):

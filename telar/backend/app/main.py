@@ -39,6 +39,8 @@ from app.services.code_dirs import code_base_dir, sweep_code_dirs
 from app.services.job_runner import JobRunner
 from app.tools.seed_content import (
     backfill_seed_marker,
+    content_fingerprint,
+    get_content_fingerprint,
     get_seed_marker,
     seed_content_into,
 )
@@ -84,13 +86,22 @@ async def _seed_content_if_unseeded(db_conn: Any) -> None:
     (BL-21): «lessons vacía» no distingue "nunca sembrada" de "vaciada a
     propósito por el admin", así que dejó de ser la condición.
 
-    - Marcador presente → no sembrar (aunque el catálogo esté vacío).
+    - Marcador presente y la huella de los fixtures igual → no sembrar
+      (aunque el catálogo esté vacío).
+    - Marcador presente y la huella distinta o ausente → el contenido base
+      cambió con la nueva versión de la app: resembrar SIN podar (upsert).
+      Llegan las lecciones nuevas, títulos y orden; el progreso y los módulos
+      incorporados de la nube se conservan. Pisa las ediciones locales a
+      módulos base de una instalación de autoría (decisión acordada).
     - Sin marcador y ``lessons`` con filas → DB poblada antes de la migración
       3: backfill del marcador sin tocar el contenido.
     - Sin marcador y ``lessons`` vacía → primer arranque real: sembrar (el
       seeder deja el marcador en la misma transacción).
     """
     if await get_seed_marker(db_conn) is not None:
+        if await get_content_fingerprint(db_conn) != content_fingerprint():
+            logger.info("contenido base actualizado: resembrando sin podar")
+            await seed_content_into(db_conn)
         return
     async with db_conn.execute("SELECT COUNT(*) FROM lessons") as cursor:
         row = await cursor.fetchone()

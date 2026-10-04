@@ -40,7 +40,7 @@ cd backend && DOCKER_HOST=tcp://127.0.0.1:1 pytest --cov=app --cov-fail-under=80
 - `runner/` — imagen Docker python:3.12-slim + pyomp 0.5.1 que ejecuta el código del estudiante. Ver `runner/CLAUDE.md`.
 - `desktop/` — shell Electron seguro. Ver `desktop/CLAUDE.md`.
 - `site/` — página pública de descargas (HTML+CSS+JS estáticos, sin backend ni framework). Se publica en GitHub Pages desde `telar-javeriana/telar`. Ver `site/README.md`.
-- `backend/app/content/` — los 14 ejemplos = 8 módulos de curso + 60 preguntas de quiz (fixtures).
+- `backend/app/content/` — los 17 ejemplos = 8 módulos de curso + 75 preguntas de quiz (fixtures). Los módulos base van en los órdenes 400–480 (deja 1–399 para módulos de la nube que van antes, como el bloque A). Al cambiar los fixtures, una instalación existente los recibe al arrancar: se resiembra sin podar si cambia la huella `content_fingerprint` de `app_meta`.
 - `docs/architecture/` — contratos + arquitectura (fuente de verdad). `docs/research/` — investigación de Fase 0. `docs/analysis/` — spec del handoff y de los ejemplos.
 - `README.md` — documentación extensa para la memoria de tesis. `docs/CHANGELOG-fase3.md` — qué se entregó.
 

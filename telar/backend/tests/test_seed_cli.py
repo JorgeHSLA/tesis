@@ -99,13 +99,13 @@ def test_check_detecta_diferencias(seeded_path, capsys):
 def test_upsert_restaura_modulos_permutados(seeded_path):
     _sql(
         seeded_path,
-        ('UPDATE modules SET "order" = 100 WHERE id = ?', ("m1",)),
-        ('UPDATE modules SET "order" = 1 WHERE id = ?', ("m2",)),
-        ('UPDATE modules SET "order" = 2 WHERE id = ?', ("m1",)),
+        ('UPDATE modules SET "order" = 9000 WHERE id = ?', ("m1",)),
+        ('UPDATE modules SET "order" = 400 WHERE id = ?', ("m3",)),
+        ('UPDATE modules SET "order" = 410 WHERE id = ?', ("m1",)),
     )
     assert main(["--db", str(seeded_path)]) == 0
     assert _rows(seeded_path, 'SELECT id FROM modules ORDER BY "order" LIMIT 2') == [
-        ("m1",), ("m2",)
+        ("m1",), ("m3",)
     ]
 
 
@@ -130,14 +130,14 @@ def test_upsert_conserva_el_extra_que_ocupaba_un_orden_base(seeded_path):
         ("DELETE FROM modules WHERE id = ?", ("m8",)),
         (
             'INSERT INTO modules (id, "order", title, description, level) '
-            "VALUES ('propio', 8, 'Propio', 'd', 'básico')",
+            "VALUES ('propio', 480, 'Propio', 'd', 'básico')",
             (),
         ),
     )
     assert main(["--db", str(seeded_path)]) == 0
     orders = dict(_rows(seeded_path, 'SELECT id, "order" FROM modules'))
-    assert orders["m8"] == 8
-    assert "propio" in orders and orders["propio"] > 8
+    assert orders["m8"] == 480
+    assert "propio" in orders and orders["propio"] > 480
 
 
 def test_reset_con_extra_en_hueco_base(seeded_path):
@@ -146,7 +146,7 @@ def test_reset_con_extra_en_hueco_base(seeded_path):
         ("DELETE FROM modules WHERE id = ?", ("m8",)),
         (
             'INSERT INTO modules (id, "order", title, description, level) '
-            "VALUES ('propio', 8, 'Propio', 'd', 'básico')",
+            "VALUES ('propio', 480, 'Propio', 'd', 'básico')",
             (),
         ),
     )

@@ -675,7 +675,7 @@ def test_bl38_leccion_completada_y_deshabilitada_no_cuenta(client, auth):
     assert intento.json()["data"]["passed"] is True
     before = client.get("/api/v1/modules").json()["data"]["summary"]
     assert before["lessons_completed"] == 1
-    assert before["lessons_enabled"] == 13
+    assert before["lessons_enabled"] == 16
 
     # el admin deshabilita el ejemplo (la lección deja de estar disponible)
     example = client.get("/api/v1/admin/examples/spmd", headers=auth).json()["data"]
@@ -689,7 +689,7 @@ def test_bl38_leccion_completada_y_deshabilitada_no_cuenta(client, auth):
     assert updated.status_code == 200, updated.text
 
     summary = client.get("/api/v1/modules").json()["data"]["summary"]
-    assert summary["lessons_enabled"] == 12
+    assert summary["lessons_enabled"] == 15
     assert summary["lessons_completed"] == 0  # ya no cuenta la deshabilitada
 
     progress = client.get("/api/v1/progress").json()["data"]

@@ -1,0 +1,71 @@
+{
+  "lesson_id": "lastprivateDefault",
+  "pass_threshold": 0.8,
+  "questions": [
+    {
+      "id": "lastprivateDefault-q1",
+      "order": 1,
+      "text": "Con lastprivate(x) en un bucle de 10 iteraciones donde x = i * i, ¿cuánto vale x al salir?",
+      "options": [
+        {"key": "a", "text": "81, el valor de la última iteración (i = 9)"},
+        {"key": "b", "text": "El valor del último hilo en terminar"},
+        {"key": "c", "text": "-1, el valor que tenía antes de la región"},
+        {"key": "d", "text": "La suma de los valores de todos los hilos"}
+      ],
+      "correct_key": "a",
+      "explanation": "lastprivate copia el valor de la última iteración en el orden del bucle, no el del hilo que termina último."
+    },
+    {
+      "order": 2,
+      "id": "lastprivateDefault-q2",
+      "text": "Con private(x) en lugar de lastprivate(x), ¿qué valor tiene x después de la región?",
+      "options": [
+        {"key": "a", "text": "El de la última iteración"},
+        {"key": "b", "text": "El que tenía antes de la región"},
+        {"key": "c", "text": "Siempre 0"},
+        {"key": "d", "text": "Un valor al azar de algún hilo"}
+      ],
+      "correct_key": "b",
+      "explanation": "Con private, los hilos trabajan sobre copias; la variable original no cambia."
+    },
+    {
+      "id": "lastprivateDefault-q3",
+      "order": 3,
+      "text": "¿Qué hace default(shared)?",
+      "options": [
+        {"key": "a", "text": "Vuelve privadas todas las variables"},
+        {"key": "b", "text": "Hace compartidas las variables que no tengan otra cláusula"},
+        {"key": "c", "text": "Obliga a declarar cada variable"},
+        {"key": "d", "text": "Copia las variables al final del bucle"}
+      ],
+      "correct_key": "b",
+      "explanation": "Es el comportamiento por omisión de OpenMP; escribirlo deja la intención explícita."
+    },
+    {
+      "id": "lastprivateDefault-q4",
+      "order": 4,
+      "text": "En C se usa default(none) para obligar a declarar cada variable. ¿Qué pasa en PyOMP 0.5.1?",
+      "options": [
+        {"key": "a", "text": "Funciona igual que en C"},
+        {"key": "b", "text": "No está disponible"},
+        {"key": "c", "text": "Se convierte en default(shared) sin avisar"},
+        {"key": "d", "text": "Solo funciona con un hilo"}
+      ],
+      "correct_key": "b",
+      "explanation": "default(none) no funciona en PyOMP 0.5.1; se usa default(shared) y se declaran las privadas a mano."
+    },
+    {
+      "id": "lastprivateDefault-q5",
+      "order": 5,
+      "text": "¿Por qué escalar(a, factor) con default(shared) no tiene condición de carrera?",
+      "options": [
+        {"key": "a", "text": "Porque default(shared) bloquea el arreglo"},
+        {"key": "b", "text": "Porque cada iteración escribe en una posición distinta de a"},
+        {"key": "c", "text": "Porque solo un hilo escribe en a"},
+        {"key": "d", "text": "Porque a es de solo lectura"}
+      ],
+      "correct_key": "b",
+      "explanation": "Compartir un arreglo es seguro mientras ningún par de hilos escriba en la misma posición."
+    }
+  ]
+}
