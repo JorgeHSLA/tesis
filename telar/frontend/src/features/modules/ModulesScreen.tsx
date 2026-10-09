@@ -134,6 +134,35 @@ export default function ModulesScreen() {
     [install],
   )
 
+  // «Descargar todo»: incorpora SOLO los que siguen en `available`. Los
+  // instalados se saltan y los conflictos con un módulo local (CU-34.3) no son
+  // `available`, así que tampoco entran. Uno tras otro, no en paralelo: cada
+  // incorporación rehidrata `/status` e invalida las cachés de contenido.
+  const [installingAll, setInstallingAll] = useState(false)
+  const handleInstallAll = useCallback(async () => {
+    const pending = diff.byState.available
+    if (pending.length === 0) {
+      setAnnouncement({ text: 'Ya tienes todos los módulos del catálogo en tu equipo.', toCatalog: true })
+      return
+    }
+    setInstallingAll(true)
+    setAnnouncement(null)
+    let ok = 0
+    for (const entry of pending) {
+      if (await install(entry.moduleId)) ok += 1
+    }
+    setInstallingAll(false)
+    const failed = pending.length - ok
+    const done = ok === 1 ? 'Se incorporó 1 módulo' : `Se incorporaron ${ok} módulos`
+    setAnnouncement({
+      text:
+        failed === 0
+          ? `${done}. Ya tienes todo el catálogo en tu equipo.`
+          : `${done}; ${failed === 1 ? '1 no se pudo incorporar' : `${failed} no se pudieron incorporar`} (mira el aviso en su tarjeta).`,
+      toCatalog: ok > 0,
+    })
+  }, [diff, install])
+
   const loadPreview = useCallback((entry: CatalogEntry) => {
     const seq = (previewSeq.current += 1)
     setDiffOpen(true)
@@ -312,6 +341,8 @@ export default function ModulesScreen() {
         counts={counts}
         onRefresh={handleRefresh}
         refreshing={refreshing || loadingRemote}
+        onInstallAll={() => void handleInstallAll()}
+        installingAll={installingAll}
       />
 
       {entries.length === 0 ? (

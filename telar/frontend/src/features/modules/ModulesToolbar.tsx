@@ -8,7 +8,7 @@
 // Los contadores cuentan MÓDULOS del catálogo (lo local queda fuera: no se
 // incorpora ni se quita desde aquí).
 import { useEffect, useRef } from 'react'
-import { IconSearch } from '../../components/icons/icons'
+import { IconDownload, IconSearch } from '../../components/icons/icons'
 import { Button } from '../../components/ui/Button'
 
 export type ModulesFilter = 'all' | 'available' | 'installed' | 'updates'
@@ -30,6 +30,10 @@ export interface ModulesToolbarProps {
   onRefresh: () => void
   /** Hay una consulta al bucket en vuelo. */
   refreshing: boolean
+  /** Incorpora todos los módulos que aún no están en el equipo. */
+  onInstallAll?: () => void
+  /** «Descargar todo» en curso. */
+  installingAll?: boolean
   /** true → enfocar el buscador al montar. */
   autoFocus?: boolean
 }
@@ -49,6 +53,8 @@ export function ModulesToolbar({
   counts,
   onRefresh,
   refreshing,
+  onInstallAll,
+  installingAll = false,
   autoFocus = false,
 }: ModulesToolbarProps) {
   const searchRef = useRef<HTMLInputElement>(null)
@@ -88,6 +94,14 @@ export function ModulesToolbar({
       <Button variant="outline" size="sm" onClick={onRefresh} disabled={refreshing}>
         {refreshing ? 'Consultando…' : 'Actualizar lista'}
       </Button>
+
+      {onInstallAll && (
+        // Siempre habilitado (salvo en curso): si no queda nada por descargar,
+        // el clic lo dice en vez de dejar un botón gris sin explicación.
+        <Button variant="primary" size="sm" onClick={onInstallAll} disabled={installingAll}>
+          <IconDownload size={14} /> {installingAll ? 'Descargando…' : 'Descargar todo'}
+        </Button>
+      )}
     </div>
   )
 }

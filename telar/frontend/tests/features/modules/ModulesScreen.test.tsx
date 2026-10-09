@@ -515,6 +515,64 @@ describe('CU-36 · incorporar un módulo', () => {
   })
 })
 
+describe('«Descargar todo»', () => {
+  it('incorpora SOLO los que faltan: ni los instalados ni los conflictos locales', async () => {
+    const remoto = structuredClone(REMOTE)
+    remoto.modules.push(
+      {
+        ...structuredClone(REMOTE.modules[0]),
+        id: 'm10',
+        title: 'Límites de PyOMP',
+        object_path: 'modulos/m10/v1.json',
+        version: 1,
+        checksum: 'cc10',
+      },
+      // Choca con el m1 local (CU-34.3): incorporarlo daría DUPLICATE_ID.
+      { ...structuredClone(REMOTE.modules[0]), id: 'm1', title: 'Primeros pasos (publicado)' },
+    )
+    getRemoteCatalogMock.mockResolvedValue(remoto)
+    await renderCatalogo()
+
+    fireEvent.click(screen.getByRole('button', { name: /Descargar todo/ }))
+
+    expect(await screen.findByText(/Se incorporaron 2 módulos/)).toBeInTheDocument()
+    expect(installModuleMock.mock.calls.map(([body]) => body.module_id)).toEqual(['m9', 'm10'])
+  })
+
+  it('si ya está todo descargado lo dice y no llama a la API', async () => {
+    const remoto = structuredClone(REMOTE)
+    remoto.modules = remoto.modules.filter((m) => m.state !== 'available')
+    getRemoteCatalogMock.mockResolvedValue(remoto)
+    renderScreen()
+    await screen.findByText('Patrón SPMD y false sharing')
+
+    fireEvent.click(screen.getByRole('button', { name: /Descargar todo/ }))
+
+    expect(await screen.findByText(/Ya tienes todos los módulos del catálogo/)).toBeInTheDocument()
+    expect(installModuleMock).not.toHaveBeenCalled()
+  })
+
+  it('cuenta los fallos sin detener el resto', async () => {
+    const remoto = structuredClone(REMOTE)
+    remoto.modules.push({
+      ...structuredClone(REMOTE.modules[0]),
+      id: 'm10',
+      title: 'Límites de PyOMP',
+      object_path: 'modulos/m10/v1.json',
+    })
+    getRemoteCatalogMock.mockResolvedValue(remoto)
+    installModuleMock
+      .mockRejectedValueOnce(new ApiError('CATALOG_UNAVAILABLE', 'down', 503))
+      .mockResolvedValue(installResult({ module_id: 'm10' }))
+    await renderCatalogo()
+
+    fireEvent.click(screen.getByRole('button', { name: /Descargar todo/ }))
+
+    expect(await screen.findByText(/Se incorporó 1 módulo; 1 no se pudo incorporar/)).toBeInTheDocument()
+    expect(installModuleMock).toHaveBeenCalledTimes(2)
+  })
+})
+
 // ── CU-39 · actualizar y quitar ─────────────────────────────────────────────
 
 describe('CU-39 · actualizar', () => {
