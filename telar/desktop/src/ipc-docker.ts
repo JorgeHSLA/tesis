@@ -54,6 +54,53 @@ const DOCKER_ACTIONS: Readonly<Record<string, readonly (readonly string[])[]>> =
   'compose:stop': [['compose', 'stop']],
 }
 
+// Limpieza de una instalación nueva (fresh-install.ts): contenedores y
+// VOLÚMENES del proyecto (progreso, cursos instalados, ejecuciones) y los
+// contenedores de jobs que hubieran quedado sueltos. Las imágenes se conservan:
+// no son datos del usuario y evitan volver a descargar ~1 GB. No es una acción
+// del renderer: solo la antepone el proceso principal al primer `compose:up`.
+const RESET_STEPS: readonly (readonly string[])[] = [
+  ['compose', '--profile', 'build', 'down', '-v', '--remove-orphans'],
+  ['container', 'prune', '-f', '--filter', 'label=telar.runner'],
+]
+
+let resetPending = false
+let onResetDone: () => void = () => {}
+
+/** main.ts la llama al arrancar si esta es la primera apertura de una
+ *  instalación nueva. `done` se invoca cuando la limpieza termina bien. */
+export function scheduleFreshReset(done: () => void): void {
+  resetPending = true
+  onResetDone = done
+}
+
+// Una sola limpieza en vuelo: `ps` y `up` pueden llegar casi a la vez.
+let resetInFlight: Promise<DockerActionResult> | null = null
+
+function runFreshReset(): Promise<DockerActionResult> {
+  resetInFlight ??= (async (): Promise<DockerActionResult> => {
+    try {
+      for (const step of RESET_STEPS) {
+        await execFileAsync('docker', [...step], {
+          cwd: composeCwd(),
+          timeout: EXEC_TIMEOUT_MS,
+          windowsHide: true,
+          maxBuffer: EXEC_MAX_BUFFER,
+        })
+      }
+      resetPending = false
+      onResetDone()
+      return { ok: true }
+    } catch (err) {
+      // Docker no disponible todavía: queda pendiente para el próximo intento.
+      return { ok: false, error: sanitizeError(err) }
+    } finally {
+      resetInFlight = null
+    }
+  })()
+  return resetInFlight
+}
+
 // Dónde vive el compose.yaml: junto a los recursos empaquetados o configurable.
 // Prod: se empaqueta un compose.yaml de despliegue en resources/ (extraResources §6).
 // Dev:  raíz del repo. Override por env TELAR_COMPOSE_DIR (documentado en README).
@@ -96,6 +143,16 @@ export async function runDockerAction(
 ): Promise<DockerStatusResult | DockerActionResult> {
   const steps = DOCKER_ACTIONS[action]
   if (!steps) return { ok: false, error: 'Acción no permitida' }
+  // Instalación nueva: antes de la primera consulta o arranque se deja Docker
+  // sin datos viejos. Va también en `compose:ps` porque es lo primero que hace
+  // la app al abrir; si solo fuera en `up`, un backend viejo que siguiera
+  // corriendo (restart: unless-stopped) se vería sano y `up` nunca llegaría.
+  if (resetPending && (action === 'compose:ps' || action === 'compose:up')) {
+    const reset = await runFreshReset()
+    if (!reset.ok) {
+      return action === 'compose:ps' ? { ok: false, services: [], error: reset.error } : reset
+    }
+  }
   try {
     let stdout = ''
     for (const step of steps) {

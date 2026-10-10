@@ -16,17 +16,24 @@
 ; "preparando entorno..." otra vez y una descarga de ~1 GB en cada actualización.
 !macro customUnInstall
   ${ifNot} ${isUpdated}
-    DetailPrint "Deteniendo y eliminando los servicios Docker de Telar..."
+    DetailPrint "Eliminando los servicios y los datos Docker de Telar..."
+    ; Desinstalar deja el equipo como si Telar nunca hubiera estado: una
+    ; reinstalación arranca de cero (sin progreso, cursos ni ejecuciones).
     ; --profile build: el servicio 'runner' vive tras ese perfil (nunca corre
     ; como servicio, solo se usa para traer la imagen — ver ipc-docker.ts) y
     ; sin la bandera, `down` ni lo considera y su imagen queda huérfana.
     ; --rmi all borra las imágenes de los DOS servicios (backend + runner).
-    ; Deliberadamente SIN -v: los volúmenes (telar_data con el progreso de
-    ; quizzes, telar_submissions) NO se tocan aquí. Es un array separado de
-    ; la decisión de borrar datos de usuario, que ya gobierna
-    ; deleteAppDataOnUninstall (solo aplica a %APPDATA%, no a Docker).
-    nsExec::ExecToLog '"docker" compose --profile build -f "$INSTDIR\resources\compose\compose.yaml" down --rmi all'
+    ; -v borra los volúmenes: telar_data (progreso, cursos instalados,
+    ; historial de ejecuciones) y telar_submissions (código enviado).
+    nsExec::ExecToLog '"docker" compose --profile build -f "$INSTDIR\resources\compose\compose.yaml" down -v --rmi all --remove-orphans'
     Pop $0
+    ; Contenedores de ejecuciones que hubieran quedado sueltos.
+    nsExec::ExecToLog '"docker" container prune -f --filter label=telar.runner'
+    Pop $0
+    ; Si Docker no estaba corriendo, lo anterior no pudo hacer nada. La red de
+    ; seguridad está en la app: al no encontrar %APPDATA%\Telar (que se borra
+    ; siempre, deleteAppDataOnUninstall), la primera apertura de una
+    ; reinstalación limpia los datos Docker antes de arrancar (fresh-install.ts).
     ; Sin bloquear la desinstalación si Docker no está instalado, no está
     ; corriendo, o el usuario ya lo había limpiado a mano: el mismo criterio
     ; que main.ts aplica al cerrar la app (nunca impedir la acción principal

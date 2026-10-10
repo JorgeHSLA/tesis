@@ -27,9 +27,11 @@ win:
 nsis:
   oneClick: true
   perMachine: false
-  deleteAppDataOnUninstall: false
+  # Desinstalar deja el equipo sin rastro de Telar: borra %APPDATA%\Telar
+  # (tema, preferencias, cachés). electron-builder no lo hace al ACTUALIZAR.
+  deleteAppDataOnUninstall: true
   # customUnInstall en resources/installer.nsh: al desinstalar (no al
-  # actualizar) para y borra el contenedor y las imágenes Docker de Telar.
+  # actualizar) borra contenedores, volúmenes e imágenes Docker de Telar.
   include: resources/installer.nsh
 
 linux:

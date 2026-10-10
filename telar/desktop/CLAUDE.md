@@ -26,7 +26,8 @@ node scripts/check-youtube-embed.mjs # humo REAL del video de YouTube (red + pan
 - `src/unsaved-changes.ts` — `will-prevent-unload` → diálogo «Salir sin guardar / Seguir editando» cuando la Autoría tiene cambios sin guardar (su `beforeunload` cancela la descarga y Electron no muestra nada por sí solo).
 - `src/security.ts` — CSP vía `onHeadersReceived` SOLO en documentos de la app (connect-src al backend local), Referer para el iframe de YouTube (`onBeforeSendHeaders`), `will-navigate` whitelist, `setWindowOpenHandler` deny + `shell.openExternal` solo https.
 - `resources/compose/compose.yaml` — compose empaquetado (solo `image:`, sin `build:`). `electron-builder.yml` — targets.
-- `resources/installer.nsh` / `resources/before-remove.sh` — al desinstalar (no al actualizar), paran y borran el contenedor + imágenes Docker; los volúmenes con datos de usuario no se tocan (electron-spec §6.2).
+- `resources/installer.nsh` / `resources/before-remove.sh` — al desinstalar (no al actualizar) borran TODO: contenedores, volúmenes (progreso, cursos, ejecuciones), imágenes y la carpeta de datos de la app (`deleteAppDataOnUninstall: true`; en Linux `~/.config/Telar`). Una reinstalación arranca de cero.
+- `src/fresh-install.ts` — red de seguridad: si al desinstalar Docker no corría, la primera apertura de una instalación nueva (userData sin rastros de uso) hace `compose down -v` antes de la primera consulta/arranque. Actualizar no borra nada.
 
 ## CONGELADO / límites
 

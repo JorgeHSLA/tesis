@@ -3,7 +3,8 @@
 // endurecidas, hardenSession + registerDockerIpc + attachNavigationGuards.
 import { app, BrowserWindow, Menu } from 'electron'
 import path from 'node:path'
-import { registerDockerIpc, runDockerAction } from './ipc-docker'
+import { initFreshInstall, markResetDone } from './fresh-install'
+import { registerDockerIpc, runDockerAction, scheduleFreshReset } from './ipc-docker'
 import { attachLoadFailureHandling } from './load-failure'
 import { hardenSession, attachNavigationGuards } from './security'
 import { attachUnsavedChangesPrompt } from './unsaved-changes'
@@ -80,6 +81,17 @@ const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
   app.quit()
 } else {
+  // Instalación nueva ⇒ el primer «levantar servicios» empieza desde cero
+  // (fresh-install.ts). Se decide ANTES de crear la ventana: después Chromium
+  // ya habrá dejado sus cachés en userData. Solo en la app empaquetada: en
+  // desarrollo no se toca el Docker de quien programa.
+  if (app.isPackaged) {
+    const userData = app.getPath('userData')
+    if (initFreshInstall(userData).resetPending) {
+      scheduleFreshReset(() => markResetDone(userData))
+    }
+  }
+
   app.on('second-instance', () => {
     const [win] = BrowserWindow.getAllWindows()
     if (win) {
