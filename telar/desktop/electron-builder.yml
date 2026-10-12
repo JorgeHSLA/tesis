@@ -32,6 +32,9 @@ nsis:
   deleteAppDataOnUninstall: true
   # customUnInstall en resources/installer.nsh: al desinstalar (no al
   # actualizar) borra contenedores, volúmenes e imágenes Docker de Telar.
+  # customInit/customInstall: si no había una instalación registrada (es
+  # nueva, no una actualización), dejan %APPDATA%\Telar con el marcador de
+  # reinicio para que la primera apertura arranque de cero.
   include: resources/installer.nsh
 
 linux:
@@ -86,5 +89,8 @@ deb:
   # al actualizar) para y borra el contenedor y las imágenes Docker de Telar
   # — resources/before-remove.sh, corre ANTES de que dpkg borre
   # /opt/Telar/resources/compose/compose.yaml.
+  # before-install.sh (preinst): en una instalación nueva (no actualización)
+  # borra ~/.config/Telar para que la primera apertura arranque de cero.
   fpm:
     - --before-remove=resources/before-remove.sh
+    - --before-install=resources/before-install.sh

@@ -40,3 +40,43 @@
     ; por un fallo al hablar con Docker).
   ${endIf}
 !macroend
+
+; Instalación nueva = arranque de cero, sin importar cómo se desinstaló antes.
+; Los desinstaladores ≤1.0.8 borraban las imágenes pero NO los volúmenes ni
+; %APPDATA%\Telar; y con Docker apagado al desinstalar, tampoco los de ahora
+; pueden borrar los volúmenes. Por eso es el INSTALADOR quien decide: si al
+; empezar no hay una instalación registrada de Telar, es nueva (no una
+; actualización) y deja el marcador de fresh-install.ts con resetPending:true,
+; que hace que la primera apertura borre los datos Docker antes de arrancar.
+!ifndef BUILD_UNINSTALLER
+  Var telarInstalacionNueva
+
+  !macro customInit
+    StrCpy $telarInstalacionNueva "1"
+    ReadRegStr $0 HKCU "${UNINSTALL_REGISTRY_KEY}" UninstallString
+    ${if} $0 != ""
+      StrCpy $telarInstalacionNueva "0"
+    ${endIf}
+    ReadRegStr $0 HKLM "${UNINSTALL_REGISTRY_KEY}" UninstallString
+    ${if} $0 != ""
+      StrCpy $telarInstalacionNueva "0"
+    ${endIf}
+  !macroend
+
+  !macro customInstall
+    ${if} $telarInstalacionNueva == "1"
+      ; Electron guarda userData siempre por usuario.
+      ${if} $installMode == "all"
+        SetShellVarContext current
+      ${endIf}
+      RMDir /r "$APPDATA\Telar"
+      CreateDirectory "$APPDATA\Telar"
+      FileOpen $0 "$APPDATA\Telar\telar-instalacion.json" w
+      FileWrite $0 '{"resetPending":true}'
+      FileClose $0
+      ${if} $installMode == "all"
+        SetShellVarContext all
+      ${endIf}
+    ${endIf}
+  !macroend
+!endif

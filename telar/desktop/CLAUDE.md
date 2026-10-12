@@ -28,6 +28,7 @@ node scripts/check-youtube-embed.mjs # humo REAL del video de YouTube (red + pan
 - `resources/compose/compose.yaml` — compose empaquetado (solo `image:`, sin `build:`). `electron-builder.yml` — targets.
 - `resources/installer.nsh` / `resources/before-remove.sh` — al desinstalar (no al actualizar) borran TODO: contenedores, volúmenes (progreso, cursos, ejecuciones), imágenes y la carpeta de datos de la app (`deleteAppDataOnUninstall: true`; en Linux `~/.config/Telar`). Una reinstalación arranca de cero.
 - `src/fresh-install.ts` — red de seguridad: si al desinstalar Docker no corría, la primera apertura de una instalación nueva (userData sin rastros de uso) hace `compose down -v` antes de la primera consulta/arranque. Actualizar no borra nada.
+- Los instaladores refuerzan la red porque los desinstaladores ≤1.0.8 no borraban volúmenes ni userData: el NSIS (`customInit`/`customInstall`) ve si había una instalación registrada; si no, borra `%APPDATA%\Telar` y escribe el marcador con `resetPending:true`. El `.deb` (`resources/before-install.sh`, preinst con `install`) borra `~/.config/Telar`.
 
 ## CONGELADO / límites
 

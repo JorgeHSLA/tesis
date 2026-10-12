@@ -15,6 +15,12 @@
 // uso (cachés del renderer, Local Storage) y no se toca: actualizar nunca
 // borra nada. La decisión se persiste en MARKER_FILE, porque desde la segunda
 // apertura esos rastros ya existen y no servirían para decidir.
+//
+// Los instaladores refuerzan esto, porque los desinstaladores ≤1.0.8 no
+// borraban userData: en una instalación nueva (no actualización), el de
+// Windows deja userData con este marcador en resetPending:true
+// (installer.nsh, customInstall) y el .deb borra ~/.config/Telar
+// (before-install.sh).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
