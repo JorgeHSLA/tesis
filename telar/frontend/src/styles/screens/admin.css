@@ -523,3 +523,34 @@
 
 /* S6 · CU-28 — lista de pasos del taller en el editor de lección. */
 .admin-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+/* ── «Publicar todo»: una fila por módulo con su estado y su resultado ── */
+.publish-all { max-width: var(--dialog-w-lg, 720px); }
+.publish-all-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  max-height: 50dvh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.publish-all-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 8px 12px;
+  border-left: 3px solid transparent;
+  font-size: 13px;
+}
+.publish-all-list li + li { border-top: 1px solid var(--border); }
+.publish-all-list li.is-ok { border-left-color: var(--success, var(--accent)); }
+.publish-all-list li.is-error { border-left-color: var(--danger); }
+.publish-all-list label { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.publish-all-title { font-weight: 600; }
+.publish-all-state { color: var(--text-muted); }
+.publish-all-list li.is-error .publish-all-state { color: var(--danger); }

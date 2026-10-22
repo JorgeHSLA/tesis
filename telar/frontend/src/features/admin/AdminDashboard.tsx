@@ -20,6 +20,7 @@ import { Skeleton } from '../../components/ui/Skeleton'
 import { IconLayers, IconPlus } from '../../components/icons/icons'
 import { ModuleGroup } from './dashboard/ModuleGroup'
 import { ImportModuleDialog } from './dashboard/ImportModuleDialog'
+import { PublishAllDialog } from './dashboard/PublishAllDialog'
 import { ModuleFormDialog } from './dashboard/ModuleFormDialog'
 
 type ToastTone = 'default' | 'error'
@@ -37,6 +38,9 @@ export default function AdminDashboard() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [dialog, setDialog] = useState<DialogState>(null)
   const [importando, setImportando] = useState(false)
+  const [publicandoTodo, setPublicandoTodo] = useState(false)
+  /** Tras «Publicar todo» cada fila vuelve a pedir su estado de publicación. */
+  const [publicaciones, setPublicaciones] = useState(0)
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -170,6 +174,14 @@ export default function AdminDashboard() {
           </p>
         </div>
         <div className="admin-dashboard-head-actions">
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => setPublicandoTodo(true)}
+            disabled={items.length === 0}
+          >
+            Publicar todo
+          </Button>
           <Button variant="outline" size="md" onClick={() => setImportando(true)}>
             Importar del catálogo
           </Button>
@@ -196,7 +208,7 @@ export default function AdminDashboard() {
         <div className="admin-dashboard-list">
           {items.map((module, index) => (
             <ModuleGroup
-              key={module.id}
+              key={`${module.id}-${publicaciones}`}
               module={module}
               index={index}
               count={items.length}
@@ -237,6 +249,18 @@ export default function AdminDashboard() {
           onClose={() => setImportando(false)}
           onImported={(mensaje) => {
             setImportando(false)
+            onSaved(mensaje)
+          }}
+        />
+      )}
+
+      {publicandoTodo && (
+        <PublishAllDialog
+          modules={items}
+          onClose={() => setPublicandoTodo(false)}
+          onDone={(mensaje) => {
+            setPublicandoTodo(false)
+            setPublicaciones((n) => n + 1)
             onSaved(mensaje)
           }}
         />
