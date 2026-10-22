@@ -26,7 +26,7 @@ def test_lifespan_completo_y_estado(settings, fake_docker):
         assert state.docker is fake_docker
         assert state.docker_service is fake_docker
         assert state.jobs == {}
-        assert state.content.exists_lesson("spmd")
+        assert not state.content.exists_lesson("spmd")  # sin contenido propio
         assert fake_docker.reap_calls == 1  # reaper en el arranque
 
         response = client.get("/health")
@@ -192,7 +192,10 @@ def test_internal_error_envelope_generico(settings, fake_docker):
         assert "secreto" not in response.text  # detalle SOLO en logs
 
 
-# ───────── BL-21 (auditoría §3): marcador persistente del auto-seed ──────────
+# ─────── el contenido del curso ya no viaja en la app (v1.0.10) ───────────
+# Todo el curso vive en el catálogo de la nube y se descarga con
+# POST /catalog/sync (tests/test_course_sync.py). El arranque no siembra nada
+# ni toca el contenido que ya hubiera en la base.
 
 
 def _db_path(settings) -> str:
@@ -215,154 +218,53 @@ def _lessons_count(settings) -> int:
     return int(rows[0][0])
 
 
-def _seed_marker(settings) -> str | None:
-    rows = asyncio.run(_run_sql(
-        _db_path(settings),
-        "SELECT value FROM app_meta WHERE key = 'content_seeded_at'",
+def test_primer_arranque_no_trae_contenido(settings, fake_docker):
+    application = create_app(settings=settings, docker_service=fake_docker)
+    with TestClient(application) as client:
+        assert not application.state.content.exists_lesson("spmd")
+        assert client.get("/api/v1/modules").json()["data"]["modules"] == []
+    assert _lessons_count(settings) == 0
+
+
+async def _instalacion_anterior(path: str) -> None:
+    """La base de una versión ≤ 1.0.9: el contenido base sembrado, con su
+    marcador y una huella, más progreso del estudiante."""
+    from app.tools.seed_content import seed_content_into
+
+    conn = await open_db(path)
+    try:
+        await apply_schema(conn)
+        await seed_content_into(conn)
+        await conn.execute(
+            "UPDATE app_meta SET value = 'huella-vieja' WHERE key = 'content_fingerprint'"
+        )
+        await conn.execute(
+            "INSERT INTO lesson_progress (lesson_id, viewed, completed) VALUES ('spmd', 1, 1)"
+        )
+        await conn.commit()
+    finally:
+        await conn.close()
+
+
+def test_el_arranque_no_toca_el_contenido_de_una_version_anterior(settings, fake_docker):
+    """Sin resiembra: lo que ya había se queda tal cual (con su progreso) hasta
+    que la sincronización lo cambie por la versión de la nube."""
+    settings.db_path_expanded.parent.mkdir(parents=True, exist_ok=True)
+    asyncio.run(_instalacion_anterior(_db_path(settings)))
+    asyncio.run(_run_sql(
+        _db_path(settings), "UPDATE lessons SET title = 'Editada' WHERE id = 'spmd'"
     ))
-    return rows[0][0] if rows else None
 
-
-def test_bl21_primer_arranque_siembra_y_deja_marcador(settings, fake_docker):
     application = create_app(settings=settings, docker_service=fake_docker)
     with TestClient(application):
-        pass
-    assert _lessons_count(settings) == 17
-    assert _seed_marker(settings) is not None
-
-
-def test_bl21_catalogo_vaciado_por_admin_no_se_resiembra(settings, fake_docker):
-    """BL-21: 'lessons vacía' ya no implica 'nunca sembrada' — vaciar el
-    catálogo es una decisión del admin que un reinicio debe respetar."""
-    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
-        pass  # primer arranque: siembra + marcador
-
-    # el admin vacía el catálogo (DELETE lecciones; CASCADE ejemplos/quiz)
-    asyncio.run(_run_sql(_db_path(settings), "DELETE FROM lessons"))
-    assert _lessons_count(settings) == 0
-
-    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
-        pass  # reinicio: NO debe re-sembrar los fixtures
-
-    assert _lessons_count(settings) == 0
-    assert _seed_marker(settings) is not None
-
-
-def test_bl21_backfill_db_poblada_sin_marcador(settings, fake_docker):
-    """DB legado (pre-migración 3) ya sembrada y quizá editada: el arranque
-    marca content_seeded_at SIN tocar el contenido (no pisa ediciones)."""
-    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
-        pass
-    # simular instalación previa a la migración: sin marcador + edición admin
-    asyncio.run(_run_sql(_db_path(settings), "DELETE FROM app_meta"))
-    asyncio.run(_run_sql(
-        _db_path(settings),
-        "UPDATE lessons SET title = 'Editada por el admin' WHERE id = 'spmd'",
-    ))
-
-    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
-        pass
-
-    assert _seed_marker(settings) is not None  # backfill del marcador
-    rows = asyncio.run(_run_sql(
-        _db_path(settings), "SELECT title FROM lessons WHERE id = 'spmd'"
-    ))
-    assert rows[0][0] == "Editada por el admin"  # el contenido NO se pisó
-
-    # El backfill también guarda la huella: otro arranque sin cambios en los
-    # fixtures sigue sin tocar la edición.
-    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
-        pass
-    rows = asyncio.run(_run_sql(
-        _db_path(settings), "SELECT title FROM lessons WHERE id = 'spmd'"
-    ))
-    assert rows[0][0] == "Editada por el admin"
-
-
-# ───── actualización del contenido base en una instalación existente ─────
-
-
-def _fingerprint(settings) -> str | None:
-    rows = asyncio.run(_run_sql(
-        _db_path(settings),
-        "SELECT value FROM app_meta WHERE key = 'content_fingerprint'",
-    ))
-    return rows[0][0] if rows else None
-
-
-def _simular_instalacion_vieja(settings, fake_docker, huella: str | None) -> None:
-    """Primer arranque, y luego la DB queda como la de una versión anterior:
-    un título distinto, progreso del estudiante y otra huella (o ninguna)."""
-    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
-        pass
-    sql = [
-        ("UPDATE lessons SET title = 'Título de la versión anterior' WHERE id = 'spmd'", ()),
-        ("INSERT INTO lesson_progress (lesson_id, viewed, completed) VALUES ('spmd', 1, 1)", ()),
-        ("DELETE FROM app_meta WHERE key = 'content_fingerprint'", ()),
-    ]
-    if huella is not None:
-        sql.append(("INSERT INTO app_meta (key, value) VALUES ('content_fingerprint', ?)", (huella,)))
-    for statement, params in sql:
-        asyncio.run(_run_sql(_db_path(settings), statement, params))
-
-
-@pytest.mark.parametrize("huella_vieja", ["huella-de-otra-version", None])
-def test_contenido_base_nuevo_se_resiembra_conservando_progreso(settings, fake_docker, huella_vieja):
-    """Una instalación que ya existía (marcador presente) recibe el contenido
-    base de la nueva versión al arrancar, sin perder el progreso. Sin huella
-    = instalación anterior a este mecanismo: también se actualiza."""
-    _simular_instalacion_vieja(settings, fake_docker, huella_vieja)
-
-    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
-        pass
-
-    from app.tools.seed_content import content_fingerprint
+        assert application.state.content.exists_lesson("spmd")
 
     rows = asyncio.run(_run_sql(
         _db_path(settings), "SELECT title FROM lessons WHERE id = 'spmd'"
     ))
-    assert rows[0][0] != "Título de la versión anterior"  # llegó el baseline
+    assert rows[0][0] == "Editada"
     progreso = asyncio.run(_run_sql(
         _db_path(settings),
         "SELECT viewed, completed FROM lesson_progress WHERE lesson_id = 'spmd'",
     ))
     assert [tuple(r) for r in progreso] == [(1, 1)]
-    assert _fingerprint(settings) == content_fingerprint()
-
-
-def test_misma_huella_no_resiembra(settings, fake_docker):
-    """Con los mismos fixtures, reiniciar no vuelve a sembrar: una edición
-    local a un módulo base sobrevive al reinicio."""
-    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
-        pass
-    asyncio.run(_run_sql(
-        _db_path(settings), "UPDATE lessons SET title = 'Editada' WHERE id = 'spmd'"
-    ))
-    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
-        pass
-    rows = asyncio.run(_run_sql(
-        _db_path(settings), "SELECT title FROM lessons WHERE id = 'spmd'"
-    ))
-    assert rows[0][0] == "Editada"
-
-
-def test_resiembra_conserva_modulos_que_no_son_base(settings, fake_docker):
-    """Un módulo incorporado de la nube (o creado en autoría) sigue ahí tras
-    la actualización del baseline: la resiembra no poda."""
-    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
-        pass
-    asyncio.run(_run_sql(
-        _db_path(settings),
-        "INSERT INTO modules (id, \"order\", title, description, level) "
-        "VALUES ('mNube', 9000, 'Módulo de la nube', 'd', 'Básico')",
-    ))
-    asyncio.run(_run_sql(
-        _db_path(settings),
-        "UPDATE app_meta SET value = 'huella-vieja' WHERE key = 'content_fingerprint'",
-    ))
-    with TestClient(create_app(settings=settings, docker_service=fake_docker)):
-        pass
-    rows = asyncio.run(_run_sql(
-        _db_path(settings), "SELECT title FROM modules WHERE id = 'mNube'"
-    ))
-    assert [tuple(r) for r in rows] == [("Módulo de la nube",)]

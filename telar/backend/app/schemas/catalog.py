@@ -564,6 +564,32 @@ class UninstallResult(BaseModel):
     progress_archived: int
 
 
+class CourseSyncFailure(BaseModel):
+    """Un módulo que la sincronización no pudo incorporar (se reintenta luego)."""
+
+    module_id: str
+    code: str
+    message: str
+
+
+class CourseSyncResult(BaseModel):
+    """``POST /api/v1/catalog/sync`` — descarga del curso completo.
+
+    El contenido del curso no viaja en la app: vive en el catálogo y esta
+    llamada incorpora los módulos que este equipo todavía no tiene.
+
+    ``skipped`` dice por qué no se hizo nada: ``"admin"`` en una instalación de
+    autoría (su base es la del autor y no se llena sola). ``replaced`` son los
+    módulos base de una versión anterior de la app que se cambiaron por su
+    versión de la nube, conservando el avance.
+    """
+
+    installed: list[str]
+    replaced: list[str]
+    failed: list[CourseSyncFailure]
+    skipped: Literal["admin"] | None = None
+
+
 __all__ = [
     # Constantes y literales
     "BUNDLE_FORMAT",
@@ -610,4 +636,6 @@ __all__ = [
     "ModuleUpdatePreview",
     "InstallResult",
     "UninstallResult",
+    "CourseSyncFailure",
+    "CourseSyncResult",
 ]

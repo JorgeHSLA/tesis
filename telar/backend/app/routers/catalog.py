@@ -66,7 +66,7 @@ from app.schemas.catalog import (
     UpdateRequest,
 )
 from app.schemas.updates import UpdateReport
-from app.services import module_installer, module_updater
+from app.services import course_sync, module_installer, module_updater
 from app.services.bundle_guard import BundleGuardError, parse_bundle
 from app.services.catalog_client import CatalogClientError, CatalogReadPort
 from app.services.content_writer import _persist
@@ -715,6 +715,23 @@ async def catalog_install(request: Request, body: InstallRequest) -> JSONRespons
     port = _require_catalog(request)
     resultado = await module_installer.install_module(request.app, body, catalog=port)
     return envelope_ok(resultado, status_code=201)
+
+
+# ═══════════════ POST /catalog/sync — el curso completo, desde la nube ════════
+
+
+@router.post("/sync")
+async def catalog_sync(request: Request) -> JSONResponse:
+    """Incorpora todos los módulos publicados que este equipo aún no tiene.
+
+    La app no trae contenido propio: el frontend llama aquí al arrancar y una
+    instalación nueva recibe el curso completo sin que el estudiante haga nada.
+    Idempotente: lo ya incorporado (o quitado a propósito) no se repite. Ver
+    ``services/course_sync.py``.
+    """
+    port = _require_catalog(request)
+    resultado = await course_sync.sincronizar_curso(request.app, catalog=port)
+    return envelope_ok(resultado)
 
 
 # ═══════ §11.6.2/§11.6.3 vista previa y actualización (CU-39) ════════════════

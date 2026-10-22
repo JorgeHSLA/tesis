@@ -5,6 +5,7 @@
 // con prefers-reduced-motion → behavior 'auto' (frontend-spec §2).
 import { useEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
+import { useCourseSync } from '../../hooks/useCourseSync'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { DraftBanner } from './DraftBanner'
 import { Sidebar } from './Sidebar'
@@ -16,6 +17,8 @@ export function AppShell() {
   const reduced = useReducedMotion()
   const reducedRef = useRef(reduced)
   reducedRef.current = reduced
+  // El curso vive en la nube: al arrancar se descarga lo que falte.
+  useCourseSync()
 
   useEffect(() => {
     const main = mainRef.current

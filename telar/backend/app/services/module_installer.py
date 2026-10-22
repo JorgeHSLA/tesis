@@ -511,6 +511,8 @@ async def _verificar_ids_libres(
     db: "aiosqlite.Connection",
     bundle: ModuleBundle,
     preguntas: dict[str, list[tuple[str, BundleQuizQuestion]]],
+    *,
+    reemplazado: str | None = None,
 ) -> None:
     """Ningún id del bundle puede pertenecer ya a otro módulo local (§11.3).
 
@@ -518,6 +520,10 @@ async def _verificar_ids_libres(
     409 seguidos, uno por id, es una forma cara de no decirle al estudiante qué
     pasa. Y se comprueba antes de escribir porque las tres claves son PK
     globales: dejarlo a la base es cambiar un 409 explicado por un 500 opaco.
+
+    ``reemplazado``: el módulo local que esta misma incorporación va a borrar
+    (contenido base heredado, ver ``course_sync``). Sus ids no son colisión:
+    desaparecen en la misma transacción que escribe los nuevos.
     """
     conflictos: list[dict] = []
 
@@ -560,6 +566,10 @@ async def _verificar_ids_libres(
     # El contenido histórico del repo tiene `examples.id == lessons.id` (backfill
     # de la migración 5), así que un mismo id entrante choca DOS veces —con la
     # lección y con su ejemplo— y sería la misma noticia dicha dos veces.
+    if reemplazado is not None:
+        conflictos = [
+            c for c in conflictos if c["owner_module_id"] != reemplazado
+        ]
     conflictos = _sin_repetidos(conflictos)
     if conflictos:
         raise _api(
@@ -570,32 +580,47 @@ async def _verificar_ids_libres(
 
 
 async def _verificar_modulo_libre(
-    db: "aiosqlite.Connection", module_id: str
-) -> None:
-    """Ya instalado ⇒ actualizar; id tomado por contenido local ⇒ colisión."""
+    db: "aiosqlite.Connection", module_id: str, *, reemplazar_local: bool = False
+) -> bool:
+    """Ya instalado ⇒ actualizar; id tomado por contenido local ⇒ colisión.
+
+    Con ``reemplazar_local`` el id tomado por un módulo local SIN manifiesto no
+    es colisión sino el módulo a sustituir: devuelve ``True`` y quien llama lo
+    borra en la misma unidad de escritura. Solo lo pide ``course_sync`` para el
+    contenido base que traían las versiones anteriores de la app.
+    """
     if await catalog_repo.get_installed(db, module_id) is not None:
         raise _api(
             "MODULE_ALREADY_INSTALLED",
             f"El módulo '{module_id}' ya está incorporado; usa la actualización.",
         )
     if await content_admin.module_exists(db, module_id):
+        if reemplazar_local:
+            return True
         raise _api(
             "DUPLICATE_ID",
             f"El id de módulo '{module_id}' ya lo usa un módulo local.",
             details=[_conflicto("module_id", module_id, module_id)],
         )
+    return False
 
 
 async def _resolver_order(
-    db: "aiosqlite.Connection", order_hint: int
+    db: "aiosqlite.Connection", order_hint: int, *, excluir: str | None = None
 ) -> tuple[int, bool]:
     """``modules."order"`` es UNIQUE GLOBAL: el ``order_hint`` es una sugerencia.
 
     Dos autores publican con ``order_hint: 3`` y los dos módulos son legítimos.
     Se reasigna a ``MAX + 1`` y se DECLARA en la respuesta, que es lo contrario
     de fallar con un ``IntegrityError`` que el estudiante no puede interpretar.
+
+    ``excluir``: el módulo que se va a reemplazar; su puesto queda libre.
     """
-    ocupados = set((await content_admin.all_module_orders(db)).values())
+    ocupados = {
+        order
+        for module_id, order in (await content_admin.all_module_orders(db)).items()
+        if module_id != excluir
+    }
     if order_hint not in ocupados:
         return order_hint, False
     return max(ocupados) + 1, True
@@ -974,12 +999,18 @@ async def install_module(
     catalog: CatalogReadPort,
     index: CatalogIndex | None = None,
     generation: int | None = None,
+    reemplazar_local: bool = False,
 ) -> InstallResult:
     """Incorpora un módulo del catálogo remoto (``POST /api/v1/catalog/install``).
 
     ``index`` permite pasar el índice ya cacheado (``repositories/catalog`` lo
     guarda en ``app_meta``) para no volver a salir a la red; si falta, se
     descarga. ``generation`` ancla el objeto exacto cuando el listado la trae.
+
+    ``reemplazar_local``: si el id lo ocupa un módulo local sin manifiesto, se
+    borra y se escribe el del catálogo en la MISMA transacción. Solo lo usa
+    ``course_sync`` para el contenido base de versiones anteriores de la app;
+    el avance sobrevive igual que al desinstalar (sin FK a ``lessons``).
 
     Quien decide que este despliegue NO tiene catálogo (``503 CATALOG_DISABLED``)
     es el router: aquí ya llega un puerto construido.
@@ -995,9 +1026,14 @@ async def install_module(
     # ── 2. DENTRO del write_lock: leer la base y escribir ───────────────────
     db = app.state.db
     async with app.state.write_lock:
-        await _verificar_modulo_libre(db, bundle.module.id)
-        await _verificar_ids_libres(db, bundle, preguntas)
-        local_order, reasignado = await _resolver_order(db, bundle.module.order_hint)
+        reemplaza = await _verificar_modulo_libre(
+            db, bundle.module.id, reemplazar_local=reemplazar_local
+        )
+        reemplazado = bundle.module.id if reemplaza else None
+        await _verificar_ids_libres(db, bundle, preguntas, reemplazado=reemplazado)
+        local_order, reasignado = await _resolver_order(
+            db, bundle.module.order_hint, excluir=reemplazado
+        )
         preservadas = await _lecciones_con_progreso(db, bundle)
 
         lecciones = [leccion.id for leccion in bundle.lessons]
@@ -1017,10 +1053,16 @@ async def install_module(
             "lessons_added": lecciones,
             "questions_total": total_preguntas,
             "progress": progreso.model_dump(),
+            "replaced_local": reemplazado is not None,
         }
-        await _persist(
-            app,
-            lambda: _escribir(
+
+        async def _unidad() -> None:
+            if reemplazado is not None:
+                # Mismo borrado que desinstalar: CASCADE de lecciones, ejemplos
+                # y preguntas; `lesson_progress`/`quiz_attempts` no tienen FK y
+                # sobreviven, así que el avance se reengancha a los mismos ids.
+                await db.execute("DELETE FROM modules WHERE id = ?", (reemplazado,))
+            await _escribir(
                 db,
                 bundle,
                 preguntas,
@@ -1028,7 +1070,11 @@ async def install_module(
                 local_order=local_order,
                 checksum=checksum,
                 report=report,
-            ),
+            )
+
+        await _persist(
+            app,
+            _unidad,
         )
         manifiesto = await catalog_repo.get_installed(db, bundle.module.id)
 

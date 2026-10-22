@@ -25,6 +25,7 @@ import {
   getRemoteCatalog,
   installModule,
   refreshCatalog,
+  syncCourse as syncCourseApi,
   uninstallModule,
   updateCatalogModule,
 } from '../api/catalog'
@@ -84,6 +85,18 @@ export interface CatalogState {
   ops: Record<string, CatalogOp>
   /** Último fallo de `install`/`update`/`remove`, por módulo. */
   opErrors: Record<string, CatalogFailure>
+  /** `POST /catalog/sync` en vuelo: la app está descargando el curso. */
+  syncing: boolean
+  /** La sincronización de esta sesión ya terminó (o no aplica: sin bucket). */
+  synced: boolean
+
+  /**
+   * `POST /catalog/sync`: trae del catálogo los módulos que falten. La app no
+   * trae contenido propio, así que se llama al arrancar. Devuelve `true`
+   * cuando ya no hace falta reintentar en esta sesión y `false` si el backend
+   * o el bucket no respondieron (quien llama reintenta más tarde).
+   */
+  syncCourse: () => Promise<boolean>
 
   /** `GET /catalog/status`. Dedupe de llamadas concurrentes; `force` re-consulta. */
   hydrateStatus: (force?: boolean) => Promise<void>
@@ -107,6 +120,7 @@ type GetState = () => CatalogState
 // Dedupe de llamadas concurrentes, mismo patrón que `progressStore.hydrate`.
 let statusInflight: Promise<void> | null = null
 let remoteInflight: Promise<void> | null = null
+let syncInflight: Promise<boolean> | null = null
 
 export const useCatalogStore = create<CatalogState>()((set, get) => ({
   status: null,
@@ -119,6 +133,38 @@ export const useCatalogStore = create<CatalogState>()((set, get) => ({
   remoteError: null,
   ops: {},
   opErrors: {},
+  syncing: false,
+  synced: false,
+
+  syncCourse: async () => {
+    if (get().synced) return true
+    if (syncInflight) return syncInflight
+    set({ syncing: true })
+    syncInflight = (async () => {
+      try {
+        const result = await syncCourseApi()
+        if (result.installed.length > 0 || result.replaced.length > 0) {
+          await invalidateContentCaches()
+          await get().hydrateStatus(true)
+        }
+        // Un módulo que falló se reintenta en la próxima apertura; el resto ya
+        // está aquí y no vale la pena insistir durante la sesión.
+        set({ synced: true })
+        return true
+      } catch (err: unknown) {
+        // Sin bucket configurado no hay nada que descargar: no se reintenta.
+        if (err instanceof ApiError && err.code === 'CATALOG_DISABLED') {
+          set({ synced: true })
+          return true
+        }
+        return false
+      } finally {
+        set({ syncing: false })
+        syncInflight = null
+      }
+    })()
+    return syncInflight
+  },
 
   hydrateStatus: (force = false) => {
     if (statusInflight && !force) return statusInflight

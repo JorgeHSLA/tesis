@@ -37,7 +37,7 @@ from app.schemas.system import CatalogInfo
 logger = logging.getLogger("telar.system")
 
 #: Versión del backend (SystemVersions.backend y FastAPI(version=...)).
-BACKEND_VERSION = "1.0.3"
+BACKEND_VERSION = "1.0.4"
 
 API_VERSION = "v1"
 

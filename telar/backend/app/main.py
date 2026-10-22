@@ -5,9 +5,10 @@ Lifespan (orden congelado):
 2. crea el docker service (inyectable por puerto para tests),
 3. reaper de huérfanos POR INTERFAZ (``reap_orphans()``, lo implementa WP2)
    y ``mark_orphans_failed()`` en DB,
-4. auto-seed condicional del contenido (gobernado por el marcador persistente
-   ``content_seeded_at`` de ``app_meta``, BL-21) y carga del snapshot desde la
-   DB (``ContentRepository.load`` es la fuente de Fase 4),
+4. carga del snapshot de contenido desde la DB (``ContentRepository.load``).
+   La app NO trae contenido propio: todo el curso vive en el catálogo de la
+   nube y se descarga con ``POST /api/v1/catalog/sync`` (``course_sync.py``),
+   que el frontend llama al arrancar,
 5. registro de jobs en memoria ``app.state.jobs`` (1 worker uvicorn).
 
 El modo autoría (admin) es una variante de despliegue gateada por
@@ -37,13 +38,6 @@ from app.routers import system as system_router
 from app.routers.system import BACKEND_VERSION
 from app.services.code_dirs import code_base_dir, sweep_code_dirs
 from app.services.job_runner import JobRunner
-from app.tools.seed_content import (
-    backfill_seed_marker,
-    content_fingerprint,
-    get_content_fingerprint,
-    get_seed_marker,
-    seed_content_into,
-)
 
 logger = logging.getLogger("telar.main")
 
@@ -81,36 +75,6 @@ def _build_catalog_client(settings: Settings) -> Any:
     return build_catalog_client(settings)
 
 
-async def _seed_content_if_unseeded(db_conn: Any) -> None:
-    """Auto-seed gobernado por el marcador persistente ``content_seeded_at``
-    (BL-21): «lessons vacía» no distingue "nunca sembrada" de "vaciada a
-    propósito por el admin", así que dejó de ser la condición.
-
-    - Marcador presente y la huella de los fixtures igual → no sembrar
-      (aunque el catálogo esté vacío).
-    - Marcador presente y la huella distinta o ausente → el contenido base
-      cambió con la nueva versión de la app: resembrar SIN podar (upsert).
-      Llegan las lecciones nuevas, títulos y orden; el progreso y los módulos
-      incorporados de la nube se conservan. Pisa las ediciones locales a
-      módulos base de una instalación de autoría (decisión acordada).
-    - Sin marcador y ``lessons`` con filas → DB poblada antes de la migración
-      3: backfill del marcador sin tocar el contenido.
-    - Sin marcador y ``lessons`` vacía → primer arranque real: sembrar (el
-      seeder deja el marcador en la misma transacción).
-    """
-    if await get_seed_marker(db_conn) is not None:
-        if await get_content_fingerprint(db_conn) != content_fingerprint():
-            logger.info("contenido base actualizado: resembrando sin podar")
-            await seed_content_into(db_conn)
-        return
-    async with db_conn.execute("SELECT COUNT(*) FROM lessons") as cursor:
-        row = await cursor.fetchone()
-    if (row[0] if row is not None else 0) > 0:
-        await backfill_seed_marker(db_conn)
-        return
-    await seed_content_into(db_conn)
-
-
 async def _reap_orphans(docker: Any, db_conn: Any, cfg: Settings) -> None:
     """Reaper por interfaz + huérfanos en DB (architecture §3, punto 8)."""
     if docker is not None:
@@ -144,7 +108,6 @@ def create_app(
         db_path.parent.mkdir(parents=True, exist_ok=True)
         db_conn = await database.open_db(str(db_path))
         await database.apply_schema(db_conn)
-        await _seed_content_if_unseeded(db_conn)  # auto-seed condicional (Fase 4)
         app.state.db = db_conn
         app.state.settings = cfg
         app.state.jobs = {}  # registro en memoria por job (architecture §3.3)
@@ -199,8 +162,8 @@ def create_app(
             progress=app.state.progress,  # §7.1: last_job_id al completar
         )
 
-        # Fuente de contenido de Fase 4: el snapshot se carga DESDE la DB
-        # (sembrada arriba), no desde los fixtures directamente.
+        # Fuente de contenido: el snapshot se carga DESDE la DB, que solo tiene
+        # lo descargado del catálogo de la nube (o lo creado en Autoría).
         app.state.content = await ContentRepository.load(db_conn)
         try:
             yield

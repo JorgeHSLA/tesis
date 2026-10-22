@@ -182,3 +182,23 @@ export interface UninstallResultDto {
   progress_purged: boolean
   progress_archived: number
 }
+
+/** Un módulo que la sincronización no pudo incorporar (se reintenta luego). */
+export interface CourseSyncFailureDto {
+  module_id: string
+  code: string
+  message: string
+}
+
+/**
+ * POST /api/v1/catalog/sync — descarga del curso completo. La app no trae
+ * contenido propio: se pide al arrancar y trae lo que falte del catálogo.
+ * `skipped: 'admin'` ⇒ instalación de autoría, que no se llena sola.
+ */
+export interface CourseSyncResultDto {
+  installed: string[]
+  /** Módulos base de versiones ≤ 1.0.9 cambiados por su versión de la nube. */
+  replaced: string[]
+  failed: CourseSyncFailureDto[]
+  skipped: 'admin' | null
+}

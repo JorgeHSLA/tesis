@@ -47,7 +47,11 @@ from app import db as db_module
 from app.db import apply_schema, open_db
 from app.repositories.content import ContentRepository
 
-CONTENT_DIR = Path(__file__).resolve().parents[1] / "content"
+#: El contenido del curso ya NO viaja en la app: vive en el catálogo de la nube
+#: y la app lo descarga (`services/course_sync.py`). Estos fixtures quedan como
+#: datos de prueba de la suite y como entrada de esta CLI en desarrollo; en la
+#: imagen del backend el directorio no existe.
+CONTENT_DIR = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "content"
 
 #: Clave de ``app_meta`` que gobierna el auto-seed del lifespan (BL-21):
 #: presente ⇒ el contenido ya se sembró alguna vez y un catálogo vacío es una

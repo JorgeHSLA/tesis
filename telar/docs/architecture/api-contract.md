@@ -1930,6 +1930,42 @@ BL-01), que la hace a propósito y exige `TELAR_ADMIN_MODE`.
 | 200 | Desinstalado |
 | 404 `MODULE_NOT_INSTALLED` | El módulo no está en `installed_modules` (un módulo `local_only` **no se desinstala por aquí**: eso es `DELETE /admin/modules/{id}`) |
 
+#### 11.6.5 `POST /api/v1/catalog/sync` — descargar el curso completo (v1.0.10)
+
+Desde la 1.0.10 **la app no trae contenido propio**: todo el curso vive en el
+catálogo y cada instalación lo descarga. El frontend llama a esta ruta al
+arrancar (y la reintenta cada 10 s mientras el backend no responda). Sin cuerpo.
+
+`200`:
+
+```json
+{ "success": true,
+  "data": { "installed": ["mFundHardware", "mPyompBases"], "replaced": ["m1"],
+            "failed": [{ "module_id": "m7", "code": "CATALOG_UNAVAILABLE",
+                         "message": "…" }],
+            "skipped": null },
+  "error": null, "meta": null }
+```
+
+- Incorpora, en orden de `order_hint`, cada módulo del índice que este equipo no
+  tenga, con el mismo flujo y validaciones que §11.6.1.
+- **Una vez por módulo:** lo incorporado (o ya incorporado) se anota en
+  `app_meta['course_sync_seen']`. Si el estudiante lo quita, no vuelve solo.
+- **Contenido base heredado:** las versiones ≤ 1.0.9 sembraban `m1`–`m8` sin
+  manifiesto. Si el índice publica uno de esos ids, se borra el local y se
+  escribe el del catálogo **en la misma transacción**; el avance se conserva
+  porque los `lesson_id` son los mismos (`replaced`). Cualquier otro id local
+  ocupado se deja intacto.
+- Un módulo que falla va a `failed` y se reintenta en la siguiente llamada; no
+  impide los demás.
+- En modo autoría (`TELAR_ADMIN_MODE`) no hace nada: `skipped: "admin"`.
+
+| Código | Cuándo |
+|---|---|
+| 200 | Sincronizado (aunque haya módulos en `failed`) |
+| 503 `CATALOG_DISABLED` | El despliegue no tiene bucket: no hay nada que descargar |
+| 503 `CATALOG_UNAVAILABLE` | No se pudo leer el índice (sin red, bucket caído) |
+
 ### 11.7 CU-37 · Descargar un módulo para edición (admin)
 
 Requiere imagen admin (§11.2) + `TELAR_ADMIN_MODE` (§10.0). **No requiere OAuth**:

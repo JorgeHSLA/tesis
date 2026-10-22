@@ -6,7 +6,8 @@
 - App FastAPI de integración: mismos routers/handlers/repositorios REALES
   del backend, con el docker service inyectado (dependency override por
   ``app.state``, la costura de inyección congelada en architecture §11).
-- Contenido REAL del repo (``app/content``) cargado una vez por sesión.
+- Contenido de prueba (``tests/fixtures/content``, el antiguo contenido base de
+  la app) cargado una vez por sesión.
 """
 
 from __future__ import annotations
@@ -46,7 +47,7 @@ from app.tools.seed_content import seed_content_into
 from fakes.fake_catalog import FakeCatalogService
 from fakes.fake_docker import FakeDockerService
 
-CONTENT_DIR = BACKEND_DIR / "app" / "content"
+CONTENT_DIR = BACKEND_DIR / "tests" / "fixtures" / "content"
 STDOUT_DIR = Path(__file__).parent / "fixtures" / "stdout"
 
 TERMINAL = frozenset({"completed", "failed", "timeout", "cancelled"})

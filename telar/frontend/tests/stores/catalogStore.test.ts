@@ -24,6 +24,7 @@ vi.mock('@/api/catalog', () => ({
   installModule: vi.fn(),
   updateCatalogModule: vi.fn(),
   uninstallModule: vi.fn(),
+  syncCourse: vi.fn(),
 }))
 
 vi.mock('@/api/content', () => ({
@@ -37,6 +38,7 @@ import {
   getRemoteCatalog,
   installModule,
   refreshCatalog,
+  syncCourse,
   uninstallModule,
   updateCatalogModule,
 } from '@/api/catalog'
@@ -49,6 +51,7 @@ const installModuleMock = installModule as Mock
 const updateCatalogModuleMock = updateCatalogModule as Mock
 const uninstallModuleMock = uninstallModule as Mock
 const loadExamplesIndexMock = loadExamplesIndex as Mock
+const syncCourseMock = syncCourse as Mock
 
 // ── fixtures (§11.4.1 / §11.5.1) ────────────────────────────────────────────
 
@@ -196,6 +199,8 @@ beforeEach(() => {
     remoteError: null,
     ops: {},
     opErrors: {},
+    syncing: false,
+    synced: false,
   })
   // El progressStore real se sustituye por un espía: aquí solo importa QUE se
   // invalide su caché, no cómo la rellena.
@@ -210,6 +215,7 @@ beforeEach(() => {
     updateCatalogModuleMock,
     uninstallModuleMock,
     loadExamplesIndexMock,
+    syncCourseMock,
   ]) {
     m.mockReset()
   }
@@ -222,6 +228,7 @@ beforeEach(() => {
   )
   uninstallModuleMock.mockResolvedValue(UNINSTALL_RESULT)
   loadExamplesIndexMock.mockResolvedValue(new Map())
+  syncCourseMock.mockResolvedValue({ installed: [], replaced: [], failed: [], skipped: null })
 })
 
 // ── §11.4 estado instalado ──────────────────────────────────────────────────
@@ -522,6 +529,44 @@ describe('remove()', () => {
     await expect(useCatalogStore.getState().remove('m9')).resolves.toBe(false)
     expect(useCatalogStore.getState().ops.m9).toBeUndefined()
     expect(useCatalogStore.getState().opErrors.m9.code).toBe('MODULE_NOT_INSTALLED')
+  })
+})
+
+// ── descarga del curso (POST /catalog/sync) ─────────────────────────────────
+
+describe('syncCourse() — el curso vive en la nube', () => {
+  it('con módulos nuevos invalida las cachés de contenido y el estado', async () => {
+    syncCourseMock.mockResolvedValueOnce({ installed: ['m1', 'm2'], replaced: [], failed: [], skipped: null })
+    await expect(useCatalogStore.getState().syncCourse()).resolves.toBe(true)
+    expect(hydrateSpy).toHaveBeenCalledWith(true)
+    expect(loadExamplesIndexMock).toHaveBeenCalledWith(true)
+    expect(getCatalogStatusMock).toHaveBeenCalled()
+    expect(useCatalogStore.getState()).toMatchObject({ syncing: false, synced: true })
+  })
+
+  it('sin nada nuevo no recarga nada', async () => {
+    await useCatalogStore.getState().syncCourse()
+    expect(hydrateSpy).not.toHaveBeenCalled()
+    expect(useCatalogStore.getState().synced).toBe(true)
+  })
+
+  it('una vez por sesión, y sin llamadas duplicadas en vuelo', async () => {
+    const store = useCatalogStore.getState()
+    await Promise.all([store.syncCourse(), store.syncCourse()])
+    await useCatalogStore.getState().syncCourse()
+    expect(syncCourseMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('backend o bucket caídos: pide reintentar', async () => {
+    syncCourseMock.mockRejectedValueOnce(new ApiError('CATALOG_UNAVAILABLE', 'Sin red.', 503))
+    await expect(useCatalogStore.getState().syncCourse()).resolves.toBe(false)
+    expect(useCatalogStore.getState()).toMatchObject({ syncing: false, synced: false })
+  })
+
+  it('sin bucket configurado no hay nada que descargar ni reintentar', async () => {
+    syncCourseMock.mockRejectedValueOnce(new ApiError('CATALOG_DISABLED', 'Sin catálogo.', 503))
+    await expect(useCatalogStore.getState().syncCourse()).resolves.toBe(true)
+    expect(useCatalogStore.getState().synced).toBe(true)
   })
 })
 

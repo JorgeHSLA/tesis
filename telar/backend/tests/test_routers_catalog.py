@@ -1478,8 +1478,11 @@ def test_una_config_de_catalogo_invalida_no_tumba_el_arranque(
     with TestClient(application) as test_client:
         assert application.state.catalog is None
         assert test_client.get("/api/v1/catalog/status").status_code == 200
-        assert ok(test_client.get("/api/v1/modules"))["modules"]
+        # La app no trae contenido propio (1.0.10): lo que importa es que
+        # `/modules` responda, aunque esté vacío.
+        assert ok(test_client.get("/api/v1/modules"))["modules"] == []
         falla(test_client.get("/api/v1/catalog/remote"), 503, "CATALOG_UNAVAILABLE")
+        falla(test_client.post("/api/v1/catalog/sync"), 503, "CATALOG_UNAVAILABLE")
 
 
 def test_preview_no_lista_dos_veces_una_leccion_resucitada(cliente, fake_catalog):

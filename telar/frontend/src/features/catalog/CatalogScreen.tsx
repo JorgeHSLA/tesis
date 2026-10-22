@@ -39,6 +39,8 @@ export default function CatalogScreen() {
   // esta pantalla, ni siquiera un skeleton.
   const catalogStatus = useCatalogStore((s) => s.status)
   const hydrateCatalogStatus = useCatalogStore((s) => s.hydrateStatus)
+  const courseSyncing = useCatalogStore((s) => s.syncing)
+  const courseSynced = useCatalogStore((s) => s.synced)
   const system = useSystemInfo()
   const location = useLocation()
   const navigate = useNavigate()
@@ -195,6 +197,40 @@ export default function CatalogScreen() {
             <Skeleton key={i} height={96} radius="var(--r-lg)" />
           ))}
         </div>
+      </section>
+    )
+  }
+
+  // El curso vive en la nube: en una instalación nueva el catálogo llega vacío
+  // hasta que `useCourseSync` (AppShell) termina de descargarlo.
+  if (sorted.length === 0) {
+    const descargando = courseSyncing || !courseSynced
+    return (
+      <section className="screen catalog" aria-busy={descargando}>
+        <div className="screen-head">
+          <div>
+            <div className="eyebrow">Aprendizaje</div>
+            <h2 className="display-lg">Catálogo de contenidos</h2>
+          </div>
+        </div>
+        {descargando ? (
+          <EmptyState
+            icon={<IconDownload />}
+            title="Descargando el curso…"
+            body="Telar está trayendo los módulos desde la nube. La primera vez tarda unos segundos."
+          />
+        ) : (
+          <EmptyState
+            icon={<IconDownload />}
+            title="Todavía no hay módulos"
+            body="Conéctate a internet y vuelve a abrir Telar para descargar el curso, o incorpóralos desde Módulos disponibles."
+            action={
+              <Link className="btn btn-outline btn-sm" to="/modulos">
+                Ver módulos disponibles
+              </Link>
+            }
+          />
+        )}
       </section>
     )
   }

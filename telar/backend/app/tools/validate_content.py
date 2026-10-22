@@ -92,9 +92,9 @@ def validate_content_dir(content_dir: Path) -> tuple[list[str], str | None]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m app.tools.validate_content",
-        description="Valida los fixtures de backend/app/content/",
+        description="Valida los fixtures de backend/tests/fixtures/content/",
     )
-    default_dir = Path(__file__).resolve().parents[1] / "content"
+    default_dir = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "content"
     parser.add_argument(
         "--content-dir",
         type=Path,

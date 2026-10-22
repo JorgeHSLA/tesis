@@ -8,6 +8,7 @@
 import { fetchJson } from './client'
 import type {
   CatalogStatusResponseDto,
+  CourseSyncResultDto,
   InstallRequestDto,
   InstallResultDto,
   ModuleUpdatePreviewDto,
@@ -94,6 +95,15 @@ export function installModule(body: InstallRequestDto): Promise<InstallResultDto
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+/**
+ * POST /api/v1/catalog/sync — trae del catálogo los módulos que este equipo
+ * aún no tiene. Idempotente: lo ya incorporado, o quitado a propósito, no se
+ * repite. La app no trae contenido propio, así que se pide al arrancar.
+ */
+export function syncCourse(): Promise<CourseSyncResultDto> {
+  return fetchJson<CourseSyncResultDto>(`${P}/sync`, { method: 'POST' })
 }
 
 /**
