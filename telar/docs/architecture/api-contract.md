@@ -1130,6 +1130,17 @@ C:      GET /api/v1/jobs/01a2…   → parsed_timings (curva de speedup)
   **solo por `settings.admin_enabled`** (== `TELAR_ADMIN_MODE`). No parsea ningún
   header ni valida tokens. Sin `WWW-Authenticate` (no dispara el diálogo nativo
   del navegador).
+- **Filtro de loopback (2026-10-31, `app/loopback_guard.py`)**: «local» no
+  protege de las páginas web que el administrador abre en su propio navegador, y
+  `TELAR_ALLOWED_ORIGINS` incluye `null` (lo necesita Electron). Con el modo admin
+  encendido, `/api/v1/admin/*` exige **`Host` de loopback** (`localhost`,
+  `127.0.0.1`, `::1`; corta el DNS rebinding) y, si la petición trae `Origin`,
+  que esté en `TELAR_ALLOWED_ORIGINS` **y no sea `null`** (corta el CSRF desde un
+  iframe aislado). Sin `Origin` (curl, scripts locales) pasa. Rechazo: `403`
+  `HOST_NOT_ALLOWED` | `ORIGIN_NOT_ALLOWED`. Con el modo apagado el filtro no se
+  instala. **Nota:** publicar en el bucket sigue exigiendo la credencial de
+  cuenta de servicio (§11.8.1): activar el modo admin en otra máquina no da
+  acceso de escritura al catálogo.
 
 No hay endpoints de autenticación. El cliente admin usa directamente los CRUD de
 §10.2-§10.6; si el despliegue es "estudiante" recibe `401 UNAUTHORIZED` en todos

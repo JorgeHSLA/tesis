@@ -415,8 +415,10 @@ Transcripción de
 
 Un administrador puede crear/editar módulos, lecciones, quizzes y subir ejemplos
 `.py` desde una interfaz nueva. El contenido de cursos vive ahora en **SQLite**
-(sembrado desde los fixtures de `backend/app/content/`, que quedan como semilla
-versionada); los flujos y las respuestas del estudiante **no cambian**.
+(desde la 1.0.10 la app **no trae contenido propio**: el curso vive en el catálogo de
+la nube y cada instalación lo descarga con `POST /api/v1/catalog/sync`; los
+antiguos fixtures quedan en `backend/tests/fixtures/content/` solo como datos de
+prueba); los flujos y las respuestas del estudiante **no cambian**.
 
 > **Actualización 2026-07-26 (sin login):** el modo autoría dejó de usar
 > contraseña/login/token. Ahora es una **variante de despliegue**: se gatea por
@@ -449,6 +451,20 @@ versionada); los flujos y las respuestas del estudiante **no cambian**.
 > (`services/quiz_service.py`); son helpers de repositorio inertes, sin endpoints
 > admin.
 
+- **Instalación rápida (solo Docker)**: `compose.admin.yaml` enciende las tres
+  cosas a la vez (imagen admin, `TELAR_ADMIN_MODE=1`, bundle con `VITE_ADMIN=1`),
+  con base de datos propia y sin publicar el puerto del backend:
+
+  ```bash
+  docker pull ghcr.io/telar-javeriana/telar-runner:0.5.1   # una vez
+  docker compose -f compose.yaml -f compose.admin.yaml up -d --build
+  # → http://127.0.0.1:8080, ítem «Autoría» del menú
+  ```
+
+  La credencial de publicación (clave de cuenta de servicio) no va en el repo: se
+  carga en el volumen `telar_keys` (ver el «Manual de instalación», anexo A). Sin
+  ella la autoría funciona en local pero no publica.
+
 - **Habilitar (backend)**: define `TELAR_ADMIN_MODE=1`. Sin ella, todos los
   `/api/v1/admin/*` responden `401 UNAUTHORIZED`. Es seguro sin login porque la
   app corre en loopback y solo los admins reciben el build/despliegue admin.
@@ -467,16 +483,18 @@ versionada); los flujos y las respuestas del estudiante **no cambian**.
   Sidebar (o `#/admin`). No hay pantalla de login. El admin ve la vista de
   estudiante navegando el resto del Sidebar (es la misma app).
 
-- **Semilla / migración**: al primer arranque, si las tablas de contenido están
-  vacías, el backend siembra automáticamente los 14 ejemplos + 60 preguntas desde
-  los fixtures. Para re-sembrar o resetear al baseline versionado:
+- **Contenido**: una base nueva arranca **vacía**; el curso se descarga del
+  catálogo (`POST /catalog/sync`, `services/course_sync.py`) y en modo admin no
+  se descarga nada (la base es la del autor). `python -m app.tools.seed_content`
+  sigue existiendo para sembrar los fixtures de prueba en desarrollo.
 
-  ```bash
-  cd backend
-  python -m app.tools.seed_content            # UPSERT idempotente (no pierde ediciones)
-  python -m app.tools.seed_content --prune     # además borra contenido no-baseline
-  python -m app.tools.seed_content --check      # verifica fixtures ≡ DB (sale ≠0 si difieren)
-  ```
+- **Quién puede publicar**: activar el modo admin en otra máquina solo da
+  acceso a **su propia** base local. Publicar en el bucket exige la clave de cuenta
+  de servicio (permisos `0600`, fuera del repo y de las imágenes) y el bucket solo
+  admite lectura anónima. Además, con el modo admin encendido, `/api/v1/admin/*`
+  solo responde a `Host` de loopback y rechaza `Origin: null` u orígenes ajenos
+  (api-contract §10.0), para que una página web abierta en el navegador del
+  administrador no pueda usar su credencial.
 
 - **Seguridad**: el `.py` subido por el admin es **no confiable** igual que el del
   estudiante y se ejecuta en el mismo runner sandbox (network none, non-root,

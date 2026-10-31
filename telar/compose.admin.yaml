@@ -1,0 +1,56 @@
+# compose.admin.yaml — MODO AUTORÍA (admin) sobre compose.yaml.
+#
+#   docker compose -f compose.yaml -f compose.admin.yaml up -d --build
+#   → interfaz de autoría en http://127.0.0.1:8080  (item «Autoría» del menú)
+#
+# Para quien edita o audita el contenido del curso, no para estudiantes. Pasa
+# las TRES cosas que hacen falta (ver README §8.1): imagen del backend con el
+# código admin (TELAR_ADMIN_BUILD=1), backend con TELAR_ADMIN_MODE=1 y bundle de
+# la interfaz con VITE_ADMIN=1.
+#
+# Qué se aísla de la instalación de estudiante (que puede estar abierta a la vez):
+#   · proyecto «telar-admin» → otros contenedores;
+#   · base de datos propia (volumen telar_admin_data), para no mezclar la
+#     autoría con el progreso de un estudiante;
+#   · el backend NO publica el puerto 8000: la interfaz llega a él por nginx
+#     (:8080), y así no choca con el backend del estudiante ni queda otro puerto
+#     de autoría abierto en la máquina.
+#
+# La credencial de publicación (clave de cuenta de servicio) NO va en el repo ni
+# en la imagen: vive en el volumen telar_keys, dentro de Docker, con permisos
+# 0600 (el backend los exige). Sin ella la autoría funciona en local pero no
+# puede publicar en el bucket. Cómo cargarla: «Manual de instalación», anexo A.
+name: telar-admin
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_ADMIN: "1"
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        TELAR_ADMIN_BUILD: "1"
+    ports: !reset []
+    environment:
+      TELAR_ADMIN_MODE: "1"
+      # El runner publicado: así no hay que construirlo (`docker pull` una vez).
+      TELAR_RUNNER_IMAGE: ghcr.io/telar-javeriana/telar-runner:0.5.1
+      # Lectura del catálogo (pública) y, con credencial, publicación.
+      TELAR_CATALOG_BUCKET: clasestelar
+      TELAR_CATALOG_DRIVER: gcs
+      TELAR_GCS_CREDENTIALS: /keys/clave.json
+    volumes: !override
+      - telar_admin_data:/app/data
+      - telar_submissions:/submissions
+      - /var/run/docker.sock:/var/run/docker.sock
+      - telar_keys:/keys:ro
+
+volumes:
+  telar_admin_data:
+    name: telar_admin_data
+  telar_keys:
+    name: telar_keys

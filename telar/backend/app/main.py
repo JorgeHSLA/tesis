@@ -30,6 +30,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import db as database
 from app.config import Settings, get_settings
 from app.errors import register_error_handlers
+from app.loopback_guard import AdminLoopbackGuard
 from app.repositories.jobs import JobRepository
 from app.repositories.progress import ProgressRepository
 from app.repositories.quiz_attempts import QuizAttemptRepository
@@ -184,6 +185,10 @@ def create_app(
             await db_conn.close()
 
     app = FastAPI(title="Telar API", version=BACKEND_VERSION, lifespan=lifespan)
+    if cfg.admin_enabled:
+        # Va ANTES que CORS para quedar dentro de él: CORS responde el preflight
+        # y añade sus cabeceras al 403, y este filtro solo ve la petición real.
+        app.add_middleware(AdminLoopbackGuard, allowed_origins=cfg.allowed_origins_list)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cfg.allowed_origins_list,  # incluye "null" (Electron)

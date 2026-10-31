@@ -6,6 +6,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# Variante de autoría (build-time, ver src/config.ts): 0 = ESTUDIANTE (default, sin
+# la UI de autoría en el bundle); 1 = ADMIN. Lo pasa compose.admin.yaml.
+ARG VITE_ADMIN=0
+ENV VITE_ADMIN=$VITE_ADMIN
 RUN npm run build
 
 FROM nginx:alpine
