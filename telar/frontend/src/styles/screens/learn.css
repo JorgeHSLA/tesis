@@ -90,7 +90,7 @@
 .lesson-media-screen.is-mini {
   position: fixed;
   inset: auto var(--sp-5) var(--sp-5) auto;   /* arriba · derecha · abajo · izquierda */
-  width: min(460px, calc(100vw - 2 * var(--sp-5)));
+  width: min(520px, calc(100vw - 2 * var(--sp-5)));
   height: auto;
   display: flex; flex-direction: column;
   z-index: var(--z-dropdown);
