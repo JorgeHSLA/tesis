@@ -53,16 +53,25 @@
   /* Alto máximo del marco; el ancho se deriva de él para conservar el 16:9. */
   --media-max-h: clamp(200px, 24vw + 60px, 520px);
 }
-.lesson-media-screen {
-  /* Ancho fluido pero acotado por el alto máximo: así el 16:9 se cumple SIEMPRE
-     (antes, a ancho completo, el tope de alto rompía la proporción y el vídeo
-     quedaba con franjas negras enormes a los lados). */
+/* El HUECO del video: conserva el 16:9 y el ancho acotado por el alto máximo, de
+   modo que el 16:9 se cumple SIEMPRE (antes, a ancho completo, el tope de alto
+   rompía la proporción y el vídeo quedaba con franjas negras enormes). Sigue
+   ocupando su sitio aunque el marco pase al mini reproductor, para que el texto
+   de debajo no salte. */
+.lesson-media-slot {
   width: 100%;
   max-width: calc(var(--media-max-h) * 16 / 9);
   margin-inline: auto;
   aspect-ratio: 16 / 9;
   background: var(--term-bg);
   position: relative;
+}
+/* El marco del reproductor llena el hueco. En modo mini (abajo) se saca del flujo
+   con position: fixed SIN moverlo en el árbol: mover o recrear un iframe lo
+   recarga y el video se reiniciaría. */
+.lesson-media-screen {
+  position: absolute; inset: 0;
+  background: var(--term-bg);
   display: grid; place-items: center;
   overflow: hidden;
 }
@@ -74,6 +83,45 @@
   border: 0;
   background: var(--term-bg);
   display: block;
+}
+.lesson-media-minibar { display: none; }
+
+/* Mini reproductor: abajo a la derecha mientras se lee más abajo en la lección. */
+.lesson-media-screen.is-mini {
+  position: fixed;
+  inset: auto var(--sp-5) var(--sp-5) auto;   /* arriba · derecha · abajo · izquierda */
+  width: min(340px, calc(100vw - 2 * var(--sp-5)));
+  height: auto;
+  display: flex; flex-direction: column;
+  z-index: var(--z-dropdown);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: var(--r-md);
+  box-shadow: var(--elevation-3);
+}
+.lesson-media-screen.is-mini .lesson-media-minibar {
+  display: flex; justify-content: flex-end; gap: 4px;
+  padding: 3px 6px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.lesson-media-screen.is-mini .lesson-media-video {
+  height: auto; aspect-ratio: 16 / 9; flex: none;
+}
+.lesson-media-minibtn {
+  display: inline-grid; place-items: center;
+  width: 24px; height: 24px;
+  border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--text-muted);
+  cursor: pointer;
+}
+.lesson-media-minibtn:hover { background: var(--surface-2, var(--bg)); color: var(--text); }
+.lesson-media-minibtn:focus-visible { outline: 2px solid var(--primary, currentColor); outline-offset: 1px; }
+@media (prefers-reduced-motion: no-preference) {
+  .lesson-media-screen.is-mini { animation: lesson-mini-in .18s var(--ease); }
+}
+@keyframes lesson-mini-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 /* Pie: nombre de archivo + CTA SECUNDARIO chico al simulador (no el naranja). */
 .lesson-media-foot {
