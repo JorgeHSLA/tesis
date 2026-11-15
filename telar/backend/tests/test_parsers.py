@@ -260,3 +260,47 @@ def test_bl37_efficiency_desde_tiempos_crudos_un_solo_redondeo():
     # speedup=2.03 → 2.03/2 = 1.015 → 1.01 (desviado).
     assert point["speedup"] == 2.03
     assert point["efficiency"] == 1.02
+
+
+# ───────── auditoría de métricas: el contrato «jamás lanza» y valores finitos ─────────
+
+_SWEEP_PI_OK = "hilos = 1 | pi = 3.1 | tiempo = 1.0 s\n"
+_GIGANTE = "9" * 400  # un solo float que desborda a inf
+
+
+@pytest.mark.parametrize(
+    ("parser_id", "stdout"),
+    [
+        ("sweep_pi", "hilos = 1 | pi = 3.1 | tiempo = 1.2.3 s"),
+        ("sweep_pi", "hilos = 1 | pi = 3.1 | tiempo = . s"),
+        (
+            "sweep_transporte",
+            "hilos = 1 | tiempo = 1.2.3 s | transmitidas: 1 % | reflejadas: 1 % | absorbidas: 1 %",
+        ),
+        (
+            "sweep_transporte",
+            "hilos = 1 | tiempo = 1 s | transmitidas: 1.2.3 % | reflejadas: 1 % | absorbidas: 1 %",
+        ),
+        ("pair_openmp_numpy", "tiempo openmp: 1.2.3 s\ntiempo numpy: 2 s"),
+        ("pair_openmp_numpy", "tiempo openmp: 1 s\ntiempo numpy: . s"),
+        ("pair_parallel_serial", "tiempo paralelo: 1.2.3 s\ntiempo serial: 2 s"),
+    ],
+)
+def test_numero_malformado_devuelve_null_sin_lanzar(parser_id, stdout):
+    # El regex `[\d.]+` casa «1.2.3» y «.»; float() lanzaría ValueError.
+    # El docstring promete «jamás lanza»: el estudiante imprime lo que quiera.
+    assert parse_output(parser_id, stdout) is None
+
+
+@pytest.mark.parametrize(
+    ("parser_id", "stdout"),
+    [
+        ("sweep_pi", _SWEEP_PI_OK + f"hilos = 2 | pi = 3 | tiempo = {_GIGANTE} s"),
+        ("sweep_pi", f"hilos = 1 | pi = 3 | tiempo = {_GIGANTE} s"),
+        ("pair_openmp_numpy", f"tiempo openmp: {_GIGANTE} s\ntiempo numpy: 2 s"),
+        ("pair_openmp_numpy", f"tiempo openmp: 1 s\ntiempo numpy: {_GIGANTE} s"),
+    ],
+)
+def test_tiempo_infinito_devuelve_null_no_nan(parser_id, stdout):
+    # inf ⇒ speedup/eficiencia NaN ⇒ JSON inválido (NaN/Infinity). Se descarta.
+    assert parse_output(parser_id, stdout) is None

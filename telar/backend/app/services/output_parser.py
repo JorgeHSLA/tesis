@@ -13,6 +13,7 @@ api-contract.md §7.4. Devuelve ``dict | None`` (el repo lo serializa a JSON).
 
 from __future__ import annotations
 
+import math
 import re
 
 #: Los 6 parser_id válidos (data-model §4.4 valida los fixtures contra esto).
@@ -56,6 +57,19 @@ _RE_PAIR = {
 }
 
 
+def _finite_float(text: str) -> float | None:
+    """float() a prueba del stdout del estudiante: ``None`` si no es un número
+    finito. Los regex ``[\\d.]+`` (literales §7.2) casan «1.2.3» o «.», y una
+    cadena de cientos de dígitos desborda a ``inf``; ninguna debe lanzar ni
+    llegar a la serie (NaN/Infinity no son JSON válido).
+    """
+    try:
+        value = float(text)
+    except ValueError:
+        return None
+    return value if math.isfinite(value) else None
+
+
 def parse_output(parser_id: str, stdout: str | None, *, truncated: bool = False) -> dict | None:
     """Punto de entrada único: aplica el parser declarado por el fixture.
 
@@ -90,14 +104,13 @@ def _sweep_series(points: list[tuple[int, float]]) -> list[dict] | None:
     for threads, time_s in points:
         if threads <= 0 or time_s <= 0:
             return None
+        speedup = round(baseline / time_s, 2)
+        # eficiencia desde los tiempos crudos, UN solo redondeo
+        efficiency = round(baseline / (time_s * threads), 2)
+        if not (math.isfinite(speedup) and math.isfinite(efficiency)):
+            return None
         series.append(
-            {
-                "threads": threads,
-                "time_s": time_s,
-                "speedup": round(baseline / time_s, 2),
-                # eficiencia desde los tiempos crudos, UN solo redondeo
-                "efficiency": round(baseline / (time_s * threads), 2),
-            }
+            {"threads": threads, "time_s": time_s, "speedup": speedup, "efficiency": efficiency}
         )
     return series
 
@@ -107,7 +120,10 @@ def _parse_sweep_pi(stdout: str) -> dict | None:
     for line in stdout.splitlines():
         match = _RE_SWEEP_PI.search(line)
         if match:
-            points.append((int(match.group(1)), float(match.group(3))))
+            time_s = _finite_float(match.group(3))
+            if time_s is None:
+                return None
+            points.append((int(match.group(1)), time_s))
     series = _sweep_series(points)
     if series is None:
         return None
@@ -126,12 +142,16 @@ def _parse_sweep_transporte(stdout: str) -> dict | None:
     for line in stdout.splitlines():
         match = _RE_SWEEP_TRANSPORTE.search(line)
         if match:
-            points.append((int(match.group(1)), float(match.group(2))))
+            values = [_finite_float(match.group(i)) for i in range(2, 6)]
+            if any(v is None for v in values):
+                return None
+            time_s, transmitidas, reflejadas, absorbidas = values
+            points.append((int(match.group(1)), time_s))
             if not extra:  # física de la 1ª línea casada (ejemplo del contrato)
                 extra = {
-                    "transmitidas_pct": float(match.group(3)),
-                    "reflejadas_pct": float(match.group(4)),
-                    "absorbidas_pct": float(match.group(5)),
+                    "transmitidas_pct": transmitidas,
+                    "reflejadas_pct": reflejadas,
+                    "absorbidas_pct": absorbidas,
                 }
     series = _sweep_series(points)
     if series is None:
@@ -157,12 +177,16 @@ def _parse_pair(parser_id: str, stdout: str) -> dict | None:
         if parallel_s is None:
             match = re_parallel.search(line)
             if match:
-                parallel_s = float(match.group(1))
+                parallel_s = _finite_float(match.group(1))
+                if parallel_s is None:
+                    return None
                 continue
         if reference_s is None:
             match = re_reference.search(line)
             if match:
-                reference_s = float(match.group(1))
+                reference_s = _finite_float(match.group(1))
+                if reference_s is None:
+                    return None
                 continue
         if correct is None:
             match = re_correct.search(line)
@@ -172,12 +196,15 @@ def _parse_pair(parser_id: str, stdout: str) -> dict | None:
         return None
     if parallel_s <= 0 or reference_s <= 0:
         return None  # algún time_s<=0 ⇒ None (también la referencia)
+    speedup = round(reference_s / parallel_s, 2)
+    if not math.isfinite(speedup):
+        return None
     return {
         "parser_id": parser_id,
         "kind": "pair",
         "parallel_time_s": parallel_s,
         "reference_time_s": reference_s,
         "reference_label": label,
-        "speedup_vs_reference": round(reference_s / parallel_s, 2),
+        "speedup_vs_reference": speedup,
         "correct": correct,
     }
