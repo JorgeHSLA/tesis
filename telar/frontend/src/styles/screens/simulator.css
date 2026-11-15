@@ -279,6 +279,8 @@
   place-items: center;
 }
 
+.live-topology-note { margin: 0; padding: 0 var(--card-pad) 14px; }
+
 /* Terminal live: card sin padding, terminal sin borde/radius (§6.3) */
 .terminal-card { padding: 0; overflow: hidden; }
 .terminal-card .terminal {

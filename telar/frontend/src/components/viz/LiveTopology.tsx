@@ -28,10 +28,12 @@ export interface LiveTopologyProps {
   /** true mientras el job corre (paquetes + etiqueta `activo`). */
   running: boolean
   reducedMotion: boolean
+  /** El código separa a t0 del resto (lib/masterRole): t0 se rotula «coordina». */
+  masterCoordinates?: boolean
 }
 
-export function LiveTopology({ nodes, running, reducedMotion }: LiveTopologyProps) {
-  const figures = layoutFigures(nodes.length, W / 2, 720, 100)
+export function LiveTopology({ nodes, running, reducedMotion, masterCoordinates = false }: LiveTopologyProps) {
+  const figures = layoutFigures(nodes.length, W / 2, 720, 100, masterCoordinates)
   const master = figures[0]
   const animate = running && !reducedMotion
   const activityOf = (index: number): number => nodes[index]?.activity ?? 0.5
@@ -39,7 +41,7 @@ export function LiveTopology({ nodes, running, reducedMotion }: LiveTopologyProp
   // Responsive sin librerías: viewBox + width 100% y SIN alto fijo, para que el
   // alto se derive de la proporción.
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={topologyAriaLabel(figures.length)} style={{ display: 'block', height: 'auto' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={topologyAriaLabel(figures.length, masterCoordinates)} style={{ display: 'block', height: 'auto' }}>
       {/* Halo pulsante del maestro (decorativo; sin SMIL con reduced-motion) */}
       <circle cx={master.x} cy={ROW_Y} r={38} fill="var(--viz-node)" fillOpacity={0.08}>
         {animate && <animate attributeName="r" values="30;42;30" dur="2s" repeatCount="indefinite" />}

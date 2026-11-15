@@ -124,3 +124,22 @@ describe('Hilos (topología)', () => {
     expect(labels).toEqual(['Tiempo transcurrido', 'CPU del contenedor', 'Memoria'])
   })
 })
+
+describe('Hilos (t0 coordina según el código)', () => {
+  const SEPARA = ['tid = omp_get_thread_num()', 'if tid == 0:', '    coordinar()', 'else:', '    trabajar()'].join('\n')
+
+  it('el job cuyo código separa a t0 lo muestra en la topología y en la nota', async () => {
+    ;(getJob as Mock).mockResolvedValue({ ...JOB, source_code: SEPARA })
+    await openRunning()
+    expect(await screen.findByText(/t0 coordina y el resto trabaja/)).toBeInTheDocument()
+    expect(document.querySelector('.live-topology')?.textContent).toContain('t0 · maestro · coordina')
+    expect(document.querySelectorAll('[data-thread]')).toHaveLength(4)
+  })
+
+  it('el job normal no dice «coordina»', async () => {
+    await openRunning()
+    await screen.findByText('Tiempo transcurrido')
+    expect(screen.queryByText(/t0 coordina y el resto trabaja/)).toBeNull()
+    expect(document.querySelector('.live-topology')?.textContent).not.toContain('coordina')
+  })
+})

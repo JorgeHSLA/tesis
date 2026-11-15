@@ -30,6 +30,7 @@ import { useJobSocket } from '../../hooks/useJobSocket'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { useSimulation } from '../../hooks/useSimulation'
 import { fmtBytes, fmtTime } from '../../lib/format'
+import { MASTER_COORDINATES_NOTE, masterCoordinates } from '../../lib/masterRole'
 import { isTerminalPhase, useJobStore } from '../../stores/jobStore'
 import { useProgressStore } from '../../stores/progressStore'
 import { isSweepParser } from './sweepParse'
@@ -126,6 +127,9 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
   const terminal = terminalNow
 
   const { nodes } = useSimulation({ threads, running: phase === 'running', reducedMotion })
+  // El código del job separa a t0 del resto (if tid == 0 / else): se deduce leyéndolo.
+  const sourceCode = job?.source_code ?? null
+  const coordinates = useMemo(() => sourceCode != null && masterCoordinates(sourceCode), [sourceCode])
 
   const lastMetric = metrics.length > 0 ? metrics[metrics.length - 1] : null
   const cpuSeries = useMemo(() => metrics.slice(-60).map((m) => m.cpu_percent), [metrics])
@@ -262,8 +266,9 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
           {/* Único rótulo de honestidad: la topología es didáctica, no una medida. */}
           <CardHead icon={<IconCluster size={16} />} title="Hilos" sub="ilustración, no es la medida real" />
           <div className="live-topology">
-            <LiveTopology nodes={nodes} running={phase === 'running'} reducedMotion={reducedMotion} />
+            <LiveTopology nodes={nodes} running={phase === 'running'} reducedMotion={reducedMotion} masterCoordinates={coordinates} />
           </div>
+          {coordinates && threads > 1 && <p className="field-hint live-topology-note">{MASTER_COORDINATES_NOTE}</p>}
         </Card>
         <LiveTerminalCard
           phase={phase}

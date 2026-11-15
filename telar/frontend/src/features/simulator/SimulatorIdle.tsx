@@ -6,7 +6,7 @@
 // Lanzar → POST /api/v1/jobs con la semántica de
 // fuentes del contrato §7.1 (example_id/code según edición; threads OMITIDO
 // en fixed/sweep — §9) → navigate('/simulador/{job_id}').
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { getExample, getModules } from '../../api/content'
 import { ApiError } from '../../api/client'
@@ -20,6 +20,7 @@ import { IconCluster, IconPlay } from '../../components/icons/icons'
 import { ThreadTopology } from '../../components/viz/ThreadTopology'
 import { getPlatform } from '../../hooks/usePlatform'
 import { useSystemInfo } from '../../hooks/useSystemInfo'
+import { MASTER_COORDINATES_NOTE, masterCoordinates } from '../../lib/masterRole'
 import { clampThreads, type SimConfig } from '../../lib/simConfig'
 import { AdvancedOptions, NO_TIMEOUT } from './AdvancedOptions'
 import { CodePanel, type PickedFile } from './CodePanel'
@@ -209,6 +210,8 @@ export function SimulatorIdle() {
   }, [queryExample, modules, selectExample])
 
   const edited = example != null && code !== example.source_code
+  // El código separa a t0 del resto (if tid == 0 / else): se deduce leyéndolo.
+  const coordinates = useMemo(() => masterCoordinates(code), [code])
   const cores = system?.cores ?? 4
 
   const onFile = useCallback((file: PickedFile) => {
@@ -360,9 +363,10 @@ export function SimulatorIdle() {
           {/* Único rótulo de honestidad de la topología (igual que en vivo). */}
           <CardHead icon={<IconCluster size={16} />} title="Hilos" sub="ilustración, no es la medida real" />
           <div className="topology-viz">
-            <ThreadTopology threads={displayThreads} />
+            <ThreadTopology threads={displayThreads} masterCoordinates={coordinates} />
           </div>
           <div className="config-fields">
+            {coordinates && displayThreads > 1 && <p className="field-hint">{MASTER_COORDINATES_NOTE}</p>}
             {modules == null && (
               <ErrorState
                 title="Ejemplos no disponibles"

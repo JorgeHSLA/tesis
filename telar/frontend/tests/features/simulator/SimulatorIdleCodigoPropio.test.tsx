@@ -42,4 +42,22 @@ describe('SimulatorIdle · «Código propio»', () => {
     expect(screen.getAllByText('main.py').length).toBeGreaterThan(0)
     expect(editor).toHaveValue('# hola\n')
   })
+
+  it('si el código separa a t0 del resto (if tid == 0 / else), lo dice; si no, calla', async () => {
+    const router = createMemoryRouter([{ path: '/simulador', element: <SimulatorIdle /> }], {
+      initialEntries: ['/simulador'],
+    })
+    render(<RouterProvider router={router} />)
+    const editor = await screen.findByRole('textbox', { name: 'Editor de código Python' })
+    await waitFor(() => expect(editor).toHaveValue('# hola\n'))
+    expect(screen.queryByText(/t0 coordina y el resto trabaja/)).toBeNull()
+
+    const separa = ['tid = omp_get_thread_num()', 'if tid == 0:', '    coordinar()', 'else:', '    trabajar()'].join('\n')
+    fireEvent.change(editor, { target: { value: separa } })
+    expect(await screen.findByText(/t0 coordina y el resto trabaja/)).toBeInTheDocument()
+    expect(document.querySelector('.topology-viz')?.textContent).toContain('t0 · maestro · coordina')
+
+    fireEvent.change(editor, { target: { value: 'print(1)\n' } })
+    await waitFor(() => expect(screen.queryByText(/t0 coordina y el resto trabaja/)).toBeNull())
+  })
 })

@@ -16,15 +16,17 @@ const MASTER_SIZE = 44 // lado del rombo del maestro
 
 export interface ThreadTopologyProps {
   threads: number
+  /** El código separa a t0 del resto (lib/masterRole): t0 se rotula «coordina». */
+  masterCoordinates?: boolean
 }
 
-export function ThreadTopology({ threads }: ThreadTopologyProps) {
-  const figures = layoutFigures(threads, W / 2, W - 80, 80)
+export function ThreadTopology({ threads, masterCoordinates = false }: ThreadTopologyProps) {
+  const figures = layoutFigures(threads, W / 2, W - 80, 80, masterCoordinates)
   const master = figures[0]
 
   // Responsive sin librerías: el alto lo deriva el viewBox (ver LiveTopology).
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={topologyAriaLabel(figures.length)} style={{ display: 'block', height: 'auto' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={topologyAriaLabel(figures.length, masterCoordinates)} style={{ display: 'block', height: 'auto' }}>
       {/* Fork: t0 → cada hilo del equipo (codo por un puente superior) */}
       {figures.slice(1).map((f) => (
         <path
