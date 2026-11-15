@@ -16,11 +16,12 @@ import type { DecorNode } from '../../hooks/useSimulation'
 import { figureLabel, layoutFigures, topologyAriaLabel } from '../../lib/threadTopology'
 
 const W = 800
-const H = 220
-const ROW_Y = 110
-const BUS_Y = 52
 const SIZE = 36
 const MASTER_SIZE = 44
+
+/** t0 dentro de la fila (trabaja) o encima del equipo (coordina). */
+const FLAT = { H: 220, headY: 110, teamY: 110, busY: 52 }
+const STACKED = { H: 240, headY: 48, teamY: 166, busY: 108 }
 
 export interface LiveTopologyProps {
   /** Nodos decorativos de useSimulation (t0 maestro + t1..tN-1): N en total. */
@@ -28,28 +29,32 @@ export interface LiveTopologyProps {
   /** true mientras el job corre (paquetes + etiqueta `activo`). */
   running: boolean
   reducedMotion: boolean
-  /** El código separa a t0 del resto (lib/masterRole): t0 se rotula «coordina». */
+  /** El código separa a t0 del resto (lib/masterRole): t0 va encima y «coordina». */
   masterCoordinates?: boolean
 }
 
 export function LiveTopology({ nodes, running, reducedMotion, masterCoordinates = false }: LiveTopologyProps) {
   const figures = layoutFigures(nodes.length, W / 2, 720, 100, masterCoordinates)
   const master = figures[0]
+  const stacked = master.tier === 'head'
+  const geo = stacked ? STACKED : FLAT
+  // Dónde sale el reparto: por debajo de t0 si está encima; por arriba si está en la fila.
+  const startY = stacked ? geo.headY + MASTER_SIZE / 2 + 2 : geo.teamY - MASTER_SIZE / 2 - 2
   const animate = running && !reducedMotion
   const activityOf = (index: number): number => nodes[index]?.activity ?? 0.5
 
   // Responsive sin librerías: viewBox + width 100% y SIN alto fijo, para que el
   // alto se derive de la proporción.
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={topologyAriaLabel(figures.length, masterCoordinates)} style={{ display: 'block', height: 'auto' }}>
+    <svg viewBox={`0 0 ${W} ${geo.H}`} width="100%" role="img" aria-label={topologyAriaLabel(figures.length, masterCoordinates)} style={{ display: 'block', height: 'auto' }}>
       {/* Halo pulsante del maestro (decorativo; sin SMIL con reduced-motion) */}
-      <circle cx={master.x} cy={ROW_Y} r={38} fill="var(--viz-node)" fillOpacity={0.08}>
+      <circle cx={master.x} cy={geo.headY} r={38} fill="var(--viz-node)" fillOpacity={0.08}>
         {animate && <animate attributeName="r" values="30;42;30" dur="2s" repeatCount="indefinite" />}
       </circle>
 
       {/* Fork: t0 → resto del equipo, con paquetes decorativos ida/vuelta */}
       {figures.slice(1).map((f, i) => {
-        const elbow = `M${master.x} ${ROW_Y - MASTER_SIZE / 2 - 2} L${master.x} ${BUS_Y} L${f.x} ${BUS_Y} L${f.x} ${ROW_Y - SIZE / 2 - 4}`
+        const elbow = `M${master.x} ${startY} L${master.x} ${geo.busY} L${f.x} ${geo.busY} L${f.x} ${geo.teamY - SIZE / 2 - 4}`
         return (
           <g key={`c${f.id}`}>
             <path d={elbow} fill="none" stroke="var(--viz-grid)" strokeWidth={1.5} strokeDasharray="3 4" />
@@ -77,11 +82,14 @@ export function LiveTopology({ nodes, running, reducedMotion, masterCoordinates 
 
       {figures.map((f, i) => {
         const size = f.isMaster ? MASTER_SIZE : SIZE
+        const y = f.tier === 'head' ? geo.headY : geo.teamY
+        // Con t0 encima, su rótulo va SOBRE la figura: bajo ella cruzaría el reparto.
+        const labelY = f.tier === 'head' ? y - MASTER_SIZE / 2 - 10 : y + 44
         return (
           <g key={f.id} data-thread={f.id} data-master={f.isMaster ? 'true' : undefined}>
             {/* El relleno va SIEMPRE opaco: la actividad se expresa con un anillo
                 terracota. Atenuando el relleno la etiqueta caía por debajo de AA. */}
-            <g transform={`translate(${f.x} ${ROW_Y}) rotate(45)`}>
+            <g transform={`translate(${f.x} ${y}) rotate(45)`}>
               <rect
                 x={-size / 2}
                 y={-size / 2}
@@ -102,10 +110,10 @@ export function LiveTopology({ nodes, running, reducedMotion, masterCoordinates 
                 opacity={activityOf(i)}
               />
             </g>
-            <text x={f.x} y={ROW_Y + 4} textAnchor="middle" fontSize={f.isMaster ? 10 : 9} fill="var(--viz-on-node)" fontFamily="var(--font-mono)">
+            <text x={f.x} y={y + 4} textAnchor="middle" fontSize={f.isMaster ? 10 : 9} fill="var(--viz-on-node)" fontFamily="var(--font-mono)">
               {f.id}
             </text>
-            <text x={f.x} y={ROW_Y + 44} textAnchor="middle" fontSize={10} fill="var(--viz-label)" fontFamily="var(--font-mono)">
+            <text x={f.x} y={labelY} textAnchor="middle" fontSize={10} fill="var(--viz-label)" fontFamily="var(--font-mono)">
               {figureLabel(f)}
               {running ? ' · activo' : ''}
             </text>

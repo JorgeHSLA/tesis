@@ -10,6 +10,8 @@ export interface ThreadFigure {
   isMaster: boolean
   /** El código separa a t0 del resto (if tid == 0 / else): t0 coordina. */
   coordinates: boolean
+  /** `head`: t0 encima del equipo (coordina, no trabaja); `team`: en la fila. */
+  tier: 'head' | 'team'
 }
 
 /** Etiqueta bajo la figura: el maestro se rotula `t0 · maestro` (+ `· coordina`). */
@@ -41,10 +43,23 @@ export function layoutFigures(
   const startX = centerX - ((n - 1) * spacing) / 2
   // Con un solo hilo no hay a quién coordinar: no se afirma.
   const coordinates = masterCoordinates && n > 1
-  return Array.from({ length: n }, (_, i) => ({
-    id: `t${i}`,
-    x: startX + i * spacing,
-    isMaster: i === 0,
-    coordinates: i === 0 && coordinates,
-  }))
+  if (!coordinates) {
+    return Array.from({ length: n }, (_, i) => ({
+      id: `t${i}`,
+      x: startX + i * spacing,
+      isMaster: i === 0,
+      coordinates: false,
+      tier: 'team' as const,
+    }))
+  }
+  // t0 coordina: no es un trabajador, así que va ENCIMA, centrado sobre el
+  // equipo t1..t{N-1}. Siguen siendo N figuras con la misma numeración.
+  const teamCount = n - 1
+  const teamSpacing = Math.min(maxSpacing, availableWidth / teamCount)
+  const teamStart = centerX - ((teamCount - 1) * teamSpacing) / 2
+  return Array.from({ length: n }, (_, i) =>
+    i === 0
+      ? { id: 't0', x: centerX, isMaster: true, coordinates: true, tier: 'head' as const }
+      : { id: `t${i}`, x: teamStart + (i - 1) * teamSpacing, isMaster: false, coordinates: false, tier: 'team' as const },
+  )
 }
