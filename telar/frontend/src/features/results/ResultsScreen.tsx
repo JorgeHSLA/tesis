@@ -168,7 +168,7 @@ export default function ResultsScreen() {
         : '—'
   const speedupHint =
     t?.kind === 'sweep' && best != null
-      ? `eficiencia ${Math.round(best.efficiency * 100)}%`
+      ? `a ${best.threads} hilos · eficiencia ${Math.round(best.efficiency * 100)}%`
       : t?.kind === 'pair'
         ? `vs ${t.reference_label}`
         : 'este ejemplo no auto-mide'

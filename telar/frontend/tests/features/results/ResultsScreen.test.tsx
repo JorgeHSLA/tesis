@@ -118,6 +118,40 @@ describe('cabecera de resultados', () => {
   })
 })
 
+describe('Speedup observado: la eficiencia nombra su N (auditoría de métricas, E1)', () => {
+  // Saturación típica: el mejor speedup es a 4 hilos y a 8 baja. La card toma
+  // el MEJOR punto y la gráfica rotula el ÚLTIMO; ambos deben decir a cuántos
+  // hilos se refiere su eficiencia, o dos números de la misma pantalla se
+  // contradicen sin explicación.
+  const base = JOB_SWEEP.parsed_timings
+  if (base?.kind !== 'sweep') throw new Error('fixture JOB_SWEEP debe ser sweep')
+  const saturado = {
+    ...JOB_SWEEP,
+    parsed_timings: {
+      ...base,
+      series: [
+        { threads: 1, time_s: 1.0, speedup: 1.0, efficiency: 1.0 },
+        { threads: 2, time_s: 0.526, speedup: 1.9, efficiency: 0.95 },
+        { threads: 4, time_s: 0.286, speedup: 3.5, efficiency: 0.88 },
+        { threads: 8, time_s: 0.3125, speedup: 3.2, efficiency: 0.4 },
+      ],
+    },
+  }
+
+  it('la card dice «a 4 hilos» junto a la eficiencia del mejor punto', async () => {
+    getJobMock.mockResolvedValue(saturado)
+    renderAt(saturado.job_id)
+    expect((await screen.findAllByText('3.5×')).length).toBeGreaterThan(0)
+    expect(screen.getByText('a 4 hilos · eficiencia 88%')).toBeInTheDocument()
+  })
+
+  it('la gráfica sigue rotulando su propio N (último punto)', async () => {
+    getJobMock.mockResolvedValue(saturado)
+    renderAt(saturado.job_id)
+    expect(await screen.findByText(/eficiencia a 8 hilos: 40%/)).toBeInTheDocument()
+  })
+})
+
 describe('descarga de la salida (CU-10.1)', () => {
   it('bloquea los botones mientras descarga (sin descargas duplicadas)', async () => {
     getJobMock.mockResolvedValue(JOB_SWEEP)
