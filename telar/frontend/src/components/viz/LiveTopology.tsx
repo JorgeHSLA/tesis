@@ -1,25 +1,29 @@
 // LiveTopology — reinterpretada (frontend-spec §5.4): misma geometría SVG del
-// handoff §5.7 (viewBox 800×280, rombos, codos, dashes), nueva semántica OpenMP:
-// - rombo superior = HILO MAESTRO (t0: en OpenMP el maestro es el hilo 0 del
-//   equipo, CU-07.5); fila inferior = t1..t{N-1}.
+// handoff §5.7 (rombos, codos, dashes), nueva semántica OpenMP:
+// - N hilos = N figuras en UNA fila (misma regla y mismo layout que el idle,
+//   lib/threadTopology). t0 es el hilo MAESTRO (rombo mayor, «t0 · maestro») y
+//   también trabaja; t1..t{N-1} son el resto del equipo. No hay hilo extra ni
+//   nodo aparte encima del equipo (CU-07.5).
 // - paquetes terracota ida (var(--viz-packet)) / marrón vuelta (var(--viz-node)) =
 //   accesos a memoria compartida / sincronizaciones — DECORATIVOS (la card
-//   lleva la sub-etiqueta `representación didáctica del fork-join`).
+//   lleva la sub-etiqueta `representación didáctica del fork-join`). Salen de
+//   t0 hacia el equipo.
 // - etiqueta bajo cada hilo: `t{i} · activo` (useSimulation) — SIN % de CPU
 //   por hilo (no existe esa medida real y no se inventa; architecture §6).
-// - SIN warn-banner fake ni nodo idle fijo del prototipo.
-// - Rombos con fill plano de tokens (los gradientes verdes del handoff se
-//   retiraron en el rediseño 2026-07).
+// - Rombos con fill plano de tokens.
 // - SMIL (<animateMotion>/<animate>) SOLO si !reducedMotion (render condicional).
 import type { DecorNode } from '../../hooks/useSimulation'
+import { figureLabel, layoutFigures, topologyAriaLabel } from '../../lib/threadTopology'
 
 const W = 800
-const H = 280
-const MASTER = { x: 400, y: 60 }
-const ROW_Y = 190
+const H = 220
+const ROW_Y = 110
+const BUS_Y = 52
+const SIZE = 36
+const MASTER_SIZE = 44
 
 export interface LiveTopologyProps {
-  /** Nodos decorativos de useSimulation (t0 maestro + t1..tN-1). */
+  /** Nodos decorativos de useSimulation (t0 maestro + t1..tN-1): N en total. */
   nodes: DecorNode[]
   /** true mientras el job corre (paquetes + etiqueta `activo`). */
   running: boolean
@@ -27,32 +31,26 @@ export interface LiveTopologyProps {
 }
 
 export function LiveTopology({ nodes, running, reducedMotion }: LiveTopologyProps) {
-  const master = nodes.find((node) => node.kind === 'master')
-  const threads = nodes.filter((node) => node.kind === 'thread')
-  const n = Math.max(1, threads.length)
-  const spacing = Math.min(100, 720 / n)
-  const startX = MASTER.x - ((n - 1) * spacing) / 2
+  const figures = layoutFigures(nodes.length, W / 2, 720, 100)
+  const master = figures[0]
   const animate = running && !reducedMotion
+  const activityOf = (index: number): number => nodes[index]?.activity ?? 0.5
 
   // Responsive sin librerías: viewBox + width 100% y SIN alto fijo, para que el
-  // alto se derive de la proporción. Con `height={H}` fijo el dibujo se encogía
-  // (preserveAspectRatio "meet") y dejaba franja vertical vacía en contenedores
-  // estrechos.
+  // alto se derive de la proporción.
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`Hilo maestro t0 y ${threads.length} hilos más del equipo (representación didáctica)`} style={{ display: 'block', height: 'auto' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={topologyAriaLabel(figures.length)} style={{ display: 'block', height: 'auto' }}>
       {/* Halo pulsante del maestro (decorativo; sin SMIL con reduced-motion) */}
-      <circle cx={MASTER.x} cy={MASTER.y} r={38} fill="var(--viz-node)" fillOpacity={0.08}>
+      <circle cx={master.x} cy={ROW_Y} r={38} fill="var(--viz-node)" fillOpacity={0.08}>
         {animate && <animate attributeName="r" values="30;42;30" dur="2s" repeatCount="indefinite" />}
       </circle>
 
-      {threads.map((t, i) => {
-        const wx = startX + i * spacing
-        const elbow = `M${MASTER.x} ${MASTER.y + 24} L${MASTER.x} 140 L${wx} 140 L${wx} ${ROW_Y - 22}`
+      {/* Fork: t0 → resto del equipo, con paquetes decorativos ida/vuelta */}
+      {figures.slice(1).map((f, i) => {
+        const elbow = `M${master.x} ${ROW_Y - MASTER_SIZE / 2 - 2} L${master.x} ${BUS_Y} L${f.x} ${BUS_Y} L${f.x} ${ROW_Y - SIZE / 2 - 4}`
         return (
-          <g key={t.id}>
+          <g key={`c${f.id}`}>
             <path d={elbow} fill="none" stroke="var(--viz-grid)" strokeWidth={1.5} strokeDasharray="3 4" />
-            {/* Paquetes ida (terracota) / vuelta (marrón): memoria compartida /
-                sincronizaciones — decorativos (§5.4). */}
             {animate && (
               <>
                 <circle r={3.5} fill="var(--viz-packet)">
@@ -71,45 +69,47 @@ export function LiveTopology({ nodes, running, reducedMotion }: LiveTopologyProp
                 </circle>
               </>
             )}
-            {/* Rombo del hilo (36×36). El relleno va SIEMPRE opaco: la
-                actividad se expresa con un anillo terracota. Atenuando el
-                relleno (opacity 0.55→1) la etiqueta `t{i}` de encima caía
-                hasta 3.1:1 en claro y 3.3:1 en oscuro — por debajo de AA. */}
-            <g transform={`translate(${wx} ${ROW_Y}) rotate(45)`}>
-              <rect x={-18} y={-18} width={36} height={36} rx={4} fill="var(--viz-node)" />
+          </g>
+        )
+      })}
+
+      {figures.map((f, i) => {
+        const size = f.isMaster ? MASTER_SIZE : SIZE
+        return (
+          <g key={f.id} data-thread={f.id} data-master={f.isMaster ? 'true' : undefined}>
+            {/* El relleno va SIEMPRE opaco: la actividad se expresa con un anillo
+                terracota. Atenuando el relleno la etiqueta caía por debajo de AA. */}
+            <g transform={`translate(${f.x} ${ROW_Y}) rotate(45)`}>
               <rect
-                x={-18}
-                y={-18}
-                width={36}
-                height={36}
-                rx={4}
+                x={-size / 2}
+                y={-size / 2}
+                width={size}
+                height={size}
+                rx={f.isMaster ? 5 : 4}
+                fill={f.isMaster ? 'var(--viz-node-master)' : 'var(--viz-node)'}
+              />
+              <rect
+                x={-size / 2}
+                y={-size / 2}
+                width={size}
+                height={size}
+                rx={f.isMaster ? 5 : 4}
                 fill="none"
                 stroke="var(--viz-packet)"
                 strokeWidth={2.5}
-                opacity={t.activity}
+                opacity={activityOf(i)}
               />
             </g>
-            <text x={wx} y={ROW_Y + 4} textAnchor="middle" fontSize={9} fill="var(--viz-on-node)" fontFamily="var(--font-mono)">
-              {t.id}
+            <text x={f.x} y={ROW_Y + 4} textAnchor="middle" fontSize={f.isMaster ? 10 : 9} fill="var(--viz-on-node)" fontFamily="var(--font-mono)">
+              {f.id}
             </text>
-            <text x={wx} y={ROW_Y + 42} textAnchor="middle" fontSize={10} fill="var(--viz-label)" fontFamily="var(--font-mono)">
-              {t.id}
+            <text x={f.x} y={ROW_Y + 44} textAnchor="middle" fontSize={10} fill="var(--viz-label)" fontFamily="var(--font-mono)">
+              {figureLabel(f)}
               {running ? ' · activo' : ''}
             </text>
           </g>
         )
       })}
-
-      {/* Rombo del hilo maestro (44×44) */}
-      <g transform={`translate(${MASTER.x} ${MASTER.y}) rotate(45)`}>
-        <rect x={-22} y={-22} width={44} height={44} rx={5} fill="var(--viz-node-master)" />
-      </g>
-      <text x={MASTER.x} y={MASTER.y + 5} textAnchor="middle" fontSize={10} fill="var(--viz-on-node)" fontFamily="var(--font-mono)">
-        {master?.id ?? 't0'}
-      </text>
-      <text x={MASTER.x} y={MASTER.y - 32} textAnchor="middle" fontSize={11} fill="var(--viz-label)" fontFamily="var(--font-mono)">
-        hilo maestro{running ? ' · activo' : ''}
-      </text>
     </svg>
   )
 }
