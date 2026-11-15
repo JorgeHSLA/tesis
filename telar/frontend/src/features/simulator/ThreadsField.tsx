@@ -9,11 +9,8 @@
 import type { ExampleDetailDto, SystemInfoDto } from '../../api/types'
 import { RangeField } from '../../components/ui/RangeField'
 
-const SWEEP_HINT =
-  'Este ejemplo barre 1, 2, 4 y 8 hilos en una sola corrida (omp_set_num_threads) y mide cada caso — ' +
-  'obtendrás la curva de speedup completa.'
-const STANDARD_HINT = 'Más hilos = más paralelismo, pero también más overhead de sincronización.'
-const OWN_CODE_NOTE = 'Si tu código llama omp_set_num_threads(), este valor no tendrá efecto.'
+const SWEEP_HINT = 'Este ejemplo prueba con 1, 2, 4 y 8 hilos y mide cada caso.'
+const OWN_CODE_NOTE = 'Si tu código llama omp_set_num_threads(), este valor no cuenta.'
 
 export interface ThreadsFieldProps {
   system: SystemInfoDto
@@ -48,7 +45,7 @@ export function ThreadsField({ system, example, edited, value, onChange }: Threa
     return (
       <div>
         <RangeField
-          label="Cantidad de hilos"
+          label="Hilos"
           valueText="1 · 2 · 4 · 8"
           min={1}
           max={8}
@@ -70,14 +67,14 @@ export function ThreadsField({ system, example, edited, value, onChange }: Threa
     const n = example.fixed_threads ?? 4
     return (
       <RangeField
-        label="Cantidad de hilos"
+        label="Hilos"
         valueText={`${n} hilos (fijo)`}
         min={1}
         max={Math.max(maxThreads, n)}
         value={n}
         disabled
         ariaValueText={`${n} hilos fijados por el código`}
-        hint={example.fixed_threads_note ?? 'Este ejemplo fija sus hilos por código.'}
+        hint={example.fixed_threads_note ?? 'Este ejemplo fija sus hilos en el código.'}
       />
     )
   }
@@ -86,14 +83,14 @@ export function ThreadsField({ system, example, edited, value, onChange }: Threa
   const showOwnNote = example == null || (edited && configurable)
   return (
     <RangeField
-      label="Cantidad de hilos"
+      label="Hilos"
       valueText={`${value} ${value === 1 ? 'hilo' : 'hilos'}`}
       min={1}
       max={maxThreads}
       value={value}
       onChange={onChange}
       ariaValueText={`${value} ${value === 1 ? 'hilo' : 'hilos'}`}
-      hint={showOwnNote ? `${STANDARD_HINT} ${OWN_CODE_NOTE}` : STANDARD_HINT}
+      hint={showOwnNote ? OWN_CODE_NOTE : undefined}
     />
   )
 }

@@ -1,4 +1,4 @@
-// SweepProgressCard — sustituye a ThreadsTable en ejemplos sweep
+// SweepProgressCard — solo en ejemplos sweep
 // (frontend-spec §6.3): lista `hilos = 1 · ✓ 0.726 s`, `hilos = 2 · …`
 // parseada EN VIVO de los logs con los regex de architecture.md §7.2.
 // Datos 100 % reales (el parsed_timings autoritativo llega del backend al final).
@@ -56,8 +56,7 @@ export function SweepProgressCard({ logs, parserId, phase }: SweepProgressCardPr
           )
         })}
         <div className="field-hint" style={{ marginTop: 6 }}>
-          Cada caso se mide tras un warm-up (la primera llamada compila). Al terminar verás la curva de speedup
-          completa en Resultados.
+          Cada caso se mide tras un calentamiento. Al terminar verás la curva de speedup en Resultados.
         </div>
       </div>
     </Card>

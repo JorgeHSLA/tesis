@@ -87,7 +87,7 @@ describe('router (smoke de las 7 rutas)', () => {
   it('/simulador → SimulatorScreen (idle)', async () => {
     render(<RouterProvider router={router} />)
     await goto('/simulador')
-    expect(await screen.findByText('Configura y lanza tu ejecución', undefined, { timeout: 8000 })).toBeInTheDocument()
+    expect(await screen.findByText('Lanza una ejecución', undefined, { timeout: 8000 })).toBeInTheDocument()
   })
 
   it('/resultados → ResultsList', async () => {

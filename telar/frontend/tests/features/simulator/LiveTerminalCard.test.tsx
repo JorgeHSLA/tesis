@@ -11,7 +11,7 @@ function logs(...entries: Array<[number, string, 'stdout' | 'stderr']>): LogLine
 }
 
 function renderCard(phase: UiPhase, lines: LogLine[] = [], truncated = false) {
-  return render(<LiveTerminalCard jobId="j1" phase={phase} logs={lines} logsTruncated={truncated} />)
+  return render(<LiveTerminalCard phase={phase} logs={lines} logsTruncated={truncated} />)
 }
 
 describe('render de líneas', () => {

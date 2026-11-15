@@ -38,16 +38,18 @@
 }
 
 .code-upload-body {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
   padding: var(--card-pad);
 }
 /* Sin `min-width: 0` el bloque de código (white-space: pre) impide que la
    columna encoja y empuja el layout fuera del viewport en móvil. */
 .code-upload-body > * { min-width: 0; }
 
-/* Dropzone: el borde ES la affordance → --border-strong (3:1). */
+/* Dropzone: ya NO lo usa el simulador (el arrastre es sobre la card), pero lo
+   reutiliza el editor de ejemplos de Autoría (admin/example/CodeDropzone).
+   El borde ES la affordance → --border-strong (3:1). */
 .dropzone {
   display: flex;
   flex-direction: column;
@@ -75,6 +77,13 @@
   margin-top: var(--sp-2);
 }
 .dz-sub { margin-top: 2px; }
+
+/* Arrastrar un .py sobre la card: el borde es la affordance → --primary. */
+.code-upload { transition: box-shadow .2s var(--ease), border-color .2s var(--ease); }
+.code-upload.drag-over {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary);
+}
 
 /* Preview/editor de código: marco terminal con tokens --term-* (§6.2). */
 .code-preview {
@@ -117,6 +126,14 @@
   tab-size: 4;
 }
 
+/* Selector de ejemplo de la cabecera: etiqueta visible + select compacto. */
+.example-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.example-picker .field-label { margin: 0; }
+
 /* Marco de la topología en idle */
 .topology-viz {
   padding: var(--sp-5) var(--sp-5) var(--sp-1);
@@ -132,7 +149,32 @@
 
 .sweep-warn { color: var(--warn); }
 
-/* Opciones avanzadas: auto-fit, sin @media puntual. */
+/* «Más detalles»: único bloque de segundo nivel del idle (cerrado por defecto). */
+.more-details {
+  margin-top: var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.more-details > summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--card-pad);
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text);
+  list-style-position: inside;
+}
+.more-details > summary .mono-small { font-weight: 400; color: var(--text-muted); }
+.more-details-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-2) var(--card-pad) var(--card-pad);
+  border-top: 1px solid var(--border);
+}
+/* Selects/inputs en auto-fit, sin @media puntual. */
 .adv-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
@@ -236,11 +278,6 @@
   display: grid;
   place-items: center;
 }
-.live-topology-foot {
-  padding: 0 var(--card-pad) 14px;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-}
 
 /* Terminal live: card sin padding, terminal sin borde/radius (§6.3) */
 .terminal-card { padding: 0; overflow: hidden; }
@@ -278,53 +315,6 @@
   color: var(--term-accent);
 }
 
-/* Tabla «Detalle por hilo» (§6.3) — CONTAINER QUERY sobre su propio ancho. */
-.threads-table {
-  padding-bottom: var(--sp-2);
-  font-variant-numeric: tabular-nums;
-  container-type: inline-size;
-}
-.threads-table-head,
-.threads-table-row {
-  display: grid;
-  grid-template-columns: minmax(90px, 140px) minmax(100px, 160px) minmax(0, 1fr) minmax(80px, 120px);
-  gap: var(--sp-3);
-  align-items: center;
-  padding: var(--sp-2) var(--card-pad);
-}
-.threads-table-head {
-  font-family: var(--font-sans);
-  font-size: var(--fs-2xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
-}
-.threads-table-row {
-  font-size: var(--fs-sm);
-  transition: background .15s var(--ease);
-}
-.threads-table-row:hover { background: var(--surface-2); }
-.threads-table-sub {
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 500;
-  opacity: .75;
-}
-/* Tarjeta estrecha: las 4 celdas se reparten en 2×2 en vez de comprimirse.
-   NO se oculta ninguna columna: es una tabla ARIA (role="table"/"columnheader"/
-   "cell") y «Estado» es el dato real de la fila —ocultarlo lo sacaría del árbol
-   de accesibilidad—. Cabecera y filas comparten plantilla, así que siguen
-   alineadas al envolver. */
-@container (max-width: 520px) {
-  .threads-table-head,
-  .threads-table-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: var(--sp-2) var(--sp-3);
-  }
-}
-
 /* SweepProgressCard — el caso «en curso» se marca con --primary (progreso) */
 .sweep-progress {
   padding: var(--sp-3) var(--card-pad) var(--sp-5);
@@ -359,6 +349,12 @@
 .sweep-check { color: var(--success-ink); font-weight: 700; }
 
 /* «Mis configuraciones» (CU-32.1). */
+.saved-configs-title {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+.saved-configs-title .card-sub { font-weight: 400; margin-left: var(--sp-2); }
 .saved-configs-form {
   display: grid;
   grid-template-columns: auto 1fr auto;

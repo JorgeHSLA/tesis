@@ -1,7 +1,7 @@
 // S7b · la vista en vivo: Detener sin conexión (08.5), «Cancelando…» y aviso
-// de fallo (08.2), hueco de salida (07.3) y tabla de hilos honesta (07.5).
+// de fallo (08.2), hueco de salida (07.3) y topología de hilos honesta (07.5).
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { jobDetail, SYSTEM_INFO } from '../../fixtures/rest'
 import { logMsg, statusMsg } from '../../fixtures/ws'
@@ -108,16 +108,19 @@ describe('salida', () => {
   })
 })
 
-describe('Detalle por hilo', () => {
-  it('pinta N filas (t0 = maestro) y marca el estado como ilustrativo', async () => {
+describe('Hilos (topología)', () => {
+  it('pinta N figuras con t0 = maestro, rotula la ilustración UNA vez y no hay tabla por hilo', async () => {
     await openRunning()
-    const table = await screen.findByRole('table', { name: 'Detalle por hilo' })
-    await waitFor(() => expect(within(table).getAllByRole('row').slice(1)).toHaveLength(4))
-    const rows = within(table).getAllByRole('row').slice(1)
-    expect(within(rows[0]).getByText('t0')).toBeInTheDocument()
-    expect(within(rows[0]).getByText('hilo maestro')).toBeInTheDocument()
-    expect(within(table).queryByText('master')).toBeNull()
-    expect(screen.getByText('actividad y estado ilustrativos')).toBeInTheDocument()
-    expect(within(table).getByRole('columnheader', { name: /Estado\s*ilustrativo/ })).toBeInTheDocument()
+    await waitFor(() => expect(document.querySelectorAll('[data-thread]')).toHaveLength(4))
+    expect(document.querySelectorAll('[data-master="true"]')).toHaveLength(1)
+    expect(screen.getAllByText(/ilustración/i)).toHaveLength(1)
+    expect(screen.queryByRole('table', { name: 'Detalle por hilo' })).toBeNull()
+  })
+
+  it('las tarjetas métricas son solo las medidas reales: tiempo, CPU y memoria', async () => {
+    await openRunning()
+    await screen.findByText('Tiempo transcurrido')
+    const labels = Array.from(document.querySelectorAll('.metric-label')).map((el) => el.textContent)
+    expect(labels).toEqual(['Tiempo transcurrido', 'CPU del contenedor', 'Memoria'])
   })
 })

@@ -43,7 +43,7 @@ describe('modo sweep', () => {
     const slider = screen.getByRole('slider') as HTMLInputElement
     expect(slider).toBeDisabled()
     expect(screen.getByText('1 · 2 · 4 · 8')).toBeInTheDocument()
-    expect(screen.getByText(/barre 1, 2, 4 y 8 hilos/i)).toBeInTheDocument()
+    expect(screen.getByText(/prueba con 1, 2, 4 y 8 hilos/i)).toBeInTheDocument()
   })
 
   it('cores<8 muestra el aviso ámbar', () => {

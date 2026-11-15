@@ -37,6 +37,36 @@ describe('CodePanel — dropzone y editor', () => {
     return { onFile, onCodeChange, input }
   }
 
+  // El arrastre vive en toda la card: solo debe reaccionar a ARCHIVOS. Arrastrar
+  // texto dentro del editor (o desde otra app) es del navegador: cancelarlo
+  // con preventDefault impediría moverlo.
+  it('soltar TEXTO sobre el editor no se cancela (el navegador lo inserta)', () => {
+    const { onFile } = setup()
+    const editor = screen.getByLabelText('Editor de código Python')
+    const notCancelled = fireEvent.drop(editor, { dataTransfer: { types: ['text/plain'], files: [] } })
+    expect(notCancelled).toBe(true)
+    expect(onFile).not.toHaveBeenCalled()
+  })
+
+  it('arrastrar texto no marca la card como destino de archivo', () => {
+    setup()
+    const editor = screen.getByLabelText('Editor de código Python')
+    fireEvent.dragOver(editor, { dataTransfer: { types: ['text/plain'], files: [] } })
+    expect(document.querySelector('.code-upload.drag-over')).toBeNull()
+  })
+
+  it('soltar un ARCHIVO .py sobre la card lo procesa y marca el destino al arrastrar', async () => {
+    const { onFile } = setup()
+    const editor = screen.getByLabelText('Editor de código Python')
+    const file = new File(['print("drag")\n'], 'arrastrado.py')
+    fireEvent.dragOver(editor, { dataTransfer: { types: ['Files'], files: [file] } })
+    expect(document.querySelector('.code-upload.drag-over')).not.toBeNull()
+    const notCancelled = fireEvent.drop(editor, { dataTransfer: { types: ['Files'], files: [file] } })
+    expect(notCancelled).toBe(false)
+    await waitFor(() => expect(onFile).toHaveBeenCalledWith({ filename: 'arrastrado.py', code: 'print("drag")\n' }))
+    expect(document.querySelector('.code-upload.drag-over')).toBeNull()
+  })
+
   it('rechaza un archivo .txt', async () => {
     const { onFile, input } = setup()
     fireEvent.change(input, { target: { files: [new File(['x'], 'notas.txt', { type: 'text/plain' })] } })

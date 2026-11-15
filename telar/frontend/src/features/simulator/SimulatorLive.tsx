@@ -1,8 +1,8 @@
 // SimulatorLive — pantalla /simulador/:jobId (frontend-spec §6.3).
 // LiveHeader (tabla fase→chip ÚNICA vía StatusChip, aria-live=polite),
-// LiveMetricsRow (4 MetricCard con datos REALES del WS), running-grid:
-// LiveNodesCard (LiveTopology decorativa §5.4) + LiveTerminalCard (datos
-// reales), y ThreadsTable / SweepProgressCard según flags del ejemplo.
+// LiveMetricsRow (3 MetricCard con datos REALES del WS: tiempo, CPU, memoria),
+// running-grid: «Hilos» (LiveTopology decorativa §5.4, rotulada una sola vez)
+// + LiveTerminalCard (datos reales), y SweepProgressCard en los ejemplos sweep.
 // Datos: useJobSocket(jobId) + GET /api/v1/jobs/{jobId} al montar (filename/
 // threads/example al llegar por URL directa; el backlog del WS cubre los logs).
 import { useEffect, useMemo, useState } from 'react'
@@ -23,21 +23,18 @@ import {
   IconCpu,
   IconMemory,
   IconStop,
-  IconZap,
 } from '../../components/icons/icons'
 import { LiveTopology } from '../../components/viz/LiveTopology'
 import { Sparkline } from '../../components/viz/Sparkline'
 import { useJobSocket } from '../../hooks/useJobSocket'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { useSimulation } from '../../hooks/useSimulation'
-import { useSystemInfo } from '../../hooks/useSystemInfo'
 import { fmtBytes, fmtTime } from '../../lib/format'
 import { isTerminalPhase, useJobStore } from '../../stores/jobStore'
 import { useProgressStore } from '../../stores/progressStore'
 import { isSweepParser } from './sweepParse'
 import { LiveTerminalCard } from './LiveTerminalCard'
 import { SweepProgressCard } from './SweepProgressCard'
-import { ThreadsTable } from './ThreadsTable'
 
 /** State opcional del navigate desde el idle (202 de POST /jobs). */
 interface LaunchState {
@@ -56,7 +53,6 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
   const location = useLocation()
   const launchState = (location.state as LaunchState | null) ?? null
   const reducedMotion = useReducedMotion()
-  const { data: system } = useSystemInfo()
 
   const { phase, logs, logsTruncated, logsGap, metrics, elapsedSec, wsError, cancelling, cancelError, cancel, retry } =
     useJobSocket(jobId)
@@ -110,7 +106,7 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
       .then((d) => {
         if (alive) setExample(d)
       })
-      .catch(() => undefined) // metadata opcional: sin ella se muestra ThreadsTable
+      .catch(() => undefined) // metadata opcional: sin ella no hay tarjeta de barrido
     return () => {
       alive = false
     }
@@ -156,14 +152,13 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
     <section className="screen simulator-screen">
       <header className="screen-head">
         <div>
-          <div className="eyebrow">Ejecución en vivo</div>
           <h2 className="display-lg">{filename}</h2>
           <div className="live-head-row">
             <span aria-live="polite">
               <StatusChip phase={phase} />
             </span>
             <span className="mono-small">
-              job #{jobId.slice(0, 8)} · {threads} hilos · OpenMP · PyOMP
+              job #{jobId.slice(0, 8)} · {threads} {threads === 1 ? 'hilo' : 'hilos'}
             </span>
           </div>
         </div>
@@ -246,8 +241,9 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
           hint={
             <>
               {/* 100% = 1 núcleo; el % es agregado (docker stats), así que con
-                  varios hilos supera 100%. Techo ≈ hilos·100 (--cpus). */}
-              <div>{`100% = 1 núcleo · tope ${Math.round(cpuMax)}%`}</div>
+                  varios hilos supera 100%. Techo ≈ hilos·100 (--cpus). La
+                  leyenda va en el tooltip: la tarjeta solo dice «de N%». */}
+              <div title="100% = 1 núcleo; con varios hilos el total supera 100%">{`de ${Math.round(cpuMax)}%`}</div>
               {cpuSeries.length >= 2 && <Sparkline data={cpuSeries} max={cpuMax} />}
             </>
           }
@@ -259,31 +255,17 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
           hint={lastMetric != null ? `de ${fmtBytes(lastMetric.mem_limit_bytes)}` : ' '}
           progressPct={lastMetric != null ? (lastMetric.mem_used_bytes / lastMetric.mem_limit_bytes) * 100 : undefined}
         />
-        <MetricCard
-          icon={<IconZap size={16} />}
-          label="Hilos"
-          value={sweep ? '1·2·4·8' : threads}
-          hint={sweep ? 'barrido 1/2/4/8' : system != null ? `de ${system.cores} núcleos` : ' '}
-        />
       </div>
 
       <div className="running-grid">
         <Card>
-          <CardHead
-            icon={<IconCluster size={16} />}
-            title="Hilos en vivo"
-            right={<span className="mono-small">{sweep ? 'hasta 8' : threads} hilos · 1 contenedor</span>}
-          />
+          {/* Único rótulo de honestidad: la topología es didáctica, no una medida. */}
+          <CardHead icon={<IconCluster size={16} />} title="Hilos" sub="ilustración, no es la medida real" />
           <div className="live-topology">
             <LiveTopology nodes={nodes} running={phase === 'running'} reducedMotion={reducedMotion} />
           </div>
-          <div className="live-topology-foot mono-small">
-            Animación ilustrativa del modelo fork-join — la salida real está a la derecha. ·{' '}
-            <span className="muted">representación didáctica del fork-join</span>
-          </div>
         </Card>
         <LiveTerminalCard
-          jobId={jobId.slice(0, 8)}
           phase={phase}
           logs={logs}
           logsTruncated={logsTruncated}
@@ -291,10 +273,8 @@ export function SimulatorLive({ jobId }: SimulatorLiveProps) {
         />
       </div>
 
-      {sweep && example != null && isSweepParser(example.parser_id) ? (
+      {sweep && example != null && isSweepParser(example.parser_id) && (
         <SweepProgressCard logs={logs} parserId={example.parser_id} phase={phase} />
-      ) : (
-        <ThreadsTable nodes={nodes} phase={phase} />
       )}
     </section>
   )

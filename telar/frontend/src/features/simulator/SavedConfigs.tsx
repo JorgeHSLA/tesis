@@ -1,12 +1,10 @@
-// SavedConfigs — card «Mis configuraciones» del simulador (CU-32.1).
+// SavedConfigs — «Mis configuraciones» del simulador (CU-32.1), dentro de
+// «Más detalles»: sin card propia ni empty state (es opcional).
 // Guarda la configuración actual SIN ejecutar (lib/savedConfigs, solo
 // localStorage) y lista las guardadas: cargar, renombrar, borrar. Cargar
 // entrega una copia; editar después no toca lo guardado.
 import { useId, useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/Button'
-import { Card, CardHead, CardPad } from '../../components/ui/Card'
-import { EmptyState } from '../../components/ui/EmptyState'
-import { IconLayers } from '../../components/icons/icons'
 import {
   deleteSavedConfig,
   listSavedConfigs,
@@ -56,9 +54,11 @@ export function SavedConfigs({ current, onLoad }: SavedConfigsProps) {
   }
 
   return (
-    <Card style={{ marginTop: 20 }} aria-label="Mis configuraciones">
-      <CardHead icon={<IconLayers size={16} />} title="Mis configuraciones" sub="se guardan solo en este equipo" />
-      <CardPad>
+    <section className="saved-configs" aria-label="Mis configuraciones">
+      <h3 className="saved-configs-title">
+        Mis configuraciones <span className="card-sub">se guardan solo en este equipo</span>
+      </h3>
+      <div>
         <form className="saved-configs-form" onSubmit={onSave}>
           <label className="field-label" htmlFor={nameId}>
             Nombre
@@ -81,12 +81,7 @@ export function SavedConfigs({ current, onLoad }: SavedConfigsProps) {
           </p>
         )}
 
-        {configs.length === 0 ? (
-          <EmptyState
-            title="Aún no has guardado configuraciones"
-            body="Guarda el código, los hilos y el timeout actuales para reutilizarlos después sin ejecutar."
-          />
-        ) : (
+        {configs.length > 0 && (
           <ul className="saved-configs-list">
             {configs.map((c) => (
               <li key={c.id} className="saved-configs-row">
@@ -140,7 +135,7 @@ export function SavedConfigs({ current, onLoad }: SavedConfigsProps) {
             ))}
           </ul>
         )}
-      </CardPad>
-    </Card>
+      </div>
+    </section>
   )
 }

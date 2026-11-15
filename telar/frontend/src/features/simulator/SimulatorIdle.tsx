@@ -1,7 +1,9 @@
 // SimulatorIdle — pantalla /simulador en reposo (frontend-spec §6.2).
-// ConfigPanel (grid 1fr 1fr): CodePanel (izq) + card «Reparto de trabajo»
-// (der: ExamplePicker + ThreadTopology + ThreadsField + fila --cpus) y card
-// «Opciones avanzadas». Lanzar → POST /api/v1/jobs con la semántica de
+// Lo esencial se ve de entrada: ejemplo + «Lanzar ejecución» (cabecera), el
+// código (izq) y los hilos (der: ThreadTopology rotulada «ilustración» +
+// ThreadsField). Todo lo técnico (timeout, entorno, núcleos/--cpus y «Mis
+// configuraciones») va en UN `<details>` «Más detalles», cerrado por defecto.
+// Lanzar → POST /api/v1/jobs con la semántica de
 // fuentes del contrato §7.1 (example_id/code según edición; threads OMITIDO
 // en fixed/sweep — §9) → navigate('/simulador/{job_id}').
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -12,7 +14,6 @@ import { createJob } from '../../api/jobs'
 import type { ExampleDetailDto, JobCreateRequestDto, ModuleDto, SystemInfoDto } from '../../api/types'
 import { Button } from '../../components/ui/Button'
 import { Card, CardHead } from '../../components/ui/Card'
-import { Chip } from '../../components/ui/Chip'
 import { ErrorState } from '../../components/ui/ErrorState'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { IconCluster, IconPlay } from '../../components/icons/icons'
@@ -20,7 +21,7 @@ import { ThreadTopology } from '../../components/viz/ThreadTopology'
 import { getPlatform } from '../../hooks/usePlatform'
 import { useSystemInfo } from '../../hooks/useSystemInfo'
 import { clampThreads, type SimConfig } from '../../lib/simConfig'
-import { AdvancedOptions } from './AdvancedOptions'
+import { AdvancedOptions, NO_TIMEOUT } from './AdvancedOptions'
 import { CodePanel, type PickedFile } from './CodePanel'
 import { ExamplePicker } from './ExamplePicker'
 import { SavedConfigs } from './SavedConfigs'
@@ -76,6 +77,8 @@ export function SimulatorIdle() {
   const [launchError, setLaunchError] = useState<ApiError | null>(null)
   const [launching, setLaunching] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
+  // «Más detalles»: cerrado salvo que un aviso lo exija (timeout sin límite).
+  const [detailsOpen, setDetailsOpen] = useState(false)
   // Avisos al recuperar una configuración (Re-ejecutar / Mis configuraciones).
   const [notices, setNotices] = useState<string[]>([])
   // Solo la última petición de ejemplo aplica su respuesta (una tardía no pisa).
@@ -170,6 +173,10 @@ export function SimulatorIdle() {
     preloadApplied.current = true
     applyConfig(preload, system)
   }, [preload, system, applyConfig])
+
+  useEffect(() => {
+    if (timeoutS === NO_TIMEOUT) setDetailsOpen(true)
+  }, [timeoutS])
 
   // CU-32.3: lo que se ve es lo que se envía — el slider nunca supera el máximo.
   useEffect(() => {
@@ -305,21 +312,11 @@ export function SimulatorIdle() {
     <section className="screen simulator-screen">
       <header className="screen-head">
         <div>
-          <div className="eyebrow">Simulador</div>
-          <h2 className="display-lg">Configura y lanza tu ejecución</h2>
-          <p className="muted" style={{ maxWidth: 640 }}>
-            Elige un ejemplo del curso o sube tu código, decide cuántos hilos y pulsa{' '}
-            <b>Lanzar ejecución</b>. Tu código corre aislado en un contenedor Docker efímero de tu máquina.
-          </p>
+          <h2 className="display-lg">Lanza una ejecución</h2>
         </div>
         <div className="screen-actions">
           {modules != null && (
-            <ExamplePicker
-              compact
-              modules={modules}
-              value={example?.id ?? ''}
-              onChange={selectExample}
-            />
+            <ExamplePicker modules={modules} value={example?.id ?? ''} onChange={selectExample} />
           )}
           <Button variant="primary" size="lg" onClick={() => void launch()} disabled={launching || code.trim() === ''}>
             <IconPlay size={14} /> {launching ? 'Lanzando…' : 'Lanzar ejecución'}
@@ -360,14 +357,13 @@ export function SimulatorIdle() {
         <CodePanel filename={filename} code={code} edited={edited} onCodeChange={setCode} onFile={onFile} />
 
         <Card>
-          <CardHead icon={<IconCluster size={16} />} title="Reparto de trabajo" />
+          {/* Único rótulo de honestidad de la topología (igual que en vivo). */}
+          <CardHead icon={<IconCluster size={16} />} title="Hilos" sub="ilustración, no es la medida real" />
           <div className="topology-viz">
             <ThreadTopology threads={displayThreads} />
           </div>
           <div className="config-fields">
-            {modules != null ? (
-              <ExamplePicker modules={modules} value={example?.id ?? ''} onChange={selectExample} />
-            ) : (
+            {modules == null && (
               <ErrorState
                 title="Ejemplos no disponibles"
                 message="No se pudieron cargar los ejemplos del curso. Puedes escribir tu código o subir un archivo."
@@ -376,32 +372,37 @@ export function SimulatorIdle() {
               />
             )}
             <ThreadsField system={system} example={example} edited={edited} value={threads} onChange={setThreads} />
-            <div className="field-row" style={{ marginTop: 4 }}>
-              <span className="mono-small">Núcleos del host</span>
-              <span style={{ display: 'flex', gap: 8 }}>
-                <Chip>{cores} disponibles</Chip>
-                <Chip tone={cpus <= cores ? 'green' : 'amber'}>--cpus = {cpus}</Chip>
-              </span>
-            </div>
-            <div className="field-hint">
-              El contenedor se limita a {cpus} CPU{cpus === 1 ? '' : 's'} (--cpus): el sistema operativo no le dará más
-              aunque el código pida más hilos.
-            </div>
           </div>
         </Card>
       </div>
 
-      <AdvancedOptions
-        system={system}
-        exampleDefaultTimeout={example?.default_timeout_s ?? null}
-        timeoutS={timeoutS}
-        onTimeoutChange={setTimeoutS}
-      />
-
-      <SavedConfigs
-        current={{ example_id: example?.id ?? null, code, filename, threads: displayThreads, timeout_s: timeoutS, edited }}
-        onLoad={(cfg) => applyConfig(cfg, system, [`Configuración «${cfg.name}» cargada.`])}
-      />
+      <details
+        className="more-details"
+        open={detailsOpen}
+        onToggle={(e) => setDetailsOpen(e.currentTarget.open)}
+      >
+        <summary>
+          <span>Más detalles</span>
+          <span className="mono-small">
+            {timeoutS === NO_TIMEOUT ? 'sin timeout' : `${timeoutS} s`} · {cores} núcleos
+          </span>
+        </summary>
+        <div className="more-details-body">
+          <AdvancedOptions
+            system={system}
+            exampleDefaultTimeout={example?.default_timeout_s ?? null}
+            timeoutS={timeoutS}
+            onTimeoutChange={setTimeoutS}
+          />
+          <p className={cpus > cores ? 'field-hint sweep-warn' : 'field-hint'}>
+            Tu equipo tiene {cores} núcleos; el contenedor usa {cpus} (--cpus).
+          </p>
+          <SavedConfigs
+            current={{ example_id: example?.id ?? null, code, filename, threads: displayThreads, timeout_s: timeoutS, edited }}
+            onLoad={(cfg) => applyConfig(cfg, system, [`Configuración «${cfg.name}» cargada.`])}
+          />
+        </div>
+      </details>
     </section>
   )
 }

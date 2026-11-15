@@ -13,7 +13,6 @@ import { useReducedMotion } from '../../hooks/useReducedMotion'
 const FOLLOW_THRESHOLD_PX = 30
 
 export interface LiveTerminalCardProps {
-  jobId: string
   phase: UiPhase
   logs: LogLine[]
   logsTruncated: boolean
@@ -41,7 +40,7 @@ function placeholderFor(phase: UiPhase): string | null {
   }
 }
 
-export function LiveTerminalCard({ jobId, phase, logs, logsTruncated, logsGap = false }: LiveTerminalCardProps) {
+export function LiveTerminalCard({ phase, logs, logsTruncated, logsGap = false }: LiveTerminalCardProps) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const [follow, setFollow] = useState(true)
   const reducedMotion = useReducedMotion()
@@ -72,7 +71,7 @@ export function LiveTerminalCard({ jobId, phase, logs, logsTruncated, logsGap = 
       <div style={{ position: 'relative', height: '100%' }}>
         <Terminal
           ref={bodyRef}
-          title={`docker logs -f telar-job-${jobId} · en vivo`}
+          title="Salida · en vivo"
           label="Salida en vivo de la ejecución"
           bodyClassName="live-terminal-body"
         >

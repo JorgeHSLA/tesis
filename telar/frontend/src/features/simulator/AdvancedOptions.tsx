@@ -1,13 +1,12 @@
-// AdvancedOptions — card «Opciones avanzadas» del idle (frontend-spec §6.2).
-// Framework fijo OpenMP·PyOMP (MPI/Slurm disabled «próximamente»); entorno
-// readonly de GET /system; timeout construido DINÁMICAMENTE desde
+// AdvancedOptions — entorno y timeout, dentro de «Más detalles» del idle
+// (frontend-spec §6.2). El framework es fijo (OpenMP · PyOMP) y ya no tiene
+// control: un select que no hace nada era ruido. Entorno readonly de
+// GET /system; timeout construido DINÁMICAMENTE desde
 // limits.max_timeout_s, que ahora es un TOPE OPCIONAL: `0` (o <= 0) significa
 // «sin límite» y es el valor por defecto del backend. Con tope (> 0) jamás se
 // ofrece un valor por encima de él (el backend responde 422).
 import { useId } from 'react'
 import type { SystemInfoDto } from '../../api/types'
-import { Card, CardHead, CardPad } from '../../components/ui/Card'
-import { IconSettings } from '../../components/icons/icons'
 
 export interface AdvancedOptionsProps {
   system: SystemInfoDto
@@ -43,7 +42,6 @@ export function buildTimeoutOptions(maxTimeoutS: number, exampleDefault: number 
 }
 
 export function AdvancedOptions({ system, exampleDefaultTimeout, timeoutS, onTimeoutChange }: AdvancedOptionsProps) {
-  const fwId = useId()
   const envId = useId()
   const toId = useId()
   const hasCap = system.limits.max_timeout_s > 0
@@ -51,49 +49,32 @@ export function AdvancedOptions({ system, exampleDefaultTimeout, timeoutS, onTim
   const runtime = `telar-runner · python ${system.versions.python} + pyomp ${system.versions.pyomp}`
 
   return (
-    <Card style={{ marginTop: 20 }}>
-      <CardHead icon={<IconSettings size={16} />} title="Opciones avanzadas" />
-      <CardPad className="adv-grid">
-        <div>
-          <label className="field-label" htmlFor={fwId}>
-            Framework
-          </label>
-          <select id={fwId} className="select" value="openmp" onChange={() => undefined}>
-            <option value="openmp">OpenMP · PyOMP</option>
-            <option value="mpi" disabled>
-              MPI (mpirun) — próximamente
+    <div className="adv-grid">
+      <div>
+        <label className="field-label" htmlFor={envId}>
+          Entorno de ejecución
+        </label>
+        <input id={envId} className="input" readOnly value={runtime} aria-readonly="true" />
+      </div>
+      <div>
+        <label className="field-label" htmlFor={toId}>
+          Timeout
+        </label>
+        <select id={toId} className="select" value={timeoutS} onChange={(e) => onTimeoutChange(Number(e.currentTarget.value))}>
+          {options.map((t) => (
+            <option key={t} value={t}>
+              {t === NO_TIMEOUT
+                ? 'Sin timeout'
+                : `${t} s${hasCap && t === system.limits.max_timeout_s ? ' (límite del backend)' : ''}`}
             </option>
-            <option value="slurm" disabled>
-              Slurm (sbatch) — próximamente
-            </option>
-          </select>
+          ))}
+        </select>
+        <div className="field-hint">
+          {timeoutS === NO_TIMEOUT
+            ? 'Sin límite de tiempo: el job corre hasta terminar. Si se queda colgado (bucle infinito) tendrás que cancelarlo a mano, y mientras tanto ocupa uno de los puestos de ejecución.'
+            : 'El timeout incluye el arranque de Python y la compilación JIT.'}
         </div>
-        <div>
-          <label className="field-label" htmlFor={envId}>
-            Entorno de ejecución
-          </label>
-          <input id={envId} className="input" readOnly value={runtime} aria-readonly="true" />
-        </div>
-        <div>
-          <label className="field-label" htmlFor={toId}>
-            Timeout
-          </label>
-          <select id={toId} className="select" value={timeoutS} onChange={(e) => onTimeoutChange(Number(e.currentTarget.value))}>
-            {options.map((t) => (
-              <option key={t} value={t}>
-                {t === NO_TIMEOUT
-                  ? 'Sin timeout'
-                  : `${t} s${hasCap && t === system.limits.max_timeout_s ? ' (límite del backend)' : ''}`}
-              </option>
-            ))}
-          </select>
-          <div className="field-hint">
-            {timeoutS === NO_TIMEOUT
-              ? 'Sin límite de tiempo: el job corre hasta terminar. Si se queda colgado (bucle infinito) tendrás que cancelarlo a mano, y mientras tanto ocupa uno de los puestos de ejecución.'
-              : 'El timeout incluye el arranque de Python y la compilación JIT.'}
-          </div>
-        </div>
-      </CardPad>
-    </Card>
+      </div>
+    </div>
   )
 }
