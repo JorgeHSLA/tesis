@@ -5,6 +5,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import path from 'node:path'
 import type { ComposeService, DockerActionResult, DockerStatusResult } from '../types/telar-api'
+import { DOCKER_STARTING_MESSAGE, isDaemonUnreachable, isDockerDesktopStarting } from './docker-desktop'
 import {
   DEV_SERVER_ORIGIN,
   EXEC_MAX_BUFFER,
@@ -167,7 +168,9 @@ export async function runDockerAction(
     if (action === 'compose:ps') return { ok: true, services: parseComposePs(stdout) }
     return { ok: true }
   } catch (err) {
-    const msg = sanitizeError(err)
+    const raw = sanitizeError(err)
+    // Docker Desktop se está abriendo (lo hace Telar): no es un fallo, es una espera.
+    const msg = isDockerDesktopStarting() && isDaemonUnreachable(raw) ? DOCKER_STARTING_MESSAGE : raw
     return action === 'compose:ps'
       ? { ok: false, services: [], error: msg }
       : { ok: false, error: msg }

@@ -13,7 +13,7 @@ const CSP = [
   // detect preamble' y React no monta. Se relaja SOLO en dev (DEV_SERVER_URL).
   `script-src 'self'` + (DEV_SERVER_URL ? " 'unsafe-inline' 'unsafe-eval'" : ''),
   "style-src 'self' 'unsafe-inline'", // estilos inline puntuales (SVG/anchos dinámicos)
-  "img-src 'self' data:",
+  "img-src 'self' data: https://storage.googleapis.com", // imágenes de las lecciones (bucket de Telar)
   // @fontsource = self-hosted, sin red. `data:` es necesario porque Vite
   // inlinea los subsets pequeños de fuentes (< assetsInlineLimit) como
   // data:font/woff2 en el CSS; sin él la CSP los bloquea en file://.
@@ -106,7 +106,32 @@ export function cabecerasYouTube(
   return { ...headers, Referer: REFERER_YOUTUBE }
 }
 
-/** CSP + Referer de YouTube + denegación de todos los permisos (§7.1). */
+/**
+ * ¿Se concede este permiso del navegador? Solo UNO, y solo a quien corresponde:
+ * `fullscreen` para el reproductor de YouTube (y para la propia app). Todo lo
+ * demás (cámara, micrófono, geolocalización, notificaciones…) sigue denegado.
+ *
+ * Por qué (2026-11-16): el handler antiguo devolvía `false` para TODO, y la
+ * pantalla completa del video llega aquí como un permiso `fullscreen`. En el
+ * navegador (modo Autoría) funcionaba; en la app instalada el botón no hacía
+ * nada — lo vieron tres estudiantes en las pruebas de usabilidad.
+ */
+export function permisoPermitido(
+  permission: string,
+  requestingUrl: string,
+  devOrigin: string | null = APP_DEV_ORIGIN,
+): boolean {
+  if (permission !== 'fullscreen') return false
+  if (esHostYouTube(requestingUrl)) return true
+  try {
+    const u = new URL(requestingUrl)
+    return u.protocol === 'file:' || (devOrigin !== null && u.origin === devOrigin)
+  } catch {
+    return false
+  }
+}
+
+/** CSP + Referer de YouTube + denegación de permisos salvo pantalla completa (§7.1). */
 export function hardenSession(): void {
   session.defaultSession.webRequest.onHeadersReceived((details, cb) => {
     if (!debeAplicarCsp(details)) return cb({})
@@ -116,8 +141,11 @@ export function hardenSession(): void {
     { urls: YOUTUBE_URL_PATTERNS },
     (details, cb) => cb({ requestHeaders: cabecerasYouTube(details.url, details.requestHeaders) }),
   )
-  // Denegar TODOS los permisos del navegador (cámara, geoloc, notificaciones…):
-  session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false))
+  // Denegar los permisos del navegador (cámara, geoloc, notificaciones…) salvo
+  // la pantalla completa del reproductor (ver permisoPermitido):
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) =>
+    cb(permisoPermitido(permission, details.requestingUrl)),
+  )
 }
 
 const ALLOWED_NAV_ORIGINS = new Set([

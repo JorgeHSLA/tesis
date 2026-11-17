@@ -3,6 +3,7 @@
 // endurecidas, hardenSession + registerDockerIpc + attachNavigationGuards.
 import { app, BrowserWindow, Menu } from 'electron'
 import path from 'node:path'
+import { ensureDockerDesktop, stopDockerDesktopIfStartedByTelar } from './docker-desktop'
 import { initFreshInstall, markResetDone } from './fresh-install'
 import { registerDockerIpc, runDockerAction, scheduleFreshReset } from './ipc-docker'
 import { attachLoadFailureHandling } from './load-failure'
@@ -107,6 +108,10 @@ if (!gotTheLock) {
     hardenSession() // CSP + permission handler, §7.1
     registerDockerIpc() // §5.2/§5.3
     createWindow()
+    // Abre Docker Desktop si no estaba corriendo (solo app instalada; ver
+    // docker-desktop.ts). Sin await: la ventana no espera, y el rail muestra
+    // «abriendo Docker Desktop…» mientras tanto.
+    if (app.isPackaged) void ensureDockerDesktop()
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
@@ -138,6 +143,8 @@ app.on('before-quit', (event) => {
       // Timeout corto: si Docker no responde, la app se cierra igual en vez de
       // quedarse sin ventana y sin poder salir.
       await runDockerAction('compose:stop', SHUTDOWN_TIMEOUT_MS)
+      // Y, solo si Telar fue quien abrió Docker Desktop, se cierra también.
+      await stopDockerDesktopIfStartedByTelar()
     } catch {
       // Nunca impedir el cierre por un fallo al parar los servicios.
     } finally {

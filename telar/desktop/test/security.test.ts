@@ -96,3 +96,29 @@ test('Referer: no muta el objeto de entrada', () => {
 test('Referer: el valor es la página pública del proyecto (https)', () => {
   assert.match(REFERER_YOUTUBE, /^https:\/\/telar-javeriana\.github\.io\/$/)
 })
+
+// ── Permisos del navegador: solo `fullscreen`, y solo para YouTube/la app ─────
+import { permisoPermitido } from '../src/security'
+
+test('Permisos: pantalla completa del reproductor de YouTube → concedida', () => {
+  assert.equal(permisoPermitido('fullscreen', 'https://www.youtube-nocookie.com/embed/st2ONJO-5WM?rel=0', null), true)
+})
+
+test('Permisos: pantalla completa de la propia app (file://) → concedida', () => {
+  assert.equal(permisoPermitido('fullscreen', 'file:///opt/Telar/resources/app-frontend/index.html', null), true)
+})
+
+test('Permisos: pantalla completa de un sitio cualquiera → denegada', () => {
+  assert.equal(permisoPermitido('fullscreen', 'https://evil.example/embed/x', null), false)
+  assert.equal(permisoPermitido('fullscreen', 'https://youtube.com.evil.example/x', null), false)
+})
+
+test('Permisos: cualquier otro permiso → denegado, aunque venga de YouTube', () => {
+  for (const p of ['media', 'geolocation', 'notifications', 'clipboard-read', 'openExternal', 'pointerLock']) {
+    assert.equal(permisoPermitido(p, 'https://www.youtube-nocookie.com/embed/st2ONJO-5WM', null), false, p)
+  }
+})
+
+test('Permisos: URL inválida → denegada', () => {
+  assert.equal(permisoPermitido('fullscreen', 'no es una url', null), false)
+})
