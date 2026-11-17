@@ -21,6 +21,7 @@ uvicorn app.main:app            # arranque local (usa TELAR_DB_PATH / TELAR_JOBS
 - `app/services/output_parser.py` — 6 parsers de stdout (los ejemplos que auto-miden) + speedup/eficiencia.
 - `app/routers/*` — jobs, ws, examples, lessons, quizzes, progress, modules, system.
 - `app/schemas.py` — **DTOs pydantic CONGELADOS** (transcripción de api-contract.md). No editar para "arreglar" el front; el front se adapta.
+- `app/services/image_upload.py` — **solo admin** (el `Dockerfile` lo borra de la imagen del estudiante): valida imágenes de las lecciones por su contenido (bytes mágicos y dimensiones, ≤2 MB, ≤4096 px, sin SVG) y calcula su ruta `imagenes/<sha256>.<ext>`. Las sube `POST /api/v1/admin/images`. `markdown_validator` solo admite imágenes de esa forma de URL (bucket de Telar).
 - `app/services/course_sync.py` — `POST /api/v1/catalog/sync`: descarga del catálogo los módulos que falten. La app no trae contenido propio (desde la 1.0.10).
 - `tests/fixtures/content/` — el antiguo contenido base (m1–m8), ahora solo datos de prueba y entrada de `app.tools.seed_content` en desarrollo.
 
