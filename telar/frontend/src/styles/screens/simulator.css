@@ -671,3 +671,8 @@
 @media (min-width: 1024px) and (min-height: 600px) {
   .running-grid > .card:not(.terminal-card) { overflow: visible; }
 }
+
+/* Nada que se salga por un lado puede crear scroll en la pantalla del simulador. */
+@media (min-width: 1024px) and (min-height: 600px) {
+  .simulator-screen { overflow-x: hidden; }
+}

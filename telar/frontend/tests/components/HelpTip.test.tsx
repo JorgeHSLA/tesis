@@ -1,7 +1,7 @@
 // HelpTip — el «?» que explica un dato: botón real, se abre con clic/teclado, se
 // cierra con Escape o clic fuera, y devuelve el foco.
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HelpTip } from '@/components/ui/HelpTip'
 import { Help } from '@/components/ui/helpTexts'
 
@@ -79,5 +79,38 @@ describe('textos de ayuda de Simulador y Resultados', () => {
     render(<>{Help.speedup}</>)
     fireEvent.click(screen.getByRole('button'))
     expect(screen.getByRole('note')).toHaveTextContent('2× = tardó la mitad')
+  })
+})
+
+describe('HelpTip · cabe en la ventana', () => {
+  const rect = (o: Partial<DOMRect>): DOMRect => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON: () => ({}), ...o }) as DOMRect
+
+  function conRects(pop: DOMRect, btn: DOMRect) {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      return this.getAttribute('role') === 'note' ? pop : btn
+    })
+  }
+  afterEach(() => vi.restoreAllMocks())
+
+  it('si se sale por la derecha, se abre hacia la izquierda (si no, creaba scroll)', () => {
+    conRects(rect({ left: 1465, right: 1785, width: 320, top: 178, bottom: 300, height: 122 }), rect({ left: 1450, right: 1468, width: 18, top: 150, bottom: 168, height: 18 }))
+    render(<HelpTip topic="x">texto</HelpTip>)
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda: x' }))
+    expect(screen.getByRole('note')).toHaveClass('is-end')
+  })
+
+  it('si se sale por abajo, se abre hacia arriba', () => {
+    conRects(rect({ left: 100, right: 420, width: 320, top: 600, bottom: 800, height: 200 }), rect({ left: 90, right: 108, width: 18, top: 570, bottom: 588, height: 18 }))
+    render(<HelpTip topic="x">texto</HelpTip>)
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda: x' }))
+    expect(screen.getByRole('note')).toHaveClass('is-up')
+  })
+
+  it('si cabe, queda donde está (abajo y a la derecha)', () => {
+    conRects(rect({ left: 100, right: 420, width: 320, top: 200, bottom: 300, height: 100 }), rect({ left: 90, right: 108, width: 18, top: 170, bottom: 188, height: 18 }))
+    render(<HelpTip topic="x">texto</HelpTip>)
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda: x' }))
+    expect(screen.getByRole('note')).not.toHaveClass('is-end')
+    expect(screen.getByRole('note')).not.toHaveClass('is-up')
   })
 })
