@@ -193,6 +193,13 @@ class CatalogWritePort(Protocol):
         """
         ...
 
+    async def upload_image(
+        self, object_path: str, data: bytes, content_type: str
+    ) -> ObjetoEscrito:
+        """Sube una imagen de lección. IDEMPOTENTE: el nombre es el hash del
+        contenido, así que si ya existe es la misma imagen y no es un error."""
+        ...
+
     async def read_index(self) -> tuple[bytes, int | None]:
         """``(bytes, generation)``. ``(b"", None)`` si el índice aún no existe."""
         ...
@@ -272,6 +279,16 @@ class LocalCatalogPublisher:
         destino.write_bytes(data)
         return ObjetoEscrito(object_path, None, len(data))
 
+    async def upload_image(
+        self, object_path: str, data: bytes, content_type: str
+    ) -> ObjetoEscrito:
+        del content_type  # un fichero no lo guarda
+        destino = self._destino(object_path)
+        if not destino.exists():  # mismo hash = mismo contenido: no se reescribe
+            destino.parent.mkdir(parents=True, exist_ok=True)
+            destino.write_bytes(data)
+        return ObjetoEscrito(object_path, None, len(data))
+
     async def read_index(self) -> tuple[bytes, int | None]:
         destino = self._destino(self._index)
         if not destino.exists():
@@ -348,6 +365,35 @@ class GcsCatalogPublisher:
                 )
             except gexc.PreconditionFailed as exc:
                 raise BundleAlreadyPublished(object_path) from exc
+            except gexc.Forbidden as exc:
+                raise PublisherUnavailable("forbidden", forbidden=True) from exc
+            except gexc.GoogleAPICallError as exc:
+                raise PublisherUnavailable("server") from exc
+            return blob.generation
+
+        generation = await asyncio.to_thread(_subir)
+        return ObjetoEscrito(object_path, generation, len(data))
+
+    async def upload_image(
+        self, object_path: str, data: bytes, content_type: str
+    ) -> ObjetoEscrito:
+        import asyncio  # noqa: PLC0415
+
+        def _subir() -> int | None:
+            from google.api_core import exceptions as gexc  # noqa: PLC0415
+
+            blob = self._bucket().blob(object_path)
+            # El nombre es el hash del contenido: la URL nunca cambia de imagen,
+            # así que se puede cachear para siempre (igual que un bundle).
+            blob.cache_control = CACHE_CONTROL_BUNDLE
+            blob.metadata = {"telar-sha256": _sha_de(data)}
+            try:
+                blob.upload_from_string(
+                    data, content_type=content_type, if_generation_match=0
+                )
+            except gexc.PreconditionFailed:
+                # Ya estaba subida (mismo hash = mismos bytes): éxito idempotente.
+                return None
             except gexc.Forbidden as exc:
                 raise PublisherUnavailable("forbidden", forbidden=True) from exc
             except gexc.GoogleAPICallError as exc:

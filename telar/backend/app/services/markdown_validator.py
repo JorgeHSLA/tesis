@@ -35,6 +35,16 @@ _HTML_TAG_RE = re.compile(r"</?[a-zA-Z][^>]*>")
 _INLINE_CODE_RE = re.compile(r"`[^`]*`")
 #: Enlaces markdown ``[texto](url)`` (misma forma que ``markdown.ts``).
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
+#: Imágenes markdown ``![texto](url)``.
+_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)\)")
+#: ÚNICA forma de URL de imagen admitida (espejo de ``markdown.ts``): el objeto
+#: ``imagenes/<hash>.<ext>`` del bucket de Telar. Sin esto, el contenido (que
+#: viaja por el catálogo remoto) podría apuntar a un host cualquiera y espiar a
+#: quien lee la lección con una imagen-baliza.
+_IMAGE_URL_RE = re.compile(
+    r"^https://storage\.googleapis\.com/[a-z0-9][a-z0-9._-]{1,220}"
+    r"/imagenes/[0-9a-f]{32}\.(?:png|jpg|gif|webp)$"
+)
 #: Esquemas de href admitidos (espejo de ``safeHref``): http(s), ``#`` o relativo.
 _SAFE_HREF_RE = re.compile(r"^(https?://|#|\.?/)", re.IGNORECASE)
 
@@ -98,6 +108,16 @@ def validate(md: str) -> list[dict]:
             issues.append(
                 _issue(index, "HTML crudo no permitido en el subset de markdown")
             )
+
+        for _alt, url in _IMAGE_RE.findall(without_code):
+            if not _IMAGE_URL_RE.match(url.strip()):
+                issues.append(
+                    _issue(
+                        index,
+                        f"imagen con una URL no permitida: {url!r} "
+                        "(usa «Insertar imagen» en el editor: sube la imagen a la nube de Telar)",
+                    )
+                )
 
         for _text, url in _LINK_RE.findall(without_code):
             if not _SAFE_HREF_RE.match(url.strip()):

@@ -43,7 +43,8 @@ RUN if [ "$TELAR_ADMIN_BUILD" != "1" ]; then \
       rm -f app/routers/admin.py app/routers/admin_deps.py \
             app/routers/admin_catalog.py \
             app/services/catalog_publisher.py app/services/catalog_publish.py \
-            app/services/catalog_import.py app/schemas/admin_catalog.py ; \
+            app/services/catalog_import.py app/services/image_upload.py \
+            app/schemas/admin_catalog.py ; \
     fi
 
 EXPOSE 8000

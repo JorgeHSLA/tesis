@@ -35,7 +35,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Annotated
 
-from fastapi import APIRouter, Depends, Path, Query, Request
+from fastapi import APIRouter, Depends, Path, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 from app.config import Settings, get_settings
@@ -58,6 +58,7 @@ from app.services import (
     catalog_import,
     catalog_publish,
     catalog_retirar,
+    image_upload,
     module_installer,
 )
 from app.services.bundle_guard import BundleGuardError, parse_bundle
@@ -486,6 +487,87 @@ async def admin_publish_module(
             resultado = resultado.model_copy(update={"local_state_updated": False})
 
     return envelope_ok(resultado, status_code=200 if body.dry_run else 201)
+
+
+# ═══════════════ POST /admin/images — imágenes de las lecciones ═══════════════
+
+_IMAGE_CHUNK = 64 * 1024
+
+
+@router.post("/images", status_code=201)
+async def admin_upload_image(request: Request, file: UploadFile) -> JSONResponse:
+    """Sube una imagen al bucket y devuelve su URL para pegarla en la lección.
+
+    Las imágenes viven en la nube junto al catálogo (``imagenes/<hash>.<ext>``),
+    no dentro del módulo; el texto de la lección solo lleva el enlace, igual que
+    el video es un enlace a YouTube. Reglas (todas en ``services/image_upload``):
+    se valida el CONTENIDO (bytes mágicos y dimensiones, no la extensión),
+    máximo 2 MB y 4096 px por lado, sin SVG.
+
+    Sube a la nube AL MOMENTO, no al publicar el módulo: la URL es la del
+    contenido (hash), así que es segura de insertar de inmediato y subir la misma
+    imagen dos veces no duplica nada. Requiere la misma credencial que publicar.
+    """
+    settings = _settings(request)
+    credencial = inspeccionar_credencial(settings)
+    if not credencial.usable:
+        raise ApiException(
+            "CATALOG_CREDENTIALS_INVALID",
+            "No hay una credencial de escritura utilizable para subir imágenes.",
+            status_code=403,
+            details={"reason": credencial.reason},
+        )
+
+    # Lectura por trozos con tope: un archivo enorme no se carga entero en memoria.
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await file.read(_IMAGE_CHUNK):
+        total += len(chunk)
+        if total > image_upload.MAX_IMAGE_BYTES:
+            break
+        chunks.append(chunk)
+    if total > image_upload.MAX_IMAGE_BYTES:
+        raise ApiException(
+            "INVALID_IMAGE",
+            f"La imagen supera el máximo de {image_upload.MAX_IMAGE_BYTES // (1024 * 1024)} MB. "
+            "Redúcela o expórtala más comprimida.",
+            status_code=413,
+        )
+    data = b"".join(chunks)
+
+    try:
+        info = image_upload.inspect_image(data)
+    except image_upload.ImageRejected as exc:
+        raise ApiException("INVALID_IMAGE", str(exc), status_code=422) from exc
+
+    object_path = image_upload.object_path_for(data, info.ext)
+    publisher = build_publisher(settings, credencial)
+    try:
+        await publisher.upload_image(object_path, data, info.content_type)
+    except PublisherUnavailable as exc:
+        raise ApiException(
+            "CATALOG_UNAVAILABLE",
+            "No se pudo subir la imagen al bucket. Revisa la conexión y los permisos de la clave.",
+            status_code=503,
+            details={"reason": "forbidden" if exc.forbidden else "unavailable"},
+        ) from exc
+    finally:
+        await publisher.aclose()
+
+    # El bucket va en la URL pública; con el driver local (E2E) puede no haber, y
+    # se usa un nombre fijo: la URL sigue cumpliendo el patrón del markdown.
+    url = image_upload.public_url(settings.catalog_bucket or "telar-local", object_path)
+    return envelope_ok(
+        {
+            "url": url,
+            "object_path": object_path,
+            "bytes": len(data),
+            "width": info.width,
+            "height": info.height,
+            "content_type": info.content_type,
+        },
+        status_code=201,
+    )
 
 
 # ═══════════ §11.8.4 DELETE /admin/modules/{id}/publish (CU-41.1) ════════════
