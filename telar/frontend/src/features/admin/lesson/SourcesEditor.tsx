@@ -6,11 +6,8 @@
 // vuelven a escribir en el markdown, así que nada cambia en lo ya publicado.
 import { Button } from '../../../components/ui/Button'
 import { IconPlus } from '../../../components/icons/icons'
-import { LessonSources } from '../../learn/LessonSources'
-import { splitSources } from '../../../lib/lessonSources'
-import { joinSources } from '../../../lib/lessonSources'
 import { AdminHelp } from './adminHelp'
-import { blankSourceRow, serializeSourceRows, sourceRowIssue, type SourceRow } from './sourceRows'
+import { blankSourceRow, sourceRowIssue, type SourceRow } from './sourceRows'
 
 export interface SourcesEditorProps {
   rows: readonly SourceRow[]
@@ -31,9 +28,6 @@ export function SourcesEditor({ rows, onChange, error }: SourcesEditorProps) {
     ;[next[index], next[to]] = [next[to], next[index]]
     onChange(next)
   }
-
-  // Vista previa: la MISMA que verá el estudiante (se pasa por el mismo analizador).
-  const preview = splitSources(joinSources('', serializeSourceRows(rows))).sources
 
   return (
     <section className="sources-editor" aria-label="Fuentes de la lección">
@@ -139,13 +133,6 @@ export function SourcesEditor({ rows, onChange, error }: SourcesEditorProps) {
       {error != null && (
         <div className="field-hint error" role="alert">
           {error}
-        </div>
-      )}
-
-      {preview.length > 0 && (
-        <div className="sources-preview">
-          <div className="field-label">Así las verá el estudiante</div>
-          <LessonSources sources={preview} />
         </div>
       )}
     </section>
