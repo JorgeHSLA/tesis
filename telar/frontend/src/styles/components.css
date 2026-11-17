@@ -208,31 +208,30 @@
 }
 .nav-item.active .nav-icon { color: var(--primary-ink); }
 
-/* Tooltip del rail (::after con attr(data-tip)) — SUPERFICIE INVERSA: marrón
-   oscuro en claro, arena claro en oscuro. Con --sand-900 fijo el tooltip
-   coincidía exactamente con --surface-2 del tema oscuro y no se veía. */
-.nav-item::after {
-  content: attr(data-tip);
-  position: absolute;
-  left: calc(100% + 10px);
-  top: 50%;
-  transform: translateY(-50%) translateX(-4px);
+/* Rótulo flotante del rail plegado — lo pinta RailTooltip.tsx en un PORTAL
+   (position: fixed en <body>). Antes era un ::after de cada .nav-item, pero
+   .sidebar-nav hace scroll y recortaba el rótulo: nunca se veía. SUPERFICIE
+   INVERSA: marrón oscuro en claro, arena claro en oscuro. */
+.rail-tip {
+  position: fixed;
+  transform: translateY(-50%);
   background: var(--inverse-surface);
   color: var(--on-inverse-surface);
   padding: 5px 9px;
   border-radius: var(--r-sm);
   font-size: var(--fs-xs);
   white-space: nowrap;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity .15s var(--ease), transform .15s var(--ease);
   z-index: var(--z-tooltip);
   box-shadow: var(--elevation-3);
+  animation: rail-tip-in .14s var(--ease);
 }
-.nav-item:hover::after,
-.nav-item:focus-visible::after {
-  opacity: 1;
-  transform: translateY(-50%) translateX(0);
+@keyframes rail-tip-in {
+  from { opacity: 0; transform: translateY(-50%) translateX(-4px); }
+  to { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail-tip { animation: none; }
 }
 
 .sidebar-footer {
@@ -269,33 +268,30 @@
 .runtime-trigger:hover { background: var(--surface-2); }
 /* El anillo de foco lo pone la regla global `:focus-visible` de base.css. */
 
-/* Tooltip de ESTADO al pasar el ratón — mismo patrón que .nav-item::after.
+/* El tooltip de ESTADO al pasar el ratón también lo pinta RailTooltip (portal).
    Solo informa; las acciones viven en el panel, que se abre con clic. */
-.runtime-trigger::after {
-  content: attr(data-tip);
-  position: absolute;
-  left: calc(100% + 10px);
-  top: 50%;
-  transform: translateY(-50%) translateX(-4px);
-  background: var(--inverse-surface);
-  color: var(--on-inverse-surface);
-  padding: 5px 9px;
-  border-radius: var(--r-sm);
-  font-size: var(--fs-xs);
+
+/* Menú EXPANDIDO: el pie deja de ser un punto suelto centrado y pasa a una fila
+   «punto + texto de estado», alineada con los iconos de arriba. */
+.sidebar[data-expanded="true"] .sidebar-footer {
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-inline: 6px;
+}
+.sidebar[data-expanded="true"] .sidebar-footer-text {
+  display: block;
+  min-width: 0;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.sidebar[data-expanded="true"] .sidebar-footer-text > div {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .15s var(--ease), transform .15s var(--ease);
-  z-index: var(--z-tooltip);
-  box-shadow: var(--elevation-3);
 }
-.runtime-trigger:hover::after,
-.runtime-trigger:focus-visible::after {
-  opacity: 1;
-  transform: translateY(-50%) translateX(0);
-}
-/* Con el panel abierto el tooltip sobra: repetiría lo que ya se lee dentro. */
-.runtime-trigger[aria-expanded='true']::after { content: none; }
+.sidebar[data-expanded="true"] .sidebar-footer-text > div:last-child { color: var(--text-muted); }
 
 /* ── Panel de runtime ───────────────────────────────────────────────────────
    Vive en un PORTAL (document.body) porque `.sidebar` tiene overflow:hidden y
@@ -1007,3 +1003,313 @@ input[type="range"]:disabled { opacity: .55; cursor: not-allowed; }
 .markdown table { border-collapse: collapse; font-size: var(--fs-sm); }
 .markdown th, .markdown td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
 .markdown th { background: var(--surface-2); font-weight: 600; }
+
+/* ── Barra de carga del runtime (panel y pie del rail) ──────────────────────
+   Indeterminada: el proceso principal ejecuta una cadena de pasos de Docker sin
+   reportar porcentaje, así que se muestra «trabajando» + cronómetro en lugar de
+   inventar un avance. */
+.runtime-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: 2px;
+}
+.runtime-progress-track {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.runtime-progress-bar,
+.runtime-footer-bar::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  border-radius: inherit;
+  background: var(--warn);
+  animation: runtime-bar 1.3s var(--ease) infinite;
+}
+.runtime-progress-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+@keyframes runtime-bar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(270%); }
+}
+
+/* Mini barra bajo el punto de estado: visible sin abrir el panel. */
+.sidebar-footer { position: relative; }
+.runtime-footer-bar {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 4px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+  pointer-events: none;
+}
+.runtime-footer-bar::before { content: ''; }
+
+@media (prefers-reduced-motion: reduce) {
+  .runtime-progress-bar,
+  .runtime-footer-bar::before { animation: none; width: 100%; opacity: .55; }
+}
+
+/* Error de Docker en lenguaje llano (lib/dockerErrors.ts). */
+.runtime-panel-error {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--sp-2);
+  border: 1px solid var(--danger-soft);
+  border-radius: var(--r-sm);
+  background: var(--danger-soft);
+  color: var(--text);
+  line-height: 1.4;
+}
+.runtime-panel-error-title { font-weight: 600; }
+.runtime-panel-error-raw summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.runtime-panel-error-raw pre {
+  margin: 4px 0 0;
+  max-height: 120px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Buscador global (components/shell/GlobalSearch.tsx) ─────────────────── */
+.gsearch-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 60);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh var(--sp-4) var(--sp-4);
+  background: color-mix(in srgb, var(--inverse-surface) 45%, transparent);
+}
+.gsearch {
+  width: min(640px, 100%);
+  max-height: min(560px, 76vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-overlay, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg, 12px);
+  box-shadow: var(--elevation-3);
+  overflow: hidden;
+}
+.gsearch-field {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.gsearch-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-md, 15px);
+}
+.gsearch-input::placeholder { color: var(--text-muted); }
+.gsearch-kbd {
+  font: inherit;
+  font-size: var(--fs-xs);
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+}
+.gsearch-results {
+  overflow-y: auto;
+  padding: var(--sp-2);
+}
+.gsearch-group {
+  padding: var(--sp-2) var(--sp-3) 4px;
+  font-size: var(--fs-xs);
+  letter-spacing: .02em;
+  color: var(--text-muted);
+}
+.gsearch-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 8px var(--sp-3);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.gsearch-item.is-active { background: var(--surface-2); }
+.gsearch-item-icon { color: var(--text-muted); display: grid; place-items: center; }
+.gsearch-item.is-active .gsearch-item-icon { color: var(--primary-ink); }
+.gsearch-item-text { display: flex; flex-direction: column; min-width: 0; }
+.gsearch-item-title {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gsearch-item-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gsearch-note {
+  padding: var(--sp-4);
+  text-align: center;
+  color: var(--text-muted);
+}
+.gsearch-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* ── Imágenes de las lecciones (lib/markdown.ts) ─────────────────────────── */
+.markdown .md-figure {
+  margin: var(--sp-4) 0;
+  text-align: center;
+}
+.markdown .md-img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.markdown p .md-img { vertical-align: middle; }
+.markdown .md-figure figcaption {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.markdown .md-img-missing,
+.markdown .md-img-blocked {
+  display: inline-block;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px dashed var(--border-strong, var(--border));
+  border-radius: var(--r-md);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* ── HelpTip: el «?» que explica un dato (components/ui/HelpTip.tsx) ──────── */
+.help-tip { position: relative; display: inline-flex; vertical-align: middle; margin-left: 6px; }
+.help-tip-btn {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color .15s var(--ease), color .15s var(--ease);
+}
+.help-tip-btn:hover,
+.help-tip-btn[aria-expanded='true'] { background: var(--primary-soft, var(--surface-2)); color: var(--primary-ink, var(--text)); }
+.help-tip-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: var(--z-tooltip);
+  width: max-content;
+  max-width: min(320px, 78vw);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--sp-3);
+  background: var(--surface-overlay, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--elevation-3);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+  text-align: left;
+  white-space: normal;
+}
+.help-tip-pop.is-end { left: auto; right: 0; }
+.help-tip-title { font-weight: 600; }
+.help-tip-body { color: var(--text-muted); }
+.help-tip-body b { color: var(--text); }
+.metric-help { margin-left: 2px; }
+.card-head .help-tip, .card-head .help-tip-pop { text-transform: none; }
+
+/* Tabla de valores bajo la gráfica de speedup + frase de lectura de las barras. */
+.speedup-table {
+  width: 100%;
+  margin-top: var(--sp-3);
+  border-collapse: collapse;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+.speedup-table caption {
+  caption-side: top;
+  text-align: left;
+  padding-bottom: 4px;
+  color: var(--text-muted);
+}
+.speedup-table th,
+.speedup-table td {
+  padding: 5px var(--sp-2);
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+.speedup-table thead th { color: var(--text-muted); font-weight: 600; }
+.speedup-table tbody th { text-align: left; font-weight: 600; color: var(--text); }
+.chart-takeaway { margin: var(--sp-3) 0 0; font-size: var(--fs-sm); color: var(--text); }
+.replay-help { display: inline-flex; }
+
+/* ── Flechas de historial (atrás / adelante) en la barra superior ─────────── */
+.topbar-nav { display: inline-flex; gap: 2px; }
+.topbar-nav-btn {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color .15s var(--ease);
+}
+.topbar-nav-btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--border); }
+.topbar-nav-btn:disabled { color: var(--text-muted); opacity: .45; cursor: not-allowed; }
+
+/* El «?» de una cabecera de tarjeta está al borde DERECHO: su recuadro se abre hacia la izquierda. */
+.card-head .help-tip-pop { left: auto; right: 0; }

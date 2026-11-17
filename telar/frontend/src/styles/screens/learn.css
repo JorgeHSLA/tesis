@@ -116,12 +116,25 @@
 }
 .lesson-media-minibtn:hover { background: var(--surface-2, var(--bg)); color: var(--text); }
 .lesson-media-minibtn:focus-visible { outline: 2px solid var(--primary, currentColor); outline-offset: 1px; }
+/* Entrada del mini: sale desde su esquina (antes aparecía de golpe, apenas 8px y
+   180 ms — «sale abruptamente», pruebas de usabilidad). Con movimiento
+   reducido no hay animación. */
 @media (prefers-reduced-motion: no-preference) {
-  .lesson-media-screen.is-mini { animation: lesson-mini-in .18s var(--ease); }
+  .lesson-media-screen.is-mini {
+    transform-origin: bottom right;
+    animation: lesson-mini-in .38s cubic-bezier(.2, .8, .2, 1);
+  }
+  /* Regreso al sitio original: un fundido corto en lugar de un salto. */
+  .lesson-media-screen.is-returning { animation: lesson-return-in .3s var(--ease); }
 }
 @keyframes lesson-mini-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translate(28px, 36px) scale(.82); }
+  60%  { opacity: 1; }
+  to   { opacity: 1; transform: translate(0, 0) scale(1); }
+}
+@keyframes lesson-return-in {
+  from { opacity: .35; transform: scale(.985); }
+  to   { opacity: 1; transform: scale(1); }
 }
 /* Pie: nombre de archivo + CTA SECUNDARIO chico al simulador (no el naranja). */
 .lesson-media-foot {
@@ -698,3 +711,83 @@
   font-weight: 600; cursor: pointer;
 }
 .workshop-check input { width: 18px; height: 18px; }
+
+/* ── Fuentes de la lección: etiquetas arriba, cita + enlace al pasar el cursor ── */
+.lesson-sources {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px var(--sp-3);
+  margin: 0 0 var(--sp-4);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+.lesson-sources-title {
+  font-size: var(--fs-xs);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.lesson-sources-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lesson-source { position: relative; }
+.lesson-source-chip {
+  display: inline-block;
+  max-width: 100%;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color .15s var(--ease), border-color .15s var(--ease);
+}
+.lesson-source:hover .lesson-source-chip,
+.lesson-source:focus-within .lesson-source-chip {
+  background: var(--surface-2);
+  border-color: var(--border-strong, var(--border));
+}
+.lesson-source-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: var(--z-dropdown);
+  width: max-content;
+  max-width: min(360px, 80vw);
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--sp-3);
+  background: var(--surface-overlay, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--elevation-3);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+/* Puente invisible para que el cursor pueda bajar de la etiqueta al cuadro sin
+   que se cierre en el hueco de 6px. */
+.lesson-source-pop::before {
+  content: '';
+  position: absolute;
+  inset: -8px 0 auto 0;
+  height: 8px;
+}
+.lesson-source:hover .lesson-source-pop,
+.lesson-source:focus-within .lesson-source-pop { display: flex; }
+.lesson-source-cite { color: var(--text-muted); }
+.lesson-source-open {
+  color: var(--primary-ink, var(--primary));
+  text-decoration: none;
+  font-weight: 500;
+}
+.lesson-source-open:hover { text-decoration: underline; }
+.lesson-source-host { color: var(--text-muted); font-weight: 400; }

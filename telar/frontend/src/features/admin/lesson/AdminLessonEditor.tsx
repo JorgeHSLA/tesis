@@ -18,6 +18,7 @@ import { Skeleton } from '../../../components/ui/Skeleton'
 import { AdminSaveBar } from '../../../components/admin/AdminSaveBar'
 import { useUnsavedChangesGuard } from '../../../hooks/useUnsavedChangesGuard'
 import { isPositionTaken, planLessonMove } from '../../../lib/lessonMove'
+import { joinSources, splitSourcesRaw } from '../../../lib/lessonSources'
 import {
   changedFields,
   clearFieldErrors,
@@ -31,6 +32,8 @@ import { AddExamplePanel } from './AddExamplePanel'
 import { blankDraft, EXAMPLE_FIELDS, type ExampleDraft } from './exampleDraft'
 import { ExampleDraftFields } from './ExampleDraftFields'
 import { MarkdownEditor } from './MarkdownEditor'
+import { SourcesEditor } from './SourcesEditor'
+import { parseSourceRow, serializeSourceRows, sourceRowIssue, type SourceRow } from './sourceRows'
 import { LessonMetaFields, completionRuleIssue, kindIssue, type LessonMeta } from './LessonMetaFields'
 import { WorkshopStepsEditor } from './WorkshopStepsEditor'
 
@@ -41,7 +44,10 @@ const LESSON_FIELDS = [
 
 interface LessonForm {
   meta: LessonMeta
+  /** Solo el CUERPO: las fuentes van aparte en `sources` y se unen al guardar. */
   content_markdown: string
+  /** Fuentes de la lección (sección propia del editor; viajan en el markdown como «## Fuentes»). */
+  sources: SourceRow[]
   /** Solo /nueva (CU-17.1): `false` ⇒ lección teórica, sin ejemplo ni código. */
   withExample: boolean
   /** Solo /nueva: el ejemplo y su código, si `withExample`. */
@@ -70,12 +76,15 @@ function blankForm(moduleId: string): LessonForm {
       video_url: '', enabled: true, completion_rule: 'viewed', recommended: [], kind: 'leccion',
     },
     content_markdown: '',
+    sources: [],
     withExample: false,
     draft: blankDraft(),
   }
 }
 
 function fromDetail(dto: AdminLessonDetailDto): LessonForm {
+  // «## Fuentes» sale del cuerpo y pasa a su propia sección.
+  const { body, items } = splitSourcesRaw(dto.content_markdown)
   return {
     meta: {
       id: dto.id,
@@ -89,7 +98,8 @@ function fromDetail(dto: AdminLessonDetailDto): LessonForm {
       recommended: dto.recommended,
       kind: dto.kind ?? 'leccion',
     },
-    content_markdown: dto.content_markdown,
+    content_markdown: body,
+    sources: items.map(parseSourceRow),
     withExample: false,
     draft: blankDraft(),
   }
@@ -183,6 +193,10 @@ export default function AdminLessonEditor() {
     setForm((prev) => (prev ? { ...prev, content_markdown } : prev))
     setFieldErrors((prev) => clearFieldErrors(prev, ['content_markdown']))
   }, [])
+  const setSources = useCallback((sources: SourceRow[]) => {
+    setForm((prev) => (prev ? { ...prev, sources } : prev))
+    setFieldErrors((prev) => clearFieldErrors(prev, ['sources']))
+  }, [])
   const prevDraft = form?.draft
   const setDraft = useCallback(
     (draft: ExampleDraft) => {
@@ -268,7 +282,12 @@ export default function AdminLessonEditor() {
   const save = useCallback(async () => {
     if (form == null || saving || !dirty) return
     // Mismas reglas que el schema (CU-17.4/18.5/19.3): cada error va a su campo.
-    const issues = lessonIssues(form.meta, form.content_markdown)
+    // El markdown que se valida y se envía es el cuerpo + «## Fuentes».
+    const fullMarkdown = joinSources(form.content_markdown, serializeSourceRows(form.sources))
+    const issues = lessonIssues(form.meta, fullMarkdown)
+    if (form.sources.some((r) => sourceRowIssue(r) != null)) {
+      issues.sources = 'Revisa los enlaces de las fuentes (marcados abajo).'
+    }
     if (!isEdit && form.withExample) {
       const { source_code: codeIssue, ...exampleOnly } = exampleIssues(form.draft.example, form.draft.source_code)
       Object.assign(issues, withPrefix(exampleOnly, 'example.'), codeIssue ? { source_code: codeIssue } : null)
@@ -297,7 +316,7 @@ export default function AdminLessonEditor() {
       order: orderNum,
       title: form.meta.title.trim(),
       estimated_minutes: minNum,
-      content_markdown: form.content_markdown,
+      content_markdown: fullMarkdown,
       // S6: un taller no lleva video y su regla se guarda como 'viewed'.
       video_url: isTaller ? null : form.meta.video_url.trim() || null,
       enabled: form.meta.enabled,
@@ -384,11 +403,14 @@ export default function AdminLessonEditor() {
         className="grid"
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: 20, alignItems: 'start' }}
       >
-        <MarkdownEditor
-          value={form.content_markdown}
-          onChange={setMarkdown}
-          error={fieldErrors.content_markdown}
-        />
+        <div className="col" style={{ gap: 20 }}>
+          <MarkdownEditor
+            value={form.content_markdown}
+            onChange={setMarkdown}
+            error={fieldErrors.content_markdown}
+          />
+          <SourcesEditor rows={form.sources} onChange={setSources} error={fieldErrors.sources} />
+        </div>
         <div className="col" style={{ gap: 18 }}>
           <LessonMetaFields
             mode={isEdit ? 'edit' : 'create'}

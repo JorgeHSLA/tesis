@@ -79,3 +79,71 @@ describe('seguridad / escape', () => {
     expect(html).toContain('&lt;script&gt;')
   })
 })
+
+describe('imágenes', () => {
+  const HASH = '0123456789abcdef0123456789abcdef'
+  const OK = `https://storage.googleapis.com/clasestelar/imagenes/${HASH}.png`
+
+  it('una imagen sola en su línea es una figura con pie', () => {
+    const html = renderMarkdown(`![Jerarquía de memoria](${OK})`)
+    expect(html).toContain('<figure class="md-figure">')
+    expect(html).toContain(`src="${OK}"`)
+    expect(html).toContain('alt="Jerarquía de memoria"')
+    expect(html).toContain('<figcaption>Jerarquía de memoria</figcaption>')
+    expect(html).toContain('loading="lazy"')
+    expect(html).toContain('referrerpolicy="no-referrer"')
+  })
+
+  it('sin texto alternativo no hay pie', () => {
+    const html = renderMarkdown(`![](${OK})`)
+    expect(html).toContain('<img ')
+    expect(html).not.toContain('<figcaption>')
+  })
+
+  it('dentro de un párrafo es una imagen en línea, sin figura', () => {
+    const html = renderMarkdown(`Mira ![icono](${OK}) aquí.`)
+    expect(html).toContain('<p>Mira <img class="md-img"')
+    expect(html).not.toContain('<figure')
+  })
+
+  it('una URL de otro host NO se carga: sale un aviso de texto', () => {
+    const html = renderMarkdown('![pixel](https://evil.example/track.png)')
+    expect(html).not.toContain('<img')
+    expect(html).toContain('md-img-blocked')
+    expect(html).toContain('imagen no permitida: pixel')
+  })
+
+  it.each([
+    'javascript:alert(1)',
+    'data:image/png;base64,AAAA',
+    `http://storage.googleapis.com/clasestelar/imagenes/${HASH}.png`,
+    `https://storage.googleapis.com/clasestelar/otra/${HASH}.png`,
+    `https://storage.googleapis.com/clasestelar/imagenes/${HASH}.svg`,
+    `https://storage.googleapis.com.evil.example/clasestelar/imagenes/${HASH}.png`,
+  ])('rechaza %s', (url) => {
+    const html = renderMarkdown(`![x](${url})`)
+    expect(html).not.toContain('<img')
+    expect(html).toContain('md-img-blocked')
+  })
+
+  it('el texto alternativo se escapa (no puede inyectar HTML ni romper el atributo)', () => {
+    const html = renderMarkdown(`![a" onerror="alert(1)](${OK})`)
+    expect(html).not.toContain('onerror="alert')
+    expect(html).toContain('&quot;')
+  })
+
+  it('una imagen no rompe el resto: listas, énfasis y enlaces siguen funcionando', () => {
+    const html = renderMarkdown(`- **uno** [enlace](https://a.example)\n\n![x](${OK})\n\nFin`)
+    expect(html).toContain('<strong>uno</strong>')
+    expect(html).toContain('<a href="https://a.example"')
+    expect(html).toContain('<figure')
+    expect(html).toContain('<p>Fin</p>')
+  })
+
+  it('el énfasis no entra en la URL de la imagen (subrayados del bucket)', () => {
+    const url = `https://storage.googleapis.com/mi_bucket_x/imagenes/${HASH}.png`
+    const html = renderMarkdown(`texto _cursiva_ y ![x](${url})`)
+    expect(html).toContain(`src="${url}"`)
+    expect(html).toContain('<em>cursiva</em>')
+  })
+})

@@ -28,6 +28,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDockerStatus } from '../../hooks/useDockerStatus'
+import { friendlyDockerError, type FriendlyDockerError } from '../../lib/dockerErrors'
 import { usePlatform } from '../../hooks/usePlatform'
 import { useSystemInfo } from '../../hooks/useSystemInfo'
 import { Button } from '../ui/Button'
@@ -50,9 +51,49 @@ function anchorFor(trigger: HTMLElement): { left: number; bottom: number } {
   return { left, bottom }
 }
 
+/** Barra de carga indeterminada + cronómetro: la preparación puede tardar
+ *  minutos (la primera vez baja ~1 GB) y sin esto parece que la app se colgó. */
+function RuntimeProgress({ label }: { label: string }) {
+  const [sec, setSec] = useState(0)
+  useEffect(() => {
+    const t0 = Date.now()
+    const id = window.setInterval(() => setSec(Math.floor((Date.now() - t0) / 1000)), 1000)
+    return () => window.clearInterval(id)
+  }, [])
+  const clock = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
+  return (
+    <div className="runtime-progress" role="progressbar" aria-label={label} aria-valuetext={`${label} (${clock})`}>
+      <div className="runtime-progress-track">
+        <span className="runtime-progress-bar" />
+      </div>
+      <span className="runtime-progress-time">{clock}</span>
+    </div>
+  )
+}
+
+/** Error de Docker en lenguaje llano; el texto crudo queda plegado. */
+function RuntimeError({ friendly }: { friendly: FriendlyDockerError }) {
+  return (
+    <div className="runtime-panel-error" role="alert">
+      <div className="runtime-panel-error-title">{friendly.title}</div>
+      <div>{friendly.hint}</div>
+      {friendly.raw !== null && (
+        <details className="runtime-panel-error-raw">
+          <summary>Detalle técnico</summary>
+          <pre>{friendly.raw}</pre>
+        </details>
+      )}
+    </div>
+  )
+}
+
 export function RuntimeFooter() {
   const platform = usePlatform()
   const docker = useDockerStatus()
+  const friendlyStatus = friendlyDockerError(docker.statusError)
+  const friendlyLift = friendlyDockerError(docker.liftError)
+  /** Docker Desktop se está abriendo solo (lo hace el proceso principal). */
+  const dockerStarting = friendlyStatus?.starting === true && docker.state !== 'ok'
   const { data: system, retry: retrySystem } = useSystemInfo()
 
   const [open, setOpen] = useState(false)
@@ -88,6 +129,9 @@ export function RuntimeFooter() {
   } else if (runnerMissing) {
     dotClass = 'status-dot status-dot--amber'
     detail = 'falta la imagen del runner'
+  } else if (dockerStarting) {
+    dotClass = 'status-dot status-dot--amber'
+    detail = 'abriendo Docker Desktop…'
   } else if (docker.state === 'ok') {
     detail =
       platform === 'desktop'
@@ -97,8 +141,8 @@ export function RuntimeFooter() {
           : 'conectado'
   } else {
     dotClass = 'status-dot status-dot--red'
-    if (platform === 'desktop') detail = docker.statusError != null ? 'Docker no disponible' : 'servicios detenidos'
-    else detail = docker.statusError ?? 'sin conexión'
+    if (platform === 'desktop') detail = friendlyStatus != null ? friendlyStatus.title : 'servicios detenidos'
+    else detail = friendlyStatus?.title ?? 'sin conexión'
   }
 
   const close = useCallback(() => {
@@ -139,6 +183,7 @@ export function RuntimeFooter() {
   }, [open, close])
 
   const busy = docker.lifting || docker.stopping
+  const showBar = busy || dockerStarting || docker.state === 'checking'
   const showActions = platform === 'desktop'
 
   const panel =
@@ -190,17 +235,26 @@ export function RuntimeFooter() {
               </div>
             )}
 
-            {docker.statusError != null && docker.state !== 'ok' && (
-              <div className="field-hint error" role="alert">
-                {docker.statusError}
-              </div>
+            {showBar && (
+              <RuntimeProgress
+                label={
+                  docker.stopping
+                    ? 'Deteniendo el entorno'
+                    : dockerStarting
+                      ? 'Abriendo Docker Desktop'
+                      : 'Preparando el entorno'
+                }
+              />
             )}
 
-            {docker.liftError != null && (
-              <div className="field-hint error" role="alert">
-                {docker.liftError}
-              </div>
+            {friendlyStatus != null && !friendlyStatus.starting && docker.state !== 'ok' && (
+              <RuntimeError friendly={friendlyStatus} />
             )}
+            {friendlyStatus?.starting === true && docker.state !== 'ok' && (
+              <div className="runtime-panel-hint">{friendlyStatus.hint}</div>
+            )}
+
+            {friendlyLift != null && <RuntimeError friendly={friendlyLift} />}
           </div>,
           document.body,
         )
@@ -220,10 +274,11 @@ export function RuntimeFooter() {
       >
         <span className={dotClass} aria-hidden="true" />
       </button>
+      {showBar && <span className="runtime-footer-bar" aria-hidden="true" />}
 
       {/* Se conserva para lectores de pantalla y para el modo web/expandido:
           `.sidebar-footer-text` está oculta por CSS en el rail. */}
-      <div className="sidebar-footer-text" role="status" aria-live="polite">
+      <div className="sidebar-footer-text" role="status" aria-live="polite" onClick={() => setOpen((v) => !v)}>
         <div>{title}</div>
         <div>{detail}</div>
       </div>

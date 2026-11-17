@@ -3,7 +3,7 @@
 // los nombres sin cambiar la ruta. El estado dura mientras la shell está montada.
 //
 // Arriba, junto a la marca, va el conmutador de tema claro ⇄ oscuro.
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   IconBook,
@@ -16,6 +16,7 @@ import {
   IconResults,
   type IconProps,
 } from '../icons/icons'
+import { useRailTooltip } from './RailTooltip'
 import { RuntimeFooter } from './RuntimeFooter'
 import { ThemeToggle } from './ThemeToggle'
 import { useSystemInfo } from '../../hooks/useSystemInfo'
@@ -91,6 +92,10 @@ function navSections(catalogEnabled: boolean): NavSection[] {
 
 export function Sidebar() {
   const [expanded, setExpanded] = useState(false)
+  const railRef = useRef<HTMLElement>(null)
+  // Rótulos flotantes del rail PLEGADO (portal; ver RailTooltip.tsx). Con el menú
+  // expandido el nombre ya está escrito junto al icono.
+  const { handlers: tipHandlers, tooltip } = useRailTooltip(railRef, !expanded)
   const navId = useId()
   const toggleLabel = expanded ? 'Contraer menú' : 'Expandir menú'
   const { pathname } = useLocation()
@@ -104,7 +109,7 @@ export function Sidebar() {
   const sections = navSections(system?.catalog?.enabled ?? false)
 
   return (
-    <aside className="sidebar" data-expanded={expanded}>
+    <aside ref={railRef} className="sidebar" data-expanded={expanded} {...tipHandlers}>
       <div className="sidebar-brand">
         <div className="sidebar-brand-mark" aria-hidden="true">T</div>
         <div className="sidebar-brand-textwrap">
@@ -120,7 +125,6 @@ export function Sidebar() {
         aria-label={toggleLabel}
         aria-expanded={expanded}
         aria-controls={navId}
-        title={toggleLabel}
         data-tip={toggleLabel}
       >
         <span className="nav-icon" aria-hidden="true">
@@ -145,7 +149,7 @@ export function Sidebar() {
                   className={'nav-item ' + (active ? 'active' : '')}
                   data-tip={item.label}
                   // En el rail de 56px, `.nav-label` está en `display: none` y
-                  // el tooltip es un `::after` con `content: attr(data-tip)`.
+                  // el tooltip es un portal que lee `data-tip` (RailTooltip.tsx).
                   // Ninguna de las dos cosas llega al árbol de accesibilidad,
                   // así que sin esto los enlaces de la navegación principal no
                   // tienen NOMBRE: un lector de pantalla anuncia «enlace» y ya
@@ -165,6 +169,7 @@ export function Sidebar() {
       </nav>
 
       <RuntimeFooter />
+      {tooltip}
     </aside>
   )
 }

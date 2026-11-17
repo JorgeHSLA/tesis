@@ -98,3 +98,67 @@ describe('Sidebar expandible', () => {
     }
   })
 })
+
+describe('Rótulos flotantes del rail plegado', () => {
+  async function renderRail() {
+    ;(getSystem as ReturnType<typeof vi.fn>).mockResolvedValue({ ...SYSTEM_INFO, catalog: { enabled: true } })
+    await loadSystemInfo(true)
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Sidebar />
+      </MemoryRouter>,
+    )
+    await screen.findByRole('link', { name: 'Módulos disponibles' })
+  }
+
+  it('al pasar el ratón por un icono aparece su nombre; al salir, desaparece', async () => {
+    await renderRail()
+    expect(screen.queryByRole('tooltip')).toBeNull()
+
+    fireEvent.mouseOver(screen.getByRole('link', { name: 'Simulador' }))
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Simulador')
+
+    fireEvent.mouseLeave(screen.getByRole('complementary'))
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  })
+
+  it('también rotula el botón de expandir, el tema y el estado de Docker', async () => {
+    await renderRail()
+    fireEvent.mouseOver(screen.getByRole('button', { name: 'Expandir menú' }))
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Expandir menú')
+
+    fireEvent.mouseOver(screen.getByRole('button', { name: /Cambiar a modo/ }))
+    expect(screen.getByRole('tooltip').textContent).toMatch(/Cambiar a modo (claro|oscuro)/)
+
+    fireEvent.mouseOver(screen.getByRole('button', { name: /Backend Telar|Docker runtime/ }))
+    expect(screen.getByRole('tooltip').textContent ?? '').not.toBe('')
+  })
+
+  it('con el menú expandido no hay rótulos flotantes (el nombre ya está escrito)', async () => {
+    await renderRail()
+    fireEvent.click(screen.getByRole('button', { name: 'Expandir menú' }))
+    fireEvent.mouseOver(screen.getByRole('link', { name: 'Simulador' }))
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  })
+
+  it('el foco por teclado también lo muestra, y salir del foco lo quita', async () => {
+    await renderRail()
+    const link = screen.getByRole('link', { name: 'Resultados' })
+    // jsdom no calcula :focus-visible: se simula para esta rama.
+    const matches = vi.spyOn(link, 'matches').mockImplementation((s) => s === ':focus-visible')
+    fireEvent.focus(link)
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Resultados')
+    fireEvent.blur(link)
+    expect(screen.queryByRole('tooltip')).toBeNull()
+    matches.mockRestore()
+  })
+
+  it('el conmutador de tema escribe «Modo claro/oscuro» junto al icono', async () => {
+    await renderRail()
+    const toggle = screen.getByRole('button', { name: /Cambiar a modo/ })
+    expect(toggle.textContent).toMatch(/Modo (claro|oscuro)/)
+    const before = toggle.textContent
+    fireEvent.click(toggle)
+    expect(screen.getByRole('button', { name: /Cambiar a modo/ }).textContent).not.toBe(before)
+  })
+})

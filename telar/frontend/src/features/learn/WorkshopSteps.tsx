@@ -17,6 +17,7 @@ import { IconCheck, IconChevronLeft, IconChevronRight, IconPlay } from '../../co
 import { Button } from '../../components/ui/Button'
 import { Card, CardPad } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
+import { useBrokenImageFallback } from '../../hooks/useBrokenImageFallback'
 import { renderMarkdown } from '../../lib/markdown'
 import { useProgressStore } from '../../stores/progressStore'
 
@@ -54,6 +55,7 @@ export function WorkshopSteps({ lessonId, steps: initialSteps, completed: initia
 
   const step = steps[current]
   const bodyHtml = useMemo(() => (step ? renderMarkdown(step.body_markdown) : ''), [step])
+  const markdownRef = useBrokenImageFallback()
 
   if (steps.length === 0) {
     return <EmptyState title="Este taller todavía no tiene pasos." />
@@ -164,7 +166,7 @@ export function WorkshopSteps({ lessonId, steps: initialSteps, completed: initia
             <section className="workshop-step" aria-label={`Paso ${current + 1}: ${step.title}`}>
               <h4 className="workshop-step-title">{step.title}</h4>
               {/* Markdown generado por lib/markdown.ts: subset seguro que escapa todo el texto. */}
-              <div className="markdown" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+              <div ref={markdownRef} className="markdown" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
               {exampleId != null && (
                 <Button
                   variant="outline"

@@ -7,14 +7,16 @@
 // config.ts ADMIN_BUILD). Por eso este TopBar vuelve a la etiqueta de usuario
 // ESTÁTICA (sin menú ni sesión): `ES · estudiante` en el build estudiante y
 // `AD · autor` en el build admin. Los dos botones NO son maqueta:
-//   · Buscar → navega al catálogo y le pone el foco a SU buscador (el de
-//     'Buscar lección, quiz o tema'). Se reutiliza ese buscador en vez de
-//     duplicar la lógica de filtrado en una paleta de comandos aparte.
+//   · Buscar → abre el buscador GLOBAL (GlobalSearch): páginas, cursos,
+//     lecciones, ejemplos, ejecuciones, configuraciones y módulos. También con
+//     Ctrl/⌘ + K. (Antes llevaba al buscador del catálogo, que solo filtraba
+//     cursos; ese sigue existiendo dentro de /aprender.)
 //   · Ayuda  → abre el diálogo «Acerca de» (versión, entorno, documentación).
-import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { IconHelp, IconSearch } from '../icons/icons'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate, useNavigationType } from 'react-router-dom'
+import { IconChevronLeft, IconChevronRight, IconHelp, IconSearch } from '../icons/icons'
 import { AboutDialog } from './AboutDialog'
+import { GlobalSearch } from './GlobalSearch'
 import { ADMIN_BUILD } from '../../config'
 
 interface RouteMeta {
@@ -51,32 +53,101 @@ export interface CatalogNavState {
   focusSearch?: boolean
 }
 
+/** Posición de la entrada actual en el historial de ESTA sesión (la guarda React Router). */
+export function historyIndex(): number {
+  return (window.history.state as { idx?: number } | null)?.idx ?? 0
+}
+
+/**
+ * ¿Hay a dónde volver / avanzar? Atrás existe si no estamos en la primera entrada.
+ * Adelante, solo si ya habíamos llegado más lejos (`furthest`): `history.length` no
+ * sirve porque cuenta también páginas anteriores a la app (en el navegador del
+ * modo Autoría, la pestaña trae su propio historial) y daría «adelante» sin haber
+ * vuelto atrás.
+ */
+export function historyAvailability(idx: number, furthest: number): { canBack: boolean; canForward: boolean } {
+  return { canBack: idx > 0, canForward: idx < furthest }
+}
+
 export function TopBar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  const navType = useNavigationType()
+  const location = useLocation()
+  // Hasta dónde se ha avanzado en esta sesión: un clic o redirección nuevo (PUSH/REPLACE)
+  // borra lo de «adelante»; volver o avanzar (POP) lo conserva.
+  const idx = historyIndex()
+  const furthest = useRef(idx)
+  const lastKey = useRef<string | null>(null)
+  if (lastKey.current !== location.key) {
+    lastKey.current = location.key
+    furthest.current = navType === 'POP' ? Math.max(furthest.current, idx) : idx
+  }
+  const { canBack, canForward } = historyAvailability(idx, furthest.current)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchBtnRef = useRef<HTMLButtonElement>(null)
+
+  // Ctrl/⌘ + K abre el buscador desde cualquier pantalla.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const closeSearch = () => {
+    setSearchOpen(false)
+    // El foco vuelve al botón, salvo que la búsqueda ya haya llevado a otra pantalla.
+    searchBtnRef.current?.focus()
+  }
   const meta = routeMeta(pathname)
 
   return (
     <header className="topbar" role="banner">
+      {/* Navegación del historial: volver / avanzar desde cualquier pantalla. */}
+      <div className="topbar-nav" role="group" aria-label="Navegación del historial">
+        <button
+          type="button"
+          className="topbar-nav-btn"
+          onClick={() => navigate(-1)}
+          disabled={!canBack}
+          aria-label="Volver a la pantalla anterior"
+          title="Volver"
+        >
+          <IconChevronLeft size={16} />
+        </button>
+        <button
+          type="button"
+          className="topbar-nav-btn"
+          onClick={() => navigate(1)}
+          disabled={!canForward}
+          aria-label="Avanzar a la pantalla siguiente"
+          title="Avanzar"
+        >
+          <IconChevronRight size={16} />
+        </button>
+      </div>
       <span className="topbar-crumb">{meta.crumbs.join(' / ')}</span>
       <span className="topbar-title">{meta.title}</span>
       <span className="topbar-spacer" />
 
       <button
+        ref={searchBtnRef}
         type="button"
         className="btn btn-ghost btn-sm"
-        onClick={() =>
-          navigate('/aprender', {
-            state: { focusSearch: true } satisfies CatalogNavState,
-            // Estando ya en el catálogo, `replace` evita apilar una entrada de
-            // historial por cada pulsación (el usuario solo quiere el foco).
-            replace: pathname === '/aprender',
-          })
-        }
+        aria-haspopup="dialog"
+        aria-keyshortcuts="Control+K Meta+K"
+        title="Buscar en todo Telar (Ctrl+K)"
+        onClick={() => setSearchOpen(true)}
       >
         <IconSearch size={14} /> Buscar
       </button>
+      <GlobalSearch open={searchOpen} onClose={closeSearch} />
       <button
         type="button"
         className="btn btn-ghost btn-sm"

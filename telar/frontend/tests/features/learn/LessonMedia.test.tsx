@@ -17,7 +17,13 @@ vi.mock('@/features/learn/lessonVideos', async (importOriginal) => {
 })
 
 import { LessonMedia } from '@/features/learn/LessonMedia'
-import { resolveLessonVideo, resolveYouTubeEmbed } from '@/features/learn/lessonVideos'
+import {
+  isPlayingState,
+  parsePlayerState,
+  resolveLessonVideo,
+  resolveYouTubeEmbed,
+  withPlayerEvents,
+} from '@/features/learn/lessonVideos'
 
 const resolveMock = resolveLessonVideo as Mock
 const EMBED = 'https://www.youtube-nocookie.com/embed/'
@@ -127,7 +133,8 @@ describe('LessonMedia', () => {
     const { container } = renderMedia()
     const frame = container.querySelector('iframe.lesson-media-video')
     expect(frame).not.toBeNull()
-    expect(frame).toHaveAttribute('src', `${EMBED}${ID}?rel=0&modestbranding=1`)
+    // Lleva `enablejsapi=1` para que el reproductor avise de su estado (mini reproductor).
+    expect(frame).toHaveAttribute('src', `${EMBED}${ID}?rel=0&modestbranding=1&enablejsapi=1`)
     // El título es el nombre accesible del iframe (WCAG 4.1.2).
     expect(screen.getByTitle('Video de la lección (helloOpenMP.py)')).toBe(frame)
     // Ya no hay <video>: el media no se descarga.
@@ -162,6 +169,33 @@ describe('LessonMedia', () => {
       </MemoryRouter>,
     )
     // …y aun así hay iframe, porque la URL llegó por prop.
-    expect(container.querySelector('iframe')).toHaveAttribute('src', `${EMBED}${ID}?rel=0&modestbranding=1`)
+    expect(container.querySelector('iframe')).toHaveAttribute('src', `${EMBED}${ID}?rel=0&modestbranding=1&enablejsapi=1`)
+  })
+})
+
+describe('estado del reproductor (postMessage de YouTube)', () => {
+  it('withPlayerEvents añade enablejsapi=1 sin tocar el resto', () => {
+    expect(withPlayerEvents(`${EMBED}${ID}?rel=0&modestbranding=1&start=30`)).toBe(
+      `${EMBED}${ID}?rel=0&modestbranding=1&start=30&enablejsapi=1`,
+    )
+  })
+
+  it('parsePlayerState entiende onStateChange e infoDelivery (objeto o texto JSON)', () => {
+    expect(parsePlayerState({ event: 'onStateChange', info: 1 })).toBe(1)
+    expect(parsePlayerState(JSON.stringify({ event: 'infoDelivery', info: { playerState: 2 } }))).toBe(2)
+    expect(parsePlayerState({ event: 'infoDelivery', info: { playerState: -1 } })).toBe(-1)
+  })
+
+  it('parsePlayerState descarta lo que no es un estado', () => {
+    expect(parsePlayerState('no es json')).toBeNull()
+    expect(parsePlayerState(null)).toBeNull()
+    expect(parsePlayerState(42)).toBeNull()
+    expect(parsePlayerState({ event: 'onReady' })).toBeNull()
+    expect(parsePlayerState({ event: 'infoDelivery', info: { currentTime: 3 } })).toBeNull()
+    expect(parsePlayerState({ event: 'onStateChange', info: '1' })).toBeNull()
+  })
+
+  it('isPlayingState: solo reproduciendo (1) o cargando (3)', () => {
+    expect([-1, 0, 1, 2, 3, 5].map(isPlayingState)).toEqual([false, false, true, false, true, false])
   })
 })

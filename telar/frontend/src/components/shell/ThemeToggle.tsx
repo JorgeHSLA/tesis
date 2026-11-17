@@ -15,6 +15,8 @@ export function ThemeToggle() {
 
   const isDark = theme === 'dark'
   const label = isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'
+  // Con el menú expandido se escribe el destino, igual que el icono (sol/luna).
+  const shortLabel = isDark ? 'Modo claro' : 'Modo oscuro'
 
   return (
     <button
@@ -23,10 +25,10 @@ export function ThemeToggle() {
       onClick={toggleTheme}
       aria-pressed={isDark}
       aria-label={label}
-      title={label}
       data-tip={label}
     >
       <span className="nav-icon">{isDark ? <IconSun size={17} /> : <IconMoon size={17} />}</span>
+      <span className="nav-label">{shortLabel}</span>
     </button>
   )
 }

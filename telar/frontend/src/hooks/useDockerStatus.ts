@@ -25,6 +25,8 @@ import type { ComposeService } from '../types/telar'
 import { getPlatform } from './usePlatform'
 
 const DESKTOP_POLL_MS = 10_000
+/** Mientras Docker no responde (se está abriendo solo, o el usuario lo abre), se sondea más a menudo para pasar a «listo» sin esperar 10 s. */
+const DESKTOP_FAST_POLL_MS = 3_000
 const WEB_POLL_MS = 30_000
 
 export type RuntimeHealth = 'checking' | 'ok' | 'down'
@@ -174,8 +176,12 @@ export function useDockerStatus(): DockerStatusState {
   const upRef = useRef(up)
   upRef.current = up
 
+  // ¿El último sondeo no encontró daemon? Decide la cadencia del siguiente.
+  const unavailable = useRef(false)
+
   const tick = useCallback(async () => {
     const result = await check()
+    unavailable.current = result === 'unavailable'
     if (!alive.current || autoStarted.current) return
     if (result === 'unavailable' || result === 'checking') return
     autoStarted.current = true
@@ -184,12 +190,18 @@ export function useDockerStatus(): DockerStatusState {
 
   useEffect(() => {
     alive.current = true
-    void tick()
-    const every = platform === 'desktop' ? DESKTOP_POLL_MS : WEB_POLL_MS
-    const id = window.setInterval(() => void tick(), every)
+    let timer: number | undefined
+    const loop = async () => {
+      await tick()
+      if (!alive.current) return
+      const every =
+        platform !== 'desktop' ? WEB_POLL_MS : unavailable.current ? DESKTOP_FAST_POLL_MS : DESKTOP_POLL_MS
+      timer = window.setTimeout(() => void loop(), every)
+    }
+    void loop()
     return () => {
       alive.current = false
-      window.clearInterval(id)
+      if (timer !== undefined) window.clearTimeout(timer)
     }
   }, [tick, platform])
 

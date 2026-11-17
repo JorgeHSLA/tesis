@@ -21,6 +21,12 @@
 // reiniciaría el video. El hueco original (`.lesson-media-slot`) conserva su
 // tamaño para que el texto no salte.
 //
+// El mini reproductor solo aparece si el video SE ESTÁ REPRODUCIENDO al bajar a
+// leer (si está sin empezar o en pausa no tiene sentido abrir una ventanita que
+// tapa el texto). El estado lo da el propio reproductor por postMessage
+// (lessonVideos.ts). Si por cualquier motivo nunca llega, se conserva el
+// comportamiento anterior: el mini aparece.
+//
 // Accesibilidad: el `title` del iframe es su nombre accesible (WCAG 4.1.2).
 // Los subtítulos (WCAG 1.2.2) pasan a ser responsabilidad del video en YouTube:
 // hay que activarlos al subirlo, no hay `<track>` que añadir aquí.
@@ -28,7 +34,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Icon, IconChevronUp, IconPlay } from '../../components/icons/icons'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { resolveLessonVideo, resolveYouTubeEmbed } from './lessonVideos'
+import {
+  PLAYER_LISTEN_MESSAGE,
+  YOUTUBE_PLAYER_ORIGIN,
+  isPlayingState,
+  parsePlayerState,
+  resolveLessonVideo,
+  resolveYouTubeEmbed,
+  withPlayerEvents,
+} from './lessonVideos'
 
 export interface LessonMediaProps {
   lessonId: string
@@ -56,6 +70,15 @@ export function LessonMedia({
   const navigate = useNavigate()
   const reducedMotion = useReducedMotion()
   const slotRef = useRef<HTMLDivElement>(null)
+  const frameRef = useRef<HTMLIFrameElement>(null)
+  /** Lo último que dijo el reproductor: 'unknown' hasta que avise. */
+  const playback = useRef<'unknown' | 'playing' | 'idle'>('unknown')
+  /** ¿Estaba el mini a la vista? (para animar el regreso al sitio original). */
+  const wasMini = useRef(false)
+  /** Al bajar, ¿se estaba reproduciendo? Si no, no se abre el mini. */
+  const [miniEligible, setMiniEligible] = useState(true)
+  /** El marco acaba de volver a su sitio: pequeña animación de regreso. */
+  const [returning, setReturning] = useState(false)
   /** El video ya salió por ARRIBA de la pantalla (el estudiante bajó a leer). */
   const [scrolledPast, setScrolledPast] = useState(false)
   /** El estudiante cerró el mini reproductor: no vuelve hasta que regrese al video. */
@@ -71,6 +94,24 @@ export function LessonMedia({
       : resolveYouTubeEmbed(videoUrl)
 
   const hasVideo = embedSrc !== null
+  const playerSrc = embedSrc === null ? null : withPlayerEvents(embedSrc)
+
+  // Estados del reproductor (solo mensajes del iframe propio y de su origen).
+  useEffect(() => {
+    if (!hasVideo) return
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== YOUTUBE_PLAYER_ORIGIN || e.source !== frameRef.current?.contentWindow) return
+      const state = parsePlayerState(e.data)
+      if (state !== null) playback.current = isPlayingState(state) ? 'playing' : 'idle'
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [hasVideo, playerKey])
+
+  // Tras cargar, se le pide al reproductor que empiece a informar su estado.
+  const onFrameLoad = useCallback(() => {
+    frameRef.current?.contentWindow?.postMessage(PLAYER_LISTEN_MESSAGE, YOUTUBE_PLAYER_ORIGIN)
+  }, [])
 
   // Observa el hueco del video (no el iframe): si el hueco sigue visible, el
   // video está en su sitio. `root: null` sirve aunque el scroll sea de un
@@ -83,9 +124,16 @@ export function LessonMedia({
         if (entry.isIntersecting) {
           setScrolledPast(false)
           setDismissed(false)
+          if (wasMini.current) {
+            wasMini.current = false
+            setReturning(true)
+          }
         } else {
           // Solo «por arriba»: si estuviera por debajo, no hay nada que seguir.
-          setScrolledPast(entry.boundingClientRect.top < 0)
+          const past = entry.boundingClientRect.top < 0
+          setScrolledPast(past)
+          // Solo se abre el mini si el video SE ESTÁ REPRODUCIENDO al bajar.
+          if (past) setMiniEligible(playback.current !== 'idle')
         }
       },
       { threshold: 0 },
@@ -101,7 +149,15 @@ export function LessonMedia({
     })
   }, [reducedMotion])
 
+  // La animación de regreso dura lo que su CSS; luego se retira la clase.
+  useEffect(() => {
+    if (!returning) return
+    const id = window.setTimeout(() => setReturning(false), 320)
+    return () => window.clearTimeout(id)
+  }, [returning])
+
   const closeMini = useCallback(() => {
+    playback.current = 'unknown' // el iframe se recrea: empieza de cero
     setDismissed(true)
     setPlayerKey((k) => k + 1) // recrea el iframe: el video se detiene
   }, [])
@@ -109,7 +165,8 @@ export function LessonMedia({
   // Sin video no hay bloque: la lección arranca por su contenido, no por un hueco.
   if (embedSrc === null) return null
 
-  const mini = scrolledPast && !dismissed
+  const mini = scrolledPast && !dismissed && miniEligible
+  wasMini.current = mini
 
   const run = () => {
     if (exampleId != null) navigate(`/simulador?ejemplo=${encodeURIComponent(exampleId)}`)
@@ -120,7 +177,7 @@ export function LessonMedia({
       {/* El hueco conserva el 16:9 aunque el marco pase a la esquina. */}
       <div className="lesson-media-slot" ref={slotRef}>
         <div
-          className={'lesson-media-screen' + (mini ? ' is-mini' : '')}
+          className={'lesson-media-screen' + (mini ? ' is-mini' : '') + (returning && !mini ? ' is-returning' : '')}
           role={mini ? 'region' : undefined}
           aria-label={mini ? 'Mini reproductor del video de la lección' : undefined}
         >
@@ -150,8 +207,10 @@ export function LessonMedia({
           </div>
           <iframe
             key={playerKey}
+            ref={frameRef}
+            onLoad={onFrameLoad}
             className="lesson-media-video"
-            src={embedSrc}
+            src={playerSrc ?? undefined}
             title={`Video de la lección (${filename ?? lessonId})`}
             loading="lazy"
             referrerPolicy="strict-origin-when-cross-origin"

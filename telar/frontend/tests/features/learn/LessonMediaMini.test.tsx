@@ -150,3 +150,82 @@ describe('sin video', () => {
     expect(FakeObserver.todos).toHaveLength(0)
   })
 })
+
+describe('mini reproductor: solo si el video se está reproduciendo', () => {
+  const YT = 'https://www.youtube-nocookie.com'
+
+  /** Simula un aviso del reproductor embebido (origen y ventana del iframe real). */
+  function avisar(iframe: HTMLIFrameElement, data: unknown, origin = YT) {
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', { data: JSON.stringify(data), origin, source: iframe.contentWindow }),
+      )
+    })
+  }
+
+  it('al montar se le pide al reproductor que avise de su estado', () => {
+    const { iframe } = montar()
+    const frame = iframe()
+    const post = vi.spyOn(frame.contentWindow as Window, 'postMessage')
+    fireEvent.load(frame)
+    expect(post).toHaveBeenCalledWith(expect.stringContaining('"listening"'), YT)
+  })
+
+  it('reproduciendo (1) → al bajar aparece el mini', async () => {
+    const { marco, iframe, emitir } = montar()
+    avisar(iframe(), { event: 'onStateChange', info: 1 })
+    await emitir(ARRIBA)
+    expect(marco()).toHaveClass('is-mini')
+  })
+
+  it('en pausa (2) → al bajar NO aparece el mini', async () => {
+    const { marco, iframe, emitir } = montar()
+    avisar(iframe(), { event: 'infoDelivery', info: { playerState: 2 } })
+    await emitir(ARRIBA)
+    expect(marco()).not.toHaveClass('is-mini')
+  })
+
+  it('sin empezar (-1) o terminado (0) → no aparece el mini', async () => {
+    const { marco, iframe, emitir } = montar()
+    avisar(iframe(), { event: 'infoDelivery', info: { playerState: -1 } })
+    await emitir(ARRIBA)
+    expect(marco()).not.toHaveClass('is-mini')
+    await emitir(VISIBLE)
+    avisar(iframe(), { event: 'onStateChange', info: 0 })
+    await emitir(ARRIBA)
+    expect(marco()).not.toHaveClass('is-mini')
+  })
+
+  it('si pausa estando ya en mini, el mini se queda (el estudiante lo está usando)', async () => {
+    const { marco, iframe, emitir } = montar()
+    avisar(iframe(), { event: 'onStateChange', info: 1 })
+    await emitir(ARRIBA)
+    avisar(iframe(), { event: 'onStateChange', info: 2 })
+    expect(marco()).toHaveClass('is-mini')
+  })
+
+  it('mensajes de otro origen se ignoran (no pueden apagar el mini)', async () => {
+    const { marco, iframe, emitir } = montar()
+    avisar(iframe(), { event: 'onStateChange', info: 2 }, 'https://evil.example')
+    await emitir(ARRIBA)
+    expect(marco()).toHaveClass('is-mini')
+  })
+
+  it('mensajes de otra ventana (no del iframe) se ignoran', async () => {
+    const { marco, emitir } = montar()
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', { data: JSON.stringify({ event: 'onStateChange', info: 2 }), origin: YT, source: window }),
+      )
+    })
+    await emitir(ARRIBA)
+    expect(marco()).toHaveClass('is-mini')
+  })
+
+  it('al volver al sitio original lleva la animación de regreso un instante', async () => {
+    const { marco, emitir } = montar()
+    await emitir(ARRIBA)
+    await emitir(VISIBLE)
+    expect(marco()).toHaveClass('is-returning')
+  })
+})

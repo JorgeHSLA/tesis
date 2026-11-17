@@ -262,3 +262,28 @@ export function importCatalogModule(
     body: JSON.stringify(body),
   })
 }
+
+// ── Imágenes de las lecciones ────────────────────────────────────────────────
+
+/** Respuesta de POST /admin/images (backend/app/routers/admin_catalog.py). */
+export interface AdminImageDto {
+  /** URL pública lista para `![texto](url)` en el markdown de la lección. */
+  url: string
+  object_path: string
+  bytes: number
+  width: number
+  height: number
+  content_type: string
+}
+
+/**
+ * Sube una imagen al bucket de Telar (PNG/JPG/GIF/WebP, ≤ 2 MB, ≤ 4096 px por
+ * lado). Se sube AL MOMENTO: el nombre es el hash del contenido, así que la URL
+ * es segura de insertar de inmediato y subir la misma imagen dos veces no
+ * duplica nada. Requiere la misma credencial que publicar.
+ */
+export function uploadLessonImage(file: File): Promise<AdminImageDto> {
+  const form = new FormData()
+  form.append('file', file)
+  return fetchJson<AdminImageDto>(`${P}/images`, { method: 'POST', body: form })
+}

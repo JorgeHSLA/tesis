@@ -10,7 +10,10 @@ import type { ExampleDetailDto, LessonDetailDto } from '../../api/types'
 import { IconCheck, IconChevronRight, IconDownload, IconPlay } from '../../components/icons/icons'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { useBrokenImageFallback } from '../../hooks/useBrokenImageFallback'
+import { splitSources } from '../../lib/lessonSources'
 import { renderMarkdown } from '../../lib/markdown'
+import { LessonSources } from './LessonSources'
 import { highlightDirectives } from './codeHighlight'
 
 type LessonTab = 'descripcion' | 'codigo' | 'salida'
@@ -39,7 +42,11 @@ export function LessonInfo({ lesson, example, runDisabled }: LessonInfoProps) {
   const [open, setOpen] = useState(true)
   const [tab, setTab] = useState<LessonTab>('descripcion')
 
-  const markdownHtml = useMemo(() => renderMarkdown(lesson.content_markdown), [lesson.content_markdown])
+  // «## Fuentes» sale del cuerpo y se muestra ARRIBA, como etiquetas con enlace.
+  const { body, sources } = useMemo(() => splitSources(lesson.content_markdown), [lesson.content_markdown])
+  const markdownHtml = useMemo(() => renderMarkdown(body), [body])
+  // Imagen que no carga (sin internet…) → aviso en lugar de un icono roto.
+  const markdownRef = useBrokenImageFallback()
 
   const download = () => {
     if (example == null) return
@@ -102,9 +109,10 @@ export function LessonInfo({ lesson, example, runDisabled }: LessonInfoProps) {
 
           {(example == null || tab === 'descripcion') && (
             <>
+              <LessonSources sources={sources} />
               {/* Markdown generado por lib/markdown.ts: todo el texto se escapa
                   antes de emitir HTML propio (subset seguro, sin HTML crudo). */}
-              <div className="markdown" dangerouslySetInnerHTML={{ __html: markdownHtml }} />
+              <div ref={markdownRef} className="markdown" dangerouslySetInnerHTML={{ __html: markdownHtml }} />
               {example != null && example.takeaways.length > 0 && (
                 <div className="takeaways" style={{ marginTop: 16 }}>
                   <div className="takeaway-title">Lo que vas a aprender</div>

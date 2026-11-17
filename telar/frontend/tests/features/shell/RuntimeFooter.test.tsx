@@ -106,12 +106,15 @@ describe('RuntimeFooter (desktop)', () => {
 describe('RuntimeFooter (desktop) · causas y runner', () => {
   it('CU-27.4: sin Docker muestra la causa saneada en el panel', async () => {
     setDesktop([], {
-      dockerStatus: vi.fn().mockResolvedValue({ ok: false, services: [], error: 'permiso denegado en docker.sock' }),
+      dockerStatus: vi.fn().mockResolvedValue({ ok: false, services: [], error: 'permission denied while trying to connect to the Docker daemon socket at /var/run/docker.sock' }),
     })
     render(<RuntimeFooter />)
-    const trigger = await screen.findByRole('button', { name: /Docker no disponible/i })
+    const trigger = await screen.findByRole('button', { name: /Sin permiso para usar Docker/i })
     fireEvent.click(trigger)
-    expect(await screen.findByRole('alert')).toHaveTextContent('permiso denegado en docker.sock')
+    // Mensaje llano arriba; el texto crudo queda en «Detalle técnico».
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Sin permiso para usar Docker')
+    expect(alert).toHaveTextContent('permission denied while trying to connect')
   })
 
   it('CU-27.3: con el backend listo pero sin imagen del runner ofrece «Reintentar preparación»', async () => {

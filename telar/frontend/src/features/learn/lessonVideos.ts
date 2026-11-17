@@ -105,3 +105,54 @@ export function resolveYouTubeEmbed(raw: string | null | undefined): string | nu
 export function resolveLessonVideo(exampleId: string): string | null {
   return resolveYouTubeEmbed(LESSON_VIDEOS[exampleId])
 }
+
+// ── Estado de reproducción (API de iframe de YouTube, sin cargar su script) ───
+//
+// Para que el mini reproductor solo aparezca si el video SE ESTÁ REPRODUCIENDO
+// (pedido de las pruebas de usabilidad: «si no se reproduce, que no salga»), la
+// lección necesita saber el estado del reproductor. El embed lo comunica por
+// `postMessage` cuando la URL lleva `enablejsapi=1` y la página le manda un
+// «listening»: así no hace falta descargar el script de la API (la CSP no lo
+// permitiría) ni exponer más superficie que un mensaje JSON validado.
+
+/** Origen desde el que escribe el reproductor embebido. */
+export const YOUTUBE_PLAYER_ORIGIN = 'https://www.youtube-nocookie.com'
+
+/** Activa los avisos de estado del reproductor en un embed ya normalizado. */
+export function withPlayerEvents(embedSrc: string): string {
+  const url = new URL(embedSrc)
+  url.searchParams.set('enablejsapi', '1')
+  return url.toString()
+}
+
+/** Mensaje que hay que enviarle al iframe tras cargar para empezar a recibir estados. */
+export const PLAYER_LISTEN_MESSAGE = JSON.stringify({ event: 'listening', id: 1, channel: 'widget' })
+
+/**
+ * Estado numérico del reproductor dentro de un mensaje de YouTube, o `null` si
+ * el mensaje no trae ninguno (o no es de fiar). -1 sin empezar · 0 terminado ·
+ * 1 reproduciendo · 2 en pausa · 3 cargando · 5 en cola.
+ */
+export function parsePlayerState(data: unknown): number | null {
+  let msg: unknown = data
+  if (typeof data === 'string') {
+    try {
+      msg = JSON.parse(data)
+    } catch {
+      return null
+    }
+  }
+  if (msg === null || typeof msg !== 'object') return null
+  const m = msg as { event?: unknown; info?: unknown }
+  if (m.event === 'onStateChange' && typeof m.info === 'number') return m.info
+  if (m.event === 'infoDelivery' && m.info !== null && typeof m.info === 'object') {
+    const state = (m.info as { playerState?: unknown }).playerState
+    if (typeof state === 'number') return state
+  }
+  return null
+}
+
+/** Reproduciendo (1) o cargando para reproducir (3). */
+export function isPlayingState(state: number): boolean {
+  return state === 1 || state === 3
+}

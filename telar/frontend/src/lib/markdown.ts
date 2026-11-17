@@ -1,10 +1,34 @@
 // lib/markdown.ts — renderizador del subset EXACTO de markdown permitido en
 // los lessons/*.md (frontend-spec §1): h1-h4, párrafos, listas anidadas
 // (ul/ol, sangría de 2 espacios), código inline + fenced, negrita/cursiva,
-// enlaces y tablas simples. Los fixtures se redactan DENTRO de este subset.
+// enlaces, imágenes y tablas simples. Los fixtures se redactan DENTRO de este
+// subset.
 //
 // Seguridad: TODO el texto se escapa ANTES de generar HTML propio; los href
 // solo admiten http(s), '#' y rutas relativas — nunca javascript:.
+//
+// Imágenes (2026-11-16): `![texto](url)`. Una línea con solo la imagen es una
+// figura con pie; dentro de un párrafo es una imagen en línea. La URL SOLO se
+// admite si es un objeto `imagenes/<hash>.<ext>` del bucket de Telar
+// (`IMAGE_URL_RE`, espejo de backend/app/services/markdown_validator.py): el
+// contenido viaja por el catálogo remoto, y una imagen de un host cualquiera
+// serviría de baliza para espiar a quien lee la lección. Cualquier otra URL se
+// sustituye por un aviso de texto. Las imágenes se piden sin Referer.
+
+/** Única forma de URL de imagen admitida: objeto `imagenes/` del bucket de Telar. */
+export const IMAGE_URL_RE =
+  /^https:\/\/storage\.googleapis\.com\/[a-z0-9][a-z0-9._-]{1,220}\/imagenes\/[0-9a-f]{32}\.(?:png|jpg|gif|webp)$/
+
+function renderImage(alt: string, url: string, block: boolean): string {
+  const src = url.trim()
+  if (!IMAGE_URL_RE.test(src)) {
+    return `<span class="md-img-blocked">[imagen no permitida${alt ? `: ${alt}` : ''}]</span>`
+  }
+  const img = `<img class="md-img" src="${src}" alt="${alt}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
+  return block
+    ? `<figure class="md-figure">${img}${alt ? `<figcaption>${alt}</figcaption>` : ''}</figure>`
+    : img
+}
 
 function escapeHtml(s: string): string {
   return s
@@ -26,6 +50,12 @@ function renderInline(escaped: string): string {
   const codes: string[] = []
   let out = escaped.replace(/`([^`]+)`/g, (_m, code: string) => {
     codes.push(`<code>${code}</code>`)
+    return `\u0000${codes.length - 1}\u0000`
+  })
+  // Imágenes en línea: se protegen como el código para que ni el énfasis ni los
+  // enlaces las vuelvan a tocar.
+  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, alt: string, url: string) => {
+    codes.push(renderImage(alt, url, false))
     return `\u0000${codes.length - 1}\u0000`
   })
   out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
@@ -117,6 +147,16 @@ export function renderMarkdown(md: string): string {
       closeAllLists()
       const level = heading[1].length
       html.push(`<h${level}>${renderInline(escapeHtml(heading[2].trim()))}</h${level}>`)
+      i++
+      continue
+    }
+
+    // Imagen sola en su línea → figura con pie (el texto alternativo).
+    const figure = /^\s*!\[([^\]]*)\]\(([^)\s]+)\)\s*$/.exec(line)
+    if (figure) {
+      flushParagraph()
+      closeAllLists()
+      html.push(renderImage(escapeHtml(figure[1]), escapeHtml(figure[2]), true))
       i++
       continue
     }
