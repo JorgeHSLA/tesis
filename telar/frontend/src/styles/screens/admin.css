@@ -600,3 +600,10 @@
 .sources-row-actions { display: flex; gap: 2px; align-items: center; }
 .sources-row .field-hint { flex-basis: 100%; }
 .sources-preview { padding-top: var(--sp-2); }
+
+/* Fuentes en la columna derecha: acciones arriba de cada una y campos a todo el ancho. */
+.sources-row { flex-direction: column; align-items: stretch; gap: var(--sp-1); }
+.sources-row-actions { order: -1; align-self: flex-end; }
+.sources-row-grid { flex: none; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sources-row-grid .sources-field:nth-child(1),
+.sources-row-grid .sources-field:nth-child(2) { grid-column: span 1; }

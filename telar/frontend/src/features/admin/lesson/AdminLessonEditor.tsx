@@ -12,6 +12,7 @@ import { createLesson, getAdminLesson, getAdminModules, reorderLessons, updateLe
 import { getSystem } from '../../../api/system'
 import type { AdminLessonDetailDto, AdminLessonUpdateDto, AdminModuleDto } from '../../../api/admin-types'
 import { Button } from '../../../components/ui/Button'
+import { IconChevronLeft } from '../../../components/icons/icons'
 import { Chip } from '../../../components/ui/Chip'
 import { ErrorState } from '../../../components/ui/ErrorState'
 import { Skeleton } from '../../../components/ui/Skeleton'
@@ -394,8 +395,9 @@ export default function AdminLessonEditor() {
             </p>
           )}
         </div>
-        <Button variant="ghost" size="sm" onClick={() => navigate('/admin')}>
-          Volver al panel
+        {/* Primario y grande, como «Lanzar ejecución» del simulador: antes era un botón fantasma y no se notaba. */}
+        <Button variant="primary" size="lg" onClick={() => navigate('/admin')}>
+          <IconChevronLeft size={14} /> Volver al panel
         </Button>
       </header>
 
@@ -403,14 +405,11 @@ export default function AdminLessonEditor() {
         className="grid"
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: 20, alignItems: 'start' }}
       >
-        <div className="col" style={{ gap: 20 }}>
-          <MarkdownEditor
-            value={form.content_markdown}
-            onChange={setMarkdown}
-            error={fieldErrors.content_markdown}
-          />
-          <SourcesEditor rows={form.sources} onChange={setSources} error={fieldErrors.sources} />
-        </div>
+        <MarkdownEditor
+          value={form.content_markdown}
+          onChange={setMarkdown}
+          error={fieldErrors.content_markdown}
+        />
         <div className="col" style={{ gap: 18 }}>
           <LessonMetaFields
             mode={isEdit ? 'edit' : 'create'}
@@ -477,6 +476,10 @@ export default function AdminLessonEditor() {
               )}
             </div>
           )}
+
+          {/* Las fuentes ocupan el hueco que quedaba bajo «Agregar ejemplo»: la columna del
+              contenido ya es larga y esta era más corta. */}
+          <SourcesEditor rows={form.sources} onChange={setSources} error={fieldErrors.sources} />
         </div>
       </div>
 
