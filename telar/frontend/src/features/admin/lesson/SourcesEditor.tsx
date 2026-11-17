@@ -9,6 +9,7 @@ import { IconPlus } from '../../../components/icons/icons'
 import { LessonSources } from '../../learn/LessonSources'
 import { splitSources } from '../../../lib/lessonSources'
 import { joinSources } from '../../../lib/lessonSources'
+import { AdminHelp } from './adminHelp'
 import { blankSourceRow, serializeSourceRows, sourceRowIssue, type SourceRow } from './sourceRows'
 
 export interface SourcesEditorProps {
@@ -37,16 +38,14 @@ export function SourcesEditor({ rows, onChange, error }: SourcesEditorProps) {
   return (
     <section className="sources-editor" aria-label="Fuentes de la lección">
       <div className="md-editor-head">
-        <div className="field-label">Fuentes de la lección</div>
+        <span className="md-editor-title">
+          <span className="field-label">Fuentes de la lección</span>
+          {AdminHelp.fuentes}
+        </span>
         <Button variant="outline" size="sm" onClick={() => onChange([...rows, blankSourceRow()])}>
           <IconPlus size={14} /> Agregar fuente
         </Button>
       </div>
-      <div className="field-hint">
-        Van aquí, no en el contenido: el estudiante las ve arriba de la lección como etiquetas; al pasar el cursor
-        aparece la cita y el enlace.
-      </div>
-
       {rows.length === 0 && <div className="sources-empty">Esta lección todavía no tiene fuentes.</div>}
 
       <ol className="sources-list">

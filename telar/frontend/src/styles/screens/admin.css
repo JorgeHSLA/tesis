@@ -607,3 +607,11 @@
 .sources-row-grid { flex: none; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .sources-row-grid .sources-field:nth-child(1),
 .sources-row-grid .sources-field:nth-child(2) { grid-column: span 1; }
+
+/* Fuentes a todo el ancho: las tarjetas se reparten en columnas según el espacio. */
+.sources-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); align-items: start; }
+.md-editor-title { display: inline-flex; align-items: center; }
+.md-editor-title .help-tip { margin-left: 8px; }
+.help-tip-body .help-line { display: block; }
+.help-tip-body .help-line + .help-line { margin-top: 4px; }
+.help-tip-body code { font-family: var(--font-mono); font-size: .92em; color: var(--text); }

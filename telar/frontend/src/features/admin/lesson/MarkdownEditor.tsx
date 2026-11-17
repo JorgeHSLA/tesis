@@ -20,6 +20,7 @@ import {
   insertImageMarkdown,
 } from '../../../lib/imageInsert'
 import { renderMarkdown } from '../../../lib/markdown'
+import { AdminHelp } from './adminHelp'
 
 export interface MarkdownEditorProps {
   value: string
@@ -111,9 +112,12 @@ export function MarkdownEditor({ value, onChange, error }: MarkdownEditorProps) 
     <div className="col" style={{ gap: 12 }}>
       <div>
         <div className="md-editor-head">
-          <label className="field-label" htmlFor={id}>
-            Contenido de la lección (Markdown)
-          </label>
+          <span className="md-editor-title">
+            <label className="field-label" htmlFor={id}>
+              Contenido de la lección (Markdown)
+            </label>
+            {AdminHelp.contenido}
+          </span>
           <Button variant="outline" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
             {uploading ? 'Subiendo imagen…' : 'Insertar imagen'}
           </Button>
@@ -153,14 +157,9 @@ export function MarkdownEditor({ value, onChange, error }: MarkdownEditorProps) 
           onDrop={onDrop}
           style={{ minHeight: 340, lineHeight: 1.6 }}
         />
-        {error != null ? (
+        {error != null && (
           <div id={`${id}-err`} className="field-hint error" role="alert">
             {error}
-          </div>
-        ) : (
-          <div className="field-hint">
-            Subset soportado: encabezados, listas, código, negrita/cursiva, enlaces, tablas e imágenes (botón «Insertar
-            imagen», o arrastra / pega una).
           </div>
         )}
         {upload.kind === 'error' && (

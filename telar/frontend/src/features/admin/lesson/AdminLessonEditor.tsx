@@ -476,11 +476,13 @@ export default function AdminLessonEditor() {
               )}
             </div>
           )}
-
-          {/* Las fuentes ocupan el hueco que quedaba bajo «Agregar ejemplo»: la columna del
-              contenido ya es larga y esta era más corta. */}
-          <SourcesEditor rows={form.sources} onChange={setSources} error={fieldErrors.sources} />
         </div>
+      </div>
+
+      {/* Las fuentes van a TODO el ancho, debajo de las dos columnas: así no queda un hueco en
+          blanco en ninguno de los dos lados, sea cual sea la columna más larga. */}
+      <div style={{ marginTop: 24 }}>
+        <SourcesEditor rows={form.sources} onChange={setSources} error={fieldErrors.sources} />
       </div>
 
       <AdminSaveBar
