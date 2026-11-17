@@ -86,8 +86,10 @@ describe('selección de gráfica según parsed_timings', () => {
     await screen.findByText(/las gráficas en vivo solo están disponibles/i)
     expect(screen.getAllByText('CPU promedio').length).toBeGreaterThan(0)
     // CU-09.4: pids_stats cuenta TODAS las tareas del cgroup, no los hilos OpenMP.
-    const rotulo = screen.getByText('Tareas del contenedor')
-    expect(rotulo).toHaveAttribute('title', expect.stringMatching(/cgroup.*no .*hilos OpenMP/i))
+    // (ahora la aclaración vive en el «?» junto al rótulo, no en un title)
+    expect(screen.getByText(/Tareas del contenedor/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Ayuda: tareas del contenedor' }))
+    expect(screen.getByText(/no es el número de hilos OpenMP/i)).toBeInTheDocument()
     expect(screen.queryByText('Hilos (PIDs)')).not.toBeInTheDocument()
   })
 })
@@ -148,7 +150,9 @@ describe('Speedup observado: la eficiencia nombra su N (auditoría de métricas,
   it('la gráfica sigue rotulando su propio N (último punto)', async () => {
     getJobMock.mockResolvedValue(saturado)
     renderAt(saturado.job_id)
-    expect(await screen.findByText(/eficiencia a 8 hilos: 40%/)).toBeInTheDocument()
+    // Los valores de CADA punto van en la tabla bajo la gráfica (antes solo el último, en una frase).
+    const fila = (await screen.findByRole('rowheader', { name: '8' })).closest('tr') as HTMLElement
+    expect(fila).toHaveTextContent('40%')
   })
 })
 
@@ -203,17 +207,11 @@ describe('Re-ejecutar (CU-04.1, 32.2)', () => {
     const editado = { ...JOB_SWEEP, source_kind: 'editor' as const, source_code: 'x = 1\n', threads: 6, timeout_s: 90 }
     getJobMock.mockResolvedValue(editado)
     renderAt(editado.job_id)
-    fireEvent.click(await screen.findByRole('button', { name: /Re-ejecutar/i }))
-    const state = JSON.parse((await screen.findByTestId('sim-state')).textContent ?? 'null') as Record<string, unknown>
-    expect(state).toEqual({
-      example_id: 'transporteParticulas',
-      lesson_id: 'transporteParticulas',
-      code: 'x = 1\n',
-      filename: 'transporteMonteCarlo.py',
-      threads: 6,
-      timeout_s: 90,
-      edited: true,
-    })
+    // «Ejecutar otro ejemplo» lleva al simulador SIN precargar nada (para elegir uno distinto);
+    // repetir ESTE ejemplo con otros hilos es el panel «Probar con otros hilos».
+    fireEvent.click(await screen.findByRole('button', { name: /Ejecutar otro ejemplo/i }))
+    const state = JSON.parse((await screen.findByTestId('sim-state')).textContent ?? 'null')
+    expect(state).toBeNull()
   })
 })
 

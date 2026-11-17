@@ -15,6 +15,9 @@ export interface ExamplePickerProps {
 
 export function ExamplePicker({ modules, value, onChange, disabled }: ExamplePickerProps) {
   const id = useId()
+  // Solo los módulos que TIENEN ejemplos para correr: uno sin ninguno saldría como
+  // un grupo vacío (confunde). Cuando se le agregue un ejemplo, aparece solo.
+  const withExamples = modules.filter((m) => m.lessons.some((l) => l.example_id != null))
   return (
     <div className="example-picker">
       <label className="field-label" htmlFor={id}>
@@ -29,7 +32,7 @@ export function ExamplePicker({ modules, value, onChange, disabled }: ExamplePic
         onChange={(e) => onChange(e.currentTarget.value)}
       >
         <option value="">Código propio (editor)</option>
-        {modules.map((m) => (
+        {withExamples.map((m) => (
           <optgroup key={m.id} label={`M${m.order} · ${m.title}`}>
             {/* E1: el selector ofrece EJEMPLOS. Una lección conceptual no tiene
                 código que precargar, así que no aparece aquí — no como opción

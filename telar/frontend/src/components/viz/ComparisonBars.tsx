@@ -22,6 +22,12 @@ interface Row {
   ink: string
 }
 
+const REFERENCE_NAMES: Record<string, string> = {
+  numpy: 'NumPy (referencia)',
+  blas: 'BLAS (referencia)',
+  serial: 'Serial (1 hilo)',
+}
+
 export function ComparisonBars({ parallel_time_s, reference_time_s, reference_label }: ComparisonBarsProps) {
   // Arranca en 0 y transiciona al ancho real (width .4s var(--ease)).
   const [grown, setGrown] = useState(false)
@@ -30,17 +36,20 @@ export function ComparisonBars({ parallel_time_s, reference_time_s, reference_la
     return () => cancelAnimationFrame(id)
   }, [])
 
+  // Nombres que se entienden (antes «openmp» y «numpy» a secas).
+  const refName = REFERENCE_NAMES[reference_label] ?? reference_label
   const rows: Row[] = [
-    { label: 'openmp', time: parallel_time_s, color: 'var(--viz-cpu)', ink: 'var(--viz-cpu-ink)' },
-    { label: reference_label, time: reference_time_s, color: 'var(--viz-mem)', ink: 'var(--viz-mem-ink)' },
+    { label: 'OpenMP (paralelo)', time: parallel_time_s, color: 'var(--viz-cpu)', ink: 'var(--viz-cpu-ink)' },
+    { label: refName, time: reference_time_s, color: 'var(--viz-mem)', ink: 'var(--viz-mem-ink)' },
   ]
+  const times = parallel_time_s > 0 ? reference_time_s / parallel_time_s : 0
   const maxTime = Math.max(...rows.map((r) => r.time), 1e-9)
 
   return (
     <div>
       <div className="legend-row">
-        <span className="lg-dot" style={{ background: 'var(--viz-cpu)' }} /> OpenMP
-        <span className="lg-dot" style={{ background: 'var(--viz-mem)', marginLeft: 14 }} /> {reference_label}
+        <span className="lg-dot" style={{ background: 'var(--viz-cpu)' }} /> OpenMP (tu versión paralela)
+        <span className="lg-dot" style={{ background: 'var(--viz-mem)', marginLeft: 14 }} /> {refName}
       </div>
       <div className="bar-chart" role="img" aria-label={`OpenMP ${parallel_time_s}s frente a ${reference_label} ${reference_time_s}s`}>
         {rows.map((r) => (
@@ -57,6 +66,13 @@ export function ComparisonBars({ parallel_time_s, reference_time_s, reference_la
           </div>
         ))}
       </div>
+      {times > 0 && (
+        <p className="chart-takeaway">
+          {times >= 1
+            ? `OpenMP fue ${times.toFixed(1)}× más rápido que ${refName}.`
+            : `OpenMP fue ${(1 / times).toFixed(1)}× más lento que ${refName}: con poco trabajo, crear el equipo de hilos cuesta más de lo que ahorra.`}
+        </p>
+      )}
     </div>
   )
 }

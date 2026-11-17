@@ -23,7 +23,7 @@ export function SweepProgressCard({ logs, parserId, phase }: SweepProgressCardPr
   const currentCase = SWEEP_CASES.find((n) => !times.has(n))
 
   return (
-    <Card style={{ marginTop: 'var(--sp-5)' }}>
+    <Card className="sweep-card">
       <CardHead
         icon={<IconLayers size={16} />}
         title="Barrido de hilos"

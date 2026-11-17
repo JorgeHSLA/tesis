@@ -11,14 +11,19 @@ export interface MetricCardProps {
   hint?: ReactNode
   /** 0..100 → renderiza la barra .metric-progress. */
   progressPct?: number
+  /** Ayuda («?») junto al rótulo: qué significa este dato. */
+  help?: ReactNode
 }
 
-export function MetricCard({ icon, label, value, hint, progressPct }: MetricCardProps) {
+export function MetricCard({ icon, label, value, hint, progressPct, help }: MetricCardProps) {
   return (
     <div className="metric-card">
       <div className="metric-icon">{icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="metric-label">{label}</div>
+        <div className="metric-label">
+          {label}
+          {help != null && <span className="metric-help">{help}</span>}
+        </div>
         <div className="metric-value">{value}</div>
         {hint != null && <div className="mono-small">{hint}</div>}
         {progressPct != null && (

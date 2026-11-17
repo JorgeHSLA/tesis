@@ -12,6 +12,7 @@
 //   por hilo (no existe esa medida real y no se inventa; architecture §6).
 // - Rombos con fill plano de tokens.
 // - SMIL (<animateMotion>/<animate>) SOLO si !reducedMotion (render condicional).
+import { useEffect, useRef } from 'react'
 import type { DecorNode } from '../../hooks/useSimulation'
 import { figureLabel, layoutFigures, topologyAriaLabel } from '../../lib/threadTopology'
 
@@ -31,9 +32,31 @@ export interface LiveTopologyProps {
   reducedMotion: boolean
   /** El código separa a t0 del resto (lib/masterRole): t0 va encima y «coordina». */
   masterCoordinates?: boolean
+  /** Congela la ilustración (los paquetes dejan de moverse). No detiene el job. */
+  paused?: boolean
+  /** Velocidad de la ilustración (0.5, 1, 2…). Solo estira o encoge la animación. */
+  speed?: number
 }
 
-export function LiveTopology({ nodes, running, reducedMotion, masterCoordinates = false }: LiveTopologyProps) {
+export function LiveTopology({
+  nodes,
+  running,
+  reducedMotion,
+  masterCoordinates = false,
+  paused = false,
+  speed = 1,
+}: LiveTopologyProps) {
+  const svgRef = useRef<SVGSVGElement>(null)
+  // SMIL se pausa con el propio <svg>: congela paquetes y halo a la vez.
+  useEffect(() => {
+    const svg = svgRef.current
+    if (svg === null) return
+    if (paused) svg.pauseAnimations?.()
+    else svg.unpauseAnimations?.()
+  }, [paused, running])
+  /** Duración de una animación a velocidad `speed`. */
+  const dur = (base: number): string => `${(base / Math.max(0.1, speed)).toFixed(2)}s`
+  const delay = (base: number): string => `${(base / Math.max(0.1, speed)).toFixed(2)}s`
   const figures = layoutFigures(nodes.length, W / 2, 720, 100, masterCoordinates)
   const master = figures[0]
   const stacked = master.tier === 'head'
@@ -46,10 +69,10 @@ export function LiveTopology({ nodes, running, reducedMotion, masterCoordinates 
   // Responsive sin librerías: viewBox + width 100% y SIN alto fijo, para que el
   // alto se derive de la proporción.
   return (
-    <svg viewBox={`0 0 ${W} ${geo.H}`} width="100%" role="img" aria-label={topologyAriaLabel(figures.length, masterCoordinates)} style={{ display: 'block', height: 'auto' }}>
+    <svg ref={svgRef} viewBox={`0 0 ${W} ${geo.H}`} width="100%" role="img" aria-label={topologyAriaLabel(figures.length, masterCoordinates)} style={{ display: 'block', height: 'auto' }}>
       {/* Halo pulsante del maestro (decorativo; sin SMIL con reduced-motion) */}
       <circle cx={master.x} cy={geo.headY} r={38} fill="var(--viz-node)" fillOpacity={0.08}>
-        {animate && <animate attributeName="r" values="30;42;30" dur="2s" repeatCount="indefinite" />}
+        {animate && <animate attributeName="r" values="30;42;30" dur={dur(2)} repeatCount="indefinite" />}
       </circle>
 
       {/* Fork: t0 → resto del equipo, con paquetes decorativos ida/vuelta */}
@@ -61,13 +84,13 @@ export function LiveTopology({ nodes, running, reducedMotion, masterCoordinates 
             {animate && (
               <>
                 <circle r={3.5} fill="var(--viz-packet)">
-                  <animateMotion dur="1.8s" repeatCount="indefinite" begin={`${(i * 0.25).toFixed(2)}s`} path={elbow} />
+                  <animateMotion dur={dur(1.8)} repeatCount="indefinite" begin={delay(i * 0.25)} path={elbow} />
                 </circle>
                 <circle r={3} fill="var(--viz-node)">
                   <animateMotion
-                    dur="1.8s"
+                    dur={dur(1.8)}
                     repeatCount="indefinite"
-                    begin={`${(i * 0.25 + 0.9).toFixed(2)}s`}
+                    begin={delay(i * 0.25 + 0.9)}
                     keyPoints="1;0"
                     keyTimes="0;1"
                     calcMode="linear"
@@ -115,7 +138,7 @@ export function LiveTopology({ nodes, running, reducedMotion, masterCoordinates 
             </text>
             <text x={f.x} y={labelY} textAnchor="middle" fontSize={10} fill="var(--viz-label)" fontFamily="var(--font-mono)">
               {figureLabel(f)}
-              {running ? ' · activo' : ''}
+              {running ? (paused ? ' · en pausa' : ' · activo') : ''}
             </text>
           </g>
         )

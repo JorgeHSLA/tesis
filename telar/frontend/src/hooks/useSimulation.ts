@@ -19,6 +19,10 @@ export interface UseSimulationOpts {
   threads: number
   running: boolean
   reducedMotion: boolean
+  /** Congela la ilustración (NO el job: es solo la animación). */
+  paused?: boolean
+  /** Multiplicador de velocidad de la ilustración (0.5×, 1×, 2×…). */
+  speed?: number
 }
 
 const TICK_MS = 700
@@ -44,7 +48,13 @@ function jitterNodes(nodes: DecorNode[]): DecorNode[] {
   }))
 }
 
-export function useSimulation({ threads, running, reducedMotion }: UseSimulationOpts): { nodes: DecorNode[] } {
+export function useSimulation({
+  threads,
+  running,
+  reducedMotion,
+  paused = false,
+  speed = 1,
+}: UseSimulationOpts): { nodes: DecorNode[] } {
   const [nodes, setNodes] = useState<DecorNode[]>(() => makeNodes(threads))
 
   // Reconstruir cuando cambia el número de hilos (llega del GET del job).
@@ -53,10 +63,10 @@ export function useSimulation({ threads, running, reducedMotion }: UseSimulation
   }, [threads])
 
   useEffect(() => {
-    if (!running || reducedMotion) return // congela el último estado
-    const id = setInterval(() => setNodes((prev) => jitterNodes(prev)), TICK_MS)
+    if (!running || reducedMotion || paused) return // congela el último estado
+    const id = setInterval(() => setNodes((prev) => jitterNodes(prev)), TICK_MS / Math.max(0.1, speed))
     return () => clearInterval(id)
-  }, [running, reducedMotion, threads])
+  }, [running, reducedMotion, threads, paused, speed])
 
   return { nodes }
 }

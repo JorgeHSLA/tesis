@@ -318,6 +318,7 @@
 }
 
 /* SweepProgressCard — el caso «en curso» se marca con --primary (progreso) */
+.sweep-card { margin-top: var(--sp-5); }
 .sweep-progress {
   padding: var(--sp-3) var(--card-pad) var(--sp-5);
   display: flex;
@@ -407,4 +408,266 @@
   .saved-configs-form {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── «Probar con otros hilos» (QuickRerun) ───────────────────────────────── */
+.quick-rerun {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-4);
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.quick-rerun-field { flex: 1 1 260px; min-width: 220px; }
+
+/* Controles de la ilustración de hilos: pausa + velocidad. */
+.illus-controls { display: flex; align-items: center; gap: var(--sp-2); }
+.illus-speeds {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.illus-speed {
+  appearance: none;
+  border: 0;
+  padding: 3px 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.illus-speed + .illus-speed { border-left: 1px solid var(--border); }
+.illus-speed:hover { background: var(--surface-2); color: var(--text); }
+.illus-speed.is-on { background: var(--surface-2); color: var(--text); font-weight: 600; }
+
+/* ── Editor con colores de sintaxis (CodePanel) ──────────────────────────────
+   El <pre> coloreado va DETRÁS y el <textarea> encima con el texto transparente.
+   Los dos DEBEN compartir fuente, tamaño, interlineado, relleno y tabulación, o
+   el color se desalinea de la letra. Sin color (archivo enorme) el textarea
+   vuelve a pintar su propio texto. */
+.code-editor-wrap { position: relative; display: flex; flex-direction: column; }
+.code-editor-wrap.is-highlighted .code-editor {
+  position: relative;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--term-text);
+  z-index: 1;
+}
+.code-editor-wrap.is-highlighted .code-editor::selection {
+  background: color-mix(in srgb, var(--steel-300) 35%, transparent);
+  color: transparent;
+}
+.code-highlight {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--term-bg);
+  color: var(--term-text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  padding: var(--sp-3) var(--sp-4);
+  white-space: pre;
+  tab-size: 4;
+  /* Mismo ancho útil que el textarea: su barra de scroll vertical ocupa sitio. */
+  scrollbar-gutter: stable;
+}
+.tok-keyword { color: var(--steel-300); }
+.tok-builtin { color: var(--steel-300); opacity: .85; }
+.tok-string { color: var(--term-accent); }
+.tok-omp { color: var(--clay-300); font-weight: 600; }
+.tok-number { color: var(--ochre-300); }
+.tok-comment { color: var(--term-dim); font-style: italic; }
+.tok-decorator { color: var(--ochre-300); }
+.tok-def { color: var(--term-text); font-weight: 600; }
+
+/* ── Franja de controles de la ejecución: hilos para repetir + reproductor ── */
+.live-controls {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.live-controls .quick-rerun { margin: 0; flex: 1 1 280px; max-width: 420px; }
+.live-controls .replay-bar { flex: 3 1 460px; }
+
+/* ── Reproductor de la ejecución (ReplayBar) ─────────────────────────────── */
+.replay-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  min-width: 0;
+}
+.replay-transport { display: flex; align-items: center; gap: 4px; }
+.replay-btn {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2, var(--bg));
+  color: var(--text);
+  cursor: pointer;
+}
+.replay-btn:hover:not(:disabled) { background: var(--surface-3, var(--border)); }
+.replay-btn:disabled { opacity: .4; cursor: not-allowed; }
+.replay-btn--main {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary, #fff);
+}
+.replay-btn--main:hover:not(:disabled) { background: var(--primary-hover, var(--primary)); }
+.replay-timeline {
+  flex: 1 1 200px;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.replay-scrubber, .replay-speed input[type='range'] { accent-color: var(--primary); }
+.replay-scrubber { flex: 1; min-width: 80px; }
+.replay-clock {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.replay-live { color: var(--danger); font-weight: 600; }
+.replay-speed {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.replay-speed input { width: 110px; }
+.replay-speed-value {
+  min-width: 3.2ch;
+  text-align: right;
+  font-family: var(--font-mono);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══ Simulador SIN scroll general (pruebas de usabilidad, 2026-11) ═══════════
+   En pantallas de escritorio la pantalla del simulador llena EXACTAMENTE el alto
+   disponible: lo que sobra se reparte (el editor de código y la terminal crecen
+   o se encogen) y, si algo no cabe, hace scroll DENTRO de su tarjeta, no la
+   página entera. En móvil o ventanas bajas todo sigue fluyendo con scroll normal. */
+@media (min-width: 1024px) and (min-height: 600px) {
+  .main:has(> .simulator-screen) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  /* Barra superior y aviso de borrador conservan su alto. */
+  .main:has(> .simulator-screen) > :not(.simulator-screen) { flex: none; }
+
+  .simulator-screen {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    /* Red de seguridad: si de verdad no cabe (ventana muy baja), el scroll es de la
+       pantalla, nunca un recorte silencioso. */
+    overflow-y: auto;
+    padding-block: var(--sp-3);
+  }
+  .simulator-screen > * { flex: none; }
+  .simulator-screen > .screen-head {
+    margin-bottom: var(--sp-3);
+    padding-bottom: var(--sp-2);
+  }
+
+  /* ── Idle: código a la izquierda, hilos a la derecha; llenan el alto ── */
+  .simulator-screen > .config-grid {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .config-grid > .card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .config-grid .code-upload-body { flex: 1 1 0; min-height: 0; padding-block: var(--sp-2) var(--card-pad); }
+  .config-grid .code-preview { flex: 1 1 0; min-height: 0; }
+  .config-grid .code-editor-wrap { flex: 1 1 0; min-height: 0; }
+  .config-grid .code-editor {
+    flex: 1 1 0;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    resize: none;
+  }
+  .config-grid .topology-viz { flex: none; padding-block: var(--sp-3) 0; }
+  .config-grid .config-fields { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+  .simulator-screen > .more-details { margin-top: var(--sp-3); }
+
+  /* ── En vivo: métricas compactas; terminal y topología llenan el resto ── */
+  .simulator-screen .metrics-row { margin-bottom: var(--sp-3); gap: var(--sp-3); }
+  .simulator-screen .metric-card { padding: var(--sp-2) var(--sp-3); }
+  .simulator-screen .metric-value { font-size: var(--fs-xl); }
+  .simulator-screen .metric-progress { margin-top: 6px; }
+  .simulator-screen .threads-note { margin-bottom: var(--sp-2); padding: var(--sp-2) var(--sp-3); }
+  .simulator-screen .live-controls { margin-bottom: var(--sp-3); }
+  .simulator-screen > .running-grid {
+    flex: 1 1 0;
+    /* Piso: con un barrido de hilos debajo, la topología y la terminal nunca se aplastan a 0. */
+    min-height: 170px;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  /* Barrido de hilos: sus 4 casos en una sola fila (ahorra ~140 px de alto). */
+  .simulator-screen > .sweep-card { margin-top: var(--sp-3); }
+  .sweep-card .sweep-progress {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--sp-2) var(--sp-3);
+    padding: var(--sp-2) var(--card-pad) var(--sp-3);
+  }
+  .sweep-card .sweep-progress .field-hint { grid-column: 1 / -1; margin: 0 !important; }
+  .sweep-card .sweep-case { padding: 6px var(--sp-3); }
+  .running-grid > .card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .running-grid .live-topology { flex: 1 1 0; min-height: 0; overflow: hidden; }
+  .running-grid .live-topology svg { max-height: 100%; }
+  .running-grid .terminal-card .terminal { flex: 1 1 0; min-height: 0; }
+  .running-grid .live-terminal-body { max-height: none; min-height: 0; flex: 1 1 0; }
+}
+
+/* La tarjeta de hilos NO recorta (su «?» abre un recuadro que debe poder salir de ella);
+   solo la terminal necesita overflow oculto. La topología ya se recorta sola. */
+@media (min-width: 1024px) and (min-height: 600px) {
+  .running-grid > .card:not(.terminal-card) { overflow: visible; }
+}
+
+/* La tarjeta de hilos NO recorta (su «?» abre un recuadro que debe poder salir de ella);
+   solo la terminal necesita overflow oculto. La topología ya se recorta sola. */
+@media (min-width: 1024px) and (min-height: 600px) {
+  .running-grid > .card:not(.terminal-card) { overflow: visible; }
 }

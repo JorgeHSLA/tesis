@@ -10,6 +10,7 @@ import { getJob, jobOutputUrl } from '../../api/jobs'
 import { useProgressStore } from '../../stores/progressStore'
 import type { JobDetailDto } from '../../api/types'
 import { Button } from '../../components/ui/Button'
+import { Help } from '../../components/ui/helpTexts'
 import { Chip } from '../../components/ui/Chip'
 import { ErrorState } from '../../components/ui/ErrorState'
 import { MetricCard } from '../../components/ui/MetricCard'
@@ -20,6 +21,7 @@ import {
   IconCpu,
   IconDownload,
   IconMemory,
+  IconPlay,
   IconZap,
 } from '../../components/icons/icons'
 import { fmtBytes, fmtTimeMs } from '../../lib/format'
@@ -27,7 +29,6 @@ import { downloadFile, saveBlob } from '../../lib/download'
 import { jobExportBlob, jobExportFilename } from '../../lib/jobExport'
 import { jobConfigParts, resultEyebrow } from '../../lib/jobCause'
 import { buildObservations } from '../../lib/observations'
-import { configFromJob } from '../../lib/simConfig'
 import { bestSweepPoint } from '../../lib/speedup'
 import { DistributionCard, FailureCard, ObservationsCard, OutputCard } from './ResultsCards'
 import '../../styles/screens/results.css'
@@ -168,15 +169,19 @@ export default function ResultsScreen() {
         : '—'
   const speedupHint =
     t?.kind === 'sweep' && best != null
-      ? `a ${best.threads} hilos · eficiencia ${Math.round(best.efficiency * 100)}%`
+      ? (
+          <>
+            a {best.threads} hilos · eficiencia {Math.round(best.efficiency * 100)}% {Help.eficiencia}
+          </>
+        )
       : t?.kind === 'pair'
-        ? `vs ${t.reference_label}`
-        : 'este ejemplo no auto-mide'
+        ? `contra ${t.reference_label}`
+        : 'no aplica: este ejemplo no se compara contra 1 hilo'
   const m = job.metrics_summary
 
-  // CU-04.1/32.2: el simulador recupera ejemplo (lección y parser), código,
-  // hilos y timeout de ESTA ejecución, también si el ejemplo estaba editado.
-  const rerun = () => navigate('/simulador', { state: configFromJob(job) })
+  // «Ejecutar otro ejemplo»: lleva al simulador SIN precargar nada para elegir uno nuevo.
+  // (Repetir ESTE ejemplo con otros hilos se hace con el panel «Probar con otros hilos».)
+  const runAnother = () => navigate('/simulador')
 
   return (
     <section className="screen results-screen">
@@ -206,8 +211,8 @@ export default function ResultsScreen() {
           <Button variant="outline" onClick={exportJson}>
             <IconDownload size={14} /> Exportar JSON
           </Button>
-          <Button variant="outline" onClick={rerun}>
-            Re-ejecutar
+          <Button variant="outline" onClick={runAnother}>
+            <IconPlay size={14} /> Ejecutar otro ejemplo
           </Button>
         </div>
       </header>
@@ -224,19 +229,22 @@ export default function ResultsScreen() {
           label="Tiempo total"
           value={job.wall_time_ms != null ? fmtTimeMs(job.wall_time_ms) : '—'}
           hint="incluye compilación JIT"
+          help={Help.tiempoTotal}
         />
-        <MetricCard icon={<IconZap size={16} />} label="Speedup observado" value={speedupValue} hint={speedupHint} />
+        <MetricCard icon={<IconZap size={16} />} label="Speedup observado" value={speedupValue} hint={speedupHint} help={Help.speedup} />
         <MetricCard
           icon={<IconCpu size={16} />}
           label="CPU promedio"
           value={m != null ? `${Math.round(m.cpu_percent_avg)}%` : '—'}
           hint={m != null ? `pico ${Math.round(m.cpu_percent_max)}%` : 'sin muestras'}
+          help={Help.cpu}
         />
         <MetricCard
           icon={<IconMemory size={16} />}
           label="Memoria pico"
           value={m != null ? fmtBytes(m.mem_used_bytes_max) : '—'}
           hint={m != null ? `límite ${fmtBytes(m.mem_limit_bytes)}` : 'sin muestras'}
+          help={Help.memoria}
         />
       </div>
 

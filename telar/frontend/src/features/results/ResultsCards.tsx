@@ -13,6 +13,7 @@ import {
   IconZap,
 } from '../../components/icons/icons'
 import { Button } from '../../components/ui/Button'
+import { Help } from '../../components/ui/helpTexts'
 import type { JobDetailDto } from '../../api/types'
 import { ComparisonBars } from '../../components/viz/ComparisonBars'
 import { LiveMetricsChart } from '../../components/viz/LiveMetricsChart'
@@ -31,10 +32,19 @@ export function DistributionCard({ job }: { job: JobDetailDto }) {
   const liveJobId = useJobStore((s) => s.jobId)
   const liveMetrics = useJobStore((s) => s.metrics)
   const hasLiveSeries = liveJobId === job.job_id && liveMetrics.length >= 2
+  // El título dice lo que de verdad se ve (antes siempre «Distribución del trabajo»).
+  const heading =
+    t?.kind === 'sweep'
+      ? { title: 'Cómo escala con los hilos', sub: 'speedup medido contra el ideal', help: Help.graficaSpeedup }
+      : t?.kind === 'pair'
+        ? { title: 'Paralelo contra referencia', sub: 'tiempo de cada versión', help: Help.graficaPar }
+        : hasLiveSeries
+          ? { title: 'CPU y memoria durante la ejecución', sub: 'lo que usó mientras corría', help: Help.graficaEnVivo }
+          : { title: 'Resumen de recursos', sub: 'CPU, memoria y tareas', help: undefined }
 
   return (
     <Card>
-      <CardHead icon={<IconLayers size={16} />} title="Distribución del trabajo" />
+      <CardHead icon={<IconLayers size={16} />} title={heading.title} sub={heading.sub} right={heading.help} />
       <CardPad>
         {t?.kind === 'sweep' ? (
           <SpeedupChart series={t.series} />
@@ -74,11 +84,9 @@ function DegradedSummary({ job }: { job: JobDetailDto }) {
           <div className="mono-small">de {fmtBytes(m.mem_limit_bytes)}</div>
         </div>
         <div>
-          <div
-            className="metric-label"
-            title="Máximo de tareas del cgroup del contenedor (tini, Python y los pools de Numba/OpenMP), no el número de hilos OpenMP del programa"
-          >
+          <div className="metric-label">
             Tareas del contenedor
+            <span className="metric-help">{Help.tareasContenedor}</span>
           </div>
           <div className="metric-value">{m.pids_max}</div>
           <div className="mono-small">{m.samples} muestras</div>
@@ -102,7 +110,7 @@ const OBS_ICON = {
 export function ObservationsCard({ observations }: { observations: Observation[] }) {
   return (
     <Card>
-      <CardHead icon={<IconAlert size={16} />} title="Observaciones" />
+      <CardHead icon={<IconAlert size={16} />} title="Observaciones" right={Help.observaciones} />
       <div className="observations">
         {observations.map((o, i) => (
           <div key={i} className={`obs obs-${o.kind}`}>
@@ -165,9 +173,12 @@ export function OutputCard({
         icon={<IconTerminal size={16} />}
         title={`Output (stdout · ${lines.length} ${lines.length === 1 ? 'línea' : 'líneas'})`}
         right={
-          <Button variant="ghost" size="sm" onClick={onDownload} disabled={downloading}>
-            <IconDownload size={12} /> descargar
-          </Button>
+          <>
+            {Help.salida}
+            <Button variant="ghost" size="sm" onClick={onDownload} disabled={downloading}>
+              <IconDownload size={12} /> descargar
+            </Button>
+          </>
         }
       />
       <CardPad>

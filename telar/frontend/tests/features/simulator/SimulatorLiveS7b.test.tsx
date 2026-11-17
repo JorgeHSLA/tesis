@@ -120,7 +120,8 @@ describe('Hilos (topología)', () => {
   it('las tarjetas métricas son solo las medidas reales: tiempo, CPU y memoria', async () => {
     await openRunning()
     await screen.findByText('Tiempo transcurrido')
-    const labels = Array.from(document.querySelectorAll('.metric-label')).map((el) => el.textContent)
+    // El rótulo es el primer texto; el «?» de ayuda que lo acompaña no cuenta.
+    const labels = Array.from(document.querySelectorAll('.metric-label')).map((el) => el.firstChild?.textContent)
     expect(labels).toEqual(['Tiempo transcurrido', 'CPU del contenedor', 'Memoria'])
   })
 })
