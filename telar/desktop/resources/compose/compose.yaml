@@ -12,7 +12,7 @@ services:
     # artefacto; /api/v1/admin/* → 404). Un despliegue admin usa/publica la
     # imagen construida con `TELAR_ADMIN_BUILD=1` y añade `TELAR_ADMIN_MODE: "1"`
     # a este servicio backend.
-    image: ghcr.io/telar-javeriana/telar-backend:1.0.4
+    image: ghcr.io/telar-javeriana/telar-backend:1.0.5
     ports: ["127.0.0.1:8000:8000"]
     environment:
       TELAR_DB_PATH: /app/data/telar.db
