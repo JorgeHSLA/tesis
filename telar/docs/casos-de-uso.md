@@ -9,7 +9,7 @@
 >
 > **Estado a 2026-09-26** (cierre de la sesión S8). 🟢 = el recorrido normal
 > funciona; 🟡 = falta algo que afecta a un escenario normal; 🔴 = falta la
-> capacidad central; `?` = depende de una decisión pendiente del director.
+> capacidad central; ⚪ = fuera de alcance (decisión del 2026-11-18, §4.5).
 > Lo que quedó fuera a propósito está en el §6 («Limitaciones conocidas»).
 
 ## 1. Actores
@@ -60,17 +60,20 @@
 | CU-31 | Exportar resultados y métricas de ejecuciones | Estudiante | Simulación | 🟢 |
 | CU-32 | Guardar y reutilizar una configuración de ejecución | Estudiante | Simulación | 🟢 |
 | CU-33 | Instalar Telar | Usuario | Escritorio | 🟢 |
-| CU-34 | Explorar el catálogo de cursos disponibles | Usuario | Catálogo | 🟢 |
-| CU-35 | Descargar e incorporar un curso a Telar | Estudiante | Catálogo | 🟢 |
-| CU-36 | Descargar un curso para edición | Administrador | Catálogo | 🟢 |
-| CU-37 | Publicar un curso | Administrador | Catálogo | 🟢 |
-| CU-38 | Actualizar un curso incorporado | Estudiante | Catálogo | 🟢 |
-| CU-39 | Crear un curso | Administrador | Catálogo | 🔴? |
-| CU-40 | Editar información de un curso | Administrador | Catálogo | 🔴? |
-| CU-41 | Eliminar un curso (retirar del catálogo) | Administrador | Catálogo | 🟢 |
+| CU-34 | Explorar el catálogo remoto de módulos | Usuario | Catálogo | 🟢 |
+| CU-35 | Descargar e incorporar un módulo a Telar | Estudiante | Catálogo | 🟢 |
+| CU-36 | Descargar un módulo para edición | Administrador | Catálogo | 🟢 |
+| CU-37 | Publicar un módulo | Administrador | Catálogo | 🟢 |
+| CU-38 | Actualizar un módulo incorporado | Estudiante | Catálogo | 🟢 |
+| CU-39 | Crear un curso | Administrador | Catálogo | ⚪ |
+| CU-40 | Editar información de un curso | Administrador | Catálogo | ⚪ |
+| CU-41 | Retirar un módulo del catálogo | Administrador | Catálogo | 🟢 |
 
-**Recuento:** 39 🟢 · 0 🟡 · 2 🔴? (CU-39 y CU-40, pendientes de la decisión
-«curso = módulo publicable», §4.4).
+**Recuento:** 39 🟢 · 0 🟡 · 0 🔴 · 2 ⚪ (CU-39 y CU-40, fuera de alcance, §4.5).
+En el catálogo oficial de la tesis (Excel) CU-27 y CU-33 figuran como
+*Parcial*: el código está completo, pero falta documentar con evidencia la
+instalación en Linux que exige RNF-07. Allí el recuento es 37 implementados,
+2 parciales y 2 fuera de alcance.
 
 ## 3. Equivalencia con la numeración anterior (34 CU)
 
@@ -158,15 +161,20 @@ cerrados por D+. Las alternativas pesadas (tablas espejo `draft_*`, snapshot
 publicado, columna `status` por fila) se descartaron por sobreingeniería: ver el
 informe, §3.1.
 
-### 4.5 «Curso» = el módulo publicable (pendiente de confirmar)
+### 4.5 Un solo curso; el módulo es la unidad publicable (decidido 2026-11-18)
 
-Hoy la unidad publicable es el **módulo**: un bundle es un módulo y el índice
-del catálogo es una lista plana de módulos. El contrato (§11.8.4) y la
-implementación de CU-41 ya usan esa equivalencia. Con ella, CU-39 ≡ CU-13 + CU-37
-y CU-40 ≡ CU-14. **Falta que el director la confirme**; mientras tanto CU-39 y
-CU-40 figuran como 🔴? y sus faltantes 39.1, 39.2 y 40.1 siguen abiertos. Una
-entidad `curso` que agrupe módulos exigiría tabla nueva, `modules.course_id`,
-`bundle_format` nuevo y rompería la compatibilidad con la v1.0.5: se descartó.
+El modelo es **curso → módulos → lecciones**, y Telar ofrece **un único curso**
+(el curso TELAR). La unidad que se publica, se distribuye y se actualiza es el
+**módulo**: un bundle es un módulo y el índice del catálogo es una lista plana
+de módulos (contrato §11.8.4). Por eso CU-34 a CU-38 y CU-41 se nombran sobre
+módulos.
+
+CU-39 (crear un curso) y CU-40 (editar la información de un curso) quedan
+**fuera de alcance**: con un solo curso no aportan, y una entidad `curso` que
+agrupe módulos exigiría tabla nueva, `modules.course_id`, `bundle_format`
+nuevo y rompería la compatibilidad con la v1.0.5. Queda como trabajo futuro.
+Se descartó la equivalencia anterior «curso = módulo» (CU-39 ≡ CU-13 + CU-37,
+CU-40 ≡ CU-14) porque contradice el modelo: un curso contiene módulos.
 
 ---
 
@@ -998,7 +1006,7 @@ en Windows y Linux por versión): CU-33.1 queda parcial (§6).
 
 ---
 
-### CU-34 — Explorar el catálogo de cursos disponibles
+### CU-34 — Explorar el catálogo remoto de módulos
 
 **Actor:** Usuario. **Disparador:** abre *Módulos* (`#/modulos`).
 **Precondiciones:** catálogo configurado (bucket `clasestelar`, lectura anónima).
@@ -1023,7 +1031,7 @@ enlace para volver; otros fallos, `ErrorState` con «Reintentar».
 
 ---
 
-### CU-35 — Descargar e incorporar un curso a Telar
+### CU-35 — Descargar e incorporar un módulo a Telar
 
 **Actor:** Estudiante. **Disparador:** «Incorporar» sobre una publicación.
 
@@ -1044,7 +1052,7 @@ y nada queda a medias.
 
 ---
 
-### CU-36 — Descargar un curso para edición
+### CU-36 — Descargar un módulo para edición
 
 **Actor:** Administrador. **Disparador:** «Importar» en Autoría.
 
@@ -1064,7 +1072,7 @@ y nada queda a medias.
 
 ---
 
-### CU-37 — Publicar un curso
+### CU-37 — Publicar un módulo
 
 **Actor:** Administrador. **Disparador:** «Publicar» sobre un módulo.
 **Precondiciones:** credencial de escritura (`TELAR_GCS_CREDENTIALS`, permisos
@@ -1103,9 +1111,9 @@ diálogo no se cierra con la publicación en vuelo (publicar es irreversible).
 
 ---
 
-### CU-38 — Actualizar un curso incorporado
+### CU-38 — Actualizar un módulo incorporado
 
-**Actor:** Estudiante. **Disparador:** «Actualizar» en un curso con versión
+**Actor:** Estudiante. **Disparador:** «Actualizar» en un módulo con versión
 nueva.
 
 **Flujo principal:**
@@ -1133,31 +1141,24 @@ pero **nunca** el progreso.
 
 ### CU-39 — Crear un curso
 
-**Estado:** 🔴? — pendiente de la decisión «curso = módulo publicable» (§4.5).
+**Estado:** ⚪ fuera de alcance (§4.5). Telar ofrece un único curso; crear
+módulos dentro de él es CU-13.
 
-**Con esa decisión:** crear un curso es crear un módulo (CU-13), añadirle
-lecciones (CU-17) y publicarlo (CU-37). El módulo puede empezar vacío y
-permanecer en Autoría sin publicar; el aviso de cambios sin guardar (39.4) y la
-separación entre edición y publicación (39.3, por D+) ya están cubiertos.
-
-**Sin esa decisión** faltan una entidad curso persistida con su formulario y
+Implementarlo exigiría una entidad curso persistida con su formulario y
 listado (39.1) y la asociación de módulos a cursos (39.2).
 
 ---
 
 ### CU-40 — Editar información de un curso
 
-**Estado:** 🔴? — pendiente de la misma decisión (§4.5).
+**Estado:** ⚪ fuera de alcance (§4.5). Editar la información de un módulo
+es CU-14.
 
-**Con esa decisión:** editar la información del curso es editar la del módulo
-(CU-14: título, descripción, nivel, orden), con el aviso de cambios sin guardar
-(40.2) y D+ para distinguir lo editado de lo publicado (40.3).
-
-**Sin esa decisión** falta la información general propia del curso (40.1).
+Implementarlo exigiría la información general propia del curso (40.1).
 
 ---
 
-### CU-41 — Eliminar un curso (retirar del catálogo)
+### CU-41 — Retirar un módulo del catálogo
 
 **Actor:** Administrador. **Disparador:** «Retirar del catálogo» sobre un
 módulo publicado.
@@ -1205,5 +1206,4 @@ recorrido normal de su CU.
 | CU-37.2 | El checksum del ensayo no se ancla al de la publicación (incluye `published_at`) | D+ compara con `content_hash`, que sí es estable; anclar el checksum no aporta más |
 | CU-41.3 | Borrar en local (CU-16) y retirar del catálogo (CU-41) son dos operaciones separadas, sin coordinación de fallos | Cada una es atómica por sí sola; coordinarlas exige reconciliación |
 
-**Pendientes de decisión del director:** CU-39.1, CU-39.2 y CU-40.1 (entidad
-curso, §4.5).
+**Fuera de alcance:** CU-39.1, CU-39.2 y CU-40.1 (entidad curso, §4.5).
