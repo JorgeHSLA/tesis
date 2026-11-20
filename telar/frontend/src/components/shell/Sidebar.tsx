@@ -111,7 +111,13 @@ export function Sidebar() {
   return (
     <aside ref={railRef} className="sidebar" data-expanded={expanded} {...tipHandlers}>
       <div className="sidebar-brand">
-        <div className="sidebar-brand-mark" aria-hidden="true">T</div>
+        <div className="sidebar-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 16 16" shapeRendering="crispEdges" focusable="false">
+            <rect width="16" height="16" fill="#A8501E" />
+            <path fill="#6E3512" d="M3 4h10v3H3z M6 7h4v6H6z" />
+            <path fill="#FDF8EE" d="M2 3h10v3H2z M5 6h4v6H5z" />
+          </svg>
+        </div>
         <div className="sidebar-brand-textwrap">
           <div className="sidebar-brand-text">Telar</div>
           <div className="sidebar-brand-sub">v1.0 · local</div>
