@@ -29,6 +29,17 @@ elegir el ejemplo/los hilos y volver a Aprender desde Resultados.
 | Volver / avanzar entre pantallas | Flechas en la barra superior. |
 | Docker Desktop cerrado = error feo | Telar abre Docker Desktop al iniciar y lo cierra al salir (solo si lo abrió él); errores de Docker en lenguaje llano y barra de carga. |
 
+## Logo nuevo (recompilación de la 1.0.12, 2026-11-19)
+
+La T pixelada (crema sobre terracota `#A8501E`, con sombra) pasa a ser el icono de la
+app instalada (`icon.ico` y PNG de 16 a 512 px), la marca de la barra lateral y el
+favicon (commit `595e611`). Como el código de la app no cambió en nada más, se
+**recompiló la misma 1.0.12** y se reemplazaron sus cuatro instaladores y el
+`SHA256SUMS-1.0.12.txt` en GitHub Releases; el sitio de descargas publica los checksums
+nuevos. Quien ya tenía la 1.0.12 instalada conserva el icono anterior hasta reinstalar
+(misma versión, no hay actualización). La verificación en Linux de la memoria
+(RNF-07, 2026-11-19) se hizo con el build anterior (`.deb` `bffdaf…`).
+
 ## Decisiones que conviene recordar
 
 - **Imágenes en la nube, no en el módulo:** el bundle sigue pesando kilobytes. A cambio,
